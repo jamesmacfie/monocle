@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/chrome-manifest.json",
+  "manifest_version": 3,
+  "version": "0.0.1",
+  "name": "Monocle - Command Palette for the Web",
+  "description": "A browser extension that adds a command palette interface to any webpage, similar to VS Code's Command Palette or macOS Spotlight.",
+  "icons": {
+    "48": "images/extension_48.png"
+  },
+  "background": {
+    "chromium:service_worker": "background.ts",
+    "firefox:scripts": ["background.ts"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["./content/scripts.tsx"]
+    }
+  ],
+  "chrome_url_overrides": {
+    "newtab": "newtab/index.html"
+  }
+}

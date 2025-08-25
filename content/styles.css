@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+.monocle-content-script {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 99999;
+  max-width: 400px;
+}
