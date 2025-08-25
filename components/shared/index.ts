@@ -1,1 +1,1 @@
-export { default as MonocleText } from './MonocleText'
+export { SharedCommandPalette } from './SharedCommandPalette'

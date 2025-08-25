@@ -8,8 +8,8 @@
     "48": "images/extension_48.png"
   },
   "background": {
-    "chromium:service_worker": "background.ts",
-    "firefox:scripts": ["background.ts"]
+    "chromium:service_worker": "background/index.ts",
+    "firefox:scripts": ["background/index.ts"]
   },
   "content_scripts": [
     {
@@ -19,5 +19,17 @@
   ],
   "chrome_url_overrides": {
     "newtab": "newtab/index.html"
-  }
+  },
+  "author": "Your Name",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ff@monocle.com"
+    }
+  },
+  "permissions": [
+    "cookies",
+    "contextualIdentities",
+    "tabs",
+    "storage"
+  ]
 }
