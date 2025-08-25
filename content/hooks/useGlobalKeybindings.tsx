@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useSendMessage } from "./useSendMessage";
+import { useSendMessage } from "../../shared/hooks/useSendMessage";
 
 // Cross-browser compatibility layer
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;

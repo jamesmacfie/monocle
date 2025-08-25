@@ -1,22 +1,21 @@
 import * as React from "react";
 const { useEffect, useCallback } = React;
-import { CommandPalette } from "../../shared/components/command";
-import type { DialogProps } from "@radix-ui/react-dialog";
-import { useCommandPaletteState } from "../hooks/useCommandPaletteState";
-import { useSendMessage } from "../../shared/hooks/useSendMessage";
-import { useGetCommands } from "../../shared/hooks/useGetCommands";
-import { useGlobalKeybindings } from "../hooks/useGlobalKeybindings";
+import { CommandPalette } from "./command";
+import { useGetCommands } from "../hooks/useGetCommands";
+import { useSendMessage } from "../hooks/useSendMessage";
+import { useCommandPaletteState } from "../../content/hooks/useCommandPaletteState";
+import { useGlobalKeybindings } from "../../content/hooks/useGlobalKeybindings";
 
-interface Props extends DialogProps {
-  onClose?: () => void; // Add an onClose prop
+interface ContentCommandPaletteProps {
+  onClose?: () => void;
 }
 
-export const CommandPaletteUI: React.FC<Props> = ({ onClose }) => {
+export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({ onClose }) => {
   const { data, isLoading, fetchCommands } = useGetCommands();
   const { isOpen, hideUI } = useCommandPaletteState();
   const sendMessage = useSendMessage();
 
-  // Enable global keybindings - must be outside conditional rendering
+  // Enable global keybindings for content script
   useGlobalKeybindings();
 
   // Fetch commands on initial render
@@ -24,13 +23,12 @@ export const CommandPaletteUI: React.FC<Props> = ({ onClose }) => {
     fetchCommands();
   }, []);
 
+  // Fetch commands when UI is hidden to keep them up to date
   useEffect(() => {
-    // Fetch commands when UI is hidden so that the commands are up to date
-    // when next loaded
     if (!isOpen) {
       fetchCommands();
     }
-  }, [isOpen]);
+  }, [isOpen, fetchCommands]);
 
   // Execute command via background script
   const executeCommand = useCallback(
@@ -47,19 +45,25 @@ export const CommandPaletteUI: React.FC<Props> = ({ onClose }) => {
         });
 
         if (response.success && navigateBack) {
-          hideUI(); // Close palette on successful execution
+          hideUI(); // Close palette in content script mode
+          onClose?.(); // Call additional close handler if provided
         }
 
         // TODO: Handle errors
       } catch (error) {
         console.error(
-          "[CommandPaletteUI] Error sending execute message:",
+          "[ContentCommandPalette] Error sending execute message:",
           error
         );
       }
     },
-    [hideUI]
+    [hideUI, onClose, sendMessage]
   );
+
+  const handleClose = useCallback(() => {
+    hideUI();
+    onClose?.();
+  }, [hideUI, onClose]);
 
   return (
     <>
@@ -67,7 +71,7 @@ export const CommandPaletteUI: React.FC<Props> = ({ onClose }) => {
         <CommandPalette
           items={data}
           executeCommand={executeCommand}
-          close={hideUI}
+          close={handleClose}
           onRefreshCommands={fetchCommands}
         />
       )}

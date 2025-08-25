@@ -6,7 +6,7 @@ declare global {
 }
 
 import ReactDOM from "react-dom/client";
-import { SharedCommandPalette } from "../components/shared/SharedCommandPalette";
+import { ContentCommandPalette } from "../shared/components/ContentCommandPalette";
 
 let unmount: () => void;
 
@@ -63,7 +63,7 @@ function initial() {
     const mountingPoint = ReactDOM.createRoot(shadowRoot);
     mountingPoint.render(
       <div className="content_script raycast">
-        <SharedCommandPalette />
+        <ContentCommandPalette />
       </div>
     );
 

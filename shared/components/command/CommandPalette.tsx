@@ -3,8 +3,8 @@ import { Command, useCommandState } from "cmdk";
 import type { CommandData, Page } from "../../types/command";
 import CommandUI from "../commandUI";
 import { useCommandNavigation } from "../../hooks/useCommandNavigation";
-import CopyToClipboardListener from "../copyToClipboard";
-import NewTabListener from "../newTab";
+import CopyToClipboardListener from "../../../content/components/copyToClipboard";
+import NewTabListener from "../../../content/components/newTab";
 import { useActionLabel } from "../../hooks/useActionLabel";
 import { getDisplayName } from "./CommandName";
 import { CommandHeader } from "./CommandHeader";
@@ -127,6 +127,7 @@ interface Props {
   ) => Promise<void>;
   close: () => void;
   onRefreshCommands: () => void;
+  autoFocus?: boolean;
 }
 
 export function CommandPalette({
@@ -134,6 +135,7 @@ export function CommandPalette({
   executeCommand,
   close,
   onRefreshCommands,
+  autoFocus = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [actionsState, setActionsState] = useState<{
@@ -153,10 +155,17 @@ export function CommandPalette({
     selectCommand,
   } = useCommandNavigation(items, inputRef, executeCommand);
 
-  // Focus input when mounted
+  // Focus input when mounted (with delay for new tab context)
   useEffect(() => {
-    inputRef?.current?.focus();
-  }, []);
+    if (autoFocus) {
+      // Add small delay to ensure DOM is ready, especially for new tab
+      setTimeout(() => {
+        inputRef?.current?.focus();
+      }, 100);
+    } else {
+      inputRef?.current?.focus();
+    }
+  }, [autoFocus]);
 
   const handleOpenActions = (suggestion: CommandSuggestion) => {
     setActionsState({
