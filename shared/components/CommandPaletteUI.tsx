@@ -3,6 +3,7 @@ const { useEffect, useCallback } = React;
 import { CommandPalette } from "./command";
 import { useGetCommands } from "../hooks/useGetCommands";
 import { useSendMessage } from "../hooks/useSendMessage";
+import { useGlobalKeybindings } from "../../content/hooks/useGlobalKeybindings";
 
 interface CommandPaletteUIProps {
   isAlwaysVisible?: boolean;
@@ -19,6 +20,9 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
 }) => {
   const { data, isLoading, fetchCommands } = useGetCommands();
   const sendMessage = useSendMessage();
+
+  // Enable global keybindings
+  useGlobalKeybindings();
 
   // Fetch commands on initial render
   useEffect(() => {

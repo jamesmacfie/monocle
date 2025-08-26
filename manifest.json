@@ -31,5 +31,14 @@
     "contextualIdentities",
     "tabs",
     "storage"
-  ]
+  ],
+  "commands": {
+    "toggle-command-palette": {
+      "suggested_key": {
+        "default": "Ctrl+J",
+        "mac": "Command+J"
+      },
+      "description": "Toggle command palette"
+    }
+  }
 }

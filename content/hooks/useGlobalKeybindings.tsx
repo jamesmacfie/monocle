@@ -91,7 +91,8 @@ export function useGlobalKeybindings() {
     };
 
     // Use capture: true to intercept before page handlers
-    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    // Add passive: false to ensure we can preventDefault
+    window.addEventListener("keydown", handleKeyDown, { capture: true, passive: false });
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
