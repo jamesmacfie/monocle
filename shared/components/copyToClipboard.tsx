@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { CopyToClipboardEvent } from "../../types";
-import { useCopyToClipboard } from "../../shared/hooks/useCopyToClipboard";
+import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
 
 export default function CopyToClipboardListener() {
   const [_, copy] = useCopyToClipboard();

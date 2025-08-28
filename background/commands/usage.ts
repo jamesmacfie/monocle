@@ -18,7 +18,7 @@ interface StoredUsageData {
 }
 
 const USAGE_STORAGE_KEY = "monocle-commandUsage";
-const CLEANUP_INTERVAL_DAYS = 30; // Clean up data older than 30 days
+const CLEANUP_INTERVAL_DAYS = 90; // Clean up data older than 90 days
 const EMA_SMOOTHING_FACTOR = 0.2; // Alpha for exponential moving average
 const RECENCY_DECAY_RATE = 0.099; // Half-life of 7 days: ln(2)/7
 const TIME_BOOST_FACTOR = 0.5; // Maximum boost factor for time-of-day similarity
@@ -102,7 +102,9 @@ export const calculateCommandScore = (stats: CommandUsageStats, currentHour: num
 
   // 4. Combine with EMA for smoothing
   const currentScore = frequencyScore * recencyScore * timeBoost;
-  const newEmaScore = EMA_SMOOTHING_FACTOR * currentScore + (1 - EMA_SMOOTHING_FACTOR) * stats.emaScore;
+  // Initialize EMA to current score for new commands to avoid cold start penalty
+  const newEmaScore = stats.emaScore === 0 ? currentScore : 
+    EMA_SMOOTHING_FACTOR * currentScore + (1 - EMA_SMOOTHING_FACTOR) * stats.emaScore;
 
   return newEmaScore;
 };
