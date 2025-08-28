@@ -4,6 +4,7 @@ import { toolCommands } from "../commands/tools";
 import { firefoxCommands } from "../commands/browser/firefox";
 import { debug } from "../commands/debug";
 import { isFirefox } from "../utils/browser";
+import { match } from "ts-pattern";
 
 // Map of keybinding string to command ID
 const keybindingRegistry = new Map<string, string>();
@@ -41,22 +42,22 @@ export function parseKeybinding(keybinding: string): {
   };
 
   for (const part of parts) {
-    switch (part) {
-      case "cmd":
+    match(part)
+      .with("cmd", () => {
         result.cmd = true;
-        break;
-      case "ctrl":
+      })
+      .with("ctrl", () => {
         result.ctrl = true;
-        break;
-      case "alt":
+      })
+      .with("alt", () => {
         result.alt = true;
-        break;
-      case "shift":
+      })
+      .with("shift", () => {
         result.shift = true;
-        break;
-      default:
+      })
+      .otherwise(() => {
         result.key = part;
-    }
+      });
   }
 
   return result;

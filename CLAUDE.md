@@ -226,16 +226,22 @@ interface ExecutionContext {
 ```typescript
 // background/messages/index.ts
 handleMessage(message) {
-  switch(message.type) {
-    case "get-commands": 
+  return await match(message)
+    .with({ type: "get-commands" }, async (msg) => {
       // Returns {favorites, recents, suggestions}
-    case "execute-command":
+    })
+    .with({ type: "execute-command" }, async (msg) => {
       // Finds and executes command, updates usage stats
-    case "get-children-commands":
+    })
+    .with({ type: "get-children-commands" }, async (msg) => {
       // Returns child commands for ParentCommand
-    case "execute-keybinding":
+    })
+    .with({ type: "execute-keybinding" }, async (msg) => {
       // Maps keybinding to command and executes
-  }
+    })
+    .otherwise(() => {
+      throw new Error(`Unknown message type: ${(message as any).type}`);
+    });
 }
 ```
 
@@ -305,13 +311,13 @@ Key React hooks for state management:
 
 ### Deployment Mode Differences
 
-| Aspect | Content Script Mode | New Tab Mode |
-|--------|-------------------|--------------|
-| **DOM** | Shadow DOM | Regular DOM |
-| **Visibility** | Toggle on Cmd+K | Always visible |
-| **Styling** | Injected CSS | Regular stylesheet |
-| **Close Behavior** | Hides on command execution | Stays open (configurable) |
-| **Focus Management** | Manual focus handling | Auto-focus enabled |
+| Aspect               | Content Script Mode        | New Tab Mode              |
+| -------------------- | -------------------------- | ------------------------- |
+| **DOM**              | Shadow DOM                 | Regular DOM               |
+| **Visibility**       | Toggle on Cmd+K            | Always visible            |
+| **Styling**          | Injected CSS               | Regular stylesheet        |
+| **Close Behavior**   | Hides on command execution | Stays open (configurable) |
+| **Focus Management** | Manual focus handling      | Auto-focus enabled        |
 
 ## Keybinding System
 

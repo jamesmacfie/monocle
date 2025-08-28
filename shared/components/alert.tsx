@@ -3,6 +3,7 @@ import type { AlertEvent } from "../../types";
 import { Info, AlertCircle, CheckCircle, XCircle, X, Copy } from "lucide-react";
 import { Icon } from "./icon";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
+import { match } from "ts-pattern";
 
 interface Props {
   message: string;
@@ -22,18 +23,20 @@ export const Alert = ({ message, level, onClose, icon, copyText }: Props) => {
       return <Icon name={icon.name} url={icon.url} noBackground />;
     }
 
-    switch (level) {
-      case "info":
+    return match(level)
+      .with("info", () => {
         return <Icon name={"Info"} noBackground size={16} />;
-      case "warning":
+      })
+      .with("warning", () => {
         return <Icon name={"AlertCircle"} noBackground size={16} />;
-      case "success":
+      })
+      .with("success", () => {
         return <Icon name={"CheckCircle"} noBackground size={16} />;
-      case "error":
+      })
+      .with("error", () => {
         return <Icon name={"XCircle"} noBackground size={16} />;
-      default:
-        return null;
-    }
+      })
+      .exhaustive();
   };
 
   return (
@@ -45,6 +48,7 @@ export const Alert = ({ message, level, onClose, icon, copyText }: Props) => {
       <div className="alert-actions">
         {copyText && (
           <button
+            type="button"
             className="copy-button"
             onClick={() => copyToClipboard(copyText)}
           >
@@ -52,7 +56,7 @@ export const Alert = ({ message, level, onClose, icon, copyText }: Props) => {
           </button>
         )}
         {onClose && (
-          <button className="close-button" onClick={onClose}>
+          <button type="button" className="close-button" onClick={onClose}>
             <X size={16} />
           </button>
         )}
