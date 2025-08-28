@@ -1,5 +1,5 @@
 import type { RunCommand } from "../../../types";
-import { queryTabs, updateTab } from "../../utils/browser";
+import { getActiveTab, updateTab } from "../../utils/browser";
 
 export const muteCurrentTab: RunCommand = {
   id: "mute-current-tab",
@@ -7,9 +7,8 @@ export const muteCurrentTab: RunCommand = {
   icon: { name: 'VolumeX' },
   color: "red",
   run: async () => {
-    // Get the active tab and update it
-    const [activeTab] = await queryTabs({ active: true, currentWindow: true });
-    if (activeTab?.id) {
+    const activeTab = await getActiveTab()
+    if (activeTab) {
       await updateTab(activeTab.id, { muted: true });
     }
   },

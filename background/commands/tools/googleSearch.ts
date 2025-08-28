@@ -1,5 +1,5 @@
 import type { UICommand } from "../../../types";
-import { queryTabs, sendTabMessage } from "../../utils/browser";
+import { getActiveTab, sendTabMessage } from "../../utils/browser";
 
 export const googleSearch: UICommand = {
   id: "google-search",
@@ -13,9 +13,9 @@ export const googleSearch: UICommand = {
       placeholder: "Your search query",
     }
   ],
-  run: async (context, values) => {
-    const [activeTab] = await queryTabs({ active: true, currentWindow: true });
-    if (activeTab?.id) {
+  run: async (_context, values) => {
+    const activeTab = await getActiveTab()
+    if (activeTab) {
       try {
         await sendTabMessage(activeTab.id, {
           type: "monocle-newTab",

@@ -22,19 +22,7 @@ export function callBrowserAPI(apiObject: BrowserAPIObject, method: string, ...a
 }
 
 export async function sendTabMessage(tabId: number, message: Event): Promise<any> {
-  if (isFirefox) {
-    return browser.tabs.sendMessage(tabId, message);
-  } else {
-    return new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(tabId, message, (response) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
-        } else {
-          resolve(response);
-        }
-      });
-    });
-  }
+  return callBrowserAPI('tabs', 'sendMessage', tabId, message)
 }
 
 export async function queryTabs(queryInfo: any): Promise<any[]> {
@@ -59,6 +47,11 @@ export async function getTab(tabId: number): Promise<any> {
 
 export async function createWindow(createData: any): Promise<any> {
   return callBrowserAPI('windows', 'create', createData);
+}
+
+export async function getActiveTab(): Promise<any | null> {
+  const [activeTab] = await queryTabs({ active: true, currentWindow: true })
+  return activeTab?.id ? activeTab : null
 }
 
 export async function getCurrentWindow(): Promise<any> {
@@ -93,8 +86,8 @@ export async function focusOrGoToUrl(url: string): Promise<void> {
     await updateTab(tab.id, { active: true });
   } else {
     // Update current tab with URL if it exists
-    const [activeTab] = await queryTabs({ active: true, currentWindow: true });
-    if (activeTab?.id) {
+    const activeTab = await getActiveTab()
+    if (activeTab) {
       await updateTab(activeTab.id, { url });
     } else {
       // If the tab is not found, create a new tab

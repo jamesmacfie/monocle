@@ -1,4 +1,5 @@
 import type { Command } from '../../types';
+import { getActiveTab } from '../utils/browser';
 
 export const clearRecentsCommand: Command = {
   id: 'clear-recents',
@@ -11,9 +12,9 @@ export const clearRecentsCommand: Command = {
       await browser.storage.local.remove('monocle-commandUsage');
 
       // Send success notification
-      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-      if (tabs[0]?.id) {
-        browser.tabs.sendMessage(tabs[0].id, {
+      const activeTab = await getActiveTab()
+      if (activeTab) {
+        browser.tabs.sendMessage(activeTab.id, {
           type: 'monocle-alert',
           level: 'success',
           message: 'Recent commands cleared successfully'
@@ -23,9 +24,9 @@ export const clearRecentsCommand: Command = {
       console.error('Failed to clear recent commands:', error);
 
       // Send error notification
-      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-      if (tabs[0]?.id) {
-        browser.tabs.sendMessage(tabs[0].id, {
+      const activeTab = await getActiveTab()
+      if (activeTab) {
+        browser.tabs.sendMessage(activeTab.id, {
           type: 'monocle-alert',
           level: 'error',
           message: 'Failed to clear recent commands'

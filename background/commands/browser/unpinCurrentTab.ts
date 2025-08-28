@@ -1,5 +1,5 @@
 import type { RunCommand } from "../../../types";
-import { queryTabs, updateTab } from "../../utils/browser";
+import { updateTab } from "../../utils/browser";
 
 export const unpinCurrentTab: RunCommand = {
   // TODO - should only show this if the current tab is actually pinned
@@ -8,8 +8,8 @@ export const unpinCurrentTab: RunCommand = {
   icon: { name: 'PinOff' },
   color: "green",
   run: async () => {
-    const [activeTab] = await queryTabs({ active: true, currentWindow: true });
-    if (activeTab?.id) {
+    const activeTab = await getActiveTab()
+    if (activeTab) {
       await updateTab(activeTab.id, { pinned: false });
     }
   },

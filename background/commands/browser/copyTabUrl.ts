@@ -1,5 +1,5 @@
 import type { ParentCommand, RunCommand } from "../../../types";
-import { queryTabs, sendTabMessage } from "../../utils/browser";
+import { getActiveTab, queryTabs, sendTabMessage } from "../../utils/browser";
 
 export const copyTabUrl: ParentCommand = {
   id: "copy-tab-url",
@@ -18,8 +18,8 @@ export const copyTabUrl: ParentCommand = {
             return { url: tab.favIconUrl };
           },
           run: async () => {
-            const [activeTab] = await queryTabs({ active: true, currentWindow: true });
-            if (activeTab?.id) {
+            const activeTab = await getActiveTab()
+            if (activeTab) {
               await sendTabMessage(activeTab.id, {
                 type: "monocle-copyToClipboard",
                 message: tab.url

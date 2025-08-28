@@ -1,5 +1,5 @@
 import type { RunCommand } from "../../../types";
-import { queryTabs, removeTab } from "../../utils/browser";
+import { getActiveTab, queryTabs, removeTab } from "../../utils/browser";
 
 export const closeTabsToRight: RunCommand = {
   id: "close-tabs-to-right",
@@ -7,10 +7,9 @@ export const closeTabsToRight: RunCommand = {
   icon: { name: "ChevronRight" },
   color: "red",
   run: async () => {
-    // Get the active tab directly
-    const [activeTab] = await queryTabs({ active: true, currentWindow: true });
+    const activeTab = await getActiveTab()
 
-    if (!activeTab?.id) {
+    if (!activeTab) {
       console.error("No active tab found");
       return;
     }

@@ -3,6 +3,7 @@ console.log("[Background] Loading background script...");
 import { handleMessage } from "./messages";
 import { addRuntimeListener, createCrossBrowserMessageHandler } from "./utils/runtime";
 import { initializeKeybindingRegistry } from "./keybindings/registry";
+import { getActiveTab } from "./utils/browser";
 
 // Cross-browser compatibility layer
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
@@ -22,17 +23,17 @@ console.log("[Background] Setting up browser commands listener...");
 if (browserAPI.commands) {
   browserAPI.commands.onCommand.addListener((command) => {
     console.log("[Background] Browser command triggered:", command);
-    
+
     if (command === "toggle-command-palette") {
       // Send toggle message to active tab
-      browserAPI.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.id) {
-          browserAPI.tabs.sendMessage(tabs[0].id, { type: "toggle-ui" })
+      getActiveTab().then((activeTab) => {
+        if (activeTab) {
+          browserAPI.tabs.sendMessage(activeTab.id, { type: "toggle-ui" })
             .catch((error) => {
               console.debug("[Background] Could not send toggle message to tab:", error);
             });
         }
-      });
+      })
     }
   });
 }

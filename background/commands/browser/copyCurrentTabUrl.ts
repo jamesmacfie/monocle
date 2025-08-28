@@ -1,6 +1,6 @@
 import type { Command } from "../../../types";
 import { v4 as uuidv4 } from "uuid";
-import { queryTabs, sendTabMessage } from "../../utils/browser";
+import { getActiveTab, queryTabs, sendTabMessage } from "../../utils/browser";
 
 export const copyCurrentTabUrl: Command = {
   id: "copyCurrentTabUrl",
@@ -13,9 +13,9 @@ export const copyCurrentTabUrl: Command = {
       name: "Copy URL",
       icon: { name: 'Copy' },
       keybinding: "↵",
-      run: async (context, values) => {
-        const [activeTab] = await queryTabs({ active: true, currentWindow: true });
-        if (activeTab?.id) {
+      run: async () => {
+        const activeTab = await getActiveTab()
+        if (activeTab?.url) {
           await sendTabMessage(activeTab.id, {
             type: "monocle-copyToClipboard",
             message: activeTab.url
@@ -28,9 +28,9 @@ export const copyCurrentTabUrl: Command = {
       name: "Copy URL without parameters",
       icon: { name: 'Copy' },
       keybinding: "⌘ ↵",
-      run: async (context, values) => {
-        const [activeTab] = await queryTabs({ active: true, currentWindow: true });
-        if (activeTab?.id && activeTab.url) {
+      run: async () => {
+        const activeTab = await getActiveTab()
+        if (activeTab?.url) {
           try {
             const url = new URL(activeTab.url);
             const cleanUrl = `${url.protocol}//${url.host}${url.pathname}`;
@@ -53,9 +53,9 @@ export const copyCurrentTabUrl: Command = {
       name: "Copy domain only",
       icon: { name: 'Globe' },
       keybinding: "⌘ ⇧ ↵",
-      run: async (context, values) => {
-        const [activeTab] = await queryTabs({ active: true, currentWindow: true });
-        if (activeTab?.id && activeTab.url) {
+      run: async () => {
+        const activeTab = await getActiveTab()
+        if (activeTab?.url) {
           try {
             const url = new URL(activeTab.url);
             await sendTabMessage(activeTab.id, {
@@ -73,9 +73,9 @@ export const copyCurrentTabUrl: Command = {
       },
     }
   ],
-  run: async (context, values) => {
-    const [activeTab] = await queryTabs({ active: true, currentWindow: true });
-    if (activeTab?.id) {
+  run: async () => {
+    const activeTab = await getActiveTab()
+    if (activeTab?.url) {
       await sendTabMessage(activeTab.id, {
         type: "monocle-copyToClipboard",
         message: activeTab.url

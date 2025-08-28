@@ -1,5 +1,5 @@
-import type { AlertEvent, Command } from "../../../types";
-import { sendTabMessage } from "../../utils/browser";
+import type { Command } from "../../../types";
+import { getActiveTab, sendTabMessage } from "../../utils/browser";
 
 function stringMath(eq: string): number {
   const mulDiv =
@@ -78,12 +78,14 @@ export const calculator: Command = {
     cmd: "Copy Answer",
   },
   run: async (context, values) => {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tabs[0]?.id) {
+    const activeTab = await getActiveTab()
+
+    console.log({ activeTab })
+    if (activeTab) {
       const result = stringMath(values?.calculation || "");
 
       try {
-        sendTabMessage(tabs[0].id, {
+        sendTabMessage(activeTab.id, {
           type: "monocle-alert",
           level: "success",
           message: result.toString(),
@@ -91,7 +93,7 @@ export const calculator: Command = {
         });
 
         if (context?.modifierKey === "cmd") {
-          sendTabMessage(tabs[0].id, {
+          sendTabMessage(activeTab.id, {
             type: "monocle-copyToClipboard",
             message: result.toString(),
           });

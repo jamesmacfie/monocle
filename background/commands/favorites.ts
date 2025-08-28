@@ -1,4 +1,5 @@
 import type { Command, ExecutionContext } from "../../types";
+import { getActiveTab, queryTabs } from "../utils/browser";
 
 const STORAGE_KEY = "monocle-favoriteCommandIds";
 
@@ -80,7 +81,7 @@ export const toggleFavoriteCommand: Command = {
   icon: { name: "Star" },
   color: "amber",
   doNotAddToRecents: true,
-  run: async (context?: ExecutionContext, values?: Record<string, string>) => {
+  run: async (_context?: ExecutionContext, values?: Record<string, string>) => {
     const commandId = values?.commandId;
     if (commandId) {
       await toggleFavoriteCommandId(commandId);
@@ -100,9 +101,10 @@ export const clearFavoritesCommand: Command = {
       await browser.storage.local.remove(STORAGE_KEY);
 
       // Send success notification
-      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-      if (tabs[0]?.id) {
-        browser.tabs.sendMessage(tabs[0].id, {
+      const activeTab = await getActiveTab()
+
+      if (activeTab) {
+        browser.tabs.sendMessage(activeTab.id, {
           type: 'monocle-alert',
           level: 'success',
           message: 'Favorite commands cleared successfully'
@@ -112,9 +114,9 @@ export const clearFavoritesCommand: Command = {
       console.error('Failed to clear favorite commands:', error);
 
       // Send error notification
-      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-      if (tabs[0]?.id) {
-        browser.tabs.sendMessage(tabs[0].id, {
+      const activeTab = await getActiveTab()
+      if (activeTab?.id) {
+        browser.tabs.sendMessage(activeTab.id, {
           type: 'monocle-alert',
           level: 'error',
           message: 'Failed to clear favorite commands'
