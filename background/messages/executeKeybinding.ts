@@ -4,7 +4,6 @@ import { executeCommand as executeCommandById } from "../commands";
 import { createMessageHandler } from "../utils/messages";
 
 const handleExecuteKeybinding = async (message: ExecuteKeybindingMessage) => {
-
   const commandId = getCommandIdForKeybinding(message.keybinding);
 
   if (!commandId) {
@@ -13,7 +12,6 @@ const handleExecuteKeybinding = async (message: ExecuteKeybindingMessage) => {
       error: `No command registered for keybinding: ${message.keybinding}`
     };
   }
-
 
   try {
     // Execute the command with empty form values

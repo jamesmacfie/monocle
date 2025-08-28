@@ -1,6 +1,5 @@
 import type { Command } from "../../../types";
-import { v4 as uuidv4 } from "uuid";
-import { getActiveTab, queryTabs, sendTabMessage } from "../../utils/browser";
+import { getActiveTab, sendTabMessage } from "../../utils/browser";
 
 export const copyCurrentTabUrl: Command = {
   id: "copyCurrentTabUrl",

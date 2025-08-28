@@ -6,10 +6,9 @@ import type { Message } from "../../types";
 
 export const handleMessage = async (message: Message) => {
   console.debug("[HandleMessage] Received message:", message.type, message);
-  
+
   switch (message.type) {
     case "get-commands":
-      console.debug("[HandleMessage] Processing get-commands");
       return await getCommands(message);
     case "get-children-commands":
       return await getChildrenCommands(message);

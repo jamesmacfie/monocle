@@ -8,17 +8,13 @@ import { getActiveTab } from "./utils/browser";
 // Cross-browser compatibility layer
 const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
-console.log("[Background] Imports loaded, initializing...");
-
 // Initialize keybinding registry on startup
 initializeKeybindingRegistry().catch(console.error);
 
-console.log("[Background] Setting up message listener...");
 addRuntimeListener(
   createCrossBrowserMessageHandler(handleMessage)
 );
 
-console.log("[Background] Setting up browser commands listener...");
 // Handle browser-level keyboard shortcuts
 if (browserAPI.commands) {
   browserAPI.commands.onCommand.addListener((command) => {
@@ -37,6 +33,4 @@ if (browserAPI.commands) {
     }
   });
 }
-
-console.log("[Background] Background script initialization complete");
 
