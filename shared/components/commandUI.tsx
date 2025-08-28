@@ -1,5 +1,5 @@
 import { ChevronLeft } from "lucide-react";
-import type { CommandSuggesetionUI, CommandSuggestion } from "../../types";
+import type { CommandSuggestionUI, CommandSuggestion } from "../../types";
 import { useEffect, useRef } from "react";
 import type { FormEvent } from "react";
 import AlertListener from "./alert";
@@ -8,7 +8,7 @@ import type { Page, UI } from "../hooks/useCommandNavigation";
 import { useActionLabel } from "../hooks/useActionLabel";
 
 type InputItemProps = {
-  item: Extract<CommandSuggesetionUI, { type: "input" }>;
+  item: Extract<CommandSuggestionUI, { type: "input" }>;
   defaultValue: string | undefined;
   inputRef: React.RefObject<HTMLInputElement> | null;
   onEnter: () => void;
@@ -39,7 +39,7 @@ function InputItem({ item, defaultValue, inputRef, onEnter }: InputItemProps) {
 }
 
 type TextItemProps = {
-  item: Extract<CommandSuggesetionUI, { type: "text" }>;
+  item: Extract<CommandSuggestionUI, { type: "text" }>;
 };
 
 function TextItem({ item }: TextItemProps) {

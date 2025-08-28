@@ -5,7 +5,7 @@ import { useRef } from "react";
 import { useState } from "react";
 
 import type { RefObject } from "react";
-import type { CommandSuggestion, CommandSuggesetionUI } from "../../types";
+import type { CommandSuggestion, CommandSuggestionUI } from "../../types";
 import { useSendMessage } from "./useSendMessage";
 import { getDisplayName } from "../components/command/CommandName";
 
@@ -24,7 +24,7 @@ export type Page = {
 export type UI = {
   id: string;
   name: string;
-  ui: CommandSuggesetionUI[];
+  ui: CommandSuggestionUI[];
 };
 
 export function useCommandNavigation(

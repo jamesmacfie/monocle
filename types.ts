@@ -90,7 +90,7 @@ export type CommandUIText = {
 
 export type CommandUI = CommandUIInput | CommandUIText;
 
-export type CommandSuggesetionUI = CommandUIInput | CommandUIText;
+export type CommandSuggestionUI = CommandUIInput | CommandUIText;
 
 export type CommandSuggestion = {
   id: string;
@@ -100,7 +100,7 @@ export type CommandSuggestion = {
   keywords?: string[];
   hasCommands: boolean;
   icon?: Icon;
-  ui?: CommandSuggesetionUI[];
+  ui?: CommandSuggestionUI[];
   actionLabel: string;
   modifierActionLabel?: {
     [modifierKey in ModifierKey]?: string;

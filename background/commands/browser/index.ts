@@ -16,6 +16,7 @@ import { pinCurrentTab } from "./pinCurrentTab";
 import { reloadCurrentTab } from "./reloadCurrentTab";
 import { unmuteCurrentTab } from "./unmuteCurrentTab";
 import { unpinCurrentTab } from "./unpinCurrentTab";
+import { testChildren } from "../testChildren";
 
 export { firefoxCommands } from "./firefox";
 
@@ -38,5 +39,6 @@ export const browserCommands = [
   reloadCurrentTab,
   unmuteCurrentTab,
   unpinCurrentTab,
+  testChildren,
 ];
 

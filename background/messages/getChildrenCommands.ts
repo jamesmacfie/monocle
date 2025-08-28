@@ -1,13 +1,14 @@
-import type { GetChildrenCommandsMessage } from "../../types";
-import { commandsToSuggestions, getCommands as getCommandsFromBackground } from "../commands";
+import type { GetChildrenMessage } from "../../types";
+import { commandsToSuggestions, getCommands as getCommandsFromBackground, findCommand } from "../commands";
 import { createMessageHandler } from "../utils/messages";
 import { resolveCommandName } from "../utils/commands";
 
-const handleGetChildrenCommands = async (message: GetChildrenCommandsMessage) => {
+const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
   const { favorites: cmdFavorites, suggestions: cmdSuggestions, recents: cmdRecents } = await getCommandsFromBackground();
   const allCommands = [...cmdFavorites, ...cmdRecents, ...cmdSuggestions];
 
-  const parentCommand = allCommands.find(cmd => cmd.id === message.id);
+  // Use findCommand to search recursively through nested structures
+  const parentCommand = await findCommand(allCommands, message.id, message.context);
 
   if (parentCommand && 'commands' in parentCommand) {
     const children = await parentCommand.commands(message.context);

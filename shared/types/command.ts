@@ -1,8 +1,8 @@
 import type { RefObject } from "react";
-import type { CommandSuggestion, CommandSuggesetionUI } from "../../types";
+import type { CommandSuggestion, CommandSuggestionUI } from "../../types";
 
 // Re-export main types for convenience
-export type { CommandSuggestion, CommandSuggesetionUI } from "../../types";
+export type { CommandSuggestion, CommandSuggestionUI } from "../../types";
 
 // Command navigation types
 export type Page = {
@@ -19,7 +19,7 @@ export type Page = {
 export type UI = {
   id: string;
   name: string;
-  ui: CommandSuggesetionUI[];
+  ui: CommandSuggestionUI[];
 };
 
 // Command data structure
