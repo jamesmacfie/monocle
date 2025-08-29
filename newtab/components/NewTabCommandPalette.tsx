@@ -2,7 +2,7 @@ import * as React from "react"
 
 const { useEffect, useCallback } = React
 
-import { CommandPalette } from "../../shared/components/Command"
+import { CommandPalette } from "../../shared/components/Command/index"
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
