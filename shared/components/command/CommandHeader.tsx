@@ -1,6 +1,6 @@
-import { Command } from "cmdk";
-import { ChevronLeft } from "lucide-react";
-import type { CommandHeaderProps } from "../../types/command";
+import { Command } from "cmdk"
+import { ChevronLeft } from "lucide-react"
+import type { CommandHeaderProps } from "../../types/command"
 
 export function CommandHeader({
   pages,
@@ -32,5 +32,5 @@ export function CommandHeader({
       </div>
       <hr cmdk-raycast-loader="" />
     </>
-  );
+  )
 }

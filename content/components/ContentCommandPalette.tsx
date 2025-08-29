@@ -2,11 +2,11 @@ import * as React from "react"
 
 const { useEffect, useCallback } = React
 
-import { useCommandPaletteState } from "../hooks/useCommandPaletteState"
-import { useGetCommands } from "../hooks/useGetCommands"
-import { useGlobalKeybindings } from "../hooks/useGlobalKeybindings"
-import { useSendMessage } from "../hooks/useSendMessage"
-import { CommandPalette } from "./Command"
+import { CommandPalette } from "../../shared/components/Command"
+import { useCommandPaletteState } from "../../shared/hooks/useCommandPaletteState"
+import { useGetCommands } from "../../shared/hooks/useGetCommands"
+import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
+import { useSendMessage } from "../../shared/hooks/useSendMessage"
 
 interface ContentCommandPaletteProps {
   onClose?: () => void

@@ -1,5 +1,5 @@
-import type { UICommand } from "../../../types";
-import { getActiveTab, sendTabMessage } from "../../utils/browser";
+import type { UICommand } from "../../../types"
+import { getActiveTab, sendTabMessage } from "../../utils/browser"
 
 export const googleSearch: UICommand = {
   id: "google-search",
@@ -11,7 +11,7 @@ export const googleSearch: UICommand = {
       id: "search",
       type: "input",
       placeholder: "Your search query",
-    }
+    },
   ],
   run: async (_context, values) => {
     const activeTab = await getActiveTab()
@@ -19,10 +19,10 @@ export const googleSearch: UICommand = {
       try {
         await sendTabMessage(activeTab.id, {
           type: "monocle-newTab",
-          url: `https://www.google.com/search?q=${values?.search}`
-        });
+          url: `https://www.google.com/search?q=${values?.search}`,
+        })
       } catch (error) {
-        console.error("Error sending message:", error);
+        console.error("Error sending message:", error)
       }
     }
   },

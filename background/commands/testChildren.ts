@@ -1,4 +1,4 @@
-import type { Command, ExecutionContext } from "../../types";
+import type { Command, ExecutionContext } from "../../types"
 
 // Level 3 children (deepest level)
 const level3Children: Command[] = [
@@ -9,7 +9,7 @@ const level3Children: Command[] = [
     icon: { name: "Circle" },
     color: "blue",
     run: async () => {
-      console.log("Level 3 Child 1 executed");
+      console.log("Level 3 Child 1 executed")
     },
   },
   {
@@ -19,7 +19,7 @@ const level3Children: Command[] = [
     icon: { name: "Square" },
     color: "green",
     run: async () => {
-      console.log("Level 3 Child 2 executed");
+      console.log("Level 3 Child 2 executed")
     },
   },
   {
@@ -29,10 +29,10 @@ const level3Children: Command[] = [
     icon: { name: "Triangle" },
     color: "purple",
     run: async () => {
-      console.log("Level 3 Child 3 executed");
+      console.log("Level 3 Child 3 executed")
     },
   },
-];
+]
 
 // Level 2 children (middle level)
 const level2Children: Command[] = [
@@ -42,7 +42,7 @@ const level2Children: Command[] = [
     description: "Middle level child with its own children",
     icon: { name: "Folder" },
     color: "orange",
-    commands: async (context: ExecutionContext) => level3Children,
+    commands: async (_context: ExecutionContext) => level3Children,
   },
   {
     id: "level2-child-2",
@@ -51,7 +51,7 @@ const level2Children: Command[] = [
     icon: { name: "File" },
     color: "teal",
     run: async () => {
-      console.log("Level 2 Child 2 executed");
+      console.log("Level 2 Child 2 executed")
     },
   },
   {
@@ -60,9 +60,9 @@ const level2Children: Command[] = [
     description: "Yet another middle level child with children",
     icon: { name: "FolderOpen" },
     color: "pink",
-    commands: async (context: ExecutionContext) => level3Children,
+    commands: async (_context: ExecutionContext) => level3Children,
   },
-];
+]
 
 // Level 1 children (first level)
 const level1Children: Command[] = [
@@ -72,7 +72,7 @@ const level1Children: Command[] = [
     description: "First level child with deep nesting",
     icon: { name: "FolderTree" },
     color: "red",
-    commands: async (context: ExecutionContext) => level2Children,
+    commands: async (_context: ExecutionContext) => level2Children,
   },
   {
     id: "level1-child-2",
@@ -81,7 +81,7 @@ const level1Children: Command[] = [
     icon: { name: "FolderPlus" },
     color: "yellow",
     run: async () => {
-      console.log("Level 1 Child 2 executed");
+      console.log("Level 1 Child 2 executed")
     },
   },
   {
@@ -90,9 +90,9 @@ const level1Children: Command[] = [
     description: "Yet another first level child with children",
     icon: { name: "FolderDown" },
     color: "indigo",
-    commands: async (context: ExecutionContext) => level2Children,
+    commands: async (_context: ExecutionContext) => level2Children,
   },
-];
+]
 
 // Main test command
 export const testChildren: Command = {
@@ -101,5 +101,5 @@ export const testChildren: Command = {
   description: "Test command with deeply nested children",
   icon: { name: "GitBranch" },
   color: "gray",
-  commands: async (context: ExecutionContext) => level1Children,
-};
+  commands: async (_context: ExecutionContext) => level1Children,
+}

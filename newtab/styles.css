@@ -5,7 +5,8 @@
 
 /* Define CSS custom properties for new tab context */
 :root {
-  --font-sans: "Inter", --apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
+  --font-sans:
+    "Inter", --apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
     Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   --app-bg: var(--gray1);
   --cmdk-shadow: 0 16px 70px rgb(0 0 0 / 20%);
@@ -56,9 +57,9 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #f3f4f6;
@@ -67,28 +68,28 @@ body {
 
 /* New tab specific styles */
 .new-tab-palette {
-  position: relative !important;
-  transform: none !important;
-  top: auto !important;
-  left: auto !important;
-  z-index: auto !important;
+  position: relative;
+  transform: none;
+  top: auto;
+  left: auto;
+  z-index: auto;
 }
 
 .new-tab-palette [cmdk-root] {
-  position: relative !important;
-  transform: none !important;
-  top: auto !important;
-  left: auto !important;
+  position: relative;
+  transform: none;
+  top: auto;
+  left: auto;
   /* Ensure box shadow is preserved */
-  box-shadow: var(--cmdk-shadow) !important;
+  box-shadow: var(--cmdk-shadow);
 }
 
 /* Remove shine gradient animations for new tab */
 .new-tab-palette [cmdk-root]:after,
 .new-tab-palette [cmdk-root]:before {
-  display: none !important;
+  display: none;
 }
 
 .new-tab-palette [cmdk-raycast-top-shine] {
-  display: none !important;
+  display: none;
 }

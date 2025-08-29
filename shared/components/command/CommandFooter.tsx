@@ -1,22 +1,19 @@
-import { useRef } from "react";
-import type { CommandFooterProps } from "../../types/command";
-import { Icon } from "../icon";
-import { CommandName } from "./CommandName";
+import type { CommandFooterProps } from "../../types/command"
+import { Icon } from "../Icon"
+import { CommandName } from "./CommandName"
 
 export function CommandFooter({
   currentPage,
   focusedSuggestion,
   actionLabel,
-  inputRef,
-  onActionSelect,
   onOpenActions,
   actionsButtonRef,
 }: CommandFooterProps) {
   const handleActionsClick = () => {
     if (focusedSuggestion && onOpenActions) {
-      onOpenActions(focusedSuggestion);
+      onOpenActions(focusedSuggestion)
     }
-  };
+  }
 
   return (
     <div cmdk-raycast-footer="">
@@ -57,5 +54,5 @@ export function CommandFooter({
         )}
       </div>
     </div>
-  );
+  )
 }

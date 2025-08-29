@@ -1,9 +1,9 @@
-import { Command, useCommandState } from "cmdk";
-import type { CommandListProps } from "../../types/command";
-import { CommandItem } from "./CommandItem";
+import { Command, useCommandState } from "cmdk"
+import type { CommandListProps } from "../../types/command"
+import { CommandItem } from "./CommandItem"
 
 export function CommandList({ currentPage, onSelect }: CommandListProps) {
-  const cmdkSearch = useCommandState((state) => state.search);
+  const cmdkSearch = useCommandState((state) => state.search)
 
   return (
     <Command.List className="cmdk-command-list">
@@ -43,5 +43,5 @@ export function CommandList({ currentPage, onSelect }: CommandListProps) {
         ))}
       </Command.Group>
     </Command.List>
-  );
+  )
 }

@@ -1,22 +1,22 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react"
 
-type ModifierKey = "shift" | "cmd" | "alt" | "ctrl" | null;
+type ModifierKey = "shift" | "cmd" | "alt" | "ctrl" | null
 
 export function useIsModifierKeyPressed(): { modifier: ModifierKey } {
-  const [modifier, setModifier] = useState<ModifierKey>(null);
+  const [modifier, setModifier] = useState<ModifierKey>(null)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.shiftKey) {
-        setModifier("shift");
+        setModifier("shift")
       } else if (e.metaKey) {
-        setModifier("cmd");
+        setModifier("cmd")
       } else if (e.altKey) {
-        setModifier("alt");
+        setModifier("alt")
       } else if (e.ctrlKey) {
-        setModifier("ctrl");
+        setModifier("ctrl")
       }
-    };
+    }
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (
@@ -25,20 +25,20 @@ export function useIsModifierKeyPressed(): { modifier: ModifierKey } {
         (modifier === "alt" && !e.altKey) ||
         (modifier === "ctrl" && !e.ctrlKey)
       ) {
-        setModifier(null);
+        setModifier(null)
       }
-    };
+    }
 
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("keyup", handleKeyUp)
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [modifier]);
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("keyup", handleKeyUp)
+    }
+  }, [modifier])
 
   return {
     modifier,
-  };
+  }
 }

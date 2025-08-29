@@ -2,19 +2,19 @@ import * as React from "react"
 
 const { useEffect, useCallback } = React
 
-import { useGlobalKeybindings } from "../../content/hooks/useGlobalKeybindings"
-import { useGetCommands } from "../hooks/useGetCommands"
-import { useSendMessage } from "../hooks/useSendMessage"
-import { CommandPalette } from "./Command"
+import { CommandPalette } from "../../shared/components/Command"
+import { useGetCommands } from "../../shared/hooks/useGetCommands"
+import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
+import { useSendMessage } from "../../shared/hooks/useSendMessage"
 
-interface CommandPaletteUIProps {
+interface NewTabCommandPaletteProps {
   isAlwaysVisible?: boolean
   onClose?: () => void
   className?: string
   autoFocus?: boolean
 }
 
-export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
+export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
   isAlwaysVisible = false,
   onClose,
   className = "",
@@ -54,7 +54,7 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
         // TODO: Handle errors
       } catch (error) {
         console.error(
-          "[CommandPaletteUI] Error sending execute message:",
+          "[NewTabCommandPalette] Error sending execute message:",
           error,
         )
       }

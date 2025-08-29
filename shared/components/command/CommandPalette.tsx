@@ -1,17 +1,17 @@
-import { useState, useRef, useEffect } from "react";
-import { Command, useCommandState } from "cmdk";
-import type { CommandData, Page } from "../../types/command";
-import CommandUI from "../commandUI";
-import { useCommandNavigation } from "../../hooks/useCommandNavigation";
-import CopyToClipboardListener from "../copyToClipboard";
-import NewTabListener from "../newTab";
-import { useActionLabel } from "../../hooks/useActionLabel";
-import { getDisplayName } from "./CommandName";
-import { CommandHeader } from "./CommandHeader";
-import { CommandList } from "./CommandList";
-import { CommandFooter } from "./CommandFooter";
-import { CommandActions } from "./CommandActions";
-import type { CommandSuggestion } from "../../../types";
+import { Command, useCommandState } from "cmdk"
+import { useEffect, useRef, useState } from "react"
+import type { CommandSuggestion } from "../../../types"
+import { useActionLabel } from "../../hooks/useActionLabel"
+import { useCommandNavigation } from "../../hooks/useCommandNavigation"
+import type { CommandData, Page } from "../../types/command"
+import CommandUI from "../CommandUI"
+import CopyToClipboardListener from "../Listeners/CopyToClipboardListener"
+import NewTabListener from "../Listeners/NewTabListener"
+import { CommandActions } from "./CommandActions"
+import { CommandFooter } from "./CommandFooter"
+import { CommandHeader } from "./CommandHeader"
+import { CommandList } from "./CommandList"
+import { getDisplayName } from "./CommandName"
 
 function CommandContent({
   pages,
@@ -25,76 +25,76 @@ function CommandContent({
   onOpenActions,
   onRefreshCommands,
 }: {
-  pages: Page[];
-  currentPage: Page;
-  inputRef: React.RefObject<HTMLInputElement>;
-  navigateBack: () => void;
-  updateSearchValue: (search: string) => void;
-  selectCommand: (id: string) => void;
-  close: () => void;
+  pages: Page[]
+  currentPage: Page
+  inputRef: React.RefObject<HTMLInputElement>
+  navigateBack: () => void
+  updateSearchValue: (search: string) => void
+  selectCommand: (id: string) => void
+  close: () => void
   executeCommand: (
     id: string,
     formValues: Record<string, string>,
-    navigateBack?: boolean
-  ) => Promise<void>;
-  onOpenActions: (suggestion: CommandSuggestion) => void;
-  onRefreshCommands: () => void;
+    navigateBack?: boolean,
+  ) => Promise<void>
+  onOpenActions: (suggestion: CommandSuggestion) => void
+  onRefreshCommands: () => void
 }) {
-  const focusedValue = useCommandState((state) => state.value);
+  const focusedValue = useCommandState((state) => state.value)
 
   // Find the focused suggestion based on its value (name)
   const focusedSuggestion =
     (currentPage.commands.favorites || []).find(
-      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue
+      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
     ) ||
     (currentPage.commands.recents || []).find(
-      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue
+      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
     ) ||
     (currentPage.commands.suggestions || []).find(
-      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue
-    );
+      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
+    )
 
-  const actionLabel = useActionLabel(currentPage);
+  const actionLabel = useActionLabel(currentPage)
 
   const handleActionSelect = async (actionId: string) => {
     // Execute the action using the same flow as regular commands
-    await executeCommand(actionId, {}, false); // Don't navigate back for actions
+    await executeCommand(actionId, {}, false) // Don't navigate back for actions
 
     // Refresh commands after any action to ensure UI is up to date
-    onRefreshCommands();
-  };
+    onRefreshCommands()
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Alt key opens actions if there's a focused suggestion with actions
     if (e.key === "Alt" && focusedSuggestion?.actions?.length) {
-      e.preventDefault();
-      onOpenActions(focusedSuggestion);
-      return;
+      e.preventDefault()
+      onOpenActions(focusedSuggestion)
+      return
     }
 
     // Escape goes to previous page
     if (e.key === "Escape" && pages.length > 1) {
-      e.preventDefault();
-      navigateBack();
-      return;
+      e.preventDefault()
+      navigateBack()
+      return
     }
 
     // If on root and Escape, close
     if (e.key === "Escape" && pages.length === 1) {
-      close();
-      return;
+      close()
+      return
     }
 
     // Backspace goes to previous page when search is empty
     const inputElement = e.currentTarget.querySelector(
-      "input[cmdk-input]"
-    ) as HTMLInputElement;
-    const search = inputElement?.value || "";
+      "input[cmdk-input]",
+    ) as HTMLInputElement
+    const search = inputElement?.value || ""
     if (e.key === "Backspace" && !search && pages.length > 1) {
-      e.preventDefault();
-      navigateBack();
+      e.preventDefault()
+      navigateBack()
     }
-  };
+  }
 
   return (
     <div onKeyDown={handleKeyDown}>
@@ -115,19 +115,19 @@ function CommandContent({
         onOpenActions={onOpenActions}
       />
     </div>
-  );
+  )
 }
 
 interface Props {
-  items: CommandData;
+  items: CommandData
   executeCommand: (
     id: string,
     formValues: Record<string, string>,
-    navigateBack?: boolean
-  ) => Promise<void>;
-  close: () => void;
-  onRefreshCommands: () => void;
-  autoFocus?: boolean;
+    navigateBack?: boolean,
+  ) => Promise<void>
+  close: () => void
+  onRefreshCommands: () => void
+  autoFocus?: boolean
 }
 
 export function CommandPalette({
@@ -137,14 +137,14 @@ export function CommandPalette({
   onRefreshCommands,
   autoFocus = false,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null)
   const [actionsState, setActionsState] = useState<{
-    open: boolean;
-    suggestion: CommandSuggestion | null;
+    open: boolean
+    suggestion: CommandSuggestion | null
   }>({
     open: false,
     suggestion: null,
-  });
+  })
 
   const {
     pages,
@@ -153,41 +153,41 @@ export function CommandPalette({
     navigateBack,
     ui,
     selectCommand,
-  } = useCommandNavigation(items, inputRef, executeCommand);
+  } = useCommandNavigation(items, inputRef, executeCommand)
 
   // Focus input when mounted (with delay for new tab context)
   useEffect(() => {
     if (autoFocus) {
       // Add small delay to ensure DOM is ready, especially for new tab
       setTimeout(() => {
-        inputRef?.current?.focus();
-      }, 100);
+        inputRef?.current?.focus()
+      }, 100)
     } else {
-      inputRef?.current?.focus();
+      inputRef?.current?.focus()
     }
-  }, [autoFocus]);
+  }, [autoFocus])
 
   const handleOpenActions = (suggestion: CommandSuggestion) => {
     setActionsState({
       open: true,
       suggestion,
-    });
-  };
+    })
+  }
 
   const handleCloseActions = () => {
     setActionsState({
       open: false,
       suggestion: null,
-    });
-  };
+    })
+  }
 
   const handleActionSelect = async (actionId: string) => {
     // Execute the action using the same flow as regular commands
-    await executeCommand(actionId, {}, false); // Don't navigate back for actions
+    await executeCommand(actionId, {}, false) // Don't navigate back for actions
 
     // Refresh commands after any action to ensure UI is up to date
-    onRefreshCommands();
-  };
+    onRefreshCommands()
+  }
 
   return (
     <div className="raycast">
@@ -232,5 +232,5 @@ export function CommandPalette({
         </>
       )}
     </div>
-  );
+  )
 }

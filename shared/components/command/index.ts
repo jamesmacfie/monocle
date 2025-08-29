@@ -1,22 +1,21 @@
 // Main command palette component
-export { CommandPalette } from "./CommandPalette";
-
-// Sub-components
-export { CommandHeader } from "./CommandHeader";
-export { CommandList } from "./CommandList";
-export { CommandItem } from "./CommandItem";
-export { CommandFooter } from "./CommandFooter";
-export { CommandActions } from "./CommandActions";
-export { CommandName, getDisplayName } from "./CommandName";
 
 // Re-export shared types for convenience
 export type {
-  Page,
-  UI,
+  CommandActionsProps,
   CommandData,
+  CommandFooterProps,
+  CommandHeaderProps,
   CommandItemProps,
   CommandListProps,
-  CommandHeaderProps,
-  CommandFooterProps,
-  CommandActionsProps,
-} from "../../types/command"; 
+  Page,
+  UI,
+} from "../../types/command"
+export { CommandActions } from "./CommandActions"
+export { CommandFooter } from "./CommandFooter"
+// Sub-components
+export { CommandHeader } from "./CommandHeader"
+export { CommandItem } from "./CommandItem"
+export { CommandList } from "./CommandList"
+export { CommandName, getDisplayName } from "./CommandName"
+export { CommandPalette } from "./CommandPalette"

@@ -1,5 +1,5 @@
-import type { RunCommand } from "../../../types";
-import { callBrowserAPI } from "../../utils/browser";
+import type { RunCommand } from "../../../types"
+import { callBrowserAPI } from "../../utils/browser"
 
 export const reloadCurrentTab: RunCommand = {
   id: "reload-current-tab",
@@ -7,6 +7,6 @@ export const reloadCurrentTab: RunCommand = {
   icon: { name: "RotateCw" },
   color: "green",
   run: () => {
-    return callBrowserAPI('tabs', 'reload');
+    return callBrowserAPI("tabs", "reload")
   },
 }

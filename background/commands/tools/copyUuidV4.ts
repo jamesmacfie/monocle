@@ -1,6 +1,6 @@
-import type { Command } from "../../../types";
-import { v4 as uuidv4 } from "uuid";
-import { getActiveTab, sendTabMessage } from "../../utils/browser";
+import { v4 as uuidv4 } from "uuid"
+import type { Command } from "../../../types"
+import { getActiveTab, sendTabMessage } from "../../utils/browser"
 
 export const copyUuidV4: Command = {
   id: "uuidv4",
@@ -8,13 +8,13 @@ export const copyUuidV4: Command = {
   icon: { name: "Copy" },
   color: "teal",
   run: async () => {
-    const uuid = uuidv4();
+    const uuid = uuidv4()
     const activeTab = await getActiveTab()
     if (activeTab?.id) {
       await sendTabMessage(activeTab.id, {
         type: "monocle-copyToClipboard",
-        message: uuid
-      });
+        message: uuid,
+      })
     }
   },
-};
+}

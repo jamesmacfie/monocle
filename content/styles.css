@@ -1,5 +1,6 @@
 :host {
-  --font-sans: "Inter", --apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
+  --font-sans:
+    "Inter", --apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
     Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   --app-bg: var(--gray1);
   --cmdk-shadow: 0 16px 70px rgb(0 0 0 / 20%);
@@ -218,7 +219,6 @@
   [cmdk-raycast-loader] {
     --loader-color: var(--gray9);
     border: 0;
-    width: 100%;
     width: 100%;
     left: 0;
     height: 1px;
@@ -556,35 +556,6 @@
   }
 }
 
-.raycast-submenu-overlay {
-  position: fixed;
-  right: calc(50% - 155px + 8px);
-  top: calc(50% + 150px - 8px);
-  z-index: 10000;
-  pointer-events: none;
-
-  &[data-state="open"] {
-    pointer-events: auto;
-  }
-
-  .raycast-submenu {
-    pointer-events: auto;
-    position: relative;
-    animation-duration: 0.2s;
-    animation-timing-function: ease;
-    animation-fill-mode: forwards;
-    transform-origin: bottom left;
-  }
-
-  &[data-state="open"] .raycast-submenu {
-    animation-name: slideIn;
-  }
-
-  &[data-state="closed"] .raycast-submenu {
-    animation-name: slideOut;
-  }
-}
-
 .raycast-submenu {
   [cmdk-root] {
     display: flex;
@@ -605,8 +576,6 @@
   }
 
   [cmdk-item] {
-    height: 40px;
-
     cursor: pointer;
     height: 40px;
     border-radius: 8px;
@@ -697,6 +666,35 @@
     white-space: pre-wrap;
     font-size: 14px;
     color: var(--gray11);
+  }
+}
+
+.raycast-submenu-overlay {
+  position: fixed;
+  right: calc(50% - 155px + 8px);
+  top: calc(50% + 150px - 8px);
+  z-index: 10000;
+  pointer-events: none;
+
+  &[data-state="open"] {
+    pointer-events: auto;
+  }
+
+  .raycast-submenu {
+    pointer-events: auto;
+    position: relative;
+    animation-duration: 0.2s;
+    animation-timing-function: ease;
+    animation-fill-mode: forwards;
+    transform-origin: bottom left;
+  }
+
+  &[data-state="open"] .raycast-submenu {
+    animation-name: slideIn;
+  }
+
+  &[data-state="closed"] .raycast-submenu {
+    animation-name: slideOut;
   }
 }
 

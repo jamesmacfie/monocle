@@ -1,7 +1,7 @@
 /**
  * Firefox-specific browser features and utilities
  */
-import { isFirefox } from "./browser";
+import { isFirefox } from "./browser"
 
 /**
  * Toggles reader mode for a tab (Firefox only)
@@ -9,9 +9,9 @@ import { isFirefox } from "./browser";
  */
 export async function toggleReaderMode(tabId: number): Promise<void> {
   if (isFirefox && browser.tabs.toggleReaderMode) {
-    return browser.tabs.toggleReaderMode(tabId);
+    return browser.tabs.toggleReaderMode(tabId)
   } else {
-    return Promise.resolve();
+    return Promise.resolve()
   }
 }
 
@@ -21,10 +21,10 @@ export async function toggleReaderMode(tabId: number): Promise<void> {
  */
 export async function saveAsPDF(options: any): Promise<void> {
   if (isFirefox && browser.tabs.saveAsPDF) {
-    await browser.tabs.saveAsPDF(options);
-    return Promise.resolve();
+    await browser.tabs.saveAsPDF(options)
+    return Promise.resolve()
   } else {
-    return Promise.resolve();
+    return Promise.resolve()
   }
 }
 
@@ -34,7 +34,7 @@ export async function saveAsPDF(options: any): Promise<void> {
  */
 export async function queryContainers(queryInfo: any): Promise<any[]> {
   if (isFirefox && browser.contextualIdentities) {
-    return browser.contextualIdentities.query(queryInfo);
+    return browser.contextualIdentities.query(queryInfo)
   }
-  return [];
-} 
+  return []
+}

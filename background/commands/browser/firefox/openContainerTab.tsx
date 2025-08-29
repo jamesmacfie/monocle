@@ -1,6 +1,6 @@
-import type { Command, ParentCommand } from "../../../../types";
-import { createTab } from "../../../utils/browser";
-import { queryContainers } from "../../../utils/firefox";
+import type { Command, ParentCommand } from "../../../../types"
+import { createTab } from "../../../utils/browser"
+import { queryContainers } from "../../../utils/firefox"
 
 export const openContainerTab: ParentCommand = {
   id: "open-container-tab",
@@ -12,21 +12,21 @@ export const openContainerTab: ParentCommand = {
   keywords: ["container", "tab", "profile"],
   commands: async (): Promise<Command[]> => {
     try {
-      const containers = await queryContainers({});
+      const containers = await queryContainers({})
 
       const children = containers.map((container: any) => {
         const profileName =
           container.name ||
-          `Unnamed Profile (${container.cookieStoreId.substring(0, 6)}...)`;
+          `Unnamed Profile (${container.cookieStoreId.substring(0, 6)}...)`
 
         // Ensure we have a valid color
-        let colorCode = container.colorCode || "lightBlue";
+        let colorCode = container.colorCode || "lightBlue"
         if (colorCode === "toolbar") {
           // Toolbar is a special value, use gray
-          colorCode = "gray";
+          colorCode = "gray"
         } else if (colorCode === "lightBlue" || !colorCode.startsWith("#")) {
           // Default container color, use lightBlue
-          colorCode = "lightBlue";
+          colorCode = "lightBlue"
         }
         // For other hex colors, keep them as-is since they're container-specific
 
@@ -34,7 +34,7 @@ export const openContainerTab: ParentCommand = {
           id: `open-container-tab-${container.cookieStoreId}`,
           name: async () => profileName,
           icon: async () => {
-            return { url: container.iconUrl };
+            return { url: container.iconUrl }
           },
           color: async () => colorCode,
           actionLabel: "New tab →",
@@ -45,18 +45,18 @@ export const openContainerTab: ParentCommand = {
             const options = {
               cookieStoreId: container.cookieStoreId,
               index: context?.modifierKey === "cmd" ? 0 : undefined,
-            };
-            await createTab(options);
+            }
+            await createTab(options)
           },
-        };
+        }
 
-        return command;
-      });
+        return command
+      })
 
-      return children;
+      return children
     } catch (error) {
-      console.error("❌ [commands] Failed to query containers:", error);
-      return [];
+      console.error("❌ [commands] Failed to query containers:", error)
+      return []
     }
   },
-};
+}

@@ -1,20 +1,20 @@
-import { useEffect, useRef } from "react";
-import { Command } from "cmdk";
-import { useOnClickOutside } from "usehooks-ts";
-import type { CommandActionsProps } from "../../types/command";
-import type { CommandSuggestion } from "../../../types";
-import { CommandName } from "./CommandName";
+import { Command } from "cmdk"
+import { useEffect, useRef } from "react"
+import { useOnClickOutside } from "usehooks-ts"
+import type { CommandSuggestion } from "../../../types"
+import type { CommandActionsProps } from "../../types/command"
+import { CommandName } from "./CommandName"
 
 function ActionItem({
   action,
   onSelect,
 }: {
-  action: CommandSuggestion;
-  onSelect: (id: string) => void;
+  action: CommandSuggestion
+  onSelect: (id: string) => void
 }) {
   const handleSelect = () => {
-    onSelect(action.id);
-  };
+    onSelect(action.id)
+  }
 
   return (
     <Command.Item onSelect={handleSelect}>
@@ -28,14 +28,14 @@ function ActionItem({
               .replace(/⌘/g, "Cmd")
               .replace(/⌥/g, "Alt")
               .replace(/⇧/g, "Shift")
-              .replace(/↵/g, "↵");
+              .replace(/↵/g, "↵")
 
-            return <kbd key={key}>{normalizedKey}</kbd>;
+            return <kbd key={key}>{normalizedKey}</kbd>
           })}
         </div>
       )}
     </Command.Item>
-  );
+  )
 }
 
 export function CommandActions({
@@ -46,51 +46,51 @@ export function CommandActions({
   onActionSelect,
   onClose,
 }: CommandActionsProps) {
-  const actionInputRef = useRef<HTMLInputElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const actionInputRef = useRef<HTMLInputElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
 
-  useOnClickOutside(overlayRef, onClose);
+  useOnClickOutside(overlayRef, onClose)
 
   useEffect(() => {
     if (open && actionInputRef.current) {
       setTimeout(() => {
-        actionInputRef.current?.focus();
-      }, 50);
+        actionInputRef.current?.focus()
+      }, 50)
     }
-  }, [open]);
+  }, [open])
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
+        event.preventDefault()
+        onClose()
         setTimeout(() => {
-          inputRef?.current?.focus();
-        }, 50);
+          inputRef?.current?.focus()
+        }, 50)
       }
-    };
+    }
 
     if (open) {
-      document.addEventListener("keydown", handleEscape);
+      document.addEventListener("keydown", handleEscape)
     }
 
     return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [open, onClose, inputRef]);
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [open, onClose, inputRef])
 
   const handleActionSelect = (actionId: string) => {
     if (onActionSelect) {
-      onActionSelect(actionId);
+      onActionSelect(actionId)
     }
-    onClose();
+    onClose()
     setTimeout(() => {
-      inputRef?.current?.focus();
-    }, 50);
-  };
+      inputRef?.current?.focus()
+    }, 50)
+  }
 
   if (!selectedValue || !actions.length || !open) {
-    return null;
+    return null
   }
 
   return (
@@ -117,16 +117,16 @@ export function CommandActions({
             placeholder="Search for actions..."
             onKeyDown={(e) => {
               if (e.key === "Escape") {
-                e.preventDefault();
-                onClose();
+                e.preventDefault()
+                onClose()
                 setTimeout(() => {
-                  inputRef?.current?.focus();
-                }, 50);
+                  inputRef?.current?.focus()
+                }, 50)
               }
             }}
           />
         </Command>
       </div>
     </div>
-  );
+  )
 }

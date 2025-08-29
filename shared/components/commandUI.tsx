@@ -1,26 +1,26 @@
-import { ChevronLeft } from "lucide-react";
-import type { CommandSuggestionUI, CommandSuggestion } from "../../types";
-import { useEffect, useRef } from "react";
-import type { FormEvent } from "react";
-import AlertListener from "./alert";
-import { Icon } from "./icon";
-import type { Page, UI } from "../hooks/useCommandNavigation";
-import { useActionLabel } from "../hooks/useActionLabel";
+import { ChevronLeft } from "lucide-react"
+import type { FormEvent } from "react"
+import { useEffect, useRef } from "react"
+import type { CommandSuggestionUI } from "../../types"
+import { useActionLabel } from "../hooks/useActionLabel"
+import type { Page, UI } from "../hooks/useCommandNavigation"
+import AlertListener from "./Alert"
+import { Icon } from "./Icon"
 
 type InputItemProps = {
-  item: Extract<CommandSuggestionUI, { type: "input" }>;
-  defaultValue: string | undefined;
-  inputRef: React.RefObject<HTMLInputElement> | null;
-  onEnter: () => void;
-};
+  item: Extract<CommandSuggestionUI, { type: "input" }>
+  defaultValue: string | undefined
+  inputRef: React.RefObject<HTMLInputElement> | null
+  onEnter: () => void
+}
 
 function InputItem({ item, defaultValue, inputRef, onEnter }: InputItemProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      e.preventDefault();
-      onEnter();
+      e.preventDefault()
+      onEnter()
     }
-  };
+  }
 
   return (
     <div className="cmdk-ui-input">
@@ -35,28 +35,28 @@ function InputItem({ item, defaultValue, inputRef, onEnter }: InputItemProps) {
         onKeyDown={handleKeyDown}
       />
     </div>
-  );
+  )
 }
 
 type TextItemProps = {
-  item: Extract<CommandSuggestionUI, { type: "text" }>;
-};
+  item: Extract<CommandSuggestionUI, { type: "text" }>
+}
 
 function TextItem({ item }: TextItemProps) {
   return (
     <div className="cmdk-ui-text">
       <p>{item.label}</p>
     </div>
-  );
+  )
 }
 
 type Props = {
-  currentPage: Page;
-  ui: UI;
-  onBack: () => void;
-  onEscape: () => void;
-  onExecute: (id: string, formValues: Record<string, string>) => Promise<void>;
-};
+  currentPage: Page
+  ui: UI
+  onBack: () => void
+  onEscape: () => void
+  onExecute: (id: string, formValues: Record<string, string>) => Promise<void>
+}
 
 export default function CommandUI({
   currentPage,
@@ -65,43 +65,43 @@ export default function CommandUI({
   onEscape,
   onExecute,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
 
-  const actionLabel = useActionLabel(currentPage);
+  const actionLabel = useActionLabel(currentPage)
 
   useEffect(() => {
     // Focus the first input element when mounted
-    inputRef.current?.focus();
+    inputRef.current?.focus()
 
     // Add escape key listener for navigation
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        e.preventDefault();
-        onEscape();
+        e.preventDefault()
+        onEscape()
       }
-    };
+    }
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onEscape]);
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [onEscape])
 
   const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
-    const formData = new FormData(e.target as HTMLFormElement);
-    const formValuesObject: Record<string, string> = {};
+    const formData = new FormData(e.target as HTMLFormElement)
+    const formValuesObject: Record<string, string> = {}
 
     formData.forEach((value, key) => {
-      formValuesObject[key] = value.toString();
-    });
+      formValuesObject[key] = value.toString()
+    })
 
-    await onExecute(ui.id, formValuesObject);
-  };
+    await onExecute(ui.id, formValuesObject)
+  }
 
   const handleEnter = () => {
-    formRef.current?.requestSubmit();
-  };
+    formRef.current?.requestSubmit()
+  }
 
   return (
     <>
@@ -159,5 +159,5 @@ export default function CommandUI({
         </button>
       </div>
     </>
-  );
+  )
 }

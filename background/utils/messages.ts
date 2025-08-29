@@ -14,12 +14,12 @@ export async function withErrorHandling<T, R>(
 ): Promise<(message: T) => Promise<R | { error: string }>> {
   return async (message: T) => {
     try {
-      return await handler(message);
+      return await handler(message)
     } catch (error) {
-      console.error(`[background] ${errorMessage}:`, error);
-      return { error: errorMessage };
+      console.error(`[background] ${errorMessage}:`, error)
+      return { error: errorMessage }
     }
-  };
+  }
 }
 
 /**
@@ -33,10 +33,10 @@ export function createMessageHandler<T, R>(
 ) {
   return async (message: T): Promise<R | { error: string }> => {
     try {
-      return await handler(message);
+      return await handler(message)
     } catch (error) {
-      console.error(`[background] ${errorMessage}:`, error);
-      return { error: errorMessage };
+      console.error(`[background] ${errorMessage}:`, error)
+      return { error: errorMessage }
     }
-  };
-} 
+  }
+}

@@ -1,39 +1,36 @@
-import { useCommandState } from "cmdk";
-import type { Page } from "./useCommandNavigation";
-import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed";
-import { getDisplayName } from "../components/command/CommandName";
+import { useCommandState } from "cmdk"
+import { getDisplayName } from "../components/Command/CommandName"
+import type { Page } from "./useCommandNavigation"
+import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
 
 export function useActionLabel(
   currentPage: Page,
-  defaultLabel = "Run"
+  defaultLabel = "Run",
 ): string {
-  const { modifier } = useIsModifierKeyPressed();
-  const focusedValue = useCommandState((state) => state.value);
+  const { modifier } = useIsModifierKeyPressed()
+  const focusedValue = useCommandState((state) => state.value)
   const focusedSuggestion =
     (currentPage.commands.favorites || []).find(
-      (item) => getDisplayName(item.name) === focusedValue
+      (item) => getDisplayName(item.name) === focusedValue,
     ) ||
     (currentPage.commands.recents || []).find(
-      (item) => getDisplayName(item.name) === focusedValue
+      (item) => getDisplayName(item.name) === focusedValue,
     ) ||
     (currentPage.commands.suggestions || []).find(
-      (item) => getDisplayName(item.name) === focusedValue
-    );
+      (item) => getDisplayName(item.name) === focusedValue,
+    )
 
   if (!focusedSuggestion) {
-    return defaultLabel;
+    return defaultLabel
   }
 
   if (!modifier) {
-    return focusedSuggestion.actionLabel || defaultLabel;
+    return focusedSuggestion.actionLabel || defaultLabel
   }
 
-  if (
-    focusedSuggestion.modifierActionLabel &&
-    focusedSuggestion.modifierActionLabel[modifier]
-  ) {
-    return focusedSuggestion.modifierActionLabel[modifier] || defaultLabel;
+  if (focusedSuggestion.modifierActionLabel?.[modifier]) {
+    return focusedSuggestion.modifierActionLabel[modifier] || defaultLabel
   }
 
-  return defaultLabel;
+  return defaultLabel
 }

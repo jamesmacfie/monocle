@@ -1,43 +1,43 @@
-import { useEffect, useState } from "react";
-import type { AlertEvent } from "../../types";
-import { Info, AlertCircle, CheckCircle, XCircle, X, Copy } from "lucide-react";
-import { Icon } from "./icon";
-import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
-import { match } from "ts-pattern";
+import { Copy, X } from "lucide-react"
+import { useEffect, useState } from "react"
+import { match } from "ts-pattern"
+import type { AlertEvent } from "../../types"
+import { useCopyToClipboard } from "../hooks/useCopyToClipboard"
+import { Icon } from "./Icon"
 
 interface Props {
-  message: string;
-  level: "info" | "warning" | "success" | "error";
-  onClose?: () => void;
+  message: string
+  level: "info" | "warning" | "success" | "error"
+  onClose?: () => void
   icon?: {
-    name?: string;
-    url?: string;
-  };
-  copyText?: string;
+    name?: string
+    url?: string
+  }
+  copyText?: string
 }
 
 export const Alert = ({ message, level, onClose, icon, copyText }: Props) => {
-  const [_, copyToClipboard] = useCopyToClipboard();
+  const [_, copyToClipboard] = useCopyToClipboard()
   const getIcon = () => {
     if (icon) {
-      return <Icon name={icon.name} url={icon.url} noBackground />;
+      return <Icon name={icon.name} url={icon.url} noBackground />
     }
 
     return match(level)
       .with("info", () => {
-        return <Icon name={"Info"} noBackground size={16} />;
+        return <Icon name={"Info"} noBackground size={16} />
       })
       .with("warning", () => {
-        return <Icon name={"AlertCircle"} noBackground size={16} />;
+        return <Icon name={"AlertCircle"} noBackground size={16} />
       })
       .with("success", () => {
-        return <Icon name={"CheckCircle"} noBackground size={16} />;
+        return <Icon name={"CheckCircle"} noBackground size={16} />
       })
       .with("error", () => {
-        return <Icon name={"XCircle"} noBackground size={16} />;
+        return <Icon name={"XCircle"} noBackground size={16} />
       })
-      .exhaustive();
-  };
+      .exhaustive()
+  }
 
   return (
     <div className={`alert ${level}`}>
@@ -62,40 +62,40 @@ export const Alert = ({ message, level, onClose, icon, copyText }: Props) => {
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
 export default function AlertListener() {
-  const [currentAlert, setCurrentAlert] = useState<Props | null>(null);
+  const [currentAlert, setCurrentAlert] = useState<Props | null>(null)
 
   const clearAlert = () => {
-    setCurrentAlert(null);
-  };
+    setCurrentAlert(null)
+  }
 
   useEffect(() => {
     const handleMessage = (
       message: any,
-      sender: chrome.runtime.MessageSender,
-      sendResponse: (response?: any) => void
+      _sender: chrome.runtime.MessageSender,
+      sendResponse: (response?: any) => void,
     ) => {
       if (message.type === "monocle-alert") {
-        const alertEvent = message as AlertEvent;
-        setCurrentAlert(alertEvent);
+        const alertEvent = message as AlertEvent
+        setCurrentAlert(alertEvent)
 
-        sendResponse({ received: true });
-        return true;
+        sendResponse({ received: true })
+        return true
       }
-    };
+    }
 
-    chrome.runtime.onMessage.addListener(handleMessage);
+    chrome.runtime.onMessage.addListener(handleMessage)
 
     return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
-    };
-  }, []);
+      chrome.runtime.onMessage.removeListener(handleMessage)
+    }
+  }, [])
 
   if (!currentAlert) {
-    return null;
+    return null
   }
 
   return (
@@ -109,5 +109,5 @@ export default function AlertListener() {
         copyText={currentAlert.copyText}
       />
     </div>
-  );
+  )
 }
