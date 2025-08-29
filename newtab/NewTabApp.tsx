@@ -10,10 +10,7 @@ export default function NewTabApp() {
         </div>
 
         <div className="raycast new-tab-palette">
-          <NewTabCommandPalette
-            autoFocus={true}
-            className="w-full"
-          />
+          <NewTabCommandPalette autoFocus={true} className="w-full" />
         </div>
 
         <div className="mt-8 text-center">
