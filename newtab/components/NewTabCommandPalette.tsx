@@ -8,16 +8,14 @@ import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
 
 interface NewTabCommandPaletteProps {
-  isAlwaysVisible?: boolean
   onClose?: () => void
   className?: string
   autoFocus?: boolean
 }
 
 export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
-  isAlwaysVisible = false,
   onClose,
-  className = "",
+  className,
   autoFocus = false,
 }) => {
   const { data, fetchCommands } = useGetCommands()
@@ -46,7 +44,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
         })
 
         if (response.success && navigateBack) {
-          if (!isAlwaysVisible && onClose) {
+          if (onClose) {
             onClose() // Close palette on successful execution (only if closeable)
           }
         }
@@ -59,15 +57,14 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
         )
       }
     },
-    [isAlwaysVisible, onClose, sendMessage],
+    [onClose, sendMessage],
   )
 
   const handleClose = useCallback(() => {
-    if (!isAlwaysVisible && onClose) {
+    if (onClose) {
       onClose()
     }
-    // In always visible mode, do nothing
-  }, [isAlwaysVisible, onClose])
+  }, [onClose])
 
   return (
     <div className={className}>

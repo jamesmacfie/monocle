@@ -1,9 +1,6 @@
-import * as React from "react"
-
-const { useEffect, useCallback } = React
-
-import { useGlobalKeybindings } from "../../content/hooks/useGlobalKeybindings"
+import { useCallback, useEffect } from "react"
 import { useGetCommands } from "../hooks/useGetCommands"
+import { useGlobalKeybindings } from "../hooks/useGlobalKeybindings"
 import { useSendMessage } from "../hooks/useSendMessage"
 import { CommandPalette } from "./Command"
 
@@ -17,7 +14,7 @@ interface CommandPaletteUIProps {
 export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
   isAlwaysVisible = false,
   onClose,
-  className = "",
+  className,
   autoFocus = false,
 }) => {
   const { data, fetchCommands } = useGetCommands()
@@ -29,7 +26,7 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
   // Fetch commands on initial render
   useEffect(() => {
     fetchCommands()
-  }, [])
+  }, [fetchCommands])
 
   // Execute command via background script
   const executeCommand = useCallback(

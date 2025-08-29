@@ -6,7 +6,7 @@ const handleExecuteCommand = async (message: ExecuteCommandMessage) => {
   await executeCommandFromBackground(
     message.id,
     message.context,
-    message.formValues,
+    message.formValues ?? {},
   )
   return { success: true }
 }

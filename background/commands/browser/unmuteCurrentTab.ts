@@ -1,5 +1,5 @@
 import type { RunCommand } from "../../../types"
-import { updateTab } from "../../utils/browser"
+import { getActiveTab, updateTab } from "../../utils/browser"
 
 export const unmuteCurrentTab: RunCommand = {
   id: "unmute-current-tab",

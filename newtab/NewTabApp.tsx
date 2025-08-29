@@ -11,7 +11,6 @@ export default function NewTabApp() {
 
         <div className="raycast new-tab-palette">
           <NewTabCommandPalette
-            isAlwaysVisible={true}
             autoFocus={true}
             className="w-full"
           />
