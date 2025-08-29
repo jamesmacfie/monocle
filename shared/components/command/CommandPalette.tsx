@@ -200,7 +200,11 @@ export function CommandPalette({
             ui={ui}
             onBack={navigateBack}
             onEscape={navigateBack}
-            onExecute={(id, values) => executeCommand(id, values, false)}
+            onExecute={(id, values) => {
+              // Pass remainOpenOnSelect flag (defaults to false if not set)
+              const shouldNavigateBack = !ui.remainOpenOnSelect
+              return executeCommand(id, values, shouldNavigateBack)
+            }}
           />
         </Command>
       ) : (

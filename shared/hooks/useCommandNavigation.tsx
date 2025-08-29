@@ -63,6 +63,7 @@ export type UI = {
   id: string
   name: string
   ui: CommandSuggestionUI[]
+  remainOpenOnSelect?: boolean
 }
 
 /**
@@ -288,10 +289,13 @@ export function useCommandNavigation(
         id: selectedCommand.id,
         name: displayName,
         ui: selectedCommand.ui,
+        remainOpenOnSelect: selectedCommand.remainOpenOnSelect,
       })
     } else {
       // Leaf command: execute immediately
-      await executeCommand(selectedCommand.id, {})
+      // Pass remainOpenOnSelect flag (defaults to false if not set)
+      const shouldNavigateBack = !selectedCommand.remainOpenOnSelect
+      await executeCommand(selectedCommand.id, {}, shouldNavigateBack)
     }
   }
 

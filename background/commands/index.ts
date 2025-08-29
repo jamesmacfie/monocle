@@ -245,7 +245,7 @@ export const executeCommand = async (
   // Check if this is a toggle favorite action
   if (id.startsWith("toggle-favorite-")) {
     const originalCommandId = id.replace("toggle-favorite-", "")
-    const _newState = await toggleFavoriteCommandId(originalCommandId)
+    await toggleFavoriteCommandId(originalCommandId)
     return
   }
 
@@ -334,6 +334,7 @@ export const commandsToSuggestions = async (
         keywords: ["favorite", "star", isFavorite ? "remove" : "add"],
         isFavorite: false,
         actions: undefined,
+        remainOpenOnSelect: true,
       }
 
       // Combine existing actions with toggle favorite action

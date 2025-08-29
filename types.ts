@@ -108,6 +108,7 @@ export type CommandSuggestion = {
   actions?: CommandSuggestion[]
   keybinding?: string
   isFavorite?: boolean
+  remainOpenOnSelect?: boolean
 }
 
 export type ExecuteCommandMessage = {
