@@ -54,14 +54,6 @@ const level2Children: Command[] = [
       console.log("Level 2 Child 2 executed")
     },
   },
-  {
-    id: "level2-child-3",
-    name: "Level 2 Child 3",
-    description: "Yet another middle level child with children",
-    icon: { name: "FolderOpen" },
-    color: "pink",
-    commands: async (_context: ExecutionContext) => level3Children,
-  },
 ]
 
 // Level 1 children (first level)
@@ -72,24 +64,6 @@ const level1Children: Command[] = [
     description: "First level child with deep nesting",
     icon: { name: "FolderTree" },
     color: "red",
-    commands: async (_context: ExecutionContext) => level2Children,
-  },
-  {
-    id: "level1-child-2",
-    name: "Level 1 Child 2",
-    description: "Another first level child",
-    icon: { name: "FolderPlus" },
-    color: "yellow",
-    run: async () => {
-      console.log("Level 1 Child 2 executed")
-    },
-  },
-  {
-    id: "level1-child-3",
-    name: "Level 1 Child 3",
-    description: "Yet another first level child with children",
-    icon: { name: "FolderDown" },
-    color: "indigo",
     commands: async (_context: ExecutionContext) => level2Children,
   },
 ]

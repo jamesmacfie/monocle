@@ -15,17 +15,40 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
   } = await getCommandsFromBackground()
   const allCommands = [...cmdFavorites, ...cmdRecents, ...cmdSuggestions]
 
-  // Use findCommand to search recursively through nested structures
-  const parentCommand = await findCommand(
-    allCommands,
+  let commandToSearch = allCommands
+  let parentCommand: any = null
+
+  // If we have a parent path, navigate through it to find the correct context
+  if (message.parentPath && message.parentPath.length > 0) {
+    for (const parentId of message.parentPath) {
+      parentCommand = await findCommand(
+        commandToSearch,
+        parentId,
+        message.context,
+      )
+
+      if (parentCommand && "commands" in parentCommand) {
+        // Get the children for the next level of search
+        commandToSearch = await parentCommand.commands(message.context)
+      } else {
+        // If we can't find a parent in the path, something went wrong
+        console.error(`Parent command ${parentId} not found in path`)
+        return { children: [] }
+      }
+    }
+  }
+
+  // Now search for the target command in the correct context
+  const targetCommand = await findCommand(
+    commandToSearch,
     message.id,
     message.context,
   )
 
-  if (parentCommand && "commands" in parentCommand) {
-    const children = await parentCommand.commands(message.context)
+  if (targetCommand && "commands" in targetCommand) {
+    const children = await targetCommand.commands(message.context)
     const parentNameString = await resolveCommandName(
-      parentCommand.name,
+      targetCommand.name,
       message.context,
     )
     const childSuggestions = await commandsToSuggestions(

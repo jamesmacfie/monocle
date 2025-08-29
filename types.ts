@@ -127,6 +127,7 @@ export type GetChildrenMessage = {
   type: "get-children-commands"
   id: string
   context: ExecutionContext
+  parentPath?: string[] // Array of parent command IDs from root to current
 }
 
 export type GetCommandsMessage = {
