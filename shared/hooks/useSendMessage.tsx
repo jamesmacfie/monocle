@@ -4,7 +4,7 @@ import type {
   ExecuteKeybindingMessage,
   GetChildrenMessage,
   GetCommandsMessage,
-} from "../../types"
+} from "../../types/"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
 
 // Messages without context for easier usage

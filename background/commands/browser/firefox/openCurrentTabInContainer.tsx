@@ -1,4 +1,4 @@
-import type { Command, ParentCommand } from "../../../../types"
+import type { Command, ParentCommand } from "../../../../types/"
 import { createTab, queryTabs, removeTab } from "../../../utils/browser"
 import { queryContainers } from "../../../utils/firefox"
 

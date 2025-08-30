@@ -1,4 +1,4 @@
-import type { Command, ExecutionContext } from "../../types"
+import type { Command, ExecutionContext } from "../../types/"
 import { getActiveTab } from "../utils/browser"
 
 const STORAGE_KEY = "monocle-favoriteCommandIds"

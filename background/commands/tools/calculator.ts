@@ -1,4 +1,4 @@
-import type { Command } from "../../../types"
+import type { Command } from "../../../types/"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
 
 function stringMath(eq: string): number {

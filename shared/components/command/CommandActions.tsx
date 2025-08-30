@@ -1,7 +1,7 @@
 import { Command } from "cmdk"
 import { useEffect, useRef } from "react"
 import { useOnClickOutside } from "usehooks-ts"
-import type { CommandSuggestion } from "../../../types"
+import type { CommandSuggestion } from "../../../types/"
 import type { CommandActionsProps } from "../../types/command"
 import { CommandName } from "./CommandName"
 

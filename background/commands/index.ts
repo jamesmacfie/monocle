@@ -1,4 +1,4 @@
-import type { Command, CommandSuggestion, ExecutionContext } from "../../types"
+import type { Command, CommandSuggestion, ExecutionContext } from "../../types/"
 import { isFirefox } from "../utils/browser"
 import {
   resolveActionLabel,

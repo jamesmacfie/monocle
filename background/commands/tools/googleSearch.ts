@@ -1,4 +1,4 @@
-import type { UICommand } from "../../../types"
+import type { UICommand } from "../../../types/"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
 
 export const googleSearch: UICommand = {

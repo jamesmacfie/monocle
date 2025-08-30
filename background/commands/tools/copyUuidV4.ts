@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid"
-import type { Command } from "../../../types"
+import type { Command } from "../../../types/"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
 
 export const copyUuidV4: Command = {

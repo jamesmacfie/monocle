@@ -1,4 +1,4 @@
-import type { ExecuteKeybindingMessage } from "../../types"
+import type { ExecuteKeybindingMessage } from "../../types/"
 import { executeCommand as executeCommandById } from "../commands"
 import { getCommandIdForKeybinding } from "../keybindings/registry"
 import { createMessageHandler } from "../utils/messages"

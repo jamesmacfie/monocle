@@ -1,4 +1,4 @@
-import type { ExecuteCommandMessage } from "../../types"
+import type { ExecuteCommandMessage } from "../../types/"
 import { executeCommand as executeCommandFromBackground } from "../commands"
 import { createMessageHandler } from "../utils/messages"
 

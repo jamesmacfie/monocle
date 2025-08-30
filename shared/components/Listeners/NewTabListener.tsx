@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import type { NewTabEvent } from "../../../types"
+import type { NewTabEvent } from "../../../types/"
 
 export default function NewTabListener() {
   useEffect(() => {

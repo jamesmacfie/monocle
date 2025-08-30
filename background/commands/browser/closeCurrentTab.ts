@@ -1,4 +1,4 @@
-import type { Command } from "../../../types"
+import type { Command } from "../../../types/"
 import { queryTabs, removeTab } from "../../utils/browser"
 
 export const closeCurrentTab: Command = {

@@ -1,6 +1,6 @@
 import { Command, useCommandState } from "cmdk"
 import { useEffect, useRef, useState } from "react"
-import type { CommandSuggestion } from "../../../types"
+import type { CommandSuggestion } from "../../../types/"
 import { useActionLabel } from "../../hooks/useActionLabel"
 import { useCommandNavigation } from "../../hooks/useCommandNavigation"
 import type { CommandData, Page } from "../../types/command"

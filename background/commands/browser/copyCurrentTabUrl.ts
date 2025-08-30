@@ -1,4 +1,4 @@
-import type { Command } from "../../../types"
+import type { Command } from "../../../types/"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
 
 export const copyCurrentTabUrl: Command = {

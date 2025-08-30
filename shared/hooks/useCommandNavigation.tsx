@@ -1,6 +1,6 @@
 import type { RefObject } from "react"
 import { useEffect, useRef, useState } from "react"
-import type { CommandSuggestion, CommandSuggestionUI } from "../../types"
+import type { CommandSuggestion, CommandSuggestionUI } from "../../types/"
 import { getDisplayName } from "../components/Command/CommandName"
 import { useSendMessage } from "./useSendMessage"
 
@@ -288,7 +288,7 @@ export function useCommandNavigation(
       setUi({
         id: selectedCommand.id,
         name: displayName,
-        ui: selectedCommand.ui,
+        ui: selectedCommand.ui as CommandSuggestionUI[],
         remainOpenOnSelect: selectedCommand.remainOpenOnSelect,
       })
     } else {

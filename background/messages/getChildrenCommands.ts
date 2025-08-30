@@ -1,4 +1,4 @@
-import type { GetChildrenMessage } from "../../types"
+import type { GetChildrenMessage } from "../../types/"
 import {
   commandsToSuggestions,
   findCommand,

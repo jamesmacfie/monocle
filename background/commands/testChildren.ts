@@ -1,4 +1,4 @@
-import type { Command, ExecutionContext } from "../../types"
+import type { Command, ExecutionContext } from "../../types/"
 
 // Level 3 children (deepest level)
 const level3Children: Command[] = [

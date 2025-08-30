@@ -1,5 +1,5 @@
 import { match } from "ts-pattern"
-import type { Command } from "../../types"
+import type { Command } from "../../types/"
 import { browserCommands } from "../commands/browser"
 import { firefoxCommands } from "../commands/browser/firefox"
 import { debug } from "../commands/debug"

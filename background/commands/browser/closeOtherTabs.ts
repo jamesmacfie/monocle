@@ -1,4 +1,4 @@
-import type { RunCommand } from "../../../types"
+import type { RunCommand } from "../../../types/"
 import { getActiveTab, queryTabs, removeTab } from "../../utils/browser"
 
 export const closeOtherTabs: RunCommand = {

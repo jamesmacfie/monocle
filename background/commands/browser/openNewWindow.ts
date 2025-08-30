@@ -1,4 +1,4 @@
-import type { RunCommand } from "../../../types"
+import type { RunCommand } from "../../../types/"
 import { createWindow } from "../../utils/browser"
 
 export const openNewWindow: RunCommand = {

@@ -1,4 +1,4 @@
-import type { RunCommand } from "../../../types"
+import type { RunCommand } from "../../../types/"
 import { createWindow, queryTabs } from "../../utils/browser"
 
 export const moveCurrentTabToANewWindow: RunCommand = {

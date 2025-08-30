@@ -1,7 +1,7 @@
 import { Copy, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { match } from "ts-pattern"
-import type { AlertEvent } from "../../types"
+import type { AlertEvent } from "../../types/"
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard"
 import { Icon } from "./Icon"
 

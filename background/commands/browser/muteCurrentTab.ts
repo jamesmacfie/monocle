@@ -1,4 +1,4 @@
-import type { RunCommand } from "../../../types"
+import type { RunCommand } from "../../../types/"
 import { getActiveTab, updateTab } from "../../utils/browser"
 
 export const muteCurrentTab: RunCommand = {

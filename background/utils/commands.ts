@@ -1,7 +1,7 @@
 /**
  * Utility functions for working with commands
  */
-import type { Command, ExecutionContext } from "../../types"
+import type { Command, ExecutionContext } from "../../types/"
 
 // Helper type for properties that can be static or async
 type AsyncProperty<T> = T | ((context: ExecutionContext) => Promise<T>)

@@ -1,8 +1,8 @@
 import type { RefObject } from "react"
-import type { CommandSuggestion, CommandSuggestionUI } from "../../types"
+import type { CommandSuggestion, CommandSuggestionUI } from "../../types/"
 
 // Re-export main types for convenience
-export type { CommandSuggestion, CommandSuggestionUI } from "../../types"
+export type { CommandSuggestion, CommandSuggestionUI } from "../../types/"
 
 // Command navigation types
 export type Page = {
@@ -14,6 +14,7 @@ export type Page = {
   }
   searchValue: string
   parent?: CommandSuggestion
+  parentPath: string[] // Track the path of parent command IDs
 }
 
 export type UI = {

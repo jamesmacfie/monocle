@@ -1,5 +1,5 @@
 import { match } from "ts-pattern"
-import type { Message } from "../../types"
+import type { Message } from "../../types/"
 import { executeCommand } from "./executeCommand"
 import { executeKeybinding } from "./executeKeybinding"
 import { getChildrenCommands } from "./getChildrenCommands"

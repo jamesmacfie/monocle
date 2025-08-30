@@ -1,4 +1,4 @@
-import type { RunCommand } from "../../../types"
+import type { RunCommand } from "../../../types/"
 import { callBrowserAPI } from "../../utils/browser"
 
 export const reloadCurrentTab: RunCommand = {

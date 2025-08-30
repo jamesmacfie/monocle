@@ -1,4 +1,4 @@
-import type { ParentCommand, RunCommand } from "../../../types"
+import type { ParentCommand, RunCommand } from "../../../types/"
 import { getActiveTab, queryTabs, sendTabMessage } from "../../utils/browser"
 
 export const copyTabUrl: ParentCommand = {

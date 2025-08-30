@@ -1,4 +1,4 @@
-import type { Command } from "../../types"
+import type { Command } from "../../types/"
 import { calculateCommandScore, getAllUsageStats } from "./usage"
 
 export const debug: Command = {

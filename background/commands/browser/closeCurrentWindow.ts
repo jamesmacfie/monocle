@@ -1,4 +1,4 @@
-import type { RunCommand } from "../../../types"
+import type { RunCommand } from "../../../types/"
 import { getCurrentWindow, removeWindow } from "../../utils/browser"
 
 export const closeCurrentWindow: RunCommand = {

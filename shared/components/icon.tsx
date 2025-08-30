@@ -1,6 +1,6 @@
 import * as icons from "lucide-react"
 import type * as React from "react"
-import type { ColorName } from "../../types"
+import type { ColorName } from "../../types/"
 import { darkenColor, lightenColor } from "../utils"
 
 const COLOR_MAP: Record<ColorName, string> = {
