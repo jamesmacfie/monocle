@@ -1,6 +1,6 @@
 import type { Event } from "../../types/"
 
-type BrowserAPIObject = "tabs" | "windows" | "runtime"
+type BrowserAPIObject = "tabs" | "windows" | "runtime" | "bookmarks"
 
 // Cross-browser API helpers to handle Chrome vs Firefox differences
 export const isFirefox = chrome.runtime
@@ -109,5 +109,35 @@ export async function focusOrGoToUrl(url: string): Promise<void> {
       // If the tab is not found, create a new tab
       await createTab({ url })
     }
+  }
+}
+
+export async function getBookmarkTree(): Promise<any[]> {
+  try {
+    if (isFirefox) {
+      // Firefox uses browser.bookmarks which returns Promise directly
+      return await (browser as any).bookmarks.getTree()
+    } else {
+      // Chrome uses chrome.bookmarks with callback
+      return await callBrowserAPI("bookmarks", "getTree")
+    }
+  } catch (error) {
+    console.error("Failed to get bookmark tree:", error)
+    return []
+  }
+}
+
+export async function getBookmarkChildren(id: string): Promise<any[]> {
+  try {
+    if (isFirefox) {
+      // Firefox uses browser.bookmarks which returns Promise directly
+      return await (browser as any).bookmarks.getChildren(id)
+    } else {
+      // Chrome uses chrome.bookmarks with callback
+      return await callBrowserAPI("bookmarks", "getChildren", id)
+    }
+  } catch (error) {
+    console.error("Failed to get bookmark children:", error)
+    return []
   }
 }

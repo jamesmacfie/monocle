@@ -341,19 +341,19 @@ await sendTabMessage(activeTab.id, {
 | Property | Type                                        | Description                                                           |
 | -------- | ------------------------------------------- | --------------------------------------------------------------------- |
 | `id`     | `string`                                    | Unique identifier for the command (kebab-case recommended)            |
-| `name`   | `valueOrAsyncExecution<string \| string[]>` | Display name, can be string, array for breadcrumbs, or async function |
+| `name`   | `AsyncValue<string \| string[]>`            | Display name, can be string, array for breadcrumbs, or async function |
 
 ### Optional BaseCommand Properties
 
 | Property            | Type                                                | Description                            | Examples                                            |
 | ------------------- | --------------------------------------------------- | -------------------------------------- | --------------------------------------------------- |
-| `description`       | `valueOrAsyncExecution<string>`                     | Command description shown in UI        | "Opens a new browser tab"                           |
-| `icon`              | `valueOrAsyncExecution<Icon>`                       | Icon configuration                     | `{ name: "Plus" }` or `{ url: "path/to/icon.png" }` |
-| `color`             | `valueOrAsyncExecution<ColorName \| string>`        | Theme color for the command            | `"red"`, `"blue"`, `"#ff0000"`                      |
-| `keywords`          | `valueOrAsyncExecution<string[]>`                   | Search keywords for fuzzy matching     | `["tab", "new", "open"]`                            |
+| `description`       | `AsyncValue<string>`                                | Command description shown in UI        | "Opens a new browser tab"                           |
+| `icon`              | `AsyncValue<Icon>`                                  | Icon configuration                     | `{ name: "Plus" }` or `{ url: "path/to/icon.png" }` |
+| `color`             | `AsyncValue<ColorName \| string>`                   | Theme color for the command            | `"red"`, `"blue"`, `"#ff0000"`                      |
+| `keywords`          | `AsyncValue<string[]>`                              | Search keywords for fuzzy matching     | `["tab", "new", "open"]`                            |
 | `keybinding`        | `string`                                            | Keyboard shortcut                      | `"⌘ K"`, `"⌃ d"`, `"⌥ ⇧ n"`                         |
-| `priority`          | `(context: ExecutionContext) => Promise<Command[]>` | Function to determine command priority | Used for ranking in suggestions                     |
-| `supportedBrowsers` | `SupportedBrowser[]`                                | Browser compatibility                  | `["chrome", "firefox"]`                             |
+| `priority`          | `(context: Browser.Context) => Promise<Command[]>`  | Function to determine command priority | Used for ranking in suggestions                     |
+| `supportedBrowsers` | `Browser.Platform[]`                                | Browser compatibility                  | `["chrome", "firefox"]`                             |
 | `actions`           | `Command[]`                                         | Sub-actions available for the command  | Additional commands shown on hover/focus            |
 | `doNotAddToRecents` | `boolean`                                           | Flag to exclude from recent commands   | `true` to prevent recent tracking                   |
 
@@ -361,9 +361,9 @@ await sendTabMessage(activeTab.id, {
 
 | Property              | Type                                                     | Description                     | Examples                                            |
 | --------------------- | -------------------------------------------------------- | ------------------------------- | --------------------------------------------------- |
-| `actionLabel`         | `valueOrAsyncExecution<string>`                          | Default action label            | `"Execute"`, `"Open"`, `"Search"`                   |
-| `modifierActionLabel` | `{[key in ModifierKey]?: valueOrAsyncExecution<string>}` | Action labels for modifier keys | `{ shift: "Open in New Window", cmd: "Copy Link" }` |
-| `run`                 | `(context?, values?) => void \| Promise<void>`           | Execution function              | Main command logic                                  |
+| `actionLabel`         | `AsyncValue<string>`                                     | Default action label            | `"Execute"`, `"Open"`, `"Search"`                   |
+| `modifierActionLabel` | `{[K in Browser.ModifierKey]?: AsyncValue<string>}`      | Action labels for modifier keys | `{ shift: "Open in New Window", cmd: "Copy Link" }` |
+| `run`                 | `(context?: Browser.Context, values?: Record<string, string>) => void \| Promise<void>` | Execution function | Main command logic |
 
 ### UICommand Specific Properties
 
@@ -375,7 +375,7 @@ await sendTabMessage(activeTab.id, {
 
 | Property   | Type                                                | Description                            |
 | ---------- | --------------------------------------------------- | -------------------------------------- |
-| `commands` | `(context: ExecutionContext) => Promise<Command[]>` | Function that generates child commands |
+| `commands` | `(context: Browser.Context) => Promise<Command[]>`  | Function that generates child commands |
 
 ### Supported Color Values
 
@@ -384,6 +384,8 @@ await sendTabMessage(activeTab.id, {
 
 **Custom Colors:**
 Any valid CSS color value: `"#ff0000"`, `"rgb(255, 0, 0)"`, `"hsl(0, 100%, 50%)"`
+
+**Note:** The new type system supports both `ColorName` and custom string values through the `AsyncValue<ColorName | string>` type.
 
 ### Keybinding Format
 
@@ -396,7 +398,7 @@ Examples: `"⌘ K"`, `"⌃ d"`, `"⌥ ⇧ n"`, `"⌘ ⇧ p"`
 
 ### Modifier Keys
 
-Available in `ExecutionContext.modifierKey`:
+Available in `Browser.Context.modifierKey` (also available as `ExecutionContext.modifierKey` for backward compatibility):
 - `"shift"` - Shift key pressed
 - `"cmd"` - Cmd/Meta key pressed  
 - `"alt"` - Alt/Option key pressed
@@ -405,12 +407,12 @@ Available in `ExecutionContext.modifierKey`:
 
 ### Async Property Resolution
 
-Many properties support `valueOrAsyncExecution<T>` which means they can be:
+Many properties support `AsyncValue<T>` which means they can be:
 
 1. **Static value**: `name: "My Command"`
-2. **Async function**: `name: async (context) => { return await getTabTitle() }`
+2. **Async function**: `name: async (context: Browser.Context) => { return await getTabTitle() }`
 
-This allows commands to dynamically update based on current browser state.
+This allows commands to dynamically update based on current browser state. The `context` parameter provides access to the current page's URL, title, and any active modifier keys.
 
 ## Registration and Best Practices
 
@@ -418,10 +420,18 @@ This allows commands to dynamically update based on current browser state.
 
 ```typescript
 // background/commands/category/myCommand.ts
-import type { RunCommand } from "../../../types"
+import type { RunCommand, Browser } from "../../../types"
 
 export const myCommand: RunCommand = {
-  // Command definition here
+  id: "my-command",
+  name: "My Command",
+  description: "Description of what this command does",
+  icon: { name: "Star" },
+  color: "blue",
+  keywords: ["my", "command"],
+  run: async (context?: Browser.Context, values?: Record<string, string>) => {
+    // Command implementation here
+  }
 }
 ```
 
@@ -446,12 +456,12 @@ export const categoryCommands = [
 
 **Error Handling:**
 ```typescript
-run: async (context, values) => {
+run: async (context?: Browser.Context, values?: Record<string, string>) => {
   try {
     // Your command logic
     await someAsyncOperation()
   } catch (error) {
-    console.error(`Error in ${id}:`, error)
+    console.error(`Error in command:`, error)
     
     // Show error to user
     const activeTab = await getActiveTab()
@@ -478,6 +488,8 @@ export const myCommand: RunCommand = {
 }
 ```
 
+**Note:** The `supportedBrowsers` property now uses the `Browser.Platform[]` type for better type safety.
+
 **Performance:**
 - Use async properties sparingly - they're evaluated each time commands are loaded
 - Cache expensive operations when possible
@@ -493,9 +505,11 @@ export const myCommand: RunCommand = {
 ### Example: Complete Command with All Features
 
 ```typescript
+import type { UICommand, Browser } from "../../../types"
+
 export const advancedExample: UICommand = {
   id: "advanced-example",
-  name: async (context) => `Advanced Command (${context.url})`,
+  name: async (context: Browser.Context) => `Advanced Command (${context.url})`,
   description: "A comprehensive example showing all features",
   icon: { name: "Zap" },
   color: async () => Math.random() > 0.5 ? "blue" : "purple",
@@ -532,8 +546,10 @@ export const advancedExample: UICommand = {
     }
   ],
   
-  run: async (context, values) => {
+  run: async (context?: Browser.Context, values?: Record<string, string>) => {
     // Implementation with full error handling and user feedback
+    console.log('Context:', context)
+    console.log('Values:', values)
   }
 }
 ```

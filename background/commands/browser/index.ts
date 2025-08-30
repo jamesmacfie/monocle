@@ -1,4 +1,5 @@
 import { testChildren } from "../testChildren"
+import { bookmarks } from "./bookmarks"
 import { closeCurrentTab } from "./closeCurrentTab"
 import { closeCurrentWindow } from "./closeCurrentWindow"
 import { closeOtherTabs } from "./closeOtherTabs"
@@ -21,6 +22,7 @@ import { unpinCurrentTab } from "./unpinCurrentTab"
 export { firefoxCommands } from "./firefox"
 
 export const browserCommands = [
+  bookmarks,
   closeCurrentTab,
   closeCurrentWindow,
   closeOtherTabs,

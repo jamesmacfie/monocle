@@ -26,7 +26,13 @@
       "id": "ff@monocle.com"
     }
   },
-  "permissions": ["cookies", "contextualIdentities", "tabs", "storage"],
+  "permissions": [
+    "bookmarks",
+    "cookies",
+    "contextualIdentities",
+    "tabs",
+    "storage"
+  ],
   "commands": {
     "toggle-command-palette": {
       "suggested_key": {

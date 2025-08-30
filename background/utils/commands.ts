@@ -1,7 +1,7 @@
 /**
  * Utility functions for working with commands
  */
-import type { Command, ExecutionContext } from "../../types/"
+import type { Command, CommandIcon, ExecutionContext } from "../../types/"
 
 // Helper type for properties that can be static or async
 type AsyncProperty<T> = T | ((context: ExecutionContext) => Promise<T>)
@@ -87,4 +87,25 @@ export async function resolveCommandName(
  */
 export function getDisplayName(name: string | string[]): string {
   return Array.isArray(name) ? name[0] : name
+}
+
+export function createNoOpCommand(
+  id: string,
+  name: string,
+  description: string,
+  icon: CommandIcon = {
+    type: "lucide",
+    name: "Info",
+  },
+): Command {
+  return {
+    id,
+    name,
+    description,
+    icon,
+    color: "gray",
+    run: async () => {
+      // no op
+    },
+  }
 }
