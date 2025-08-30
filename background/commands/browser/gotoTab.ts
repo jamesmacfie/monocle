@@ -4,7 +4,7 @@ import { getTab, queryTabs, updateTab, updateWindow } from "../../utils/browser"
 export const gotoTab: ParentCommand = {
   id: "goto-tab",
   name: "Go to tab",
-  icon: { name: "ArrowRightSquare" },
+  icon: { type: "lucide", name: "ArrowRightSquare" },
   color: "green",
   commands: async () => {
     const tabs = await queryTabs({ currentWindow: true })
@@ -15,7 +15,7 @@ export const gotoTab: ParentCommand = {
           id: `go-to-tab-${tab.id}`,
           name: async () => tab.title,
           icon: async () => {
-            return { url: tab.favIconUrl }
+            return { type: "url", url: tab.favIconUrl }
           },
           run: async () => {
             try {

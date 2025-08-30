@@ -5,7 +5,7 @@ export const debug: Command = {
   id: "debug",
   name: "Debug",
   description: "Debug commands for development",
-  icon: { name: "Bug" },
+  icon: { type: "lucide", name: "Bug" },
   color: "indigo",
   commands: async () => {
     return [
@@ -13,7 +13,7 @@ export const debug: Command = {
         id: "debug-usage-stats",
         name: "Show Usage Statistics",
         description: "Display command usage statistics and rankings",
-        icon: { name: "BarChart3" },
+        icon: { type: "lucide", name: "BarChart3" },
         color: "indigo",
         run: async () => {
           const allStats = await getAllUsageStats()

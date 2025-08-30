@@ -1,4 +1,4 @@
-import type { Command, CommandSuggestion, ExecutionContext } from "../../types/"
+import type { Browser, Command, CommandSuggestion } from "../../types/"
 import { isFirefox } from "../utils/browser"
 import {
   resolveActionLabel,
@@ -14,11 +14,7 @@ import {
 } from "./favorites"
 import { clearRecentsCommand } from "./recents"
 import { toolCommands } from "./tools"
-import {
-  addToRecentCommandIds,
-  getRankedCommandIds,
-  getRecentCommandIds,
-} from "./usage"
+import { getRankedCommandIds, recordCommandUsage } from "./usage"
 
 // Function to get all commands, including dynamically generated ones
 export const getCommands = async (): Promise<{
@@ -80,7 +76,7 @@ export const getCommands = async (): Promise<{
   const findFavoritedCommands = async (
     commands: Command[],
     favoriteCommandIds: string[],
-    context: ExecutionContext,
+    context: Browser.Context,
     parentName?: string,
   ): Promise<Command[]> => {
     const favoritedCommands: Command[] = []
@@ -137,7 +133,7 @@ export const getCommands = async (): Promise<{
   const favoriteCommandIds = await getFavoriteCommandIds()
 
   // Create a basic execution context for resolving command children
-  const basicContext: ExecutionContext = {
+  const basicContext: Browser.Context = {
     url: "",
     title: "",
     modifierKey: null,
@@ -157,7 +153,7 @@ export const getCommands = async (): Promise<{
   }
 
   // Add recent commands second (excluding those already in favorites)
-  const recentCommandIds = await getRecentCommandIds()
+  const recentCommandIds = (await getRankedCommandIds()).slice(0, 5)
   for (const recentId of recentCommandIds) {
     if (!addedCommandIds.has(recentId)) {
       const recentCommand = findCommandById(allCommands, recentId)
@@ -202,7 +198,7 @@ export const getCommands = async (): Promise<{
 export const findCommand = async (
   commands: Command[],
   commandId: string,
-  context: ExecutionContext,
+  context: Browser.Context,
 ): Promise<Command | undefined> => {
   // First try to find the command directly in the current level
   const directCommand = commands.find((cmd) => cmd.id === commandId)
@@ -239,7 +235,7 @@ export const findCommand = async (
 
 export const executeCommand = async (
   id: string,
-  context: ExecutionContext,
+  context: Browser.Context,
   formValues: Record<string, string>,
 ) => {
   // Check if this is a toggle favorite action
@@ -262,7 +258,7 @@ export const executeCommand = async (
 
         // Only add to recents if the command doesn't have doNotAddToRecents flag
         if (!commandToRun.doNotAddToRecents) {
-          await addToRecentCommandIds(id)
+          await recordCommandUsage(id)
         }
 
         return
@@ -284,7 +280,7 @@ export const executeCommand = async (
 
 export const commandsToSuggestions = async (
   commands: Command[],
-  context: ExecutionContext,
+  context: Browser.Context,
   parentName?: string,
 ): Promise<CommandSuggestion[]> => {
   const favoriteCommandIds = await getFavoriteCommandIds()
@@ -326,7 +322,7 @@ export const commandsToSuggestions = async (
         description: isFavorite
           ? "Remove this command from favorites"
           : "Add this command to favorites",
-        icon: { name: isFavorite ? "StarOff" : "Star" },
+        icon: { type: "lucide", name: isFavorite ? "StarOff" : "Star" },
         color: "amber",
         hasCommands: false,
         actionLabel: isFavorite ? "Remove" : "Add",

@@ -65,12 +65,12 @@ function stringMath(eq: string): number {
 export const calculator: Command = {
   id: "calculator",
   name: "Calculator",
-  icon: { name: "Calculator" },
+  icon: { type: "lucide", name: "Calculator" },
   color: "teal",
   ui: [
     {
       id: "calculation",
-      type: "input",
+      type: "text",
       placeholder: "1 + 2",
     },
   ],

@@ -7,7 +7,7 @@ export const openCurrentTabInContainer: ParentCommand = {
   supportedBrowsers: ["firefox"],
   name: "Open current tab in container",
   description: "Reopen the current tab in a container profile",
-  icon: { name: "RefreshCw" },
+  icon: { type: "lucide", name: "RefreshCw" },
   color: "blue",
   keywords: ["container", "tab", "profile", "reopen", "current"],
   commands: async (): Promise<Command[]> => {
@@ -38,7 +38,7 @@ export const openCurrentTabInContainer: ParentCommand = {
           id: `open-current-tab-in-container-${container.cookieStoreId}`,
           name: async () => profileName,
           icon: async () => {
-            return { url: container.iconUrl }
+            return { type: "url", url: container.iconUrl }
           },
           color: async () => colorCode,
           run: async () => {

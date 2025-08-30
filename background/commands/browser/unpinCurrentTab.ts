@@ -5,7 +5,7 @@ export const unpinCurrentTab: RunCommand = {
   // TODO - should only show this if the current tab is actually pinned
   id: "unpin-current-tab",
   name: "Unpin current tab",
-  icon: { name: "PinOff" },
+  icon: { type: "lucide", name: "PinOff" },
   color: "green",
   run: async () => {
     const activeTab = await getActiveTab()

@@ -4,12 +4,12 @@ import { getActiveTab, sendTabMessage } from "../../utils/browser"
 export const googleSearch: UICommand = {
   id: "google-search",
   name: "Google Search",
-  icon: { name: "Search" },
+  icon: { type: "lucide", name: "Search" },
   color: "teal",
   ui: [
     {
       id: "search",
-      type: "input",
+      type: "text",
       placeholder: "Your search query",
     },
   ],

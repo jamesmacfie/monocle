@@ -4,7 +4,7 @@ import { getActiveTab, queryTabs, removeTab } from "../../utils/browser"
 export const closeOtherTabs: RunCommand = {
   id: "close-other-tabs",
   name: "Close other tabs",
-  icon: { name: "XOctagon" },
+  icon: { type: "lucide", name: "XOctagon" },
   color: "red",
   run: async () => {
     const activeTab = await getActiveTab()

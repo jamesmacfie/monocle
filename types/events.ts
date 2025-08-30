@@ -1,11 +1,16 @@
 // Browser extension events
-import type { Icon } from "./commands"
+
+// Legacy Icon type for events (matches Alert component expectations)
+type LegacyIcon = {
+  name?: string
+  url?: string
+}
 
 export type AlertEvent = {
   type: "monocle-alert"
   level: "info" | "warning" | "success" | "error"
   message: string
-  icon?: Icon
+  icon?: LegacyIcon
   copyText?: string
 }
 

@@ -1,6 +1,6 @@
 import * as icons from "lucide-react"
 import type * as React from "react"
-import type { ColorName } from "../../types/"
+import type { ColorName, CommandIcon } from "../../types/"
 import { darkenColor, lightenColor } from "../utils"
 
 const COLOR_MAP: Record<ColorName, string> = {
@@ -19,6 +19,8 @@ const COLOR_MAP: Record<ColorName, string> = {
 }
 
 interface IconProps extends icons.LucideProps {
+  icon?: CommandIcon
+  // Backward compatibility - will be removed
   name?: string
   url?: string
   color?: ColorName | string
@@ -27,8 +29,9 @@ interface IconProps extends icons.LucideProps {
 
 // Helper to get Lucide icon component by name
 export const Icon = ({
-  name,
-  url,
+  icon,
+  name, // backward compatibility
+  url, // backward compatibility
   color = "lightBlue", // Default to lightBlue color name
   noBackground = false,
   ...props
@@ -51,7 +54,28 @@ export const Icon = ({
       }
     : undefined
 
-  // If iconUrl is provided, use it (takes precedence)
+  // Handle new CommandIcon type first
+  if (icon) {
+    if (icon.type === "url") {
+      return (
+        <div className="icon-wrapper" style={backgroundStyle}>
+          <img src={icon.url} alt="icon" className="url-icon" />
+        </div>
+      )
+    } else if (icon.type === "lucide" && icon.name in icons) {
+      // biome-ignore lint/performance/noDynamicNamespaceImportAccess: we're ok here
+      const IconComponent = icons[
+        icon.name as keyof typeof icons
+      ] as React.ElementType
+      return (
+        <div className="icon-wrapper" style={backgroundStyle}>
+          <IconComponent size={10} {...props} />
+        </div>
+      )
+    }
+  }
+
+  // Backward compatibility - handle old interface
   if (url) {
     return (
       <div className="icon-wrapper" style={backgroundStyle}>

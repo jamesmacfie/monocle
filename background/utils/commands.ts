@@ -1,24 +1,24 @@
 /**
  * Utility functions for working with commands
  */
-import type { Command, CommandIcon, ExecutionContext } from "../../types/"
+import type { Browser, Command, CommandIcon } from "../../types/"
 
 // Helper type for properties that can be static or async
-type AsyncProperty<T> = T | ((context: ExecutionContext) => Promise<T>)
+type AsyncProperty<T> = T | ((context: Browser.Context) => Promise<T>)
 
 /**
  * Resolves a property that can be either a static value or an async function
  */
 export async function resolveAsyncProperty<T>(
   property: AsyncProperty<T> | undefined,
-  context: ExecutionContext,
+  context: Browser.Context,
 ): Promise<T | undefined> {
   if (property === undefined) {
     return undefined
   }
 
   return typeof property === "function"
-    ? await (property as (context: ExecutionContext) => Promise<T>)(context)
+    ? await (property as (context: Browser.Context) => Promise<T>)(context)
     : property
 }
 
@@ -27,7 +27,7 @@ export async function resolveAsyncProperty<T>(
  */
 export async function resolveActionLabel(
   command: Command,
-  context: ExecutionContext,
+  context: Browser.Context,
 ): Promise<string> {
   if ("actionLabel" in command && command.actionLabel) {
     return (await resolveAsyncProperty(command.actionLabel, context)) ?? "Run"
@@ -40,7 +40,7 @@ export async function resolveActionLabel(
  */
 export async function resolveModifierActionLabels(
   command: Command,
-  context: ExecutionContext,
+  context: Browser.Context,
 ): Promise<{
   alt?: string
   ctrl?: string
@@ -74,7 +74,7 @@ export async function resolveModifierActionLabels(
  */
 export async function resolveCommandName(
   name: any,
-  context: ExecutionContext,
+  context: Browser.Context,
 ): Promise<string> {
   const resolvedName = typeof name === "function" ? await name(context) : name
   return Array.isArray(resolvedName) ? resolvedName[0] : resolvedName

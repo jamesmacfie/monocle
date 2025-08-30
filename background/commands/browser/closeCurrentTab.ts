@@ -4,7 +4,7 @@ import { queryTabs, removeTab } from "../../utils/browser"
 export const closeCurrentTab: Command = {
   id: "close-current-tab",
   name: "Close current tab",
-  icon: { name: "X" },
+  icon: { type: "lucide", name: "X" },
   color: "red",
   keybinding: "⌃ d",
   run: async () => {

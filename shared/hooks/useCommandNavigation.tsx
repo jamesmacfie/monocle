@@ -1,6 +1,6 @@
 import type { RefObject } from "react"
 import { useEffect, useRef, useState } from "react"
-import type { CommandSuggestion, CommandSuggestionUI } from "../../types/"
+import type { CommandSuggestion, FormField } from "../../types/"
 import { getDisplayName } from "../components/Command/CommandName"
 import { useSendMessage } from "./useSendMessage"
 
@@ -62,7 +62,7 @@ export type Page = {
 export type UI = {
   id: string
   name: string
-  ui: CommandSuggestionUI[]
+  ui: FormField[]
   remainOpenOnSelect?: boolean
 }
 
@@ -288,7 +288,7 @@ export function useCommandNavigation(
       setUi({
         id: selectedCommand.id,
         name: displayName,
-        ui: selectedCommand.ui as CommandSuggestionUI[],
+        ui: selectedCommand.ui as FormField[],
         remainOpenOnSelect: selectedCommand.remainOpenOnSelect,
       })
     } else {

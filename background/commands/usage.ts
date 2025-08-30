@@ -196,17 +196,3 @@ const cleanupOldData = async (usageData: StoredUsageData): Promise<void> => {
     }
   })
 }
-
-// Get recent command IDs for backward compatibility
-export const getRecentCommandIds = async (): Promise<string[]> => {
-  const rankedIds = await getRankedCommandIds()
-  // Return top 5 for backward compatibility with existing recents system
-  return rankedIds.slice(0, 5)
-}
-
-// Add to recent commands for backward compatibility
-export const addToRecentCommandIds = async (
-  commandId: string,
-): Promise<void> => {
-  await recordCommandUsage(commandId)
-}

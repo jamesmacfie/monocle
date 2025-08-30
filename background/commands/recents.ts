@@ -5,7 +5,7 @@ export const clearRecentsCommand: Command = {
   id: "clear-recents",
   name: "Clear recents",
   description: "Clear all recently selected commands",
-  icon: { name: "Trash2" },
+  icon: { type: "lucide", name: "Trash2" },
   doNotAddToRecents: true,
   run: async () => {
     try {

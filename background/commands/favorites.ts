@@ -1,4 +1,4 @@
-import type { Command, ExecutionContext } from "../../types/"
+import type { Browser, Command } from "../../types/"
 import { getActiveTab } from "../utils/browser"
 
 const STORAGE_KEY = "monocle-favoriteCommandIds"
@@ -86,10 +86,10 @@ export const toggleFavoriteCommand: Command = {
   id: "toggle-favorite",
   name: "Toggle Favorite",
   description: "Toggle favorite status for a command",
-  icon: { name: "Star" },
+  icon: { type: "lucide", name: "Star" },
   color: "amber",
   doNotAddToRecents: true,
-  run: async (_context?: ExecutionContext, values?: Record<string, string>) => {
+  run: async (_context?: Browser.Context, values?: Record<string, string>) => {
     const commandId = values?.commandId
     if (commandId) {
       await toggleFavoriteCommandId(commandId)
@@ -102,7 +102,7 @@ export const clearFavoritesCommand: Command = {
   id: "clear-favorites",
   name: "Clear favorites",
   description: "Clear all favorite commands",
-  icon: { name: "Trash2" },
+  icon: { type: "lucide", name: "Trash2" },
   doNotAddToRecents: true,
   run: async () => {
     try {

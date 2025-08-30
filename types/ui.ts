@@ -1,6 +1,6 @@
 // UI representations, forms, and display types
 import type { Browser } from "./browser"
-import type { Icon } from "./commands"
+import type { CommandIcon } from "./commands"
 
 export type FormField = {
   id: string
@@ -32,7 +32,7 @@ export type CommandSuggestion = {
   color?: string
   keywords?: string[]
   hasCommands: boolean
-  icon?: Icon
+  icon?: CommandIcon
   ui?: FormField[]
   actionLabel: string
   modifierActionLabel?: {
@@ -49,7 +49,7 @@ export interface CommandListItem {
   id: string
   name: string | string[]
   description?: string
-  icon?: Icon // Use old Icon type
+  icon?: CommandIcon
   color?: string // Use simple string
   keywords?: string[]
   keybinding?: string

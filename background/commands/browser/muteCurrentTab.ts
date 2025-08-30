@@ -4,7 +4,7 @@ import { getActiveTab, updateTab } from "../../utils/browser"
 export const muteCurrentTab: RunCommand = {
   id: "mute-current-tab",
   name: "Mute current tab",
-  icon: { name: "VolumeX" },
+  icon: { type: "lucide", name: "VolumeX" },
   color: "red",
   run: async () => {
     const activeTab = await getActiveTab()

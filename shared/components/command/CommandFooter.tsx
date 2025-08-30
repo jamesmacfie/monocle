@@ -21,8 +21,7 @@ export function CommandFooter({
         {currentPage?.parent && (
           <>
             <Icon
-              name={currentPage.parent.icon?.name}
-              url={currentPage.parent.icon?.url}
+              icon={currentPage.parent.icon}
               color={currentPage.parent.color}
             />
             <CommandName name={currentPage.parent.name} />

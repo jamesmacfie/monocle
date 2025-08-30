@@ -34,7 +34,7 @@ function processBookmarkNode(
       id: `bookmark-folder-${node.id}`,
       name: node.title || "Untitled Folder",
       description: `Browse ${node.title || "folder"} bookmarks`,
-      icon: { name: "Folder" },
+      icon: { type: "lucide", name: "Folder" },
       color: "amber",
       keywords: [node.title?.toLowerCase() || "folder"],
       commands: async () => {
@@ -62,9 +62,9 @@ function processBookmarkNode(
         try {
           const url = new URL(node.url!)
           const faviconUrl = `${url.protocol}//${url.host}/favicon.ico`
-          return { url: faviconUrl }
+          return { type: "url", url: faviconUrl }
         } catch (_e) {
-          return { name: "Bookmark" }
+          return { type: "lucide", name: "Bookmark" }
         }
       },
       color: "blue",
@@ -135,7 +135,7 @@ export const bookmarks: ParentCommand = {
   id: "bookmarks",
   name: "Bookmarks",
   description: "Browse and open your bookmarks",
-  icon: { name: "Bookmark" },
+  icon: { type: "lucide", name: "Bookmark" },
   color: "yellow",
   keywords: ["bookmarks", "favorites", "saved", "links"],
   commands: async () => {
@@ -148,7 +148,7 @@ export const bookmarks: ParentCommand = {
             "no-bookmarks",
             "No bookmarks found",
             "No bookmarks available",
-            { name: "BookmarkX", type: "lucide" },
+            { type: "lucide", name: "BookmarkX" },
           ),
         ]
       }
@@ -176,7 +176,7 @@ export const bookmarks: ParentCommand = {
           "bookmarks-error",
           "Error Loading Bookmarks",
           "Failed to fetch bookmarks",
-          { name: "AlertTriangle", type: "lucide" },
+          { type: "lucide", name: "AlertTriangle" },
         ),
       ]
     }

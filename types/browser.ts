@@ -6,11 +6,6 @@ export namespace Browser {
   export interface Context {
     url: string
     title: string
-    modifierKey: ModifierKey | null // Keep original name for now
+    modifierKey: ModifierKey | null
   }
 }
-
-// Export at top level for convenience
-export type ModifierKey = Browser.ModifierKey
-export type ExecutionContext = Browser.Context
-export type SupportedBrowser = Browser.Platform

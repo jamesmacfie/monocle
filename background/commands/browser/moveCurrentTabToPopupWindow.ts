@@ -4,7 +4,7 @@ import { createWindow, queryTabs } from "../../utils/browser"
 export const moveCurrentTabToPopupWindow: RunCommand = {
   id: "move-current-tab-to-popup-window",
   name: "Move current tab to popup window",
-  icon: { name: "Maximize2" },
+  icon: { type: "lucide", name: "Maximize2" },
   color: "yellow",
   run: async () => {
     const active_tabs = await queryTabs({

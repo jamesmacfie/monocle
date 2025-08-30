@@ -1,14 +1,14 @@
 import { ChevronLeft } from "lucide-react"
 import type { FormEvent } from "react"
 import { useEffect, useRef } from "react"
-import type { CommandSuggestionUI } from "../../types/"
+import type { FormField } from "../../types/"
 import { useActionLabel } from "../hooks/useActionLabel"
 import type { Page, UI } from "../hooks/useCommandNavigation"
 import AlertListener from "./Alert"
 import { Icon } from "./Icon"
 
 type InputItemProps = {
-  item: Extract<CommandSuggestionUI, { type: "input" }>
+  item: Extract<FormField, { type: "text" }>
   defaultValue: string | undefined
   inputRef: React.RefObject<HTMLInputElement> | null
   onEnter: () => void
@@ -39,7 +39,7 @@ function InputItem({ item, defaultValue, inputRef, onEnter }: InputItemProps) {
 }
 
 type TextItemProps = {
-  item: Extract<CommandSuggestionUI, { type: "text" }>
+  item: Extract<FormField, { type: "text" }>
 }
 
 function TextItem({ item }: TextItemProps) {
@@ -125,7 +125,7 @@ export default function CommandUI({
         >
           {ui.ui.map((item, index) => (
             <div key={item.id} className="cmdk-ui-item">
-              {item.type === "input" && (
+              {item.type === "text" && (
                 <InputItem
                   item={item}
                   defaultValue={item.defaultValue}
@@ -144,8 +144,7 @@ export default function CommandUI({
           {currentPage.parent && (
             <>
               <Icon
-                name={currentPage.parent.icon?.name}
-                url={currentPage.parent.icon?.url}
+                icon={currentPage.parent.icon}
                 color={currentPage.parent.color}
               />
               <span>{currentPage.parent.name}</span>

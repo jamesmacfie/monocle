@@ -398,7 +398,7 @@ Examples: `"⌘ K"`, `"⌃ d"`, `"⌥ ⇧ n"`, `"⌘ ⇧ p"`
 
 ### Modifier Keys
 
-Available in `Browser.Context.modifierKey` (also available as `ExecutionContext.modifierKey` for backward compatibility):
+Available in `Browser.Context.modifierKey`:
 - `"shift"` - Shift key pressed
 - `"cmd"` - Cmd/Meta key pressed  
 - `"alt"` - Alt/Option key pressed

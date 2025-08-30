@@ -5,7 +5,7 @@ import { getActiveTab, sendTabMessage } from "../../utils/browser"
 export const copyUuidV4: Command = {
   id: "uuidv4",
   name: "Copy UUID v4",
-  icon: { name: "Copy" },
+  icon: { type: "lucide", name: "Copy" },
   color: "teal",
   run: async () => {
     const uuid = uuidv4()

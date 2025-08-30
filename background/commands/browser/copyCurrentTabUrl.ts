@@ -4,13 +4,13 @@ import { getActiveTab, sendTabMessage } from "../../utils/browser"
 export const copyCurrentTabUrl: Command = {
   id: "copyCurrentTabUrl",
   name: "Copy current tab URL",
-  icon: { name: "Copy" },
+  icon: { type: "lucide", name: "Copy" },
   color: "teal",
   actions: [
     {
       id: "copyCurrentTabUrl-copy-url",
       name: "Copy URL",
-      icon: { name: "Copy" },
+      icon: { type: "lucide", name: "Copy" },
       keybinding: "↵",
       run: async () => {
         const activeTab = await getActiveTab()
@@ -25,7 +25,7 @@ export const copyCurrentTabUrl: Command = {
     {
       id: "copyCurrentTabUrl-copy-url-no-params",
       name: "Copy URL without parameters",
-      icon: { name: "Copy" },
+      icon: { type: "lucide", name: "Copy" },
       keybinding: "⌘ ↵",
       run: async () => {
         const activeTab = await getActiveTab()
@@ -50,7 +50,7 @@ export const copyCurrentTabUrl: Command = {
     {
       id: "copyCurrentTabUrl-copy-domain",
       name: "Copy domain only",
-      icon: { name: "Globe" },
+      icon: { type: "lucide", name: "Globe" },
       keybinding: "⌘ ⇧ ↵",
       run: async () => {
         const activeTab = await getActiveTab()

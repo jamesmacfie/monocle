@@ -37,11 +37,7 @@ export function CommandItem({
       keywords={suggestion.keywords}
       onSelect={handleSelect}
     >
-      <Icon
-        name={suggestion.icon?.name}
-        url={suggestion.icon?.url}
-        color={suggestion.color}
-      />
+      <Icon icon={suggestion.icon} color={suggestion.color} />
       <div className="command-item-content">
         {suggestion.isFavorite && <Icon name="Star" color="#fbbf24" />}
         <CommandName name={displayName} className="command-item-name" />

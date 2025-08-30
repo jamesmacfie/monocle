@@ -135,7 +135,7 @@ The extension supports three types of commands, all extending `BaseCommand`:
 Simple executable commands with a `run()` function.
 ```typescript
 interface RunCommand extends BaseCommand {
-  run: (context?: ExecutionContext, values?: Record<string, string>) => void | Promise<void>;
+  run: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>;
   actionLabel?: string;
   modifierActionLabel?: { [key in ModifierKey]?: string };
 }
@@ -146,7 +146,7 @@ Example: `closeCurrentTab`, `openNewWindow`
 Commands that generate child commands dynamically.
 ```typescript
 interface ParentCommand extends BaseCommand {
-  commands: (context: ExecutionContext) => Promise<Command[]>;
+  commands: (context: Browser.Context) => Promise<Command[]>;
 }
 ```
 Example: `gotoTab` generates a list of all open tabs as child commands
@@ -156,7 +156,7 @@ Commands that require user input via form fields.
 ```typescript
 interface UICommand extends BaseCommand {
   ui: CommandUI[];
-  run: (context?: ExecutionContext, values?: Record<string, string>) => void | Promise<void>;
+  run: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>;
 }
 ```
 Example: `googleSearch` shows an input field for the search query
@@ -209,12 +209,12 @@ type Message =
   | ExecuteKeybindingMessage; // Execute command by keybinding
 ```
 
-### ExecutionContext
+### Browser.Context
 
 Every command execution includes context about the current page:
 
 ```typescript
-interface ExecutionContext {
+interface Browser.Context {
   url: string;        // Current page URL
   title: string;      // Current page title
   modifierKey: ModifierKey | null; // Active modifier key

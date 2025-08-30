@@ -4,7 +4,7 @@ import { getActiveTab, queryTabs, sendTabMessage } from "../../utils/browser"
 export const copyTabUrl: ParentCommand = {
   id: "copy-tab-url",
   name: "Copy tab URL",
-  icon: { name: "Copy" },
+  icon: { type: "lucide", name: "Copy" },
   color: "teal",
   commands: async () => {
     const tabs = await queryTabs({ currentWindow: true })
@@ -15,7 +15,7 @@ export const copyTabUrl: ParentCommand = {
           id: `copy-tab-url-${tab.id}`,
           name: async () => tab.title,
           icon: async () => {
-            return { url: tab.favIconUrl }
+            return { type: "url", url: tab.favIconUrl }
           },
           run: async () => {
             const activeTab = await getActiveTab()

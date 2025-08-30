@@ -4,7 +4,7 @@ import { createWindow, queryTabs } from "../../utils/browser"
 export const moveCurrentTabToANewWindow: RunCommand = {
   id: "move-current-tab-to-a-new-window",
   name: "Move this tab to a new window",
-  icon: { name: "SquareArrowOutUpRight" },
+  icon: { type: "lucide", name: "SquareArrowOutUpRight" },
   color: "yellow",
   run: async () => {
     const active_tabs = await queryTabs({
