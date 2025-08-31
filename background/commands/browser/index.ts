@@ -14,6 +14,7 @@ import { muteCurrentTab } from "./muteCurrentTab"
 import { openNewPrivateWindow } from "./openNewPrivateWindow"
 import { openNewTab } from "./openNewTab"
 import { openNewWindow } from "./openNewWindow"
+import { openTabs } from "./openTabs"
 import { pinCurrentTab } from "./pinCurrentTab"
 import { reloadCurrentTab } from "./reloadCurrentTab"
 import { unmuteCurrentTab } from "./unmuteCurrentTab"
@@ -37,6 +38,7 @@ export const browserCommands = [
   openNewPrivateWindow,
   openNewTab,
   openNewWindow,
+  openTabs,
   pinCurrentTab,
   reloadCurrentTab,
   unmuteCurrentTab,
