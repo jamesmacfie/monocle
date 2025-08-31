@@ -28,6 +28,7 @@ export type CommandData = {
   favorites: CommandSuggestion[]
   recents: CommandSuggestion[]
   suggestions: CommandSuggestion[]
+  deepSearchItems: CommandSuggestion[]
 }
 
 // Common prop interfaces for command components

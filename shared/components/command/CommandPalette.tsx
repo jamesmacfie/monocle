@@ -24,6 +24,8 @@ function CommandContent({
   executeCommand,
   onOpenActions,
   onRefreshCommands,
+  deepSearchItems = [],
+  onDeepSearchItemsChange,
 }: {
   pages: Page[]
   currentPage: Page
@@ -39,6 +41,8 @@ function CommandContent({
   ) => Promise<void>
   onOpenActions: (suggestion: CommandSuggestion) => void
   onRefreshCommands: () => void
+  deepSearchItems?: CommandSuggestion[]
+  onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
 }) {
   const focusedValue = useCommandState((state) => state.value)
 
@@ -51,6 +55,9 @@ function CommandContent({
       (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
     ) ||
     (currentPage.commands.suggestions || []).find(
+      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
+    ) ||
+    deepSearchItems.find(
       (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
     )
 
@@ -105,7 +112,12 @@ function CommandContent({
         onNavigateBack={navigateBack}
         onSearchChange={updateSearchValue}
       />
-      <CommandList currentPage={currentPage} onSelect={selectCommand} />
+      <CommandList
+        currentPage={currentPage}
+        onSelect={selectCommand}
+        onDeepSearchItemsChange={onDeepSearchItemsChange}
+        deepSearchItems={deepSearchItems}
+      />
       <CommandFooter
         currentPage={currentPage}
         focusedSuggestion={focusedSuggestion}
@@ -145,6 +157,9 @@ export function CommandPalette({
     open: false,
     suggestion: null,
   })
+  const [_deepSearchItems, _setDeepSearchItems] = useState<CommandSuggestion[]>(
+    [],
+  )
 
   const {
     pages,
@@ -221,6 +236,8 @@ export function CommandPalette({
               executeCommand={executeCommand}
               onOpenActions={handleOpenActions}
               onRefreshCommands={onRefreshCommands}
+              deepSearchItems={items.deepSearchItems || []}
+              onDeepSearchItemsChange={_setDeepSearchItems}
             />
           </Command>
           {actionsState.suggestion && (

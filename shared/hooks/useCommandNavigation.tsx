@@ -4,10 +4,11 @@ import type { CommandSuggestion, FormField } from "../../types/"
 import { getDisplayName } from "../components/Command/CommandName"
 import { useSendMessage } from "./useSendMessage"
 
-// Helper function to find a command in the current page's commands
+// Helper function to find a command in the current page's commands or deep search items
 function _findCommandInPage(
   page: Page,
   commandId: string,
+  deepSearchItems: CommandSuggestion[] = [],
 ): CommandSuggestion | undefined {
   return (
     (page.commands.favorites || []).find(
@@ -16,7 +17,8 @@ function _findCommandInPage(
     (page.commands.recents || []).find((command) => command.id === commandId) ||
     (page.commands.suggestions || []).find(
       (command) => command.id === commandId,
-    )
+    ) ||
+    deepSearchItems.find((command) => command.id === commandId)
   )
 }
 
@@ -80,6 +82,7 @@ export function useCommandNavigation(
     favorites: CommandSuggestion[]
     recents: CommandSuggestion[]
     suggestions: CommandSuggestion[]
+    deepSearchItems: CommandSuggestion[]
   },
   inputRef: RefObject<HTMLInputElement>,
   executeCommand: (
@@ -180,7 +183,11 @@ export function useCommandNavigation(
 
       if (response.children && response.children.length > 0) {
         // Store reference to parent command for breadcrumb navigation
-        const parentCommand = _findCommandInPage(currentPage, id)
+        const parentCommand = _findCommandInPage(
+          currentPage,
+          id,
+          initialCommands.deepSearchItems,
+        )
 
         // Build path for the new page (used by future child navigations)
         const newParentPath =
@@ -271,7 +278,11 @@ export function useCommandNavigation(
    * Called when user clicks or presses Enter on a command
    */
   const selectCommand = async (id: string) => {
-    const selectedCommand = _findCommandInPage(currentPage, id)
+    const selectedCommand = _findCommandInPage(
+      currentPage,
+      id,
+      initialCommands.deepSearchItems,
+    )
 
     if (!selectedCommand) {
       console.error("⚠️ Selected command not found for id:", id)

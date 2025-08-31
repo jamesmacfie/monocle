@@ -1,8 +1,18 @@
 import { Command, useCommandState } from "cmdk"
+import type { CommandSuggestion } from "../../../types/"
 import type { CommandListProps } from "../../types/command"
 import { CommandItem } from "./CommandItem"
+import { DeepSearchItems } from "./DeepSearchItems"
 
-export function CommandList({ currentPage, onSelect }: CommandListProps) {
+export function CommandList({
+  currentPage,
+  onSelect,
+  onDeepSearchItemsChange,
+  deepSearchItems = [],
+}: CommandListProps & {
+  onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
+  deepSearchItems?: CommandSuggestion[]
+}) {
   const cmdkSearch = useCommandState((state) => state.search)
 
   return (
@@ -42,6 +52,12 @@ export function CommandList({ currentPage, onSelect }: CommandListProps) {
           />
         ))}
       </Command.Group>
+      <DeepSearchItems
+        currentPage={currentPage}
+        onSelect={onSelect}
+        onDeepSearchItemsChange={onDeepSearchItemsChange}
+        deepSearchItems={deepSearchItems}
+      />
     </Command.List>
   )
 }

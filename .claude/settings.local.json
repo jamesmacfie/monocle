@@ -6,7 +6,8 @@
       "Bash(mv:*)",
       "Bash(yarn tsc:*)",
       "Bash(find:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(yarn dev)"
     ],
     "deny": [],
     "ask": []

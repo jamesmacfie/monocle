@@ -138,6 +138,7 @@ export const bookmarks: ParentCommand = {
   icon: { type: "lucide", name: "Bookmark" },
   color: "yellow",
   keywords: ["bookmarks", "favorites", "saved", "links"],
+  enableDeepSearch: true,
   commands: async () => {
     try {
       const bookmarkTree = await getBookmarkTree()

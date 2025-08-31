@@ -4,6 +4,7 @@ import {
   getCommands as getCommandsFromBackground,
 } from "../commands"
 import { createMessageHandler } from "../utils/messages"
+import { flattenDeepSearchCommands } from "./getDeepSearchCommands"
 
 const handleGetCommands = async (message: GetCommandsMessage) => {
   console.debug("[GetCommands] Starting to get commands", message)
@@ -26,11 +27,17 @@ const handleGetCommands = async (message: GetCommandsMessage) => {
     message.context,
   )
 
-  const result = { favorites, recents, suggestions }
+  const deepSearchItems = await flattenDeepSearchCommands(
+    cmdSuggestions,
+    message.context,
+  )
+
+  const result = { favorites, recents, suggestions, deepSearchItems }
   console.debug("[GetCommands] Final result:", {
     favorites: result.favorites.length,
     recents: result.recents.length,
     suggestions: result.suggestions.length,
+    deepSearchItems: result.deepSearchItems.length,
   })
 
   return result

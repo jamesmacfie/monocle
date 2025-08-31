@@ -10,6 +10,7 @@ export function useGetCommands() {
     favorites: [],
     suggestions: [],
     recents: [],
+    deepSearchItems: [],
   })
   const [isLoading, setIsLoading] = useState(false)
   const sendMessage = useSendMessage()
@@ -29,12 +30,14 @@ export function useGetCommands() {
           favorites: [],
           suggestions: [],
           recents: [],
+          deepSearchItems: [],
         })
       } else {
         const newData = {
           favorites: response.favorites || [],
           suggestions: response.suggestions || [],
           recents: response.recents || [],
+          deepSearchItems: response.deepSearchItems || [],
         }
         console.debug("[useGetCommands] Setting data:", newData)
         setData(newData)
@@ -45,6 +48,7 @@ export function useGetCommands() {
         favorites: [],
         suggestions: [],
         recents: [],
+        deepSearchItems: [],
       })
     } finally {
       setIsLoading(false)

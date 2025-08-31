@@ -58,6 +58,7 @@ export type RunCommand = BaseCommand &
 
 export type ParentCommand = BaseCommand & {
   commands: (context: Browser.Context) => Promise<Command[]>
+  enableDeepSearch?: boolean
 }
 
 export type UICommand = BaseCommand &
