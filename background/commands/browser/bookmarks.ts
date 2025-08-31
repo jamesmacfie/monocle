@@ -57,16 +57,7 @@ function processBookmarkNode(
       id: `bookmark-${node.id}`,
       name: node.title,
       description: node.url,
-      icon: async () => {
-        // Try to get favicon from the URL
-        try {
-          const url = new URL(node.url!)
-          const faviconUrl = `${url.protocol}//${url.host}/favicon.ico`
-          return { type: "url", url: faviconUrl }
-        } catch (_e) {
-          return { type: "lucide", name: "Bookmark" }
-        }
-      },
+      icon: { type: "lucide", name: "Globe" },
       color: "blue",
       keywords: [node.title.toLowerCase(), node.url.toLowerCase()],
       actionLabel: "Open",

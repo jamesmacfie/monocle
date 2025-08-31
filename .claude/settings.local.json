@@ -7,7 +7,8 @@
       "Bash(yarn tsc:*)",
       "Bash(find:*)",
       "Bash(npm run build:*)",
-      "Bash(yarn dev)"
+      "Bash(yarn dev)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
