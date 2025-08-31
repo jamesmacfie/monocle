@@ -752,3 +752,5 @@ commands: async () => {
 - **Hot Reload**: Check HMR console messages for reload issues
 - **Build Errors**: Watch terminal output during `npm run dev`
 - **Browser Compatibility**: Test changes in both Chrome and Firefox dev modes
+
+Always use `npm`. Not `yarn`
