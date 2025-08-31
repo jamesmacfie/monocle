@@ -1,6 +1,7 @@
 import { Command } from "cmdk"
 import { ChevronLeft } from "lucide-react"
 import type { CommandHeaderProps } from "../../types/command"
+import { getDisplayName } from "./CommandName"
 
 export function CommandHeader({
   pages,
@@ -26,7 +27,7 @@ export function CommandHeader({
           placeholder={
             pages.length === 1
               ? "Search for commands..."
-              : `Search in ${currentPage.id}`
+              : `Search in ${currentPage.parent ? getDisplayName(currentPage.parent.name) : currentPage.id}`
           }
         />
       </div>
