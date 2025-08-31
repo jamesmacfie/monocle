@@ -8,9 +8,11 @@ This guide explains how to create new commands for the Monocle browser extension
 2. [Simple RunCommand Example](#simple-runcommand-example)
 3. [UICommand with Form Example](#uicommand-with-form-example)
 4. [ParentCommand with Dynamic Children](#parentcommand-with-dynamic-children)
-5. [Alert/Notification Examples](#alertnotification-examples)
-6. [Command Properties Glossary](#command-properties-glossary)
-7. [Registration and Best Practices](#registration-and-best-practices)
+5. [NoOp Commands for Error States](#noop-commands-for-error-states)
+6. [Deep Search Feature](#deep-search-feature)
+7. [Alert/Notification Examples](#alertnotification-examples)
+8. [Command Properties Glossary](#command-properties-glossary)
+9. [Registration and Best Practices](#registration-and-best-practices)
 
 ## Command Types Overview
 
@@ -167,6 +169,7 @@ Commands that generate child commands dynamically based on current browser state
 // background/commands/browser/recentBookmarks.ts
 import type { ParentCommand, RunCommand } from "../../../types"
 import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser"
+import { createNoOpCommand } from "../../utils/commands"
 
 export const recentBookmarks: ParentCommand = {
   id: "recent-bookmarks",
@@ -234,25 +237,15 @@ export const recentBookmarks: ParentCommand = {
     } catch (error) {
       console.error("Failed to load bookmarks:", error)
       
-      // Return error command if API fails
-      return [{
-        id: "bookmarks-error",
-        name: "Error Loading Bookmarks",
-        description: "Failed to fetch recent bookmarks",
-        icon: { name: "AlertTriangle" },
-        color: "red",
-        run: async () => {
-          const activeTab = await getActiveTab()
-          if (activeTab) {
-            await sendTabMessage(activeTab.id, {
-              type: "monocle-alert",
-              level: "error", 
-              message: "Could not load recent bookmarks",
-              icon: { name: "AlertTriangle" }
-            })
-          }
-        }
-      }]
+      // Return NoOp error command instead of showing alerts
+      return [
+        createNoOpCommand(
+          "bookmarks-error",
+          "Error Loading Bookmarks",
+          "Failed to fetch recent bookmarks. Please try again.",
+          { name: "AlertTriangle" }
+        )
+      ]
     }
   }
 }
@@ -263,6 +256,357 @@ export const recentBookmarks: ParentCommand = {
 - **Async properties**: Names, icons, and colors can be resolved asynchronously
 - **Error handling**: Graceful fallback when data fetching fails
 - **Context awareness**: Can use execution context to customize behavior
+
+## NoOp Commands for Error States
+
+NoOp (No Operation) commands are special commands used to display error states, empty states, or informational messages in the command palette without performing any action when selected. They provide a better user experience than showing alerts for error conditions.
+
+### The createNoOpCommand Utility
+
+The extension provides a `createNoOpCommand` utility function for creating these display-only commands:
+
+```typescript
+// background/utils/commands.ts
+export function createNoOpCommand(
+  id: string,
+  name: string,
+  description: string,
+  icon: CommandIcon = { type: "lucide", name: "Info" }
+): Command
+```
+
+### Example: Error Handling in ParentCommand
+
+Instead of showing alerts for errors, return NoOp commands that display the error state:
+
+```typescript
+// background/commands/browser/myBookmarks.ts
+import type { ParentCommand } from "../../../types"
+import { callBrowserAPI } from "../../utils/browser"
+import { createNoOpCommand } from "../../utils/commands"
+
+export const myBookmarks: ParentCommand = {
+  id: "my-bookmarks",
+  name: "My Bookmarks",
+  description: "Access your browser bookmarks",
+  icon: { name: "Bookmark" },
+  color: "yellow",
+  
+  commands: async () => {
+    try {
+      const bookmarks = await callBrowserAPI("bookmarks", "getTree")
+      
+      // Handle empty state
+      if (!bookmarks || bookmarks.length === 0) {
+        return [
+          createNoOpCommand(
+            "no-bookmarks",
+            "No bookmarks found",
+            "No bookmarks available",
+            { type: "lucide", name: "BookmarkX" }
+          )
+        ]
+      }
+      
+      // Process bookmarks normally
+      return processBookmarks(bookmarks)
+      
+    } catch (error) {
+      console.error("Failed to load bookmarks:", error)
+      
+      // Return error state command instead of showing alert
+      return [
+        createNoOpCommand(
+          "bookmarks-error",
+          "Error Loading Bookmarks",
+          "Failed to fetch bookmarks. Please try again.",
+          { type: "lucide", name: "AlertTriangle" }
+        )
+      ]
+    }
+  }
+}
+```
+
+### Common NoOp Command Patterns
+
+#### Empty State
+```typescript
+createNoOpCommand(
+  "no-results",
+  "No results found",
+  "No items match your criteria",
+  { type: "lucide", name: "Search" }
+)
+```
+
+#### Loading State
+```typescript
+createNoOpCommand(
+  "loading",
+  "Loading...",
+  "Fetching data, please wait",
+  { type: "lucide", name: "Loader" }
+)
+```
+
+#### Error State  
+```typescript
+createNoOpCommand(
+  "fetch-error",
+  "Unable to load data",
+  "Check your connection and try again",
+  { type: "lucide", name: "AlertTriangle" }
+)
+```
+
+#### Permission Error
+```typescript
+createNoOpCommand(
+  "permission-denied",
+  "Permission Required",
+  "This feature requires additional browser permissions",
+  { type: "lucide", name: "Lock" }
+)
+```
+
+#### Feature Unavailable
+```typescript
+createNoOpCommand(
+  "feature-unavailable",
+  "Feature Not Available",
+  "This feature is not supported in your browser",
+  { type: "lucide", name: "XCircle" }
+)
+```
+
+### Best Practices for NoOp Commands
+
+**Use NoOp commands instead of alerts for:**
+- Empty state messages
+- Error conditions in ParentCommands
+- Loading states
+- Permission errors
+- Feature availability messages
+
+**NoOp Command Guidelines:**
+- Use descriptive IDs that indicate the state: `"no-bookmarks"`, `"tab-error"`
+- Provide clear, user-friendly names and descriptions
+- Choose appropriate icons that match the message type:
+  - `AlertTriangle` for errors
+  - `Search` or `X` for empty results  
+  - `Lock` for permission issues
+  - `Info` for general information
+- Use `gray` color (default) for most NoOp commands
+- Keep descriptions actionable when possible ("Try again", "Check settings")
+
+**Color and Icon Recommendations:**
+
+| State Type | Icon | Color | Example |
+|------------|------|--------|---------|
+| Error | `AlertTriangle`, `XCircle` | `red` | Connection failed |
+| Empty | `Search`, `FileX` | `gray` | No results found |
+| Loading | `Loader`, `Clock` | `blue` | Fetching data... |
+| Permission | `Lock`, `Shield` | `amber` | Permission required |
+| Info | `Info`, `MessageCircle` | `gray` | Feature unavailable |
+
+### When NOT to Use NoOp Commands
+
+Don't use NoOp commands for:
+- **Success messages** - Use alerts for positive feedback
+- **Action confirmations** - Use alerts to confirm completed actions
+- **Interactive content** - NoOp commands don't perform actions
+- **Single-time notifications** - Use alerts for temporary messages
+
+### Example: Complete Error Handling Pattern
+
+```typescript
+export const advancedParentCommand: ParentCommand = {
+  id: "advanced-parent",
+  name: "Advanced Parent Command",
+  
+  commands: async (context) => {
+    try {
+      // Attempt to fetch data
+      const data = await fetchSomeData()
+      
+      if (!data) {
+        return [createNoOpCommand(
+          "no-data",
+          "No Data Available", 
+          "No items found",
+          { type: "lucide", name: "FileX" }
+        )]
+      }
+      
+      if (data.length === 0) {
+        return [createNoOpCommand(
+          "empty-results",
+          "Empty Results",
+          "No items match your criteria", 
+          { type: "lucide", name: "Search" }
+        )]
+      }
+      
+      // Process data normally
+      return data.map(item => createCommandFromItem(item))
+      
+    } catch (error) {
+      console.error("Data fetch failed:", error)
+      
+      if (error.message.includes('permission')) {
+        return [createNoOpCommand(
+          "permission-error",
+          "Permission Required",
+          "Please grant necessary permissions",
+          { type: "lucide", name: "Lock" }
+        )]
+      }
+      
+      return [createNoOpCommand(
+        "fetch-error", 
+        "Unable to Load Data",
+        "Please check your connection and try again",
+        { type: "lucide", name: "AlertTriangle" }
+      )]
+    }
+  }
+}
+```
+
+This pattern ensures users always see helpful information in the command palette, even when things go wrong, without intrusive alert popups.
+
+## Deep Search Feature
+
+The deep search feature allows users to search for deeply nested commands directly from the top level, without navigating through parent command hierarchies. This is particularly useful for commands like bookmarks, where users can type "react" and find "React Documentation" even if it's buried in "Bookmarks → Development → GitHub → React Documentation".
+
+### Enabling Deep Search
+
+To enable deep search on a `ParentCommand`, add the `enableDeepSearch: true` property:
+
+```typescript
+// background/commands/browser/bookmarks.ts
+export const bookmarks: ParentCommand = {
+  id: "bookmarks",
+  name: "Bookmarks",
+  description: "Access your browser bookmarks",
+  icon: { name: "Bookmark" },
+  color: "yellow",
+  keywords: ["bookmarks", "favorites", "saved", "links"],
+  enableDeepSearch: true, // Enable deep search for this parent command
+  commands: async () => {
+    // Your bookmark tree logic
+    const bookmarkTree = await getBookmarkTree()
+    return bookmarkTree
+  }
+}
+```
+
+### How Deep Search Works
+
+When `enableDeepSearch: true` is set on a `ParentCommand`:
+
+1. **Background Processing**: The system recursively walks through all child commands during the initial `getCommands()` call
+2. **Breadcrumb Generation**: Each nested command gets enhanced with breadcrumb names showing its path
+3. **Keyword Enhancement**: Search keywords include all folder names in the path
+4. **Instant Results**: Deep search items appear immediately when typing because they're pre-loaded
+
+### Example: Deep Search Enabled Bookmarks
+
+```typescript
+// background/commands/browser/myBookmarks.ts
+import type { ParentCommand, RunCommand } from "../../../types"
+import { callBrowserAPI } from "../../utils/browser"
+
+export const myBookmarks: ParentCommand = {
+  id: "my-bookmarks",
+  name: "My Bookmarks",
+  description: "Browse bookmarks with deep search",
+  icon: { name: "Bookmark" },
+  color: "yellow",
+  keywords: ["bookmarks", "favorites", "links"],
+  enableDeepSearch: true, // This enables deep search functionality
+  
+  commands: async () => {
+    const bookmarks = await callBrowserAPI("bookmarks", "getTree")
+    
+    // Convert bookmark tree to nested commands
+    const convertBookmarkNode = (node: any): RunCommand | ParentCommand => {
+      if (node.url) {
+        // Leaf bookmark - becomes a RunCommand
+        return {
+          id: `bookmark-${node.id}`,
+          name: node.title,
+          description: `Open ${node.url}`,
+          icon: { name: "Globe" },
+          color: "blue",
+          keywords: [node.title.toLowerCase(), node.url],
+          run: async () => {
+            // Open bookmark logic
+            await callBrowserAPI("tabs", "create", { url: node.url })
+          }
+        }
+      } else {
+        // Folder - becomes a nested ParentCommand
+        return {
+          id: `bookmark-folder-${node.id}`,
+          name: node.title,
+          description: `Bookmark folder: ${node.title}`,
+          icon: { name: "Folder" },
+          color: "yellow",
+          keywords: [node.title.toLowerCase()],
+          // Inherit deep search from parent
+          enableDeepSearch: true,
+          commands: async () => {
+            return node.children?.map(convertBookmarkNode) || []
+          }
+        }
+      }
+    }
+    
+    return bookmarks[0].children?.map(convertBookmarkNode) || []
+  }
+}
+```
+
+### Deep Search Results
+
+When users search with deep search enabled, they'll see results like:
+
+- **Name**: `["React Documentation", "GitHub", "Development", "Bookmarks"]`
+- **Searchable by**: "react", "documentation", "github", "development", "bookmarks"
+- **Full Features**: Action menus (Alt+click), keyboard shortcuts, modifier actions all work
+
+### Performance Considerations
+
+- **Pre-processing**: Deep search items are processed once during `getCommands()` and cached
+- **Memory Usage**: Large bookmark trees create more deep search items in memory
+- **Search Speed**: Instant results because no additional network requests are made during search
+
+### When to Use Deep Search
+
+**Good candidates for deep search:**
+- **Bookmarks**: Users often know the bookmark name but not the folder structure
+- **Settings/Preferences**: Nested configuration options that users want to find quickly  
+- **File/Document hierarchies**: When users search by content name rather than location
+- **Menu systems**: Deep navigation structures that benefit from direct access
+
+**Not recommended for:**
+- **Simple parent commands** with only 2-3 children
+- **Commands with expensive child generation** (deep search processes all children upfront)
+- **Frequently changing data** that would cause excessive re-processing
+
+### Technical Implementation
+
+The deep search system:
+
+1. **Scans commands** for `enableDeepSearch: true` during `getCommands()`
+2. **Recursively processes** child commands using `flattenDeepSearchCommands()`
+3. **Creates enhanced commands** with breadcrumb names and expanded keywords
+4. **Returns in single response** as `deepSearchItems` alongside regular commands
+5. **Integrates with UI** to show deep search results when users type in the search box
+
+This architecture ensures optimal performance by processing the command tree once and providing instant search results without additional API calls.
 
 ## Alert/Notification Examples
 
@@ -373,9 +717,10 @@ await sendTabMessage(activeTab.id, {
 
 ### ParentCommand Specific Properties
 
-| Property   | Type                                                | Description                            |
-| ---------- | --------------------------------------------------- | -------------------------------------- |
-| `commands` | `(context: Browser.Context) => Promise<Command[]>`  | Function that generates child commands |
+| Property          | Type                                                | Description                            |
+| ----------------- | --------------------------------------------------- | -------------------------------------- |
+| `commands`        | `(context: Browser.Context) => Promise<Command[]>`  | Function that generates child commands |
+| `enableDeepSearch` | `boolean`                                           | Enable deep search for nested commands (optional, default: false) |
 
 ### Supported Color Values
 
@@ -455,6 +800,8 @@ export const categoryCommands = [
 - Include category in ID for uniqueness: `"browser-close-tab"`
 
 **Error Handling:**
+
+For RunCommand and UICommand errors, use alerts to provide immediate feedback:
 ```typescript
 run: async (context?: Browser.Context, values?: Record<string, string>) => {
   try {
@@ -463,7 +810,7 @@ run: async (context?: Browser.Context, values?: Record<string, string>) => {
   } catch (error) {
     console.error(`Error in command:`, error)
     
-    // Show error to user
+    // Show error alert for immediate feedback
     const activeTab = await getActiveTab()
     if (activeTab) {
       await sendTabMessage(activeTab.id, {
@@ -473,6 +820,28 @@ run: async (context?: Browser.Context, values?: Record<string, string>) => {
         icon: { name: "AlertTriangle" }
       })
     }
+  }
+}
+```
+
+For ParentCommand errors, use NoOp commands instead of alerts:
+```typescript
+commands: async (context) => {
+  try {
+    const data = await fetchData()
+    return processData(data)
+  } catch (error) {
+    console.error("Failed to load data:", error)
+    
+    // Return NoOp command for error state
+    return [
+      createNoOpCommand(
+        "data-error",
+        "Unable to Load Data",
+        "Please check your connection and try again",
+        { name: "AlertTriangle" }
+      )
+    ]
   }
 }
 ```

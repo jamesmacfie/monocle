@@ -10,6 +10,7 @@ Monocle is a browser extension built with Extension.js that provides a command p
 - **Dual Interface Modes**: Overlay on any webpage + dedicated new tab page
 - Command palette UI with fuzzy search (powered by CMDK)
 - Categorized commands (favorites, recents, suggestions)
+- **Deep Search**: Search deeply nested commands without navigation (e.g., bookmark hierarchies)
 - Keyboard shortcuts for common actions
 - Cross-browser compatibility (Chrome/Chromium and Firefox)
 - Dynamic command generation based on current browser state
@@ -27,6 +28,8 @@ bifocal/
 │   ├── index.ts        # Entry point - initializes keybindings and message handlers
 │   ├── commands/       # Command definitions and management
 │   ├── messages/       # Message handlers for content/newtab communication
+│   ├── getCommands.ts              # Main command fetching with deep search
+│   └── getDeepSearchCommands.ts    # Deep search flattening logic
 │   ├── keybindings/    # Keybinding registry and matching logic
 │   └── utils/          # Browser API wrappers and utilities
 ├── content/            # Content script (injected into web pages)
@@ -49,7 +52,8 @@ bifocal/
 │   │   │   ├── CommandHeader.tsx     # Search input
 │   │   │   ├── CommandFooter.tsx     # Keybinding hints
 │   │   │   ├── CommandList.tsx       # Command list container
-│   │   │   └── CommandName.tsx       # Command name with breadcrumbs
+│   │   │   ├── CommandName.tsx       # Command name with breadcrumbs
+│   │   │   └── DeepSearchItems.tsx   # Deep search result display
 │   │   ├── commandUI.tsx # Form UI for commands requiring input
 │   │   └── icon.tsx      # Icon component with Lucide support
 │   ├── hooks/          # Reusable React hooks
@@ -147,9 +151,11 @@ Commands that generate child commands dynamically.
 ```typescript
 interface ParentCommand extends BaseCommand {
   commands: (context: Browser.Context) => Promise<Command[]>;
+  enableDeepSearch?: boolean; // Optional: enables deep search for nested commands
 }
 ```
 Example: `gotoTab` generates a list of all open tabs as child commands
+**Deep Search**: When `enableDeepSearch: true`, nested commands become searchable from the top level
 
 #### 3. UICommand
 Commands that require user input via form fields.
@@ -176,6 +182,45 @@ Example: `googleSearch` shows an input field for the search query
 - `keybinding`: Keyboard shortcut (e.g., "⌘ K", "⌃ d")
 - `doNotAddToRecents`: Flag to exclude from recent commands
 
+### NoOp Commands
+
+NoOp (No Operation) commands are special display-only commands used for error states, empty states, and informational messages. They provide better UX than alerts for ParentCommand error conditions.
+
+**Creation Utility**:
+```typescript
+// background/utils/commands.ts
+createNoOpCommand(
+  id: string,
+  name: string, 
+  description: string,
+  icon?: CommandIcon
+): Command
+```
+
+**Usage Pattern**:
+```typescript
+// In ParentCommand error handling
+commands: async () => {
+  try {
+    const data = await fetchData()
+    return processData(data)
+  } catch (error) {
+    return [
+      createNoOpCommand(
+        "fetch-error",
+        "Unable to Load Data", 
+        "Please check your connection and try again",
+        { type: "lucide", name: "AlertTriangle" }
+      )
+    ]
+  }
+}
+```
+
+**When to Use NoOp vs Alerts**:
+- **NoOp Commands**: Error states in ParentCommands, empty states, loading states
+- **Alerts**: Success messages, action confirmations, RunCommand/UICommand errors
+
 ### Command Organization
 
 Commands are organized into three categories:
@@ -183,6 +228,7 @@ Commands are organized into three categories:
 1. **Favorites**: User-favorited commands for quick access
 2. **Recents**: Recently executed commands (auto-tracked)
 3. **Suggestions**: All other available commands, ranked by usage frequency
+4. **Deep Search Items**: Flattened nested commands from ParentCommands with `enableDeepSearch: true`
 
 ### Command Registration Flow
 
@@ -192,10 +238,78 @@ getCommands() {
   1. Load all command modules (browser, tools, etc.)
   2. Filter by browser compatibility
   3. Organize into favorites/recents/suggestions
-  4. Apply usage-based ranking
-  5. Convert to CommandSuggestion format for UI
+  4. Process deep search commands (flatten nested hierarchies)
+  5. Apply usage-based ranking
+  6. Convert to CommandSuggestion format for UI
+  7. Return {favorites, recents, suggestions, deepSearchItems}
 }
 ```
+
+## Deep Search Feature
+
+The deep search feature allows users to search for deeply nested commands directly from the top level without navigating through parent command hierarchies. This dramatically improves the user experience for complex command trees like bookmarks.
+
+### Architecture
+
+**Single Request Pattern**: Deep search items are pre-processed during the initial `getCommands()` call and returned alongside regular commands:
+
+```typescript
+// Response structure
+{
+  favorites: CommandSuggestion[],
+  recents: CommandSuggestion[],  
+  suggestions: CommandSuggestion[],
+  deepSearchItems: CommandSuggestion[] // Pre-flattened nested commands
+}
+```
+
+**Background Processing**: The `flattenDeepSearchCommands()` function recursively walks command trees:
+1. Scans for ParentCommands with `enableDeepSearch: true`
+2. Recursively processes all nested child commands
+3. Enhances each command with breadcrumb names (e.g., `["React Docs", "GitHub", "Development", "Bookmarks"]`)
+4. Expands keywords to include all folder names in the hierarchy
+5. Preserves all original command properties (actions, icons, keybindings)
+
+### Usage Example
+
+```typescript
+// Enable deep search on a ParentCommand
+export const bookmarks: ParentCommand = {
+  id: "bookmarks",
+  name: "Bookmarks",
+  enableDeepSearch: true, // This enables the feature
+  commands: async () => {
+    // Returns nested bookmark hierarchy
+    return processBookmarkTree(await getBookmarkTree())
+  }
+}
+```
+
+### User Experience Benefits
+
+- **Instant Results**: Deep search items appear immediately when typing (pre-loaded, no API calls)
+- **Enhanced Search**: Users can search by folder names, URLs, and all nested content
+- **Full Feature Parity**: Deep search items support action menus, modifier keys, and all standard command features
+- **Breadcrumb Navigation**: Clear visual hierarchy showing the command's location
+
+### Performance Characteristics
+
+- **Single Processing Pass**: Command trees are flattened once during `getCommands()`
+- **Memory Trade-off**: Uses more memory to store flattened commands for instant search response
+- **No Flickering**: Eliminates the previous dual-request pattern that caused UI flickering
+- **Cached Results**: Deep search items are cached with other command data
+
+### Technical Implementation
+
+**Key Files**:
+- `background/messages/getDeepSearchCommands.ts`: Core flattening logic
+- `shared/components/Command/DeepSearchItems.tsx`: UI component for rendering results
+- `shared/hooks/useCommandNavigation.tsx`: Integration with command selection
+
+**Integration Points**:
+- Deep search items are included in focused command lookup for action menus
+- CMDK fuzzy search works across all enhanced keywords
+- Command execution flow handles deep search items identically to regular commands
 
 ## Messaging System
 
@@ -228,7 +342,7 @@ interface Browser.Context {
 handleMessage(message) {
   return await match(message)
     .with({ type: "get-commands" }, async (msg) => {
-      // Returns {favorites, recents, suggestions}
+      // Returns {favorites, recents, suggestions, deepSearchItems}
     })
     .with({ type: "execute-command" }, async (msg) => {
       // Finds and executes command, updates usage stats
@@ -474,11 +588,12 @@ export const categoryCommands = [
 - Use descriptive IDs (kebab-case)
 - Provide clear names and descriptions
 - Include relevant keywords for search
-- Handle errors gracefully
+- Handle errors gracefully with NoOp commands for ParentCommands
 - Use browser utils for API calls (`background/utils/browser.ts`)
 - Test cross-browser compatibility (Chrome & Firefox)
 - **Commands work identically in both overlay and new tab modes**
 - Consider user context - commands execute regardless of deployment mode
+- For ParentCommands with deep hierarchies, consider enabling `enableDeepSearch: true`
 
 ### 4. Working with Shared Components
 
