@@ -2,7 +2,7 @@ import { Command } from "cmdk"
 import type { ReactNode } from "react"
 import type { CommandItemProps } from "../../types/command"
 import { Icon } from "../Icon"
-import { CommandName, getDisplayName } from "./CommandName"
+import { CommandName } from "./CommandName"
 
 interface Props extends CommandItemProps {
   children?: ReactNode
@@ -33,7 +33,7 @@ export function CommandItem({
 
   return (
     <Command.Item
-      value={getDisplayName(suggestion.name)}
+      value={suggestion.id}
       keywords={suggestion.keywords}
       onSelect={handleSelect}
     >
