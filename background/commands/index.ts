@@ -326,7 +326,6 @@ export const commandsToSuggestions = async (
         color: "amber",
         hasCommands: false,
         actionLabel: isFavorite ? "Remove" : "Add",
-        keybinding: "⌘ F",
         keywords: ["favorite", "star", isFavorite ? "remove" : "add"],
         isFavorite: false,
         actions: undefined,
