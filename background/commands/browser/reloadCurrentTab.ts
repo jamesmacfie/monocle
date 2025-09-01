@@ -6,6 +6,7 @@ export const reloadCurrentTab: RunCommand = {
   name: "Reload current tab",
   icon: { type: "lucide", name: "RotateCw" },
   color: "green",
+  keybinding: "⌘ r",
   run: () => {
     return callBrowserAPI("tabs", "reload")
   },

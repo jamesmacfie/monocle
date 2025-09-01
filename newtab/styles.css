@@ -66,23 +66,6 @@ body {
   color: #1f2937;
 }
 
-/* New tab specific styles */
-.new-tab-palette {
-  position: relative;
-  transform: none;
-  top: auto;
-  left: auto;
-  z-index: auto;
-}
-
-.new-tab-palette [cmdk-root] {
-  position: relative;
-  transform: none;
-  top: auto;
-  left: auto;
-  /* Ensure box shadow is preserved */
-  box-shadow: var(--cmdk-shadow);
-}
 
 /* Remove shine gradient animations for new tab */
 .new-tab-palette [cmdk-root]:after,

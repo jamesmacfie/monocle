@@ -6,6 +6,7 @@ export const openNewPrivateWindow: RunCommand = {
   name: "Open new private window",
   icon: { type: "lucide", name: "EyeOff" },
   color: "orange",
+  keybinding: "⌘ ⇧ n",
   run: () => {
     createWindow({ incognito: true })
   },

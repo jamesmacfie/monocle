@@ -11,7 +11,11 @@ import { CommandActions } from "./CommandActions"
 import { CommandFooter } from "./CommandFooter"
 import { CommandHeader } from "./CommandHeader"
 import { CommandList } from "./CommandList"
-import { getDisplayName } from "./CommandName"
+
+// Temporary inline function to avoid import issues
+const getDisplayName = (name: string | string[]): string => {
+  return Array.isArray(name) ? name[0] : name
+}
 
 function CommandContent({
   pages,
@@ -46,20 +50,18 @@ function CommandContent({
 }) {
   const focusedValue = useCommandState((state) => state.value)
 
-  // Find the focused suggestion based on its value (name)
+  // Find the focused suggestion based on its value 
   const focusedSuggestion =
     (currentPage.commands.favorites || []).find(
-      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
+      (item: CommandSuggestion) => item.id === focusedValue,
     ) ||
     (currentPage.commands.recents || []).find(
-      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
+      (item: CommandSuggestion) => item.id === focusedValue,
     ) ||
     (currentPage.commands.suggestions || []).find(
-      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
+      (item: CommandSuggestion) => item.id === focusedValue,
     ) ||
-    deepSearchItems.find(
-      (item: CommandSuggestion) => getDisplayName(item.name) === focusedValue,
-    )
+    deepSearchItems.find((item: CommandSuggestion) => item.id === focusedValue)
 
   const actionLabel = useActionLabel(currentPage)
 
@@ -239,17 +241,18 @@ export function CommandPalette({
               deepSearchItems={items.deepSearchItems || []}
               onDeepSearchItemsChange={_setDeepSearchItems}
             />
+
+            {actionsState.suggestion && (
+              <CommandActions
+                open={actionsState.open}
+                selectedValue={getDisplayName(actionsState.suggestion.name)}
+                inputRef={inputRef}
+                actions={actionsState.suggestion.actions}
+                onActionSelect={handleActionSelect}
+                onClose={handleCloseActions}
+              />
+            )}
           </Command>
-          {actionsState.suggestion && (
-            <CommandActions
-              open={actionsState.open}
-              selectedValue={getDisplayName(actionsState.suggestion.name)}
-              inputRef={inputRef}
-              actions={actionsState.suggestion.actions}
-              onActionSelect={handleActionSelect}
-              onClose={handleCloseActions}
-            />
-          )}
         </>
       )}
     </div>

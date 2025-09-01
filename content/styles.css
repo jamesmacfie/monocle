@@ -164,9 +164,20 @@
       }
     }
 
+    [cmdk-raycast-submenu-shortcuts] {
+      display: flex;
+      margin-left: auto;
+      gap: 2px;
+
+      kbd {
+        text-transform: uppercase;
+      } 
+    }
+
     kbd {
       font-family: var(--font-sans);
       background: var(--gray3);
+      border: 1px solid var(--gray4);
       color: var(--gray11);
       height: 20px;
       width: 20px;
@@ -608,30 +619,6 @@
       color: white;
       width: 13px;
       height: 13px;
-    }
-
-    [cmdk-raycast-submenu-shortcuts] {
-      display: flex;
-      margin-left: auto;
-      gap: 2px;
-
-      kbd {
-        font-family: var(--font-sans);
-        background: var(--gray5);
-        color: var(--gray11);
-        height: 20px;
-        min-width: 20px;
-        border-radius: 4px;
-        padding: 0 4px;
-        font-size: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        &:first-of-type {
-          margin-left: 8px;
-        }
-      }
     }
   }
 

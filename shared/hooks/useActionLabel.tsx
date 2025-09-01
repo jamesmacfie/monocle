@@ -1,5 +1,4 @@
 import { useCommandState } from "cmdk"
-import { getDisplayName } from "../components/Command/CommandName"
 import type { Page } from "./useCommandNavigation"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
 
@@ -11,13 +10,13 @@ export function useActionLabel(
   const focusedValue = useCommandState((state) => state.value)
   const focusedSuggestion =
     (currentPage.commands.favorites || []).find(
-      (item) => getDisplayName(item.name) === focusedValue,
+      (item) => item.id === focusedValue,
     ) ||
     (currentPage.commands.recents || []).find(
-      (item) => getDisplayName(item.name) === focusedValue,
+      (item) => item.id === focusedValue,
     ) ||
     (currentPage.commands.suggestions || []).find(
-      (item) => getDisplayName(item.name) === focusedValue,
+      (item) => item.id === focusedValue,
     )
 
   if (!focusedSuggestion) {

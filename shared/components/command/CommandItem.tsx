@@ -47,10 +47,10 @@ export function CommandItem({
           {suggestion.keybinding.split(" ").map((key) => {
             // Normalize key symbols for better display
             const normalizedKey = key
-              .replace(/⌃/g, "Ctrl")
-              .replace(/⌘/g, "Cmd")
-              .replace(/⌥/g, "Alt")
-              .replace(/⇧/g, "Shift")
+              .replace(/⌃/g, "⌃")
+              .replace(/⌘/g, "⌘")
+              .replace(/⌥/g, "⌥")
+              .replace(/⇧/g, "⇧")
               .replace(/↵/g, "↵")
 
             return <kbd key={key}>{normalizedKey}</kbd>

@@ -6,6 +6,7 @@ export const openNewWindow: RunCommand = {
   name: "Open new window",
   icon: { type: "lucide", name: "AppWindow" },
   color: "purple",
+  keybinding: "⌘ n",
   run: () => {
     createWindow({})
   },

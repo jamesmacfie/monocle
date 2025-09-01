@@ -1,7 +1,7 @@
 import { ChevronLeft } from "lucide-react"
 import type { FormEvent } from "react"
 import { useEffect, useRef } from "react"
-import type { FormField } from "../../types/"
+import type { FormField } from "../../types"
 import { useActionLabel } from "../hooks/useActionLabel"
 import type { Page, UI } from "../hooks/useCommandNavigation"
 import AlertListener from "./Alert"

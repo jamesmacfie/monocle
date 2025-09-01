@@ -6,9 +6,10 @@ export const openNewTab: RunCommand = {
   name: "Open new tab",
   icon: { type: "lucide", name: "PlusSquare" },
   color: "purple",
+  keybinding: "⌘ t",
   actionLabel: "New tab →",
   modifierActionLabel: {
-    cmd: "New tab ←",
+    shift: "New tab ←",
   },
   run: async (context) => {
     const options = {

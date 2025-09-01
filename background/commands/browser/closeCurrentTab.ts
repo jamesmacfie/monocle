@@ -6,7 +6,7 @@ export const closeCurrentTab: Command = {
   name: "Close current tab",
   icon: { type: "lucide", name: "X" },
   color: "red",
-  keybinding: "⌃ d",
+  keybinding: "⌘ w",
   run: async () => {
     const tabs = await queryTabs({
       active: true,
