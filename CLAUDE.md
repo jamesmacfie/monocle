@@ -40,6 +40,8 @@ bifocal/
 │   ├── index.html      # New tab HTML entry point
 │   ├── scripts.tsx     # New tab React entry point
 │   ├── NewTabApp.tsx   # Main new tab application component
+│   ├── components/     # New tab-specific React components
+│   │   └── NewTabCommandPalette.tsx # New tab command palette wrapper
 │   └── styles.css      # New tab specific styles
 ├── shared/             # Shared components and utilities
 │   ├── components/     # Reusable React components
@@ -98,8 +100,8 @@ Both modes utilize the same core components through the shared architecture:
 
 ```
 ContentCommandPalette ──┐
-                        ├──> CommandPaletteUI ──> CommandPalette (CMDK)
-NewTabApp ──────────────┘                      └─> Command Sub-components
+                        ├──> CommandPalette (CMDK)
+NewTabCommandPalette ───┘    └─> Command Sub-components
 ```
 
 ### 3. Command Execution Flow
@@ -230,6 +232,46 @@ Commands are organized into three categories:
 3. **Suggestions**: All other available commands, ranked by usage frequency
 4. **Deep Search Items**: Flattened nested commands from ParentCommands with `enableDeepSearch: true`
 
+### Favorites System
+
+The favorites system allows users to star commands for quick access and supports complex nested command hierarchies.
+
+#### Architecture
+
+**Storage**: Persistent storage using `chrome.storage.local` with key `monocle-favoriteCommandIds`
+
+**Format**: Array of command IDs (strings) that persist across browser sessions
+
+**Recursive Discovery**: The `findFavoritedCommands()` function (lines 76-131 in `background/commands/index.ts`) recursively searches through ParentCommand hierarchies to find favorited nested commands.
+
+```typescript
+const findFavoritedCommands = async (
+  commands: Command[],
+  favoriteCommandIds: string[],
+  context: Browser.Context,
+  parentName?: string,
+): Promise<Command[]>
+```
+
+**Key Features**:
+- **Breadcrumb Names**: Favorited sub-commands show parent context: `[childName, parentName]`
+- **Context Preservation**: Maintains execution context for nested commands
+- **Error Resilience**: Graceful handling of command resolution failures
+- **Cross-Mode Support**: Available in both content script and new tab modes
+
+#### Operations
+- `addToFavoriteCommandIds(commandId)`: Add command to favorites
+- `removeFromFavoriteCommandIds(commandId)`: Remove from favorites
+- `toggleFavoriteCommandId(commandId)`: Toggle favorite status
+- `getFavoriteCommandIds()`: Retrieve all favorite command IDs
+- `isCommandFavorite(commandId)`: Check if command is favorited
+
+#### Auto-Generated Actions
+Every command automatically receives a toggle favorite action in its action menu:
+- **Icon**: Star (filled) for favorited commands, Star (outline) for non-favorited
+- **Label**: "Remove from Favorites" or "Add to Favorites"
+- **Behavior**: Instantly updates favorite status without closing the palette
+
 ### Command Registration Flow
 
 ```typescript
@@ -237,11 +279,12 @@ Commands are organized into three categories:
 getCommands() {
   1. Load all command modules (browser, tools, etc.)
   2. Filter by browser compatibility
-  3. Organize into favorites/recents/suggestions
-  4. Process deep search commands (flatten nested hierarchies)
-  5. Apply usage-based ranking
-  6. Convert to CommandSuggestion format for UI
-  7. Return {favorites, recents, suggestions, deepSearchItems}
+  3. Recursively discover favorited commands (including nested ones)
+  4. Organize into favorites/recents/suggestions
+  5. Process deep search commands (flatten nested hierarchies)
+  6. Apply usage-based ranking
+  7. Convert to CommandSuggestion format for UI
+  8. Return {favorites, recents, suggestions, deepSearchItems}
 }
 ```
 
@@ -366,37 +409,40 @@ handleMessage(message) {
 The new architecture uses a shared component system that supports both overlay and standalone modes:
 
 #### Core Components
-1. **CommandPaletteUI**: Main configurable component
-   - Props: `isAlwaysVisible`, `onClose`, `className`, `autoFocus`
-   - Used directly in new tab page
-   - Configures behavior based on context
+1. **CommandPalette**: Core CMDK-based palette component
+   - Shared by both usage modes
+   - Handles search, filtering, and command execution
+   - Manages keyboard navigation
+   - Location: `/shared/components/Command/CommandPalette.tsx`
 
 2. **ContentCommandPalette**: Content script wrapper
    - Uses `useCommandPaletteState` for overlay show/hide logic
    - Integrates with global keybindings
    - Handles shadow DOM rendering
+   - Location: `/content/components/ContentCommandPalette.tsx`
 
-3. **CommandPalette**: Core CMDK-based palette component
-   - Shared by both usage modes
-   - Handles search, filtering, and command execution
-   - Manages keyboard navigation
+3. **NewTabCommandPalette**: New tab page wrapper
+   - Uses `useGetCommands` and `useGlobalKeybindings` hooks
+   - Handles command execution and auto-focus
+   - Always-visible behavior for new tab mode
+   - Location: `/newtab/components/NewTabCommandPalette.tsx`
 
 #### Component Hierarchy
 
 ```
-┌─ ContentCommandPalette (Content Script) ─┐    ┌─ NewTabApp (New Tab) ─┐
-│  ├── useCommandPaletteState              │    │  └── CommandPaletteUI  │
-│  └── CommandPaletteUI                    │    │      (isAlwaysVisible) │
-└───────────────────────────────────────────┘    └─────────────────────────┘
-                          │                                    │
-                          └──────── CommandPalette ───────────┘
-                                   (CMDK-based palette)
-                            ├── CommandHeader (search input)
-                            ├── CommandList (scrollable list)
-                            │   └── CommandItem (individual command)
-                            │       ├── CommandName (with breadcrumbs)
-                            │       └── CommandActions (modifier actions)
-                            └── CommandFooter (keybinding hints)
+┌─ ContentCommandPalette (Content Script) ─┐    ┌─ NewTabCommandPalette (New Tab) ─┐
+│  ├── useCommandPaletteState              │    │  ├── useGetCommands               │
+│  └── CommandPalette                      │    │  ├── useGlobalKeybindings         │
+│      (CMDK-based palette)                │    │  └── CommandPalette               │
+└───────────────────────────────────────────┘    │      (CMDK-based palette)         │
+                          │                      └─────────────────────────────────────┘
+                          └──────── CommandPalette Sub-components ─────────┘
+                                   ├── CommandHeader (search input)
+                                   ├── CommandList (scrollable list)
+                                   │   └── CommandItem (individual command)
+                                   │       ├── CommandName (with breadcrumbs)
+                                   │       └── CommandActions (modifier actions)
+                                   └── CommandFooter (keybinding hints)
 ```
 
 ### Shadow DOM Isolation (Content Script Only)
@@ -418,10 +464,10 @@ Key React hooks for state management:
 - `useCommandNavigation`: Handles keyboard navigation
 - `useActionLabel`: Dynamic action labeling based on modifier keys
 - `useCopyToClipboard`: Clipboard utility functions
+- `useGlobalKeybindings`: Registers global keyboard shortcuts (used in both modes)
 
 **Content-Specific Hooks** (`/content/hooks/`):
-- `useCommandPaletteState`: Global palette open/close state (overlay mode)
-- `useGlobalKeybindings`: Registers global keyboard shortcuts
+- `useCommandPaletteState`: Global palette open/close state (overlay mode only)
 
 ### Deployment Mode Differences
 
