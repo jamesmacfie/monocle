@@ -289,7 +289,7 @@ export function useCommandNavigation(
       return
     }
 
-    if (selectedCommand.hasCommands) {
+    if (selectedCommand.isParentCommand) {
       // Parent command: navigate to its children
       await navigateTo(id)
     } else if (selectedCommand.ui) {

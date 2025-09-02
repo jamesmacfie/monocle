@@ -25,13 +25,28 @@ export type FormField = {
 )
 
 // The CommandSuggestion type that the UI actually uses
+export type ActionExecutionContext =
+  | {
+      type: "primary"
+      targetCommandId: string
+    }
+  | {
+      type: "modifier"
+      targetCommandId: string
+      modifierKey: Browser.ModifierKey
+    }
+  | {
+      type: "favorite"
+      targetCommandId: string
+    }
+
 export type CommandSuggestion = {
   id: string
   name: string | string[]
   description?: string
   color?: string
   keywords?: string[]
-  hasCommands: boolean
+  isParentCommand: boolean
   icon?: CommandIcon
   ui?: FormField[]
   actionLabel: string
@@ -42,6 +57,7 @@ export type CommandSuggestion = {
   keybinding?: string
   isFavorite?: boolean
   remainOpenOnSelect?: boolean
+  executionContext?: ActionExecutionContext // Context for action execution
 }
 
 // Resolved UI representation of commands

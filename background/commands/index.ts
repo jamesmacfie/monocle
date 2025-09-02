@@ -1,3 +1,4 @@
+import { match } from "ts-pattern"
 import type { Browser, Command, CommandSuggestion } from "../../types/"
 import { isFirefox } from "../utils/browser"
 import {
@@ -233,19 +234,68 @@ export const findCommand = async (
   return undefined
 }
 
+// Helper function to find a CommandSuggestion (with execution context) from suggestions list
+const findCommandSuggestion = (
+  suggestions: CommandSuggestion[],
+  commandId: string,
+): CommandSuggestion | undefined => {
+  // Search in suggestions and their actions recursively
+  for (const suggestion of suggestions) {
+    if (suggestion.id === commandId) {
+      return suggestion
+    }
+
+    // Search in actions if they exist
+    if (suggestion.actions && Array.isArray(suggestion.actions)) {
+      const foundInActions = findCommandSuggestion(
+        suggestion.actions,
+        commandId,
+      )
+      if (foundInActions) {
+        return foundInActions
+      }
+    }
+  }
+
+  return undefined
+}
+
 export const executeCommand = async (
   id: string,
   context: Browser.Context,
   formValues: Record<string, string>,
-) => {
-  // Check if this is a toggle favorite action
-  if (id.startsWith("toggle-favorite-")) {
-    const originalCommandId = id.replace("toggle-favorite-", "")
-    await toggleFavoriteCommandId(originalCommandId)
-    return
+): Promise<void> => {
+  const { favorites, recents, suggestions } = await getCommands()
+  const allSuggestions = await commandsToSuggestions(
+    [...favorites, ...recents, ...suggestions],
+    context,
+  )
+
+  // First, try to find the action in our CommandSuggestions (which have execution context)
+  const actionSuggestion = findCommandSuggestion(allSuggestions, id)
+
+  if (actionSuggestion?.executionContext) {
+    const executionCtx = actionSuggestion.executionContext
+
+    // Handle different action types using pattern matching
+    return await match(executionCtx)
+      .with({ type: "favorite" }, async (ctx) => {
+        await toggleFavoriteCommandId(ctx.targetCommandId)
+      })
+      .with({ type: "primary" }, (ctx) => {
+        return executeCommand(ctx.targetCommandId, ctx, formValues)
+      })
+      .with({ type: "modifier" }, (ctx) => {
+        const modifiedContext = {
+          ...context,
+          modifierKey: ctx.modifierKey,
+        }
+        return executeCommand(ctx.targetCommandId, modifiedContext, formValues)
+      })
+      .exhaustive()
   }
 
-  const { favorites, recents, suggestions } = await getCommands()
+  // If no metadata found, fall back to the original command lookup
   const allCommands = [...favorites, ...recents, ...suggestions, debug]
 
   // Find and execute the command
@@ -278,6 +328,168 @@ export const executeCommand = async (
   }
 }
 
+// Helper to create toggle favorite action
+const createFavoriteToggleAction = async (
+  command: Command,
+  favoriteCommandIds: string[],
+): Promise<CommandSuggestion> => {
+  const isFavorite = favoriteCommandIds.includes(command.id)
+  return {
+    id: `toggle-favorite-${command.id}`,
+    name: isFavorite ? "Remove from Favorites" : "Add to Favorites",
+    description: isFavorite
+      ? "Remove this command from favorites"
+      : "Add this command to favorites",
+    icon: { type: "lucide", name: isFavorite ? "StarOff" : "Star" },
+    color: "amber",
+    isParentCommand: false,
+    actionLabel: isFavorite ? "Remove" : "Add",
+    keywords: ["favorite", "star", isFavorite ? "remove" : "add"],
+    isFavorite: false,
+    actions: undefined,
+    remainOpenOnSelect: true,
+    executionContext: {
+      type: "favorite",
+      targetCommandId: command.id,
+    },
+  }
+}
+
+// Helper to create primary action (default Enter key behavior)
+const createPrimaryAction = async (
+  command: Command,
+  context: Browser.Context,
+): Promise<CommandSuggestion | null> => {
+  // Skip if command already has custom actions defined
+  if (command.actions?.length) {
+    return null
+  }
+
+  const isParentCommand = "commands" in command
+  const hasUIForm = "ui" in command
+  const resolvedActionLabel = await resolveActionLabel(command, context)
+
+  // Determine action properties based on command type
+  const getPrimaryActionProperties = () => {
+    if (isParentCommand) {
+      return {
+        name: "Open",
+        description: "Open this group",
+        icon: "FolderOpen" as const,
+        actionLabel: "Open",
+      }
+    }
+    if (hasUIForm) {
+      return {
+        name: resolvedActionLabel,
+        description: "Open UI",
+        icon: "FormInput" as const,
+        actionLabel: resolvedActionLabel,
+      }
+    }
+    return {
+      name: resolvedActionLabel,
+      description: "Execute this command",
+      icon: "Play" as const,
+      actionLabel: resolvedActionLabel,
+    }
+  }
+
+  const primaryActionProperties = getPrimaryActionProperties()
+  return {
+    id: `${command.id}-enter-action`,
+    name: primaryActionProperties.name,
+    description: primaryActionProperties.description,
+    icon: { type: "lucide", name: primaryActionProperties.icon },
+    isParentCommand: false,
+    actionLabel: primaryActionProperties.actionLabel,
+    isFavorite: false,
+    actions: undefined,
+    keybinding: "↵",
+    executionContext: {
+      type: "primary",
+      targetCommandId: command.id,
+    },
+  }
+}
+
+// Helper to create modifier key actions
+const createModifierKeyActions = async (
+  command: Command,
+  context: Browser.Context,
+): Promise<CommandSuggestion[]> => {
+  const isParentCommand = "commands" in command
+  const hasUIForm = "ui" in command
+
+  // Only create modifier actions for executable commands (not parent/UI commands)
+  if (isParentCommand || hasUIForm) {
+    return []
+  }
+
+  const modifierActions: CommandSuggestion[] = []
+  const modifierLabels = await resolveModifierActionLabels(command, context)
+
+  // Configuration for each modifier key
+  const modifierKeyDefinitions = [
+    { key: "cmd" as const, icon: "Command", symbol: "⌘", description: "Cmd" },
+    {
+      key: "shift" as const,
+      icon: "ArrowUp",
+      symbol: "⇧",
+      description: "Shift",
+    },
+    { key: "alt" as const, icon: "Option", symbol: "⌥", description: "Alt" },
+    {
+      key: "ctrl" as const,
+      icon: "SquareAsterisk",
+      symbol: "⌃",
+      description: "Ctrl",
+    },
+  ] as const
+
+  for (const { key, icon, symbol, description } of modifierKeyDefinitions) {
+    const label = modifierLabels[key]
+    if (label) {
+      modifierActions.push({
+        id: `${command.id}-${key}-enter-action`,
+        name: label,
+        description: `Execute with ${description} key`,
+        icon: { type: "lucide", name: icon },
+        isParentCommand: false,
+        actionLabel: label,
+        keywords: [],
+        isFavorite: false,
+        actions: undefined,
+        keybinding: `${symbol} ↵`,
+        executionContext: {
+          type: "modifier",
+          targetCommandId: command.id,
+          modifierKey: key,
+        },
+      })
+    }
+  }
+
+  return modifierActions
+}
+
+// Helper to build command name for display
+const buildCommandDisplayName = async (
+  command: Command,
+  context: Browser.Context,
+  parentName?: string,
+  favoriteCommandIds: string[] = [],
+): Promise<string | string[]> => {
+  const resolvedName = await resolveAsyncProperty(command.name, context)
+
+  // Create name array if this is a favorited subcommand
+  return parentName && favoriteCommandIds.includes(command.id)
+    ? Array.isArray(resolvedName)
+      ? resolvedName
+      : [resolvedName || "Unnamed Command", parentName]
+    : resolvedName || "Unnamed Command"
+}
+
 export const commandsToSuggestions = async (
   commands: Command[],
   context: Browser.Context,
@@ -287,11 +499,10 @@ export const commandsToSuggestions = async (
 
   return await Promise.all(
     commands.map(async (command) => {
-      // Process actions if they exist
+      // Process existing actions if they exist
       let actions: CommandSuggestion[] | undefined
       if (command.actions && Array.isArray(command.actions)) {
         const commandName = await resolveAsyncProperty(command.name, context)
-        // Pass the resolved name as parentName for actions
         const resolvedParentName = Array.isArray(commandName)
           ? commandName[0]
           : commandName!
@@ -302,40 +513,36 @@ export const commandsToSuggestions = async (
         )
       }
 
-      // Resolve the command name (could be string, array, or function returning either)
-      const resolvedName = await resolveAsyncProperty(command.name, context)
+      // Resolve display name
+      const displayName = await buildCommandDisplayName(
+        command,
+        context,
+        parentName,
+        favoriteCommandIds,
+      )
 
-      // Create name array if this is a favorited subcommand
-      const displayName =
-        parentName && favoriteCommandIds.includes(command.id)
-          ? Array.isArray(resolvedName)
-            ? resolvedName
-            : [resolvedName!, parentName]
-          : resolvedName
+      // Create actions using helper functions
+      const toggleFavoriteAction = await createFavoriteToggleAction(
+        command,
+        favoriteCommandIds,
+      )
+      const primaryAction = await createPrimaryAction(command, context)
+      const modifierKeyActions = await createModifierKeyActions(
+        command,
+        context,
+      )
 
-      const isFavorite = favoriteCommandIds.includes(command.id)
+      // Combine all actions: default Enter (if needed), modifier actions, custom actions, toggle favorite
+      const allActions = [
+        ...(primaryAction ? [primaryAction] : []),
+        ...modifierKeyActions,
+        ...(actions || []),
+        toggleFavoriteAction,
+      ]
 
-      // Create toggle favorite action directly as CommandSuggestion to avoid recursion
-      const toggleFavoriteAction: CommandSuggestion = {
-        id: `toggle-favorite-${command.id}`,
-        name: isFavorite ? "Remove from Favorites" : "Add to Favorites",
-        description: isFavorite
-          ? "Remove this command from favorites"
-          : "Add this command to favorites",
-        icon: { type: "lucide", name: isFavorite ? "StarOff" : "Star" },
-        color: "amber",
-        hasCommands: false,
-        actionLabel: isFavorite ? "Remove" : "Add",
-        keywords: ["favorite", "star", isFavorite ? "remove" : "add"],
-        isFavorite: false,
-        actions: undefined,
-        remainOpenOnSelect: true,
-      }
-
-      // Combine existing actions with toggle favorite action
-      const allActions = actions
-        ? [...actions, toggleFavoriteAction]
-        : [toggleFavoriteAction]
+      const isParentCommand = "commands" in command
+      const resolvedActionLabel = await resolveActionLabel(command, context)
+      const modifierLabels = await resolveModifierActionLabels(command, context)
 
       return {
         id: command.id,
@@ -344,13 +551,10 @@ export const commandsToSuggestions = async (
         icon: await resolveAsyncProperty(command.icon, context),
         keywords: await resolveAsyncProperty(command.keywords, context),
         color: await resolveAsyncProperty(command.color, context),
-        hasCommands: "commands" in command,
+        isParentCommand,
         ui: "ui" in command ? command.ui : undefined,
-        actionLabel: await resolveActionLabel(command, context),
-        modifierActionLabel: await resolveModifierActionLabels(
-          command,
-          context,
-        ),
+        actionLabel: resolvedActionLabel,
+        modifierActionLabel: modifierLabels,
         actions: allActions,
         keybinding: command.keybinding,
         isFavorite: favoriteCommandIds.includes(command.id),

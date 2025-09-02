@@ -74,14 +74,10 @@ export const calculator: Command = {
       placeholder: "1 + 2",
     },
   ],
-  actionLabel: "Answer",
-  modifierActionLabel: {
-    cmd: "Copy Answer",
-  },
+  // TODO - need to have a way to have action labels for UI elements
   run: async (context, values) => {
     const activeTab = await getActiveTab()
 
-    console.log({ activeTab })
     if (activeTab) {
       const result = stringMath(values?.calculation || "")
 

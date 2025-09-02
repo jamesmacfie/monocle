@@ -58,7 +58,7 @@ export function CommandItem({
         </div>
       )}
       <span cmdk-raycast-meta="">
-        {suggestion.hasCommands ? "Group" : "Command"}
+        {suggestion.isParentCommand ? "Group" : "Command"}
       </span>
       {children}
     </Command.Item>

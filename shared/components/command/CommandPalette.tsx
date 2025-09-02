@@ -50,7 +50,7 @@ function CommandContent({
 }) {
   const focusedValue = useCommandState((state) => state.value)
 
-  // Find the focused suggestion based on its value 
+  // Find the focused suggestion based on its value
   const focusedSuggestion =
     (currentPage.commands.favorites || []).find(
       (item: CommandSuggestion) => item.id === focusedValue,

@@ -33,7 +33,7 @@ export function CommandFooter({
         {focusedSuggestion && (
           <>
             <button cmdk-raycast-open-trigger="">
-              {focusedSuggestion.hasCommands ? "Open" : actionLabel}
+              {focusedSuggestion.isParentCommand ? "Open" : actionLabel}
               <kbd>↵</kbd>
             </button>
             {focusedSuggestion.actions?.length && (
