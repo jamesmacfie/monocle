@@ -9,10 +9,11 @@ This guide explains how to create new commands for the Monocle browser extension
 3. [UICommand with Form Example](#uicommand-with-form-example)
 4. [ParentCommand with Dynamic Children](#parentcommand-with-dynamic-children)
 5. [NoOp Commands for Error States](#noop-commands-for-error-states)
-6. [Deep Search Feature](#deep-search-feature)
-7. [Alert/Notification Examples](#alertnotification-examples)
-8. [Command Properties Glossary](#command-properties-glossary)
-9. [Registration and Best Practices](#registration-and-best-practices)
+6. [Action System Architecture](#action-system-architecture)
+7. [Deep Search Feature](#deep-search-feature)
+8. [Alert/Notification Examples](#alertnotification-examples)
+9. [Command Properties Glossary](#command-properties-glossary)
+10. [Registration and Best Practices](#registration-and-best-practices)
 
 ## Command Types Overview
 
@@ -61,6 +62,18 @@ export const simpleNotification: RunCommand = {
 - **Browser API integration**: Uses utility functions to interact with tabs
 - **Alert system**: Sends notifications back to the browser
 - **Optional keybinding**: Allows keyboard shortcuts
+- **Automatic action menu**: Receives default actions (Execute, modifier keys, toggle favorite)
+
+### Automatic Action Menu Generated:
+```typescript
+// This RunCommand automatically gets these action menu items:
+// 1. "Execute" (primary action - default Enter behavior)
+// 2. "Execute with ⌘" (Cmd modifier action)
+// 3. "Execute with ⇧" (Shift modifier action)  
+// 4. "Execute with ⌥" (Alt modifier action)
+// 5. "Execute with ⌃" (Ctrl modifier action)
+// 6. "Add to Favorites" or "Remove from Favorites" (toggle favorite)
+```
 
 ## UICommand with Form Example
 
@@ -158,6 +171,16 @@ export const customSearch: UICommand = {
 - **Form validation**: Access user input via `values` parameter
 - **Modifier actions**: Different behavior based on pressed modifier keys
 - **Dynamic behavior**: Customize execution based on user input
+- **Smart action menu**: Gets "Configure" primary action instead of "Execute" since it has a form
+
+### Automatic Action Menu Generated:
+```typescript
+// This UICommand automatically gets these action menu items:
+// 1. "Configure" (primary action - opens form instead of "Execute")
+// 2. No modifier key actions (UICommands don't get these by default)
+// 3. "Add to Favorites" or "Remove from Favorites" (toggle favorite)
+// Note: Modifier key behavior is handled within the run() function using context?.modifierKey
+```
 
 ## ParentCommand with Dynamic Children
 
@@ -256,6 +279,16 @@ export const recentBookmarks: ParentCommand = {
 - **Async properties**: Names, icons, and colors can be resolved asynchronously
 - **Error handling**: Graceful fallback when data fetching fails
 - **Context awareness**: Can use execution context to customize behavior
+- **Parent action menu**: Gets "Open" primary action to navigate into child commands
+
+### Automatic Action Menu Generated:
+```typescript
+// This ParentCommand automatically gets these action menu items:
+// 1. "Open" (primary action - navigates to show child commands)
+// 2. No modifier key actions (ParentCommands don't get these by default)
+// 3. "Add to Favorites" or "Remove from Favorites" (toggle favorite)
+// Note: Child commands each get their own action menus when generated
+```
 
 ## NoOp Commands for Error States
 
@@ -475,6 +508,277 @@ export const advancedParentCommand: ParentCommand = {
 ```
 
 This pattern ensures users always see helpful information in the command palette, even when things go wrong, without intrusive alert popups.
+
+## Action System Architecture
+
+The command palette features an advanced action menu system that automatically generates context-aware actions for every command. This system enhances user productivity by providing multiple ways to execute commands with different behaviors based on modifier keys.
+
+### Automatic Action Generation
+
+Every command in the system automatically receives a set of context-aware actions:
+
+1. **Primary Action**: Default behavior when pressing Enter
+2. **Modifier Key Actions**: Alternative behaviors for Cmd, Shift, Alt, and Ctrl combinations
+3. **Toggle Favorite Action**: Add/remove command from favorites list
+4. **Custom Actions**: Developer-defined actions specific to the command
+
+### Action Types and Execution Context
+
+Actions are powered by the `ActionExecutionContext` system, which defines how actions should be executed:
+
+```typescript
+type ActionExecutionContext =
+  | { type: "primary"; targetCommandId: string }
+  | { type: "modifier"; targetCommandId: string; modifierKey: Browser.ModifierKey }
+  | { type: "favorite"; targetCommandId: string }
+```
+
+### Primary Actions
+
+Primary actions represent the default Enter key behavior and are automatically generated based on command type:
+
+**RunCommand with no custom actions**:
+- **Name**: "Execute"
+- **Description**: "Execute this command"
+- **Icon**: `Play`
+
+**ParentCommand**:
+- **Name**: "Open"
+- **Description**: "Open this group"
+- **Icon**: `FolderOpen`
+
+**UICommand**:
+- **Name**: "Configure"
+- **Description**: "Open form to configure this command"
+- **Icon**: `Settings`
+
+### Modifier Key Actions
+
+For executable RunCommands (without UI forms or child commands), the system automatically generates modifier actions:
+
+```typescript
+// Automatically generated for RunCommands
+const modifierActions = [
+  { key: "cmd", icon: "Command", symbol: "⌘", description: "Cmd" },
+  { key: "shift", icon: "ArrowUp", symbol: "⇧", description: "Shift" },
+  { key: "alt", icon: "Option", symbol: "⌥", description: "Alt" },
+  { key: "ctrl", icon: "SquareAsterisk", symbol: "⌃", description: "Ctrl" }
+]
+```
+
+Each modifier action uses:
+- **Name**: Based on `modifierActionLabel` if defined, otherwise "Execute with {Modifier}"
+- **Description**: "Execute this command with {modifier} key pressed"
+- **Icon**: Modifier-specific icon
+- **Execution**: Passes the modifier key in the execution context
+
+### Favorite Toggle Actions
+
+Every command automatically receives a toggle favorite action:
+
+```typescript
+// Automatically generated for all commands
+{
+  id: `toggle-favorite-${command.id}`,
+  name: isFavorite ? "Remove from Favorites" : "Add to Favorites",
+  icon: { name: isFavorite ? "StarOff" : "Star" },
+  color: "amber",
+  executionContext: { type: "favorite", targetCommandId: command.id }
+}
+```
+
+### Action Menu Display
+
+Actions are displayed in the command palette as sub-items that appear when hovering over or focusing on a command. The action menu shows:
+
+1. **Primary action** (if applicable)
+2. **Modifier key actions** (for executable commands)
+3. **Custom actions** (developer-defined)
+4. **Toggle favorite action** (always present)
+
+### Example: Complete Action Menu
+
+```typescript
+// For a simple RunCommand like "Close Current Tab"
+export const closeCurrentTab: RunCommand = {
+  id: "close-current-tab",
+  name: "Close Current Tab",
+  icon: { name: "X" },
+  modifierActionLabel: {
+    cmd: "Close All Tabs",
+    shift: "Close Other Tabs"
+  },
+  run: async (context) => {
+    if (context?.modifierKey === "cmd") {
+      // Close all tabs
+    } else if (context?.modifierKey === "shift") {
+      // Close other tabs
+    } else {
+      // Close current tab
+    }
+  }
+}
+
+// Automatically generates these action menu items:
+// 1. "Execute" (primary action)
+// 2. "Close All Tabs" (⌘ modifier action)
+// 3. "Close Other Tabs" (⇧ modifier action)
+// 4. "Execute with Alt" (⌥ modifier action)
+// 5. "Execute with Ctrl" (⌃ modifier action)
+// 6. "Add to Favorites" or "Remove from Favorites"
+```
+
+### Custom Actions Integration
+
+When commands define custom actions, they integrate seamlessly with the auto-generated system:
+
+```typescript
+export const customActionsCommand: RunCommand = {
+  id: "custom-actions-example",
+  name: "Command with Custom Actions",
+  icon: { name: "Settings" },
+  
+  // Custom actions are preserved
+  actions: [
+    {
+      id: "custom-action-1",
+      name: "Custom Action",
+      icon: { name: "Star" },
+      run: async () => { /* custom logic */ }
+    }
+  ],
+  
+  run: async (context) => { /* main logic */ }
+}
+
+// Final action menu will include:
+// 1. Primary action (Execute)
+// 2. Modifier actions (⌘, ⇧, ⌥, ⌃)
+// 3. Custom Action (developer-defined)
+// 4. Toggle Favorite
+```
+
+### Action Execution Flow
+
+When a user selects an action, the system follows this execution pattern:
+
+1. **Action Selection**: User clicks or presses key for an action
+2. **Context Resolution**: System looks up `executionContext` for the selected action
+3. **Pattern Matching**: Uses pattern matching to determine execution type:
+   ```typescript
+   await match(executionContext)
+     .with({ type: "favorite" }, async (ctx) => {
+       await toggleFavoriteCommandId(ctx.targetCommandId)
+     })
+     .with({ type: "primary" }, (ctx) => {
+       return executeCommand(ctx.targetCommandId, context, formValues)
+     })
+     .with({ type: "modifier" }, (ctx) => {
+       const modifiedContext = { ...context, modifierKey: ctx.modifierKey }
+       return executeCommand(ctx.targetCommandId, modifiedContext, formValues)
+     })
+   ```
+4. **Command Execution**: Target command runs with appropriate context
+
+### Best Practices for Actions
+
+**Leveraging Auto-Generated Actions**:
+- Define `modifierActionLabel` to provide clear descriptions for modifier behaviors
+- Implement modifier key handling in your command's `run()` function
+- Use the `context?.modifierKey` parameter to alter behavior
+
+**Custom Actions**:
+- Use custom actions for specialized behaviors that don't fit modifier patterns
+- Custom actions integrate with auto-generated ones in the action menu
+- Provide clear names and descriptions for custom actions
+
+**Avoiding Conflicts**:
+- Auto-generated actions don't conflict with custom actions
+- Primary actions are skipped if custom actions are defined
+- Modifier actions are always generated for executable commands
+
+### Helper Functions for Action Generation
+
+The system uses several helper functions to automatically generate actions. These functions are used internally by the `commandsToSuggestions()` function:
+
+#### `createFavoriteToggleAction(command, favoriteCommandIds)`
+
+Generates the toggle favorite action for any command:
+
+```typescript
+const createFavoriteToggleAction = async (
+  command: Command,
+  favoriteCommandIds: string[],
+): Promise<CommandSuggestion>
+```
+
+**Behavior**:
+- Creates an action with ID `toggle-favorite-${command.id}`
+- Shows "Remove from Favorites" or "Add to Favorites" based on current state
+- Uses `StarOff` or `Star` icon accordingly
+- Sets `remainOpenOnSelect: true` so palette stays open after toggling
+- Includes `executionContext: { type: "favorite", targetCommandId: command.id }`
+
+#### `createPrimaryAction(command, context)`
+
+Generates the default Enter key action based on command type:
+
+```typescript
+const createPrimaryAction = async (
+  command: Command,
+  context: Browser.Context,
+): Promise<CommandSuggestion | null>
+```
+
+**Behavior**:
+- Returns `null` if command already has custom actions (avoids duplication)
+- For `RunCommand`: Creates "Execute" action with `Play` icon
+- For `ParentCommand`: Creates "Open" action with `FolderOpen` icon
+- For `UICommand`: Creates "Configure" action with `Settings` icon
+- Sets `executionContext: { type: "primary", targetCommandId: command.id }`
+
+#### `createModifierKeyActions(command, context)`
+
+Generates modifier key actions for executable commands:
+
+```typescript
+const createModifierKeyActions = async (
+  command: Command,
+  context: Browser.Context,
+): Promise<CommandSuggestion[]>
+```
+
+**Behavior**:
+- Only generates actions for `RunCommand` (not `ParentCommand` or `UICommand`)
+- Creates actions for all four modifier keys: `cmd`, `shift`, `alt`, `ctrl`
+- Uses command's `modifierActionLabel` if defined, otherwise defaults to "Execute with {Modifier}"
+- Each action includes appropriate icon and execution context:
+  ```typescript
+  executionContext: { 
+    type: "modifier", 
+    targetCommandId: command.id, 
+    modifierKey: "cmd" // or shift/alt/ctrl
+  }
+  ```
+
+### Action Integration Process
+
+The `commandsToSuggestions()` function combines all actions in this order:
+
+1. **Primary Action** (if no custom actions defined)
+2. **Modifier Key Actions** (for executable commands)
+3. **Custom Actions** (developer-defined `command.actions`)
+4. **Toggle Favorite Action** (always present)
+
+```typescript
+// Example of final action array for a RunCommand with custom actions:
+const allActions = [
+  // No primary action (skipped because custom actions exist)
+  ...modifierKeyActions,     // ⌘, ⇧, ⌥, ⌃ modifier actions
+  ...command.actions,        // Developer-defined custom actions
+  toggleFavoriteAction       // Always present toggle favorite
+]
+```
 
 ## Deep Search Feature
 
@@ -698,7 +1002,7 @@ await sendTabMessage(activeTab.id, {
 | `keybinding`        | `string`                                            | Keyboard shortcut                      | `"⌘ K"`, `"⌃ d"`, `"⌥ ⇧ n"`                         |
 | `priority`          | `(context: Browser.Context) => Promise<Command[]>`  | Function to determine command priority | Used for ranking in suggestions                     |
 | `supportedBrowsers` | `Browser.Platform[]`                                | Browser compatibility                  | `["chrome", "firefox"]`                             |
-| `actions`           | `Command[]`                                         | Sub-actions available for the command  | Additional commands shown on hover/focus            |
+| `actions`           | `Command[]`                                         | Custom actions for the command         | Integrates with auto-generated actions              |
 | `doNotAddToRecents` | `boolean`                                           | Flag to exclude from recent commands   | `true` to prevent recent tracking                   |
 
 ### RunCommand & UICommand Specific Properties
@@ -721,6 +1025,29 @@ await sendTabMessage(activeTab.id, {
 | ----------------- | --------------------------------------------------- | -------------------------------------- |
 | `commands`        | `(context: Browser.Context) => Promise<Command[]>`  | Function that generates child commands |
 | `enableDeepSearch` | `boolean`                                           | Enable deep search for nested commands (optional, default: false) |
+
+### CommandSuggestion Properties (UI Representation)
+
+These properties are used internally by the system when converting commands to UI suggestions:
+
+| Property            | Type                                                | Description                            | Examples                                            |
+| ------------------- | --------------------------------------------------- | -------------------------------------- | --------------------------------------------------- |
+| `isParentCommand`   | `boolean`                                           | Whether this is a ParentCommand        | `true` for commands with child commands             |
+| `remainOpenOnSelect`| `boolean`                                           | Keep palette open after action         | `true` for favorite toggle actions                  |
+| `executionContext`  | `ActionExecutionContext`                            | Context for action execution           | `{ type: "modifier", targetCommandId: "...", modifierKey: "cmd" }` |
+
+#### ActionExecutionContext Types
+
+```typescript
+type ActionExecutionContext =
+  | { type: "primary"; targetCommandId: string }
+  | { type: "modifier"; targetCommandId: string; modifierKey: Browser.ModifierKey }
+  | { type: "favorite"; targetCommandId: string }
+```
+
+- **`primary`**: Default Enter key behavior for the target command
+- **`modifier`**: Execute target command with a specific modifier key pressed
+- **`favorite`**: Toggle favorite status for the target command
 
 ### Supported Color Values
 
@@ -799,6 +1126,35 @@ export const categoryCommands = [
 - Use descriptive names: `"Close Current Tab"` not `"Close"`
 - Include category in ID for uniqueness: `"browser-close-tab"`
 
+**Action System Best Practices:**
+
+**Working with Auto-Generated Actions:**
+- Every command automatically gets a toggle favorite action - don't create custom ones
+- Use `modifierActionLabel` to provide descriptive labels for modifier key actions
+- Implement modifier key logic in your `run()` function using `context?.modifierKey`
+- Primary actions are automatically generated based on command type - only override if needed
+
+**Custom Actions Integration:**
+- Custom actions appear alongside auto-generated actions in the action menu
+- Define custom actions for specialized behaviors that don't fit the standard modifier pattern
+- Custom actions will prevent automatic primary action generation (avoids duplication)
+- Use clear, descriptive names for custom actions to distinguish from auto-generated ones
+
+**Action Menu Design:**
+```typescript
+// Good: Clear modifier labels
+modifierActionLabel: {
+  cmd: "Copy to Clipboard",
+  shift: "Open in New Window"
+}
+
+// Bad: Generic or unclear labels
+modifierActionLabel: {
+  cmd: "Do something else",
+  shift: "Alternative action"
+}
+```
+
 **Error Handling:**
 
 For RunCommand and UICommand errors, use alerts to provide immediate feedback:
@@ -864,12 +1220,38 @@ export const myCommand: RunCommand = {
 - Cache expensive operations when possible
 - Avoid heavy computations in `priority` functions
 
+**Action Execution Flow:**
+
+The system follows a specific pattern when executing actions:
+
+1. **Action Selection**: User selects an action from the action menu
+2. **Context Lookup**: System finds the `ActionExecutionContext` for the selected action
+3. **Pattern Matching**: Uses `ts-pattern` to handle different execution types:
+   ```typescript
+   await match(executionContext)
+     .with({ type: "favorite" }, async (ctx) => {
+       // Toggle favorite status directly
+       await toggleFavoriteCommandId(ctx.targetCommandId)
+     })
+     .with({ type: "primary" }, (ctx) => {
+       // Execute target command with original context
+       return executeCommand(ctx.targetCommandId, context, formValues)
+     })
+     .with({ type: "modifier" }, (ctx) => {
+       // Execute target command with modifier key set
+       const modifiedContext = { ...context, modifierKey: ctx.modifierKey }
+       return executeCommand(ctx.targetCommandId, modifiedContext, formValues)
+     })
+   ```
+4. **Recursive Execution**: For primary/modifier actions, the system recursively calls `executeCommand` with the target command ID
+
 **User Experience:**
 - Provide clear, descriptive names and descriptions
 - Use appropriate icons and colors for context
 - Include relevant keywords for search
 - Handle errors gracefully with user-friendly messages
 - Use modifier actions for power-user features
+- Leverage the automatic action system for consistent UX
 
 ### Example: Complete Command with All Features
 
@@ -903,14 +1285,15 @@ export const advancedExample: UICommand = {
     cmd: "Execute and Copy Result"
   },
   
+  // Custom actions integrate with auto-generated ones
   actions: [
     {
       id: "sub-action",
-      name: "Sub Action",
+      name: "Custom Sub Action",
       icon: { name: "Star" },
       color: "amber",
       run: async () => {
-        console.log("Sub action executed")
+        console.log("Custom action executed")
       }
     }
   ],
@@ -921,6 +1304,14 @@ export const advancedExample: UICommand = {
     console.log('Values:', values)
   }
 }
+
+// This command automatically receives these action menu items:
+// 1. No primary action (skipped because custom actions are defined)
+// 2. No modifier actions (skipped because it's a UICommand with form)
+// 3. "Custom Sub Action" (developer-defined)
+// 4. "Add to Favorites" or "Remove from Favorites" (automatic)
+// Note: The form opens when the command is selected, and modifier behavior
+// is handled within the run() function using context?.modifierKey
 ```
 
 --- 
