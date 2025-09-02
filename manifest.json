@@ -28,6 +28,7 @@
   },
   "permissions": [
     "bookmarks",
+    "browsingData",
     "cookies",
     "contextualIdentities",
     "tabs",

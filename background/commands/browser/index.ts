@@ -1,5 +1,6 @@
 import { testChildren } from "../testChildren"
 import { bookmarks } from "./bookmarks"
+import { clearBrowserData } from "./clearBrowserData"
 import { closeCurrentTab } from "./closeCurrentTab"
 import { closeCurrentWindow } from "./closeCurrentWindow"
 import { closeOtherTabs } from "./closeOtherTabs"
@@ -24,6 +25,7 @@ export { firefoxCommands } from "./firefox"
 
 export const browserCommands = [
   bookmarks,
+  clearBrowserData,
   closeCurrentTab,
   closeCurrentWindow,
   closeOtherTabs,
