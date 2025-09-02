@@ -310,6 +310,47 @@ export function useCommandNavigation(
     }
   }
 
+  /**
+   * Refreshes the current page's commands by re-fetching them from the backend
+   * Used when commands need to be updated (e.g., after favoriting)
+   */
+  const refreshCurrentPage = async () => {
+    // Only refresh if we're on a child page (not root)
+    if (currentPage.id === "root") {
+      return // Root page is refreshed via onRefreshCommands
+    }
+
+    try {
+      // Re-fetch children for the current parent command
+      // Use the same logic as navigateTo: parentPath is the path to reach the parent of the current page
+      const parentPath = currentPage.parentPath.slice(0, -1) // Remove current page ID to get parent path
+      const response = await sendMessage({
+        type: "get-children-commands",
+        id: currentPage.id,
+        parentPath,
+      })
+
+      if (response.children) {
+        // Update current page with refreshed children
+        setPages((currentPages) => {
+          const newPages = [...currentPages]
+          const currentPageIndex = newPages.length - 1
+          newPages[currentPageIndex] = {
+            ...newPages[currentPageIndex],
+            commands: {
+              favorites: [],
+              recents: [],
+              suggestions: response.children,
+            },
+          }
+          return newPages
+        })
+      }
+    } catch (error) {
+      console.error("❌ Error refreshing current page:", error)
+    }
+  }
+
   return {
     pages,
     currentPage,
@@ -318,5 +359,6 @@ export function useCommandNavigation(
     navigateBack,
     ui,
     selectCommand,
+    refreshCurrentPage,
   }
 }

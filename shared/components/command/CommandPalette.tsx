@@ -28,6 +28,7 @@ function CommandContent({
   executeCommand,
   onOpenActions,
   onRefreshCommands,
+  onRefreshCurrentPage,
   deepSearchItems = [],
   onDeepSearchItemsChange,
 }: {
@@ -45,6 +46,7 @@ function CommandContent({
   ) => Promise<void>
   onOpenActions: (suggestion: CommandSuggestion) => void
   onRefreshCommands: () => void
+  onRefreshCurrentPage: () => void
   deepSearchItems?: CommandSuggestion[]
   onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
 }) {
@@ -71,6 +73,12 @@ function CommandContent({
 
     // Refresh commands after any action to ensure UI is up to date
     onRefreshCommands()
+
+    // If this is a favorite toggle action, also refresh the current page
+    // to update the isFavorite flags of nested commands
+    if (actionId.startsWith("toggle-favorite-")) {
+      await onRefreshCurrentPage()
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -170,6 +178,7 @@ export function CommandPalette({
     navigateBack,
     ui,
     selectCommand,
+    refreshCurrentPage,
   } = useCommandNavigation(items, inputRef, executeCommand)
 
   // Focus input when mounted (with delay for new tab context)
@@ -204,6 +213,12 @@ export function CommandPalette({
 
     // Refresh commands after any action to ensure UI is up to date
     onRefreshCommands()
+
+    // If this is a favorite toggle action, also refresh the current page
+    // to update the isFavorite flags of nested commands
+    if (actionId.startsWith("toggle-favorite-")) {
+      await refreshCurrentPage()
+    }
   }
 
   return (
@@ -238,6 +253,7 @@ export function CommandPalette({
               executeCommand={executeCommand}
               onOpenActions={handleOpenActions}
               onRefreshCommands={onRefreshCommands}
+              onRefreshCurrentPage={refreshCurrentPage}
               deepSearchItems={items.deepSearchItems || []}
               onDeepSearchItemsChange={_setDeepSearchItems}
             />

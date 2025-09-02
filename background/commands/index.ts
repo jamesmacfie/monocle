@@ -265,6 +265,13 @@ export const executeCommand = async (
   context: Browser.Context,
   formValues: Record<string, string>,
 ): Promise<void> => {
+  // Handle toggle favorite actions directly for nested commands
+  if (id.startsWith("toggle-favorite-")) {
+    const targetCommandId = id.replace("toggle-favorite-", "")
+    await toggleFavoriteCommandId(targetCommandId)
+    return
+  }
+
   const { favorites, recents, suggestions } = await getCommands()
   const allSuggestions = await commandsToSuggestions(
     [...favorites, ...recents, ...suggestions],
