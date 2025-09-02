@@ -8,6 +8,7 @@ import { closeTabsToLeft } from "./closeTabsToLeft"
 import { closeTabsToRight } from "./closeTabsToRight"
 import { copyCurrentTabUrl } from "./copyCurrentTabUrl"
 import { copyTabUrl } from "./copyTabUrl"
+import { downloads } from "./downloads"
 import { gotoTab } from "./gotoTab"
 import { moveCurrentTabToANewWindow } from "./moveCurrentTabToANewWindow"
 import { moveCurrentTabToPopupWindow } from "./moveCurrentTabToPopupWindow"
@@ -33,6 +34,7 @@ export const browserCommands = [
   closeTabsToRight,
   copyCurrentTabUrl,
   copyTabUrl,
+  downloads,
   gotoTab,
   moveCurrentTabToANewWindow,
   moveCurrentTabToPopupWindow,
