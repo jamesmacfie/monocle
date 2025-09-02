@@ -283,7 +283,10 @@ export const executeCommand = async (
         await toggleFavoriteCommandId(ctx.targetCommandId)
       })
       .with({ type: "primary" }, (ctx) => {
-        return executeCommand(ctx.targetCommandId, ctx, formValues)
+        const modifiedContext = {
+          ...context,
+        }
+        return executeCommand(ctx.targetCommandId, modifiedContext, formValues)
       })
       .with({ type: "modifier" }, (ctx) => {
         const modifiedContext = {
