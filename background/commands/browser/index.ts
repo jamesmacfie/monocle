@@ -10,6 +10,7 @@ import { copyCurrentTabUrl } from "./copyCurrentTabUrl"
 import { copyTabUrl } from "./copyTabUrl"
 import { downloads } from "./downloads"
 import { gotoTab } from "./gotoTab"
+import { browsingHistory } from "./history"
 import { moveCurrentTabToANewWindow } from "./moveCurrentTabToANewWindow"
 import { moveCurrentTabToPopupWindow } from "./moveCurrentTabToPopupWindow"
 import { muteCurrentTab } from "./muteCurrentTab"
@@ -36,6 +37,7 @@ export const browserCommands = [
   copyTabUrl,
   downloads,
   gotoTab,
+  browsingHistory,
   moveCurrentTabToANewWindow,
   moveCurrentTabToPopupWindow,
   muteCurrentTab,

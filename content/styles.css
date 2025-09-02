@@ -310,11 +310,18 @@
       align-items: center;
       gap: 6px;
       flex: 1;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .command-item-name {
       display: flex;
       align-items: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
     }
 
     .command-item-seperator {
@@ -333,6 +340,8 @@
     margin-left: auto;
     color: var(--gray11);
     font-size: 13px;
+    flex-shrink: 0;
+    min-width: fit-content;
   }
 
   .cmdk-command-list {
@@ -755,6 +764,7 @@
   justify-content: center;
   border-radius: 4px;
   padding: 2px;
+  flex-shrink: 0;
 }
 
 .url-icon {
