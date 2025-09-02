@@ -66,7 +66,6 @@ body {
   color: #1f2937;
 }
 
-
 /* Remove shine gradient animations for new tab */
 .new-tab-palette [cmdk-root]:after,
 .new-tab-palette [cmdk-root]:before {
