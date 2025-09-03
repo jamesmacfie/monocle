@@ -30,11 +30,13 @@
   "description": "A browser extension that adds a command palette interface to any webpage",
   "dependencies": {
     "@radix-ui/react-popover": "^1.1.11",
+    "@reduxjs/toolkit": "^2.9.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "lucide-react": "^0.507.0",
     "react": "^18.1.0",
     "react-dom": "^18.1.0",
+    "react-redux": "^9.2.0",
     "ts-pattern": "^5.8.0",
     "usehooks-ts": "^3.1.1",
     "uuid": "^11.1.0"

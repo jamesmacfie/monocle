@@ -2,7 +2,7 @@ import { Command, useCommandState } from "cmdk"
 import { useEffect, useRef, useState } from "react"
 import type { CommandSuggestion } from "../../../types/"
 import { useActionLabel } from "../../hooks/useActionLabel"
-import { useCommandNavigation } from "../../hooks/useCommandNavigation"
+import { useCommandNavigationRedux } from "../../hooks/useCommandNavigationRedux"
 import type { CommandData, Page } from "../../types/command"
 import CommandUI from "../CommandUI"
 import CopyToClipboardListener from "../Listeners/CopyToClipboardListener"
@@ -184,7 +184,7 @@ export function CommandPalette({
     ui,
     selectCommand,
     refreshCurrentPage,
-  } = useCommandNavigation(items, inputRef, executeCommand)
+  } = useCommandNavigationRedux(items, inputRef, executeCommand)
 
   // Focus input when mounted (with delay for new tab context)
   useEffect(() => {
