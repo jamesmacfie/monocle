@@ -33,27 +33,24 @@ export function useSendMessage() {
     modifierRef.current = modifier
   }, [modifier])
 
-  return React.useCallback(
-    (message: SendableMessage): Promise<any> => {
-      const context = {
-        title: document.title,
-        url: window.location.href,
-        modifierKey: modifierRef.current,
-      }
+  return React.useCallback((message: SendableMessage): Promise<any> => {
+    const context = {
+      title: document.title,
+      url: window.location.href,
+      modifierKey: modifierRef.current,
+    }
 
-      // Add context to all messages since they all require it
-      const messageWithContext = { ...message, context }
+    // Add context to all messages since they all require it
+    const messageWithContext = { ...message, context }
 
-      return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(messageWithContext, (response) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError)
-          } else {
-            resolve(response)
-          }
-        })
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(messageWithContext, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError)
+        } else {
+          resolve(response)
+        }
       })
-    },
-    [],
-  )
+    })
+  }, [])
 }
