@@ -1,8 +1,20 @@
 import type { RefObject } from "react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import type { CommandSuggestion, FormField } from "../../types/"
 import { getDisplayName } from "../components/Command/CommandName"
-import { useSendMessage } from "./useSendMessage"
+import { useAppDispatch, useAppSelector } from "../store/hooks"
+import {
+  clearError,
+  hideUI,
+  navigateBack as navigateBackAction,
+  navigateToCommand,
+  type Page,
+  refreshCurrentPage as refreshCurrentPageThunk,
+  setInitialCommands,
+  showUI,
+  updateSearchValue as updateSearchValueAction,
+} from "../store/slices/navigation.slice"
+
 
 // Helper function to find a command in the current page's commands or deep search items
 function _findCommandInPage(
@@ -22,11 +34,10 @@ function _findCommandInPage(
   )
 }
 
-// Helper function to clear search input and reset navigation flags
+// Helper function to clear search input
 function _clearAndResetSearch(
   inputRef: RefObject<HTMLInputElement>,
   ignoreSearchUpdate: React.MutableRefObject<boolean>,
-  isNavigatingRef: React.MutableRefObject<boolean>,
 ) {
   // Set flag to prevent the search clear from being saved to page state
   ignoreSearchUpdate.current = true
@@ -38,38 +49,21 @@ function _clearAndResetSearch(
     const event = new Event("input", { bubbles: true })
     inputElement.dispatchEvent(event)
 
-    // Reset flags after a short delay to ensure DOM updates are complete
+    // Reset flag after a short delay to ensure DOM updates are complete
     setTimeout(() => {
       ignoreSearchUpdate.current = false
-      isNavigatingRef.current = false
     }, 100)
-  } else {
-    isNavigatingRef.current = false
   }
 }
 
-// Enhanced Page type that includes search value
-export type Page = {
-  id: string
-  commands: {
-    favorites: CommandSuggestion[]
-    recents: CommandSuggestion[]
-    suggestions: CommandSuggestion[]
-  }
-  searchValue: string
-  parent?: CommandSuggestion
-  parentPath: string[] // Track the path of parent command IDs
-}
-
-export type UI = {
-  id: string
-  name: string
-  ui: FormField[]
-  remainOpenOnSelect?: boolean
-}
+// Re-export types for convenience
+export type { Page, UI } from "../store/slices/navigation.slice"
 
 /**
- * Hook that manages navigation through nested command pages with search state
+ * Redux-based hook that manages navigation through nested command pages with search state
+ *
+ * This is a replacement for useCommandNavigation that uses Redux Toolkit for state management
+ * while maintaining the same interface for seamless migration.
  *
  * Features:
  * - Maintains a stack of pages for navigating nested command hierarchies
@@ -91,34 +85,33 @@ export function useCommandNavigation(
     navigateBack?: boolean,
   ) => Promise<void>,
 ) {
-  const sendMessage = useSendMessage()
+  const dispatch = useAppDispatch()
 
-  // Stack of navigation pages - current page is always the last one
-  const [pages, setPages] = useState<Page[]>([
-    { id: "root", commands: initialCommands, searchValue: "", parentPath: [] },
-  ])
+
+  // Redux selectors - get entire navigation state in one call
+  const navigationState = useAppSelector((state) => state.navigation)
+  const {
+    pages,
+    ui,
+    initialCommands: storedInitialCommands,
+    loading,
+    error,
+  } = navigationState
   const currentPage = pages[pages.length - 1]
-
-  // UI form state for commands that require user input
-  const [ui, setUi] = useState<UI | null>(null)
 
   // Ref flags to prevent various race conditions and loops:
   const ignoreSearchUpdate = useRef(false) // Prevents search updates from being saved during navigation
   const prevPageRef = useRef<string | null>(null) // Tracks page changes for search restoration
-  const _isNavigatingRef = useRef(false) // Prevents multiple simultaneous navigation attempts
+  // Note: _isNavigatingRef removed - now using Redux loading state
 
-  // Update root page commands when initialCommands change (e.g., favorites update)
+  // Update Redux store when initialCommands change (e.g., favorites update)
   useEffect(() => {
-    setPages((currentPages) => {
-      const newPages = [...currentPages]
-      newPages[0] = { ...newPages[0], commands: initialCommands }
-      return newPages
-    })
-  }, [initialCommands])
+    dispatch(setInitialCommands(initialCommands))
+  }, [initialCommands, dispatch])
 
   // Restore search state when navigating between pages
   useEffect(() => {
-    if (prevPageRef.current !== currentPage.id) {
+    if (currentPage && prevPageRef.current !== currentPage.id) {
       prevPageRef.current = currentPage.id
 
       // When returning to a page, restore its previous search value
@@ -133,7 +126,7 @@ export function useCommandNavigation(
         inputElement.dispatchEvent(event)
       }
     }
-  }, [currentPage.id, currentPage.searchValue, inputRef])
+  }, [currentPage?.id, currentPage?.searchValue, inputRef, currentPage])
 
   /**
    * Updates the search value for the current page
@@ -146,15 +139,7 @@ export function useCommandNavigation(
       return
     }
 
-    // Store search value on the current page so it's preserved when navigating
-    setPages((currentPages) => {
-      const newPages = [...currentPages]
-      newPages[newPages.length - 1] = {
-        ...newPages[newPages.length - 1],
-        searchValue: search,
-      }
-      return newPages
-    })
+    dispatch(updateSearchValueAction(search))
   }
 
   /**
@@ -162,65 +147,28 @@ export function useCommandNavigation(
    * Uses parent path to efficiently locate nested commands in the backend
    */
   const navigateTo = async (id: string) => {
-    // Prevent race conditions from multiple clicks/key presses
-    if (_isNavigatingRef.current) {
+    // Prevent race conditions from multiple clicks/key presses using Redux loading state
+    if (loading) {
       return false
     }
 
-    _isNavigatingRef.current = true
-
     try {
-      // Build parent path for backend to efficiently locate the command
-      // For root: [] (search top-level), for nested: use accumulated parent IDs
-      const parentPath = currentPage.id === "root" ? [] : currentPage.parentPath
-
-      // Request children from background script
-      const response = await sendMessage({
-        type: "get-children-commands",
-        id,
-        parentPath, // Enables efficient nested command lookup
-      })
-
-      if (response.children && response.children.length > 0) {
-        // Store reference to parent command for breadcrumb navigation
-        const parentCommand = _findCommandInPage(
-          currentPage,
+      const result = await dispatch(
+        navigateToCommand({
           id,
-          initialCommands.deepSearchItems,
-        )
+          currentPage,
+          initialCommands: storedInitialCommands,
+        }),
+      ).unwrap()
 
-        // Build path for the new page (used by future child navigations)
-        const newParentPath =
-          currentPage.id === "root"
-            ? [id] // First level: just this command ID
-            : [...currentPage.parentPath, id] // Nested: append to existing path
-
-        // Add new page to navigation stack
-        setPages([
-          ...pages,
-          {
-            id,
-            commands: {
-              favorites: [], // Child pages don't inherit favorites/recents
-              recents: [],
-              suggestions: response.children, // All children go to suggestions
-            },
-            searchValue: "", // Always start with empty search to show all children
-            parent: parentCommand,
-            parentPath: newParentPath,
-          },
-        ])
-
-        // Clear search input and reset navigation flags to prevent conflicts
-        _clearAndResetSearch(inputRef, ignoreSearchUpdate, _isNavigatingRef)
+      if (result.success) {
+        // Clear search input to prevent conflicts
+        _clearAndResetSearch(inputRef, ignoreSearchUpdate)
         return true
-      } else {
-        _isNavigatingRef.current = false
       }
       return false
     } catch (error) {
-      console.error("❌ Error fetching command children:", error)
-      _isNavigatingRef.current = false
+      console.error("❌ Error navigating to command:", error)
       return false
     }
   }
@@ -232,7 +180,7 @@ export function useCommandNavigation(
   const navigateBack = () => {
     // If UI form is open, close it and return to command list
     if (ui) {
-      setUi(null)
+      dispatch(hideUI())
       // Delay focus to ensure DOM is ready after state update
       setTimeout(() => inputRef.current?.focus(), 0)
       return true
@@ -248,8 +196,8 @@ export function useCommandNavigation(
     // Prevent the search restoration from triggering page state updates
     ignoreSearchUpdate.current = true
 
-    // Pop current page from navigation stack
-    setPages(pages.slice(0, -1))
+    // Dispatch navigate back action
+    dispatch(navigateBackAction())
 
     // Wait for React to process the state update, then restore search
     setTimeout(() => {
@@ -281,7 +229,7 @@ export function useCommandNavigation(
     const selectedCommand = _findCommandInPage(
       currentPage,
       id,
-      initialCommands.deepSearchItems,
+      storedInitialCommands.deepSearchItems,
     )
 
     if (!selectedCommand) {
@@ -296,12 +244,14 @@ export function useCommandNavigation(
       // UI command: show form for user input
       const displayName = getDisplayName(selectedCommand.name)
 
-      setUi({
-        id: selectedCommand.id,
-        name: displayName,
-        ui: selectedCommand.ui as FormField[],
-        remainOpenOnSelect: selectedCommand.remainOpenOnSelect,
-      })
+      dispatch(
+        showUI({
+          id: selectedCommand.id,
+          name: displayName,
+          ui: selectedCommand.ui as FormField[],
+          remainOpenOnSelect: selectedCommand.remainOpenOnSelect,
+        }),
+      )
     } else {
       // Leaf command: execute immediately
       // Pass remainOpenOnSelect flag (defaults to false if not set)
@@ -317,35 +267,11 @@ export function useCommandNavigation(
   const refreshCurrentPage = async () => {
     // Only refresh if we're on a child page (not root)
     if (currentPage.id === "root") {
-      return // Root page is refreshed via onRefreshCommands
+      return // Root page is refreshed via setInitialCommands
     }
 
     try {
-      // Re-fetch children for the current parent command
-      // Use the same logic as navigateTo: parentPath is the path to reach the parent of the current page
-      const parentPath = currentPage.parentPath.slice(0, -1) // Remove current page ID to get parent path
-      const response = await sendMessage({
-        type: "get-children-commands",
-        id: currentPage.id,
-        parentPath,
-      })
-
-      if (response.children) {
-        // Update current page with refreshed children
-        setPages((currentPages) => {
-          const newPages = [...currentPages]
-          const currentPageIndex = newPages.length - 1
-          newPages[currentPageIndex] = {
-            ...newPages[currentPageIndex],
-            commands: {
-              favorites: [],
-              recents: [],
-              suggestions: response.children,
-            },
-          }
-          return newPages
-        })
-      }
+      await dispatch(refreshCurrentPageThunk({ currentPage })).unwrap()
     } catch (error) {
       console.error("❌ Error refreshing current page:", error)
     }
@@ -360,5 +286,9 @@ export function useCommandNavigation(
     ui,
     selectCommand,
     refreshCurrentPage,
+    // Expose loading and error states
+    loading,
+    error,
+    clearError: () => dispatch(clearError()),
   }
 }

@@ -37,6 +37,8 @@ interface NavigationState {
     suggestions: CommandSuggestion[]
     deepSearchItems: CommandSuggestion[]
   }
+  loading: boolean
+  error: string | null
 }
 
 // Helper function to find a command in the current page's commands or deep search items
@@ -71,7 +73,7 @@ export const navigateToCommand = createAsyncThunk<
   { extra: ThunkApi }
 >(
   "navigation/navigateToCommand",
-  async ({ id, currentPage, initialCommands }, { extra }) => {
+  async ({ id, currentPage, initialCommands }, { extra, rejectWithValue }) => {
     try {
       // Build parent path for backend to efficiently locate the command
       const parentPath = currentPage.id === "root" ? [] : currentPage.parentPath
@@ -115,8 +117,10 @@ export const navigateToCommand = createAsyncThunk<
 
       return { success: false }
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to navigate to command"
       console.error("❌ Error fetching command children:", error)
-      return { success: false }
+      return rejectWithValue(errorMessage)
     }
   },
 )
@@ -132,38 +136,45 @@ export const refreshCurrentPage = createAsyncThunk<
   },
   { currentPage: Page },
   { extra: ThunkApi }
->("navigation/refreshCurrentPage", async ({ currentPage }, { extra }) => {
-  // Only refresh if we're on a child page (not root)
-  if (currentPage.id === "root") {
-    return { success: false } // Root page is refreshed via setInitialCommands
-  }
-
-  try {
-    // Re-fetch children for the current parent command
-    const parentPath = currentPage.parentPath.slice(0, -1) // Remove current page ID to get parent path
-    const response = await extra.sendMessage({
-      type: "get-children-commands",
-      id: currentPage.id,
-      parentPath,
-    })
-
-    if (response.children) {
-      return {
-        success: true,
-        newCommands: {
-          favorites: [],
-          recents: [],
-          suggestions: response.children,
-        },
-      }
+>(
+  "navigation/refreshCurrentPage",
+  async ({ currentPage }, { extra, rejectWithValue }) => {
+    // Only refresh if we're on a child page (not root)
+    if (currentPage.id === "root") {
+      return { success: false } // Root page is refreshed via setInitialCommands
     }
 
-    return { success: false }
-  } catch (error) {
-    console.error("❌ Error refreshing current page:", error)
-    return { success: false }
-  }
-})
+    try {
+      // Re-fetch children for the current parent command
+      const parentPath = currentPage.parentPath.slice(0, -1) // Remove current page ID to get parent path
+      const response = await extra.sendMessage({
+        type: "get-children-commands",
+        id: currentPage.id,
+        parentPath,
+      })
+
+      if (response.children) {
+        return {
+          success: true,
+          newCommands: {
+            favorites: [],
+            recents: [],
+            suggestions: response.children,
+          },
+        }
+      }
+
+      return { success: false }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh current page"
+      console.error("❌ Error refreshing current page:", error)
+      return rejectWithValue(errorMessage)
+    }
+  },
+)
 
 // Create slice
 export const navigationSlice = createSlice({
@@ -188,6 +199,8 @@ export const navigationSlice = createSlice({
       suggestions: [],
       deepSearchItems: [],
     },
+    loading: false,
+    error: null,
   }),
   reducers: {
     // Update root page commands when initialCommands change (e.g., favorites update)
@@ -247,6 +260,11 @@ export const navigationSlice = createSlice({
       state.ui = null
     },
 
+    // Clear error state
+    clearError: (state) => {
+      state.error = null
+    },
+
     // Add new page to navigation stack (used by successful navigateToCommand)
     addPage: (state, action: PayloadAction<Page>) => {
       state.pages.push(action.payload)
@@ -272,12 +290,28 @@ export const navigationSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // navigateToCommand cases
+      .addCase(navigateToCommand.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
       .addCase(navigateToCommand.fulfilled, (state, action) => {
+        state.loading = false
         if (action.payload.success && action.payload.newPage) {
           state.pages.push(action.payload.newPage)
         }
       })
+      .addCase(navigateToCommand.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+      // refreshCurrentPage cases
+      .addCase(refreshCurrentPage.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
       .addCase(refreshCurrentPage.fulfilled, (state, action) => {
+        state.loading = false
         if (
           action.payload.success &&
           action.payload.newCommands &&
@@ -290,6 +324,10 @@ export const navigationSlice = createSlice({
           }
         }
       })
+      .addCase(refreshCurrentPage.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
   },
   selectors: {
     // Current page is always the last one in the stack
@@ -297,6 +335,8 @@ export const navigationSlice = createSlice({
     selectPages: (state) => state.pages,
     selectUI: (state) => state.ui,
     selectInitialCommands: (state) => state.initialCommands,
+    selectLoading: (state) => state.loading,
+    selectError: (state) => state.error,
   },
 })
 
@@ -307,6 +347,7 @@ export const {
   navigateBack,
   showUI,
   hideUI,
+  clearError,
   addPage,
   updateCurrentPageCommands,
 } = navigationSlice.actions
@@ -317,6 +358,8 @@ export const {
   selectPages,
   selectUI,
   selectInitialCommands,
+  selectLoading,
+  selectError,
 } = navigationSlice.selectors
 
 // Helper function to get initial state with commands
@@ -333,6 +376,8 @@ export const getInitialStateWithCommands = (
   ],
   ui: null,
   initialCommands,
+  loading: false,
+  error: null,
 })
 
 export default navigationSlice.reducer

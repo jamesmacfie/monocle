@@ -38,7 +38,7 @@ export function useSendMessage() {
       const context = {
         title: document.title,
         url: window.location.href,
-        modifierKey: modifier,
+        modifierKey: modifierRef.current,
       }
 
       // Add context to all messages since they all require it
@@ -54,6 +54,6 @@ export function useSendMessage() {
         })
       })
     },
-    [modifier],
+    [],
   )
 }

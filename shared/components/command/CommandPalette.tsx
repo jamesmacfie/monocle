@@ -2,7 +2,7 @@ import { Command, useCommandState } from "cmdk"
 import { useEffect, useRef, useState } from "react"
 import type { CommandSuggestion } from "../../../types/"
 import { useActionLabel } from "../../hooks/useActionLabel"
-import { useCommandNavigationRedux } from "../../hooks/useCommandNavigationRedux"
+import { useCommandNavigation } from "../../hooks/useCommandNavigation"
 import type { CommandData, Page } from "../../types/command"
 import CommandUI from "../CommandUI"
 import CopyToClipboardListener from "../Listeners/CopyToClipboardListener"
@@ -32,6 +32,7 @@ function CommandContent({
   deepSearchItems = [],
   onDeepSearchItemsChange,
   isLoading = false,
+  isActionsOpen = false,
 }: {
   pages: Page[]
   currentPage: Page
@@ -51,6 +52,7 @@ function CommandContent({
   deepSearchItems?: CommandSuggestion[]
   onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
   isLoading?: boolean
+  isActionsOpen?: boolean
 }) {
   const focusedValue = useCommandState((state) => state.value)
 
@@ -84,6 +86,11 @@ function CommandContent({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Don't handle keyboard shortcuts if action menu is open
+    if (isActionsOpen) {
+      return
+    }
+
     // Alt key opens actions if there's a focused suggestion with actions
     if (e.key === "Alt" && focusedSuggestion?.actions?.length) {
       e.preventDefault()
@@ -172,6 +179,7 @@ export function CommandPalette({
     open: false,
     suggestion: null,
   })
+
   const [_deepSearchItems, _setDeepSearchItems] = useState<CommandSuggestion[]>(
     [],
   )
@@ -184,7 +192,10 @@ export function CommandPalette({
     ui,
     selectCommand,
     refreshCurrentPage,
-  } = useCommandNavigationRedux(items, inputRef, executeCommand)
+    loading,
+    error,
+    clearError,
+  } = useCommandNavigation(items, inputRef, executeCommand)
 
   // Focus input when mounted (with delay for new tab context)
   useEffect(() => {
@@ -230,6 +241,22 @@ export function CommandPalette({
     <div className="raycast">
       <CopyToClipboardListener />
       <NewTabListener />
+      {error && (
+        <div className="border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20 px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
+              <span className="text-sm font-medium">Error:</span>
+              <span className="text-sm">{error}</span>
+            </div>
+            <button
+              onClick={clearError}
+              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 text-xs px-2 py-1 rounded hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       {ui ? (
         <Command>
           <CommandUI
@@ -261,7 +288,8 @@ export function CommandPalette({
               onRefreshCurrentPage={refreshCurrentPage}
               deepSearchItems={items.deepSearchItems || []}
               onDeepSearchItemsChange={_setDeepSearchItems}
-              isLoading={isLoading}
+              isLoading={loading || isLoading}
+              isActionsOpen={actionsState.open}
             />
 
             {actionsState.suggestion && (

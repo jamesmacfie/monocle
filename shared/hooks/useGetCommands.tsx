@@ -16,13 +16,11 @@ export function useGetCommands() {
   const sendMessage = useSendMessage()
 
   const fetchCommands = useCallback(async () => {
-    console.debug("[useGetCommands] Starting fetchCommands")
     setIsLoading(true)
     try {
       const response = await sendMessage({
         type: "get-commands",
       })
-      console.debug("[useGetCommands] Received response:", response)
 
       if (response.error) {
         console.error("Error fetching suggestions:", response.error)
@@ -39,7 +37,6 @@ export function useGetCommands() {
           recents: response.recents || [],
           deepSearchItems: response.deepSearchItems || [],
         }
-        console.debug("[useGetCommands] Setting data:", newData)
         setData(newData)
       }
     } catch (error) {

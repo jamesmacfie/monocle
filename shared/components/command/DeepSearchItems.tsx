@@ -45,9 +45,7 @@ export function DeepSearchItems({
     return null
   }
 
-  console.debug(
-    `[DeepSearch] Rendering ${deepSearchItems.length} deep search items`,
-  )
+
 
   return (
     <>
