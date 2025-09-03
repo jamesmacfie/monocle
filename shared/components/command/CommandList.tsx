@@ -1,9 +1,9 @@
 import { Command, useCommandState } from "cmdk"
+import { Loader2 } from "lucide-react"
 import type { CommandSuggestion } from "../../../types/"
 import type { CommandListProps } from "../../types/command"
 import { CommandItem } from "./CommandItem"
 import { DeepSearchItems } from "./DeepSearchItems"
-import { Loader2 } from "lucide-react"
 
 export function CommandList({
   currentPage,

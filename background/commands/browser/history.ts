@@ -98,12 +98,12 @@ function getFaviconUrl(url: string): string {
 
 // Create a history item command
 function createHistoryItemCommand(item: HistoryItem): RunCommand {
-  const faviconUrl = getFaviconUrl(item.url)
-  const visitTime = formatVisitTime(item.lastVisitTime)
+  const faviconUrl = getFaviconUrl(item.url || "")
+  const visitTime = formatVisitTime(item.lastVisitTime || 0)
 
   return {
     id: `history-${item.id}`,
-    name: item.title || item.url,
+    name: item.title || item.url || "Untitled",
     description: `${item.url} • ${visitTime}`,
     icon: faviconUrl
       ? { type: "url", url: faviconUrl }
@@ -111,7 +111,7 @@ function createHistoryItemCommand(item: HistoryItem): RunCommand {
     color: "blue",
     keywords: [
       item.title?.toLowerCase() || "",
-      item.url.toLowerCase(),
+      item.url?.toLowerCase() || "",
       "history",
       "visit",
     ],
