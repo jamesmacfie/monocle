@@ -18,7 +18,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
   className,
   autoFocus = false,
 }) => {
-  const { data, fetchCommands } = useGetCommands()
+  const { data, fetchCommands, isLoading } = useGetCommands()
   const sendMessage = useSendMessage()
 
   // Enable global keybindings
@@ -74,6 +74,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
         close={handleClose}
         onRefreshCommands={fetchCommands}
         autoFocus={autoFocus}
+        isLoading={isLoading}
       />
     </div>
   )

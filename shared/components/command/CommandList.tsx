@@ -3,12 +3,14 @@ import type { CommandSuggestion } from "../../../types/"
 import type { CommandListProps } from "../../types/command"
 import { CommandItem } from "./CommandItem"
 import { DeepSearchItems } from "./DeepSearchItems"
+import { Loader2 } from "lucide-react"
 
 export function CommandList({
   currentPage,
   onSelect,
   onDeepSearchItemsChange,
   deepSearchItems = [],
+  isLoading = false,
 }: CommandListProps & {
   onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
   deepSearchItems?: CommandSuggestion[]
@@ -17,7 +19,15 @@ export function CommandList({
 
   return (
     <Command.List className="cmdk-command-list">
-      <Command.Empty>No results found for "{cmdkSearch}"</Command.Empty>
+      {isLoading ? (
+        <Command.Empty>
+          <div className="flex items-center justify-center gap-2 py-4">
+            <Loader2 className="h-4 w-4 animate-spin" />
+          </div>
+        </Command.Empty>
+      ) : (
+        <Command.Empty>No results found for "{cmdkSearch}"</Command.Empty>
+      )}
       {(currentPage.commands.favorites || []).length > 0 && (
         <Command.Group heading="Favorites">
           {(currentPage.commands.favorites || []).map((item) => (

@@ -41,6 +41,7 @@ export interface CommandItemProps {
 export interface CommandListProps {
   currentPage: Page
   onSelect: (id: string) => void
+  isLoading?: boolean
 }
 
 export interface CommandHeaderProps {

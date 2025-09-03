@@ -15,7 +15,7 @@ interface ContentCommandPaletteProps {
 export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
   onClose,
 }) => {
-  const { data, fetchCommands } = useGetCommands()
+  const { data, fetchCommands, isLoading } = useGetCommands()
   const { isOpen, hideUI } = useCommandPaletteState()
   const sendMessage = useSendMessage()
 
@@ -77,6 +77,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
           executeCommand={executeCommand}
           close={handleClose}
           onRefreshCommands={fetchCommands}
+          isLoading={isLoading}
         />
       )}
     </>

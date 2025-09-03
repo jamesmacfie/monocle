@@ -31,6 +31,7 @@ function CommandContent({
   onRefreshCurrentPage,
   deepSearchItems = [],
   onDeepSearchItemsChange,
+  isLoading = false,
 }: {
   pages: Page[]
   currentPage: Page
@@ -49,6 +50,7 @@ function CommandContent({
   onRefreshCurrentPage: () => void
   deepSearchItems?: CommandSuggestion[]
   onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
+  isLoading?: boolean
 }) {
   const focusedValue = useCommandState((state) => state.value)
 
@@ -127,6 +129,7 @@ function CommandContent({
         onSelect={selectCommand}
         onDeepSearchItemsChange={onDeepSearchItemsChange}
         deepSearchItems={deepSearchItems}
+        isLoading={isLoading}
       />
       <CommandFooter
         currentPage={currentPage}
@@ -150,6 +153,7 @@ interface Props {
   close: () => void
   onRefreshCommands: () => void
   autoFocus?: boolean
+  isLoading?: boolean
 }
 
 export function CommandPalette({
@@ -158,6 +162,7 @@ export function CommandPalette({
   close,
   onRefreshCommands,
   autoFocus = false,
+  isLoading = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [actionsState, setActionsState] = useState<{
@@ -256,6 +261,7 @@ export function CommandPalette({
               onRefreshCurrentPage={refreshCurrentPage}
               deepSearchItems={items.deepSearchItems || []}
               onDeepSearchItemsChange={_setDeepSearchItems}
+              isLoading={isLoading}
             />
 
             {actionsState.suggestion && (
