@@ -729,14 +729,19 @@
 .cmdk-input-wrapper {
   display: flex;
   align-items: center;
+  margin-bottom: 8px;
 }
 
 .cmdk-back-button {
   display: flex;
   align-items: center;
-  margin-right: 4px;
+  padding: 8px 4px 8px 16px;
   color: var(--gray9);
   cursor: pointer;
+}
+
+.cmdk-input-wrapper .cmdk-back-button + input {
+  padding-left: 0px;
 }
 
 .cmdk-back-button:hover {
