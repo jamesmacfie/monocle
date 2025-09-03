@@ -51,3 +51,13 @@ export function adjustColor(hex: string, percent: number): string {
     return "#37adff"
   }
 }
+
+// Check if a URL is a valid HTTP/HTTPS URL (not a place: URL or other browser-internal URL)
+export function isValidUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url)
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:"
+  } catch {
+    return false
+  }
+}

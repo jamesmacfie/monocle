@@ -58,8 +58,8 @@ export const Icon = ({
   if (icon) {
     if (icon.type === "url") {
       return (
-        <div className="icon-wrapper" style={backgroundStyle}>
-          <img src={icon.url} alt="icon" className="url-icon" />
+        <div className="icon-wrapper favicon-wrapper">
+          <img src={icon.url} alt="icon" className="url-icon favicon" />
         </div>
       )
     } else if (icon.type === "lucide" && icon.name in icons) {
@@ -78,8 +78,8 @@ export const Icon = ({
   // Backward compatibility - handle old interface
   if (url) {
     return (
-      <div className="icon-wrapper" style={backgroundStyle}>
-        <img src={url} alt="icon" className="url-icon" />
+      <div className="icon-wrapper favicon-wrapper">
+        <img src={url} alt="icon" className="url-icon favicon" />
       </div>
     )
   }

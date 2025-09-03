@@ -9,6 +9,7 @@ import {
   updateWindow,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
+import { getFaviconIcon } from "../../utils/favicon"
 
 interface TabInfo {
   id: number
@@ -40,30 +41,16 @@ function createTabCommand(tab: TabInfo, _windowTitle: string): RunCommand {
     name: tabName,
     description: tabUrl,
     icon: async () => {
-      // Use favicon if available, fallback to appropriate icon
-      if (tab.favIconUrl) {
-        return { type: "url", url: tab.favIconUrl }
-      }
-
-      // Use different icons based on tab state
-      return match({
-        pinned: tab.pinned,
-        audible: tab.audible,
-        muted: tab.muted,
+      return await getFaviconIcon({
+        browserFaviconUrl: tab.favIconUrl,
+        url: tab.url,
+        fallback: {
+          useTabStateIcons: true,
+          pinned: tab.pinned,
+          audible: tab.audible,
+          muted: tab.muted,
+        },
       })
-        .with({ pinned: true }, () => ({
-          type: "lucide" as const,
-          name: "Pin",
-        }))
-        .with({ audible: true }, () => ({
-          type: "lucide" as const,
-          name: "Volume2",
-        }))
-        .with({ muted: true }, () => ({
-          type: "lucide" as const,
-          name: "VolumeX",
-        }))
-        .otherwise(() => ({ type: "lucide" as const, name: "Globe" }))
     },
     color: async () => {
       return match({

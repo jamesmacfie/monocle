@@ -6,6 +6,7 @@ import {
   updateTab,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
+import { getFaviconUrl } from "../../utils/favicon"
 
 type HistoryItem = chrome.history.HistoryItem
 
@@ -83,16 +84,6 @@ function formatVisitTime(timestamp: number): string {
   } else {
     // Other days - show date
     return date.toLocaleDateString([], { month: "short", day: "numeric" })
-  }
-}
-
-// Get favicon URL for a given URL
-function getFaviconUrl(url: string): string {
-  try {
-    const domain = new URL(url).hostname
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=16`
-  } catch {
-    return ""
   }
 }
 

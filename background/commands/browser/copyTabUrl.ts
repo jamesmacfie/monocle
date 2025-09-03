@@ -1,5 +1,6 @@
 import type { ParentCommand, RunCommand } from "../../../types/"
 import { getActiveTab, queryTabs, sendTabMessage } from "../../utils/browser"
+import { getFaviconIcon } from "../../utils/favicon"
 
 export const copyTabUrl: ParentCommand = {
   id: "copy-tab-url",
@@ -15,7 +16,10 @@ export const copyTabUrl: ParentCommand = {
           id: `copy-tab-url-${tab.id}`,
           name: async () => tab.title,
           icon: async () => {
-            return { type: "url", url: tab.favIconUrl }
+            return await getFaviconIcon({
+              browserFaviconUrl: tab.favIconUrl,
+              url: tab.url,
+            })
           },
           run: async () => {
             const activeTab = await getActiveTab()

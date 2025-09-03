@@ -1,3 +1,4 @@
+import { isValidUrl } from "../../../shared/utils"
 import type { Command, ParentCommand, RunCommand } from "../../../types/"
 import {
   getActiveTab,
@@ -6,6 +7,7 @@ import {
   updateTab,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
+import { getFaviconUrl } from "../../utils/favicon"
 
 interface BookmarkNode {
   id: string
@@ -51,13 +53,16 @@ function processBookmarkNode(
     }
 
     commands.push(folderCommand)
-  } else if (node.url && node.title) {
-    // This is a bookmark with a URL
+  } else if (node.url && node.title && isValidUrl(node.url)) {
+    // This is a bookmark with a valid HTTP/HTTPS URL
+    const faviconUrl = getFaviconUrl(node.url)
     const bookmarkCommand: RunCommand = {
       id: `bookmark-${node.id}`,
       name: node.title,
       description: node.url,
-      icon: { type: "lucide", name: "Globe" },
+      icon: faviconUrl
+        ? { type: "url", url: faviconUrl }
+        : { type: "lucide", name: "Globe" },
       color: "blue",
       keywords: [node.title.toLowerCase(), node.url.toLowerCase()],
       actionLabel: "Open",
