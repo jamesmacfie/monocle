@@ -45,8 +45,6 @@ export function DeepSearchItems({
     return null
   }
 
-
-
   return (
     <>
       {deepSearchItems.map((item) => (
