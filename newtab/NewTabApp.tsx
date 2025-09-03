@@ -1,3 +1,4 @@
+import { ToastContainer } from "../shared/components/ToastContainer"
 import { NewTabCommandPalette } from "./components/NewTabCommandPalette"
 
 export default function NewTabApp() {
@@ -23,6 +24,7 @@ export default function NewTabApp() {
           </p>
         </div>
       </div>
+      <ToastContainer mode="newtab" />
     </div>
   )
 }

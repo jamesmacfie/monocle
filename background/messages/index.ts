@@ -4,6 +4,7 @@ import { executeCommand } from "./executeCommand"
 import { executeKeybinding } from "./executeKeybinding"
 import { getChildrenCommands } from "./getChildrenCommands"
 import { getCommands } from "./getCommands"
+import { showToast } from "./showToast"
 
 export const handleMessage = async (message: Message) => {
   console.debug("[HandleMessage] Received message:", message.type, message)
@@ -20,6 +21,9 @@ export const handleMessage = async (message: Message) => {
     })
     .with({ type: "execute-keybinding" }, async (msg) => {
       return await executeKeybinding(msg)
+    })
+    .with({ type: "show-toast" }, async (msg) => {
+      return await showToast(msg)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${(message as any).type}`)

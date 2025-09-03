@@ -24,5 +24,11 @@ export type NewTabEvent = {
   url: string
 }
 
-export type Event = AlertEvent | CopyToClipboardEvent | NewTabEvent
+export type ToastEvent = {
+  type: "monocle-toast"
+  level: "info" | "warning" | "success" | "error"
+  message: string
+}
+
+export type Event = AlertEvent | CopyToClipboardEvent | NewTabEvent | ToastEvent
 export type BrowserEvent = Event

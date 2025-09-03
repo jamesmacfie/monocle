@@ -18,5 +18,6 @@ export function CommandNavigationError({ error, onClearError }: Props) {
           Dismiss
         </button>
       </div>
-    </div>)
+    </div>
+  )
 }

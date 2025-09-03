@@ -15,7 +15,6 @@ import {
   updateSearchValue as updateSearchValueAction,
 } from "../store/slices/navigation.slice"
 
-
 // Helper function to find a command in the current page's commands or deep search items
 function _findCommandInPage(
   page: Page,
@@ -86,7 +85,6 @@ export function useCommandNavigation(
   ) => Promise<void>,
 ) {
   const dispatch = useAppDispatch()
-
 
   // Redux selectors - get entire navigation state in one call
   const navigationState = useAppSelector((state) => state.navigation)

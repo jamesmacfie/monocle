@@ -4,6 +4,7 @@ import type { CommandSuggestion } from "../../../types/"
 import { useActionLabel } from "../../hooks/useActionLabel"
 import { useCommandNavigation } from "../../hooks/useCommandNavigation"
 import type { CommandData, Page } from "../../types/command"
+import { CommandNavigationError } from "../CommandNavigationError"
 import CommandUI from "../CommandUI"
 import CopyToClipboardListener from "../Listeners/CopyToClipboardListener"
 import NewTabListener from "../Listeners/NewTabListener"
@@ -11,7 +12,6 @@ import { CommandActions } from "./CommandActions"
 import { CommandFooter } from "./CommandFooter"
 import { CommandHeader } from "./CommandHeader"
 import { CommandList } from "./CommandList"
-import { CommandNavigationError } from "../CommandNavigationError"
 
 // Temporary inline function to avoid import issues
 const getDisplayName = (name: string | string[]): string => {

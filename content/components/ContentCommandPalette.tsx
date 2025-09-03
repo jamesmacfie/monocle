@@ -4,6 +4,7 @@ import { Provider } from "react-redux"
 const { useEffect, useCallback } = React
 
 import { CommandPalette } from "../../shared/components/Command"
+import { ToastContainer } from "../../shared/components/ToastContainer"
 import { useCommandPaletteState } from "../../shared/hooks/useCommandPaletteState"
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
@@ -91,6 +92,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
           />
         </Provider>
       )}
+      <ToastContainer />
     </>
   )
 }

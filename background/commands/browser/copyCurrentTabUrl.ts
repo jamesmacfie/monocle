@@ -19,6 +19,11 @@ export const copyCurrentTabUrl: Command = {
             type: "monocle-copyToClipboard",
             message: activeTab.url,
           })
+          await sendTabMessage(activeTab.id, {
+            type: "monocle-toast",
+            level: "success",
+            message: "URL copied to clipboard",
+          })
         }
       },
     },
@@ -37,11 +42,21 @@ export const copyCurrentTabUrl: Command = {
               type: "monocle-copyToClipboard",
               message: cleanUrl,
             })
+            await sendTabMessage(activeTab.id, {
+              type: "monocle-toast",
+              level: "success",
+              message: "Clean URL copied to clipboard",
+            })
           } catch (_error) {
             // Fallback to original URL if parsing fails
             await sendTabMessage(activeTab.id, {
               type: "monocle-copyToClipboard",
               message: activeTab.url,
+            })
+            await sendTabMessage(activeTab.id, {
+              type: "monocle-toast",
+              level: "success",
+              message: "URL copied to clipboard",
             })
           }
         }
@@ -61,11 +76,21 @@ export const copyCurrentTabUrl: Command = {
               type: "monocle-copyToClipboard",
               message: url.hostname,
             })
+            await sendTabMessage(activeTab.id, {
+              type: "monocle-toast",
+              level: "success",
+              message: "Domain copied to clipboard",
+            })
           } catch (_error) {
             // Fallback to original URL if parsing fails
             await sendTabMessage(activeTab.id, {
               type: "monocle-copyToClipboard",
               message: activeTab.url,
+            })
+            await sendTabMessage(activeTab.id, {
+              type: "monocle-toast",
+              level: "success",
+              message: "URL copied to clipboard",
             })
           }
         }
@@ -78,6 +103,11 @@ export const copyCurrentTabUrl: Command = {
       await sendTabMessage(activeTab.id, {
         type: "monocle-copyToClipboard",
         message: activeTab.url,
+      })
+      await sendTabMessage(activeTab.id, {
+        type: "monocle-toast",
+        level: "success",
+        message: "URL copied to clipboard",
       })
     }
   },

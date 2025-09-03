@@ -26,11 +26,18 @@ export type GetCommandsMessage = {
   context: Browser.Context
 }
 
+export type ShowToastMessage = {
+  type: "show-toast"
+  level: "info" | "warning" | "success" | "error"
+  message: string
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
   | GetCommandsMessage
   | ExecuteKeybindingMessage
+  | ShowToastMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

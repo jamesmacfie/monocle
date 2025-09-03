@@ -5,6 +5,7 @@ declare global {
   }
 }
 
+import React from "react"
 import ReactDOM from "react-dom/client"
 import { ContentCommandPalette } from "./components/ContentCommandPalette"
 
@@ -24,16 +25,20 @@ function initializeExtension() {
     document.readyState === "interactive" ||
     document.readyState === "complete"
   ) {
-    unmount = initial() || (() => {})
+    initial().then((cleanup) => {
+      unmount = cleanup || (() => {})
+    })
   } else {
     // Otherwise wait for DOMContentLoaded which fires earlier than readyState complete
     document.addEventListener("DOMContentLoaded", () => {
-      unmount = initial() || (() => {})
+      initial().then((cleanup) => {
+        unmount = cleanup || (() => {})
+      })
     })
   }
 }
 
-function initial() {
+async function initial() {
   console.debug("[Content] Initializing")
   // Create a new div element and append it to the document's body
   const rootDiv = document.createElement("div")
@@ -61,10 +66,15 @@ function initial() {
     }
 
     const mountingPoint = ReactDOM.createRoot(shadowRoot)
+    const { ToastContainer } = await import(
+      "../shared/components/ToastContainer"
+    )
+
     mountingPoint.render(
-      <div className="content_script raycast">
-        <ContentCommandPalette />
-      </div>,
+      React.createElement("div", { className: "content_script raycast" }, [
+        React.createElement(ContentCommandPalette, { key: "palette" }),
+        React.createElement(ToastContainer, { key: "toasts" }),
+      ]),
     )
 
     return () => {
