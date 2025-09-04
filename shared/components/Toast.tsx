@@ -51,7 +51,7 @@ export const Toast = ({
 
   const getToastClasses = () => {
     const baseClasses =
-      "flex items-center p-3 rounded-lg min-w-[300px] max-w-[400px] shadow-lg transition-all duration-300 pointer-events-auto border-l-4"
+      "flex items-center p-3 rounded-lg min-w-[300px] max-w-[400px] shadow-lg transition-all duration-300 pointer-events-auto"
     const visibilityClasses = isVisible
       ? "translate-x-0 opacity-100"
       : "translate-x-full opacity-0"
@@ -60,23 +60,21 @@ export const Toast = ({
     const levelClasses = match(level)
       .with(
         "info",
-        () =>
-          "bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/20 dark:border-blue-400 dark:text-blue-200",
+        () => "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200",
       )
       .with(
         "warning",
         () =>
-          "bg-yellow-50 border-yellow-500 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-400 dark:text-yellow-200",
+          "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-200",
       )
       .with(
         "success",
         () =>
-          "bg-green-50 border-green-500 text-green-700 dark:bg-green-900/20 dark:border-green-400 dark:text-green-200",
+          "bg-green-50 btext-green-700 dark:bg-green-900/20 dark:text-green-200",
       )
       .with(
         "error",
-        () =>
-          "bg-red-50 border-red-500 text-red-700 dark:bg-red-900/20 dark:border-red-400 dark:text-red-200",
+        () => "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-200",
       )
       .exhaustive()
 

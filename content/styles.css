@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :host {
   --font-sans:
     "Inter", --apple-system, BlinkMacSystemFont, Segoe UI, Roboto,

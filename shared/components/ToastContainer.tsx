@@ -36,10 +36,13 @@ export const ToastContainer = () => {
       }
     }
 
-    chrome.runtime.onMessage.addListener(handleMessage)
+    // Cross-browser runtime API usage
+    const runtime =
+      typeof browser !== "undefined" ? browser.runtime : chrome.runtime
+    runtime.onMessage.addListener(handleMessage)
 
     return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage)
+      runtime.onMessage.removeListener(handleMessage)
     }
   }, [])
 
@@ -47,22 +50,22 @@ export const ToastContainer = () => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id))
   }
 
-  // if (toasts.length === 0) {
-  //   return null
-  // }
+  if (toasts.length === 0) {
+    return null
+  }
 
   return (
     <div className="fixed top-5 right-5 z-[10000] flex flex-col gap-2 pointer-events-none max-sm:top-2.5 max-sm:right-2.5 max-sm:left-2.5">
-      {/* {toasts.map((toast) => ( */}
-      <Toast
-        key={"test"}
-        id={"test"}
-        message={"test"}
-        level={"error"}
-        onRemove={removeToast}
-        duration={_TOAST_DURATION}
-      />
-      {/* ))} */}
+      {toasts.map((toast) => (
+        <Toast
+          key={toast.id}
+          id={toast.id}
+          message={toast.message}
+          level={toast.level}
+          onRemove={removeToast}
+          duration={_TOAST_DURATION}
+        />
+      ))}
     </div>
   )
 }
