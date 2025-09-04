@@ -5,7 +5,7 @@ const { useEffect, useCallback } = React
 
 import { CommandPalette } from "../../shared/components/Command"
 import { ToastContainer } from "../../shared/components/ToastContainer"
-import { useCommandPaletteState } from "../../shared/hooks/useCommandPaletteState"
+import { useCommandPaletteStateRedux } from "../../shared/hooks/useCommandPaletteStateRedux"
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
@@ -19,7 +19,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
   onClose,
 }) => {
   const { data, fetchCommands } = useGetCommands()
-  const { isOpen, hideUI } = useCommandPaletteState()
+  const { isOpen, hideUI } = useCommandPaletteStateRedux()
   const sendMessage = useSendMessage()
 
   // Enable global keybindings for content script

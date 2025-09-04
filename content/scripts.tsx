@@ -7,7 +7,7 @@ declare global {
 
 import React from "react"
 import ReactDOM from "react-dom/client"
-import { ContentCommandPalette } from "./components/ContentCommandPalette"
+import { ContentCommandPaletteWithState } from "./components/ContentCommandPaletteWithState"
 
 let unmount: () => void
 
@@ -69,7 +69,7 @@ async function initial() {
 
     mountingPoint.render(
       React.createElement("div", { className: "content_script raycast" }, [
-        React.createElement(ContentCommandPalette, { key: "palette" }),
+        React.createElement(ContentCommandPaletteWithState, { key: "palette" }),
       ]),
     )
 

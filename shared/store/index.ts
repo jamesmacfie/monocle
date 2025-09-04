@@ -1,5 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit"
 import type { CommandSuggestion } from "../../types"
+import { commandPaletteStateSlice } from "./slices/commandPaletteState.slice"
 import {
   getInitialStateWithCommands,
   navigationSlice,
@@ -22,6 +23,7 @@ export const createNavigationStore = (
   return configureStore({
     reducer: {
       navigation: navigationSlice.reducer,
+      commandPalette: commandPaletteStateSlice.reducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
@@ -31,6 +33,7 @@ export const createNavigationStore = (
       }),
     preloadedState: {
       navigation: getInitialStateWithCommands(initialCommands),
+      commandPalette: { isOpen: false },
     },
   })
 }
