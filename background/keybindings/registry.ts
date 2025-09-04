@@ -3,6 +3,7 @@ import type { Command } from "../../types/"
 import { browserCommands } from "../commands/browser"
 import { firefoxCommands } from "../commands/browser/firefox"
 import { debug } from "../commands/debug"
+import { getAllCommandSettings } from "../commands/settings"
 import { toolCommands } from "../commands/tools"
 import { isFirefox } from "../utils/browser"
 
@@ -87,17 +88,24 @@ export function matchesKeybinding(
   return matches
 }
 
-// Register a command's keybinding
-function registerCommand(command: Command): void {
-  if (command.keybinding) {
-    const normalized = normalizeKeybinding(command.keybinding)
+// Register a command's keybinding with settings override
+function registerCommand(
+  command: Command,
+  commandSettings: Record<string, any>,
+): void {
+  // Use settings keybinding if available, otherwise use command's default
+  const keybinding =
+    commandSettings[command.id]?.keybinding || command.keybinding
+
+  if (keybinding) {
+    const normalized = normalizeKeybinding(keybinding)
     keybindingRegistry.set(normalized, command.id)
   }
 
   // Also register action keybindings
   if (command.actions) {
     for (const action of command.actions) {
-      registerCommand(action)
+      registerCommand(action, commandSettings)
     }
   }
 }
@@ -106,24 +114,27 @@ function registerCommand(command: Command): void {
 export async function initializeKeybindingRegistry(): Promise<void> {
   keybindingRegistry.clear()
 
+  // Load user settings for keybinding overrides
+  const commandSettings = await getAllCommandSettings()
+
   // Register browser commands
   for (const command of browserCommands) {
-    registerCommand(command)
+    registerCommand(command, commandSettings)
   }
 
   // Register tool commands
   for (const command of toolCommands) {
-    registerCommand(command)
+    registerCommand(command, commandSettings)
   }
 
   // Register Firefox-specific commands
   if (isFirefox) {
     for (const command of firefoxCommands) {
-      registerCommand(command)
+      registerCommand(command, commandSettings)
     }
   }
   // Register debug command
-  registerCommand(debug)
+  registerCommand(debug, commandSettings)
 }
 
 // Get command ID for a keybinding
@@ -138,4 +149,9 @@ export function getCommandIdForKeybinding(
 // Get all registered keybindings
 export function getAllKeybindings(): Map<string, string> {
   return new Map(keybindingRegistry)
+}
+
+// Refresh the registry (useful when settings change)
+export async function refreshKeybindingRegistry(): Promise<void> {
+  await initializeKeybindingRegistry()
 }

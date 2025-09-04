@@ -14,6 +14,7 @@ import {
   toggleFavoriteCommandId,
 } from "./favorites"
 import { clearRecentsCommand } from "./recents"
+import { getAllCommandSettings } from "./settings"
 import { toolCommands } from "./tools"
 import {
   getAllUsageStats,
@@ -21,14 +22,8 @@ import {
   recordCommandUsage,
 } from "./usage"
 
-// Function to get all commands, including dynamically generated ones
-export const getCommands = async (): Promise<{
-  favorites: Command[]
-  recents: Command[]
-  suggestions: Command[]
-}> => {
-  console.debug("[Commands] Starting getCommands()")
-
+// Helper function to load and filter all commands
+const loadAllCommands = (): Command[] => {
   // First load in common browser commands
   const allCommandsUnfiltered = [
     ...browserCommands,
@@ -37,11 +32,6 @@ export const getCommands = async (): Promise<{
     clearFavoritesCommand,
     debug,
   ]
-  console.debug(
-    "[Commands] All commands unfiltered:",
-    allCommandsUnfiltered.length,
-    allCommandsUnfiltered.map((c) => c.id),
-  )
 
   // Then, go and grab browser specific commands
   if (isFirefox) {
@@ -49,7 +39,7 @@ export const getCommands = async (): Promise<{
   }
 
   // Filter commands based on browser compatibility
-  const allCommands = allCommandsUnfiltered.filter((command) => {
+  return allCommandsUnfiltered.filter((command) => {
     // If no browsers property is defined, the command works everywhere
     if (!command.supportedBrowsers) {
       return true
@@ -60,68 +50,152 @@ export const getCommands = async (): Promise<{
       ? command.supportedBrowsers.includes("firefox")
       : command.supportedBrowsers.includes("chrome")
   })
+}
+
+// Helper function to recursively find all favorited commands including sub-commands
+const findFavoritedCommands = async (
+  commands: Command[],
+  favoriteCommandIds: string[],
+  context: Browser.Context,
+  parentName?: string,
+): Promise<Command[]> => {
+  const favoritedCommands: Command[] = []
+
+  for (const command of commands) {
+    // Check if this command is favorited
+    if (favoriteCommandIds.includes(command.id)) {
+      // If it's a sub-command, we need to modify its name to show parent context
+      if (parentName) {
+        const resolvedName = await resolveAsyncProperty(command.name, context)
+
+        // Create a new command object with the modified name
+        const modifiedCommand: Command = {
+          ...command,
+          name: Array.isArray(resolvedName)
+            ? resolvedName
+            : [resolvedName!, parentName],
+        }
+        favoritedCommands.push(modifiedCommand)
+      } else {
+        favoritedCommands.push(command)
+      }
+    }
+
+    // If this is a ParentCommand, recursively search its children
+    if ("commands" in command) {
+      try {
+        const children = await command.commands(context)
+        const commandName = await resolveAsyncProperty(command.name, context)
+        const parentNameString = Array.isArray(commandName)
+          ? commandName[0]
+          : commandName!
+
+        const favoritedChildren = await findFavoritedCommands(
+          children,
+          favoriteCommandIds,
+          context,
+          parentNameString,
+        )
+        favoritedCommands.push(...favoritedChildren)
+      } catch (error) {
+        console.error(
+          `Error getting children for command ${command.id}:`,
+          error,
+        )
+      }
+    }
+  }
+
+  return favoritedCommands
+}
+
+// Helper function to process recent commands
+const _processRecentCommands = async (
+  allCommands: Command[],
+  context: Browser.Context,
+  addedCommandIds: Set<string>,
+): Promise<Command[]> => {
+  const recentResult: Command[] = []
+  const recentCommandIds = (await getRankedCommandIds()).slice(0, 5)
+  const allUsageStats = await getAllUsageStats()
+
+  for (const recentId of recentCommandIds) {
+    if (!addedCommandIds.has(recentId)) {
+      const recentCommand = await findCommand(allCommands, recentId, context)
+
+      if (recentCommand) {
+        // Check if this command has stored parent context
+        const usageStats = allUsageStats[recentId]
+        if (usageStats?.parentNames && usageStats.parentNames.length > 0) {
+          // Create command with breadcrumb name using parent context
+          const resolvedName = await resolveAsyncProperty(
+            recentCommand.name,
+            context,
+          )
+          const commandWithBreadcrumbs: Command = {
+            ...recentCommand,
+            name: [resolvedName as string, ...usageStats.parentNames],
+          }
+          recentResult.push(commandWithBreadcrumbs)
+        } else {
+          recentResult.push(recentCommand)
+        }
+        addedCommandIds.add(recentId)
+      }
+    }
+  }
+
+  return recentResult
+}
+
+// Helper function to process suggestions (remaining commands ranked by usage)
+const _processSuggestions = async (
+  allCommands: Command[],
+  addedCommandIds: Set<string>,
+): Promise<Command[]> => {
+  // Get usage-based ranking for suggestions
+  const rankedCommandIds = await getRankedCommandIds()
+
+  // Create a map for quick lookup of ranking position
+  const rankingMap = new Map<string, number>()
+  rankedCommandIds.forEach((id, index) => {
+    rankingMap.set(id, index)
+  })
+
+  // Add remaining commands without duplicates, sorted by usage ranking
+  const remainingCommands = allCommands.filter(
+    (command) => !addedCommandIds.has(command.id),
+  )
+
+  // Sort remaining commands by their usage ranking (commands with no usage data go to the end)
+  remainingCommands.sort((a, b) => {
+    const rankA = rankingMap.get(a.id) ?? Number.MAX_SAFE_INTEGER
+    const rankB = rankingMap.get(b.id) ?? Number.MAX_SAFE_INTEGER
+    return rankA - rankB
+  })
+
+  return remainingCommands
+}
+
+// Function to get all commands, including dynamically generated ones
+export const getCommands = async (): Promise<{
+  favorites: Command[]
+  recents: Command[]
+  suggestions: Command[]
+}> => {
+  console.debug("[Commands] Starting getCommands()")
+
+  const allCommands = loadAllCommands()
+  console.debug(
+    "[Commands] All commands loaded:",
+    allCommands.length,
+    allCommands.map((c) => c.id),
+  )
 
   const favoriteResult: Command[] = []
   const recentResult: Command[] = []
   const suggestionsResult: Command[] = []
   const addedCommandIds = new Set<string>()
-
-  // Helper function to recursively find all favorited commands including sub-commands
-  const findFavoritedCommands = async (
-    commands: Command[],
-    favoriteCommandIds: string[],
-    context: Browser.Context,
-    parentName?: string,
-  ): Promise<Command[]> => {
-    const favoritedCommands: Command[] = []
-
-    for (const command of commands) {
-      // Check if this command is favorited
-      if (favoriteCommandIds.includes(command.id)) {
-        // If it's a sub-command, we need to modify its name to show parent context
-        if (parentName) {
-          const resolvedName = await resolveAsyncProperty(command.name, context)
-
-          // Create a new command object with the modified name
-          const modifiedCommand: Command = {
-            ...command,
-            name: Array.isArray(resolvedName)
-              ? resolvedName
-              : [resolvedName!, parentName],
-          }
-          favoritedCommands.push(modifiedCommand)
-        } else {
-          favoritedCommands.push(command)
-        }
-      }
-
-      // If this is a ParentCommand, recursively search its children
-      if ("commands" in command) {
-        try {
-          const children = await command.commands(context)
-          const commandName = await resolveAsyncProperty(command.name, context)
-          const parentNameString = Array.isArray(commandName)
-            ? commandName[0]
-            : commandName!
-
-          const favoritedChildren = await findFavoritedCommands(
-            children,
-            favoriteCommandIds,
-            context,
-            parentNameString,
-          )
-          favoritedCommands.push(...favoritedChildren)
-        } catch (error) {
-          console.error(
-            `Error getting children for command ${command.id}:`,
-            error,
-          )
-        }
-      }
-    }
-
-    return favoritedCommands
-  }
 
   // Add favorite commands first
   const favoriteCommandIds = await getFavoriteCommandIds()
@@ -147,61 +221,16 @@ export const getCommands = async (): Promise<{
   }
 
   // Add recent commands second (excluding those already in favorites)
-  const recentCommandIds = (await getRankedCommandIds()).slice(0, 5)
-  const allUsageStats = await getAllUsageStats()
-
-  for (const recentId of recentCommandIds) {
-    if (!addedCommandIds.has(recentId)) {
-      const recentCommand = await findCommand(
-        allCommands,
-        recentId,
-        basicContext,
-      )
-
-      if (recentCommand) {
-        // Check if this command has stored parent context
-        const usageStats = allUsageStats[recentId]
-        if (usageStats?.parentNames && usageStats.parentNames.length > 0) {
-          // Create command with breadcrumb name using parent context
-          const resolvedName = await resolveAsyncProperty(
-            recentCommand.name,
-            basicContext,
-          )
-          const commandWithBreadcrumbs: Command = {
-            ...recentCommand,
-            name: [resolvedName as string, ...usageStats.parentNames],
-          }
-          recentResult.push(commandWithBreadcrumbs)
-        } else {
-          recentResult.push(recentCommand)
-        }
-        addedCommandIds.add(recentId)
-      }
-    }
-  }
-
-  // Get usage-based ranking for suggestions
-  const rankedCommandIds = await getRankedCommandIds()
-
-  // Create a map for quick lookup of ranking position
-  const rankingMap = new Map<string, number>()
-  rankedCommandIds.forEach((id, index) => {
-    rankingMap.set(id, index)
-  })
-
-  // Add remaining commands without duplicates, sorted by usage ranking
-  const remainingCommands = allCommands.filter(
-    (command) => !addedCommandIds.has(command.id),
+  const recentCommands = await _processRecentCommands(
+    allCommands,
+    basicContext,
+    addedCommandIds,
   )
+  recentResult.push(...recentCommands)
 
-  // Sort remaining commands by their usage ranking (commands with no usage data go to the end)
-  remainingCommands.sort((a, b) => {
-    const rankA = rankingMap.get(a.id) ?? Number.MAX_SAFE_INTEGER
-    const rankB = rankingMap.get(b.id) ?? Number.MAX_SAFE_INTEGER
-    return rankA - rankB
-  })
-
-  suggestionsResult.push(...remainingCommands)
+  // Process remaining commands as suggestions
+  const suggestions = await _processSuggestions(allCommands, addedCommandIds)
+  suggestionsResult.push(...suggestions)
 
   return {
     favorites: favoriteResult,
@@ -522,6 +551,7 @@ export const commandsToSuggestions = async (
   parentName?: string,
 ): Promise<CommandSuggestion[]> => {
   const favoriteCommandIds = await getFavoriteCommandIds()
+  const commandSettings = await getAllCommandSettings()
 
   return await Promise.all(
     commands.map(async (command) => {
@@ -582,7 +612,8 @@ export const commandsToSuggestions = async (
         actionLabel: resolvedActionLabel,
         modifierActionLabel: modifierLabels,
         actions: allActions,
-        keybinding: command.keybinding,
+        keybinding:
+          commandSettings[command.id]?.keybinding || command.keybinding,
         isFavorite: favoriteCommandIds.includes(command.id),
       } as CommandSuggestion
     }),
