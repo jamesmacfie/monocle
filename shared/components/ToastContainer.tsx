@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import type { ToastEvent } from "../../types/events"
 import { Toast } from "./Toast"
+import { v4 as uuidv4 } from "uuid"
 
 interface ToastItem {
   id: string
@@ -24,7 +25,7 @@ export const ToastContainer = () => {
       if (message.type === "monocle-toast") {
         const toastEvent = message as ToastEvent
         const newToast: ToastItem = {
-          id: `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `toast-${uuidv4()}`,
           message: toastEvent.message,
           level: toastEvent.level,
           timestamp: Date.now(),

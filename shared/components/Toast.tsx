@@ -60,21 +60,21 @@ export const Toast = ({
     const levelClasses = match(level)
       .with(
         "info",
-        () => "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200",
+        () => "bg-blue-50 text-blue-700",
       )
       .with(
         "warning",
         () =>
-          "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-200",
+          "bg-yellow-50 text-yellow-700",
       )
       .with(
         "success",
         () =>
-          "bg-green-50 btext-green-700 dark:bg-green-900/20 dark:text-green-200",
+          "bg-green-50 btext-green-700",
       )
       .with(
         "error",
-        () => "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-200",
+        () => "bg-red-50 text-red-700",
       )
       .exhaustive()
 
