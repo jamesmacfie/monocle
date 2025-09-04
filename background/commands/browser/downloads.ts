@@ -259,6 +259,7 @@ export const downloads: ParentCommand = {
               "file",
             ],
             actionLabel: "Show in Finder",
+            allowCustomKeybinding: false, // Dynamic download commands shouldn't have custom keybindings
             run: async () => {
               const activeTab = await getActiveTab()
 

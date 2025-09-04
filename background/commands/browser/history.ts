@@ -110,6 +110,7 @@ function createHistoryItemCommand(item: HistoryItem): RunCommand {
     modifierActionLabel: {
       cmd: "Open in New Tab",
     },
+    allowCustomKeybinding: false, // Dynamic history commands shouldn't have custom keybindings
     run: async (context) => {
       const activeTab = await getActiveTab()
 

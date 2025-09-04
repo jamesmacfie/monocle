@@ -39,6 +39,10 @@ export type ActionExecutionContext =
       type: "favorite"
       targetCommandId: string
     }
+  | {
+      type: "setKeybinding"
+      targetCommandId: string
+    }
 
 export type CommandSuggestion = {
   id: string

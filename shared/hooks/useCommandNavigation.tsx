@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react"
 import type { CommandSuggestion, FormField } from "../../types/"
 import { getDisplayName } from "../components/Command/CommandName"
 import { useAppDispatch, useAppSelector } from "../store/hooks"
+import { startCapture } from "../store/slices/keybinding.slice"
 import {
   clearError,
   hideUI,
@@ -256,6 +257,12 @@ export function useCommandNavigation(
     if (!selectedCommand) {
       console.error("⚠️ Selected command not found for id:", id)
       return
+    }
+
+    // Check for set keybinding action
+    if (selectedCommand.executionContext?.type === "setKeybinding") {
+      dispatch(startCapture(selectedCommand.executionContext.targetCommandId))
+      return // Don't execute normal command flow
     }
 
     if (selectedCommand.isParentCommand) {

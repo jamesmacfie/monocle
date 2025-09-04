@@ -1,6 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit"
 import type { CommandSuggestion } from "../../types"
 import { commandPaletteStateSlice } from "./slices/commandPaletteState.slice"
+import keybindingSlice from "./slices/keybinding.slice"
 import {
   getInitialStateWithCommands,
   navigationSlice,
@@ -24,6 +25,7 @@ export const createNavigationStore = (
     reducer: {
       navigation: navigationSlice.reducer,
       commandPalette: commandPaletteStateSlice.reducer,
+      keybinding: keybindingSlice,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
@@ -34,6 +36,7 @@ export const createNavigationStore = (
     preloadedState: {
       navigation: getInitialStateWithCommands(initialCommands),
       commandPalette: { isOpen: false },
+      keybinding: { isCapturing: false, targetCommandId: null },
     },
   })
 }

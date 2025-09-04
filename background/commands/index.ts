@@ -334,6 +334,10 @@ export const executeCommand = async (
       .with({ type: "favorite" }, async (ctx) => {
         await toggleFavoriteCommandId(ctx.targetCommandId)
       })
+      .with({ type: "setKeybinding" }, (_ctx) => {
+        // TODO this will have to save the keybinding for the command in saved settings
+        return Promise.resolve()
+      })
       .with({ type: "primary" }, (ctx) => {
         const modifiedContext = {
           ...context,
@@ -380,6 +384,39 @@ export const executeCommand = async (
   } else {
     console.error(`[ExecuteCommand] Command not found: ${id}`)
     throw new Error(`Command not found: ${id}`)
+  }
+}
+
+// Helper to create set keybinding action
+const _createSetKeybindingAction = async (
+  command: Command,
+): Promise<CommandSuggestion | null> => {
+  // Don't create action for ParentCommands
+  if ("commands" in command) {
+    return null
+  }
+
+  // Don't create action if command explicitly opts out
+  if ((command as any).allowCustomKeybinding === false) {
+    return null
+  }
+
+  return {
+    id: `set-keybinding-${command.id}`,
+    name: "Set Custom Keybinding",
+    description: "Set a custom keyboard shortcut for this command",
+    icon: { type: "lucide", name: "Keyboard" },
+    color: "blue",
+    isParentCommand: false,
+    actionLabel: "Set Keybinding",
+    keywords: ["keybinding", "keyboard", "shortcut", "hotkey"],
+    isFavorite: false,
+    actions: undefined,
+    remainOpenOnSelect: true,
+    executionContext: {
+      type: "setKeybinding",
+      targetCommandId: command.id,
+    },
   }
 }
 
@@ -587,13 +624,15 @@ export const commandsToSuggestions = async (
         command,
         context,
       )
+      const setKeybindingAction = await _createSetKeybindingAction(command)
 
-      // Combine all actions: default Enter (if needed), modifier actions, custom actions, toggle favorite
+      // Combine all actions: default Enter (if needed), modifier actions, custom actions, toggle favorite, set keybinding
       const allActions = [
         ...(primaryAction ? [primaryAction] : []),
         ...modifierKeyActions,
         ...(actions || []),
         toggleFavoriteAction,
+        ...(setKeybindingAction ? [setKeybindingAction] : []),
       ]
 
       const isParentCommand = "commands" in command

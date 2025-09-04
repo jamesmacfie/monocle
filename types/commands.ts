@@ -37,6 +37,7 @@ export interface BaseCommand {
   doNotAddToRecents?: boolean
   priority?: (context: Browser.Context) => Promise<Command[]>
   actions?: Command[]
+  allowCustomKeybinding?: boolean
 }
 
 // Action labels
