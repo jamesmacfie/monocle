@@ -6,6 +6,7 @@ export type ExecuteCommandMessage = {
   id: string
   context: Browser.Context
   formValues?: Record<string, string>
+  parentNames?: string[] // Optional parent context for nested commands
 }
 
 export type ExecuteKeybindingMessage = {

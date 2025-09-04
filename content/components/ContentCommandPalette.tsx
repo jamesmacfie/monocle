@@ -37,18 +37,20 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
     }
   }, [isOpen, fetchCommands])
 
-  // Execute command via background script
+  // Execute command via background script (with parentNames support)
   const executeCommand = useCallback(
     async (
       id: string,
       formValues: Record<string, string>,
       navigateBack: boolean = true,
+      parentNames?: string[],
     ) => {
       try {
         const response = await sendMessage({
           type: "execute-command",
           id,
           formValues,
+          parentNames,
         })
 
         if (response.success && navigateBack) {

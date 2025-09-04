@@ -4,6 +4,7 @@ interface CommandUsageStats {
   lastUsed: number
   hourlyUsage: number[] // 24-element array for each hour
   emaScore: number // exponential moving average
+  parentNames?: string[] // Optional parent context for nested commands (e.g., ["Development", "Bookmarks"])
 }
 
 interface StoredUsageData {
@@ -115,7 +116,10 @@ export const calculateCommandScore = (
 }
 
 // Record a command usage event
-export const recordCommandUsage = async (commandId: string): Promise<void> => {
+export const recordCommandUsage = async (
+  commandId: string,
+  parentNames?: string[],
+): Promise<void> => {
   const now = Date.now()
   const currentHour = new Date(now).getHours()
 
@@ -128,6 +132,11 @@ export const recordCommandUsage = async (commandId: string): Promise<void> => {
   stats.totalUsage += 1
   stats.lastUsed = now
   stats.hourlyUsage[currentHour] += 1
+
+  // Store parent context if provided (for nested commands)
+  if (parentNames && parentNames.length > 0) {
+    stats.parentNames = parentNames
+  }
 
   // Update EMA score
   const newScore = calculateCommandScore(stats, currentHour)

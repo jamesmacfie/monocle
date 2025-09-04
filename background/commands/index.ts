@@ -15,7 +15,11 @@ import {
 } from "./favorites"
 import { clearRecentsCommand } from "./recents"
 import { toolCommands } from "./tools"
-import { getRankedCommandIds, recordCommandUsage } from "./usage"
+import {
+  getAllUsageStats,
+  getRankedCommandIds,
+  recordCommandUsage,
+} from "./usage"
 
 // Function to get all commands, including dynamically generated ones
 export const getCommands = async (): Promise<{
@@ -61,17 +65,6 @@ export const getCommands = async (): Promise<{
   const recentResult: Command[] = []
   const suggestionsResult: Command[] = []
   const addedCommandIds = new Set<string>()
-
-  // Helper function to find command by ID
-  const findCommandById = (
-    commands: Command[],
-    id: string,
-  ): Command | undefined => {
-    for (const cmd of commands) {
-      if (cmd.id === id) return cmd
-    }
-    return undefined
-  }
 
   // Helper function to recursively find all favorited commands including sub-commands
   const findFavoritedCommands = async (
@@ -155,11 +148,33 @@ export const getCommands = async (): Promise<{
 
   // Add recent commands second (excluding those already in favorites)
   const recentCommandIds = (await getRankedCommandIds()).slice(0, 5)
+  const allUsageStats = await getAllUsageStats()
+
   for (const recentId of recentCommandIds) {
     if (!addedCommandIds.has(recentId)) {
-      const recentCommand = findCommandById(allCommands, recentId)
+      const recentCommand = await findCommand(
+        allCommands,
+        recentId,
+        basicContext,
+      )
+
       if (recentCommand) {
-        recentResult.push(recentCommand)
+        // Check if this command has stored parent context
+        const usageStats = allUsageStats[recentId]
+        if (usageStats?.parentNames && usageStats.parentNames.length > 0) {
+          // Create command with breadcrumb name using parent context
+          const resolvedName = await resolveAsyncProperty(
+            recentCommand.name,
+            basicContext,
+          )
+          const commandWithBreadcrumbs: Command = {
+            ...recentCommand,
+            name: [resolvedName as string, ...usageStats.parentNames],
+          }
+          recentResult.push(commandWithBreadcrumbs)
+        } else {
+          recentResult.push(recentCommand)
+        }
         addedCommandIds.add(recentId)
       }
     }
@@ -264,6 +279,7 @@ export const executeCommand = async (
   id: string,
   context: Browser.Context,
   formValues: Record<string, string>,
+  parentNames?: string[],
 ): Promise<void> => {
   // Handle toggle favorite actions directly for nested commands
   if (id.startsWith("toggle-favorite-")) {
@@ -318,7 +334,7 @@ export const executeCommand = async (
 
         // Only add to recents if the command doesn't have doNotAddToRecents flag
         if (!commandToRun.doNotAddToRecents) {
-          await recordCommandUsage(id)
+          await recordCommandUsage(id, parentNames)
         }
 
         return

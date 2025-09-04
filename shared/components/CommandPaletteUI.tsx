@@ -34,12 +34,14 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
       id: string,
       formValues: Record<string, string>,
       navigateBack: boolean = true,
+      parentNames?: string[],
     ) => {
       try {
         const response = await sendMessage({
           type: "execute-command",
           id,
           formValues,
+          parentNames,
         })
 
         if (response.success && navigateBack) {

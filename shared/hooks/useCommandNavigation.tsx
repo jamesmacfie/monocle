@@ -59,6 +59,28 @@ function _clearAndResetSearch(
 export type { Page, UI } from "../store/slices/navigation.slice"
 
 /**
+ * Helper function to extract parent names for breadcrumb display in recent commands
+ */
+function extractParentNames(
+  selectedCommand: CommandSuggestion,
+  currentPage: Page,
+): string[] | undefined {
+  // For commands on child pages, use the immediate parent name
+  if (currentPage.id !== "root" && currentPage.parent) {
+    const parentName = getDisplayName(currentPage.parent.name)
+    return [parentName]
+  }
+
+  // For deep search commands with array names, extract full parent hierarchy
+  if (Array.isArray(selectedCommand.name) && selectedCommand.name.length > 1) {
+    // Deep search names are: [childName, immediateParent, grandparent, ...]
+    return selectedCommand.name.slice(1) // Remove child name, keep all parents
+  }
+
+  return undefined
+}
+
+/**
  * Redux-based hook that manages navigation through nested command pages with search state
  *
  * This is a replacement for useCommandNavigation that uses Redux Toolkit for state management
@@ -82,6 +104,7 @@ export function useCommandNavigation(
     id: string,
     formValues: Record<string, string>,
     navigateBack?: boolean,
+    parentNames?: string[],
   ) => Promise<void>,
 ) {
   const dispatch = useAppDispatch()
@@ -254,7 +277,16 @@ export function useCommandNavigation(
       // Leaf command: execute immediately
       // Pass remainOpenOnSelect flag (defaults to false if not set)
       const shouldNavigateBack = !selectedCommand.remainOpenOnSelect
-      await executeCommand(selectedCommand.id, {}, shouldNavigateBack)
+
+      // Extract parent context for breadcrumb display in recent commands
+      const parentNames = extractParentNames(selectedCommand, currentPage)
+
+      await executeCommand(
+        selectedCommand.id,
+        {},
+        shouldNavigateBack,
+        parentNames,
+      )
     }
   }
 
