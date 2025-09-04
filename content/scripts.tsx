@@ -66,14 +66,10 @@ async function initial() {
     }
 
     const mountingPoint = ReactDOM.createRoot(shadowRoot)
-    const { ToastContainer } = await import(
-      "../shared/components/ToastContainer"
-    )
 
     mountingPoint.render(
       React.createElement("div", { className: "content_script raycast" }, [
         React.createElement(ContentCommandPalette, { key: "palette" }),
-        React.createElement(ToastContainer, { key: "toasts" }),
       ]),
     )
 

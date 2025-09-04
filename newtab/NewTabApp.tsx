@@ -24,7 +24,7 @@ export default function NewTabApp() {
           </p>
         </div>
       </div>
-      <ToastContainer mode="newtab" />
+      <ToastContainer />
     </div>
   )
 }

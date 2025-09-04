@@ -1,5 +1,5 @@
 import type { RunCommand } from "../../../types/"
-import { getActiveTab, updateTab } from "../../utils/browser"
+import { getActiveTab, sendTabMessage, updateTab } from "../../utils/browser"
 
 export const unpinCurrentTab: RunCommand = {
   // TODO - should only show this if the current tab is actually pinned
@@ -11,6 +11,11 @@ export const unpinCurrentTab: RunCommand = {
     const activeTab = await getActiveTab()
     if (activeTab) {
       await updateTab(activeTab.id, { pinned: false })
+      await sendTabMessage(activeTab.id, {
+        type: "monocle-toast",
+        level: "success",
+        message: "Tab unpinned",
+      })
     }
   },
 }

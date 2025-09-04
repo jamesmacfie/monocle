@@ -15,6 +15,11 @@ export const copyUuidV4: Command = {
         type: "monocle-copyToClipboard",
         message: uuid,
       })
+      await sendTabMessage(activeTab.id, {
+        type: "monocle-toast",
+        level: "success",
+        message: "UUID copied to clipboard",
+      })
     }
   },
 }

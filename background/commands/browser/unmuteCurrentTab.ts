@@ -1,5 +1,5 @@
 import type { RunCommand } from "../../../types/"
-import { getActiveTab, updateTab } from "../../utils/browser"
+import { getActiveTab, sendTabMessage, updateTab } from "../../utils/browser"
 
 export const unmuteCurrentTab: RunCommand = {
   id: "unmute-current-tab",
@@ -10,6 +10,11 @@ export const unmuteCurrentTab: RunCommand = {
     const activeTab = await getActiveTab()
     if (activeTab) {
       await updateTab(activeTab.id, { muted: false })
+      await sendTabMessage(activeTab.id, {
+        type: "monocle-toast",
+        level: "success",
+        message: "Tab unmuted",
+      })
     }
   },
 }

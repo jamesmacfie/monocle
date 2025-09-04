@@ -1,5 +1,10 @@
 import type { RunCommand } from "../../../types/"
-import { getActiveTab, queryTabs, removeTab } from "../../utils/browser"
+import {
+  getActiveTab,
+  queryTabs,
+  removeTab,
+  sendTabMessage,
+} from "../../utils/browser"
 
 export const closeTabsToLeft: RunCommand = {
   id: "close-tabs-to-left",
@@ -18,10 +23,20 @@ export const closeTabsToLeft: RunCommand = {
     const allTabs = await queryTabs({ currentWindow: true })
 
     // Close tabs with indices less than the active tab in a single loop
+    let closedCount = 0
     for (const tab of allTabs) {
       if (tab.index < activeTab.index && tab.id !== undefined) {
         await removeTab(tab.id)
+        closedCount++
       }
+    }
+
+    if (closedCount > 0) {
+      await sendTabMessage(activeTab.id, {
+        type: "monocle-toast",
+        level: "success",
+        message: `${closedCount} tab${closedCount === 1 ? "" : "s"} to the left closed`,
+      })
     }
   },
 }

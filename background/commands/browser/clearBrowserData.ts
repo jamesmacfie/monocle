@@ -189,11 +189,37 @@ export const clearBrowserData: ParentCommand = {
                   }
 
                   await dataType.clearFunction(startTime)
+
+                  // Send success toast
+                  const { getActiveTab, sendTabMessage } = await import(
+                    "../../utils/browser"
+                  )
+                  const activeTab = await getActiveTab()
+                  if (activeTab) {
+                    await sendTabMessage(activeTab.id, {
+                      type: "monocle-toast",
+                      level: "success",
+                      message: `${dataType.name} cleared ${timeSpan.id === "all-time" ? "(all time)" : `(${timeSpan.name.toLowerCase()})`}`,
+                    })
+                  }
                 } catch (error) {
                   console.error(
                     `Failed to clear ${dataType.name.toLowerCase()}:`,
                     error,
                   )
+
+                  // Send error toast
+                  const { getActiveTab, sendTabMessage } = await import(
+                    "../../utils/browser"
+                  )
+                  const activeTab = await getActiveTab()
+                  if (activeTab) {
+                    await sendTabMessage(activeTab.id, {
+                      type: "monocle-toast",
+                      level: "error",
+                      message: `Failed to clear ${dataType.name.toLowerCase()}`,
+                    })
+                  }
                 }
               },
             }),
