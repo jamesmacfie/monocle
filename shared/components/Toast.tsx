@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { match } from "ts-pattern"
 import { Icon } from "./Icon"
 
-export interface ToastProps {
+export interface Props {
   id: string
   message: string
   level: "info" | "warning" | "success" | "error"
@@ -16,7 +16,7 @@ export const Toast = ({
   level,
   onRemove,
   duration = 3000,
-}: ToastProps) => {
+}: Props) => {
   const [isVisible, setIsVisible] = useState(false)
   const [isExiting, setIsExiting] = useState(false)
 
@@ -51,17 +51,17 @@ export const Toast = ({
 
   const getToastClasses = () => {
     const baseClasses =
-      "flex items-center p-3 rounded-lg min-w-[300px] max-w-[400px] shadow-lg transition-all duration-300 pointer-events-auto"
+      "flex items-center p-3.5 rounded-lg min-w-[320px] max-w-[440px] shadow-xl transition-all duration-300 pointer-events-auto border"
     const visibilityClasses = isVisible
       ? "translate-x-0 opacity-100"
       : "translate-x-full opacity-0"
     const exitingClasses = isExiting ? "translate-x-full opacity-0" : ""
 
     const levelClasses = match(level)
-      .with("info", () => "bg-blue-50 text-blue-700")
-      .with("warning", () => "bg-yellow-50 text-yellow-700")
-      .with("success", () => "bg-green-50 btext-green-700")
-      .with("error", () => "bg-red-50 text-red-700")
+      .with("info", () => "bg-blue-600 text-white border-blue-700")
+      .with("warning", () => "bg-amber-600 text-white border-amber-700")
+      .with("success", () => "bg-emerald-600 text-white border-emerald-700")
+      .with("error", () => "bg-red-600 text-white border-red-700")
       .exhaustive()
 
     return `${baseClasses} ${visibilityClasses} ${exitingClasses} ${levelClasses}`
