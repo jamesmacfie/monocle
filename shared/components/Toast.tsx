@@ -58,24 +58,10 @@ export const Toast = ({
     const exitingClasses = isExiting ? "translate-x-full opacity-0" : ""
 
     const levelClasses = match(level)
-      .with(
-        "info",
-        () => "bg-blue-50 text-blue-700",
-      )
-      .with(
-        "warning",
-        () =>
-          "bg-yellow-50 text-yellow-700",
-      )
-      .with(
-        "success",
-        () =>
-          "bg-green-50 btext-green-700",
-      )
-      .with(
-        "error",
-        () => "bg-red-50 text-red-700",
-      )
+      .with("info", () => "bg-blue-50 text-blue-700")
+      .with("warning", () => "bg-yellow-50 text-yellow-700")
+      .with("success", () => "bg-green-50 btext-green-700")
+      .with("error", () => "bg-red-50 text-red-700")
       .exhaustive()
 
     return `${baseClasses} ${visibilityClasses} ${exitingClasses} ${levelClasses}`

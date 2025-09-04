@@ -61,9 +61,14 @@ bifocal/
 │   ├── hooks/          # Reusable React hooks
 │   │   ├── useGetCommands.tsx        # Command fetching and caching
 │   │   ├── useSendMessage.tsx        # Background script messaging
-│   │   ├── useCommandNavigation.tsx  # Keyboard navigation logic
+│   │   ├── useCommandNavigation.tsx  # Redux-based navigation with command pages
 │   │   ├── useActionLabel.tsx        # Dynamic action labeling
 │   │   └── useCopyToClipboard.tsx    # Clipboard utilities
+│   ├── store/          # Redux Toolkit store configuration
+│   │   ├── index.ts    # Store factory and type exports
+│   │   ├── hooks.ts    # Typed Redux hooks (useAppDispatch, useAppSelector)
+│   │   └── slices/     # Redux slices
+│   │       └── navigation.slice.ts   # Navigation state management slice
 │   └── types/          # Shared TypeScript type definitions
 └── types.ts            # Global TypeScript definitions
 ```
@@ -456,18 +461,169 @@ Content script mode uses Shadow DOM to prevent style conflicts:
 
 ### State Management
 
+The application uses Redux Toolkit for command palette state management, providing predictable state updates and improved developer experience.
+
+#### Redux Store Architecture
+
+The Redux store is created dynamically per instance and manages navigation state across both content script and new tab modes:
+
+**Store Configuration** (`/shared/store/index.ts`):
+```typescript
+export const createNavigationStore = (
+  initialCommands: {
+    favorites: CommandSuggestion[]
+    recents: CommandSuggestion[]
+    suggestions: CommandSuggestion[]
+    deepSearchItems: CommandSuggestion[]
+  },
+  sendMessage: (message: any) => Promise<any>,
+) => {
+  return configureStore({
+    reducer: {
+      navigation: navigationSlice.reducer,
+    },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        thunk: {
+          extraArgument: { sendMessage } as ThunkApi,
+        },
+      }),
+    preloadedState: {
+      navigation: getInitialStateWithCommands(initialCommands),
+    },
+  })
+}
+```
+
+**Key Features**:
+- **Dynamic Store Creation**: Each mode (content script/new tab) creates its own store instance
+- **Message Injection**: Background script messaging function injected as thunk extra argument
+- **Preloaded State**: Initial commands from background script loaded into store on creation
+- **Type Safety**: Full TypeScript support with typed hooks and selectors
+
+#### Navigation Slice (`/shared/store/slices/navigation.slice.ts`)
+
+The navigation slice manages the command palette's hierarchical navigation state:
+
+**State Shape**:
+```typescript
+interface NavigationState {
+  pages: Page[]                    // Stack of command pages (navigation history)
+  ui: UI | null                   // Active UI form for input commands
+  initialCommands: {              // Root commands and deep search items
+    favorites: CommandSuggestion[]
+    recents: CommandSuggestion[]
+    suggestions: CommandSuggestion[]
+    deepSearchItems: CommandSuggestion[]
+  }
+  loading: boolean                // Async operation loading state
+  error: string | null           // Error state for failed operations
+}
+
+type Page = {
+  id: string                     // Command ID or "root"
+  commands: {                    // Commands available on this page
+    favorites: CommandSuggestion[]
+    recents: CommandSuggestion[]
+    suggestions: CommandSuggestion[]
+  }
+  searchValue: string           // Current search input
+  parent?: CommandSuggestion    // Reference to parent command
+  parentPath: string[]          // Path of parent command IDs for efficient lookups
+}
+```
+
+**Async Thunks**:
+- `navigateToCommand`: Navigate to a ParentCommand's children, creates new page in navigation stack
+- `refreshCurrentPage`: Refresh commands for the current page (child pages only)
+
+**Synchronous Actions**:
+- `setInitialCommands`: Update root page commands (favorites/recents updates)
+- `updateSearchValue`: Update search input for current page
+- `navigateBack`: Pop current page or close UI form
+- `showUI`/`hideUI`: Display/hide UI forms for input commands
+- `clearError`: Clear error state
+
+**Selectors** (co-located with slice):
+- `selectCurrentPage`: Get the active page (last in navigation stack)
+- `selectPages`: Get full navigation stack
+- `selectUI`: Get active UI form
+- `selectInitialCommands`: Get root commands and deep search items
+- `selectLoading`/`selectError`: Get async operation state
+
+#### Typed Redux Hooks (`/shared/store/hooks.ts`)
+
+Type-safe Redux hooks for use throughout the application:
+
+```typescript
+export const useAppDispatch = useDispatch.withTypes<AppDispatch>()
+export const useAppSelector = useSelector.withTypes<RootState>()
+export const useAppStore = useStore.withTypes<AppStore>()
+```
+
+**Usage Pattern**:
+```typescript
+// In components
+const dispatch = useAppDispatch()
+const currentPage = useAppSelector(selectCurrentPage)
+const loading = useAppSelector(selectLoading)
+
+// Dispatch actions
+dispatch(updateSearchValue("new search"))
+dispatch(navigateToCommand({ id: "command-id", currentPage, initialCommands }))
+```
+
+#### Integration with Command Palette
+
+**Provider Setup**: Both content script and new tab modes wrap their command palettes with Redux providers:
+
+```typescript
+// ContentCommandPalette.tsx & NewTabCommandPalette.tsx
+const store = useMemo(() => {
+  if (!data) return null
+  return createNavigationStore(data, sendMessage)
+}, [data, sendMessage])
+
+return (
+  <Provider store={store}>
+    <CommandPaletteWrapper />
+  </Provider>
+)
+```
+
+**Navigation Hook Integration**: The `useCommandNavigation` hook (`/shared/hooks/useCommandNavigation.tsx`) serves as the primary interface between Redux state and UI components:
+
+- **State Subscription**: Uses `useAppSelector` to subscribe to navigation state changes
+- **Action Dispatch**: Uses `useAppDispatch` to trigger state updates
+- **Legacy Interface**: Maintains the same API as the previous hook-based implementation for seamless migration
+- **Performance Optimization**: Prevents unnecessary re-renders and race conditions
+
+#### Benefits of Redux Architecture
+
+1. **Predictable State**: All navigation state changes flow through reducers
+2. **Developer Experience**: Redux DevTools support for debugging navigation flows
+3. **Type Safety**: Full TypeScript support prevents runtime errors
+4. **Performance**: Optimized re-renders through selector-based subscriptions
+5. **Testability**: Pure functions and isolated state make testing easier
+6. **Consistency**: Same state management pattern across both deployment modes
+
 Key React hooks for state management:
 
 **Shared Hooks** (`/shared/hooks/`):
 - `useGetCommands`: Fetches and caches command data
 - `useSendMessage`: Handles messaging to background script  
-- `useCommandNavigation`: Handles keyboard navigation
+- `useCommandNavigation`: Redux-based navigation with hierarchical command pages (**Primary navigation interface**)
 - `useActionLabel`: Dynamic action labeling based on modifier keys
 - `useCopyToClipboard`: Clipboard utility functions
 - `useGlobalKeybindings`: Registers global keyboard shortcuts (used in both modes)
 
 **Content-Specific Hooks** (`/content/hooks/`):
 - `useCommandPaletteState`: Global palette open/close state (overlay mode only)
+
+**Redux Hooks** (`/shared/store/hooks.ts`):
+- `useAppDispatch`: Type-safe dispatch for Redux actions
+- `useAppSelector`: Type-safe selector for Redux state
+- `useAppStore`: Direct access to Redux store instance
 
 ### Deployment Mode Differences
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
+import { v4 as uuidv4 } from "uuid"
 import type { ToastEvent } from "../../types/events"
 import { Toast } from "./Toast"
-import { v4 as uuidv4 } from "uuid"
 
 interface ToastItem {
   id: string
