@@ -336,6 +336,11 @@
       color: var(--gray9);
       font-weight: 400;
     }
+
+    .command-item-description {
+      color: var(--gray9);
+      font-weight: 400;
+    }
   }
 
   [cmdk-raycast-meta] {

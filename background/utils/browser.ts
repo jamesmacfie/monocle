@@ -8,6 +8,7 @@ type BrowserAPIObject =
   | "history"
   | "browsingData"
   | "downloads"
+  | "sessions"
 
 // Cross-browser API helpers to handle Chrome vs Firefox differences
 export const isFirefox = chrome.runtime
@@ -314,5 +315,28 @@ export async function getHistoryItems(
   } catch (error) {
     console.error("Failed to get history items:", error)
     return []
+  }
+}
+
+// Sessions API functions
+export async function getRecentlyClosed(): Promise<chrome.sessions.Session[]> {
+  try {
+    return await callBrowserAPI("sessions", "getRecentlyClosed", {
+      maxResults: 25,
+    })
+  } catch (error) {
+    console.error("Failed to get recently closed sessions:", error)
+    return []
+  }
+}
+
+export async function restoreSession(
+  sessionId?: string,
+): Promise<chrome.sessions.Session | null> {
+  try {
+    return await callBrowserAPI("sessions", "restore", sessionId)
+  } catch (error) {
+    console.error("Failed to restore session:", error)
+    throw error
   }
 }

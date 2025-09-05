@@ -34,11 +34,7 @@ export const useCommandPaletteStateRedux = () => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Check for Cmd+/ (metaKey for Mac, could add ctrlKey for Windows/Linux)
-      if (
-        (event.key.toLowerCase() === "k") &&
-        event.metaKey &&
-        event.shiftKey
-      ) {
+      if (event.key.toLowerCase() === "k" && event.metaKey && event.shiftKey) {
         event.preventDefault()
         event.stopImmediatePropagation()
         toggle()

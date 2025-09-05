@@ -19,7 +19,9 @@ import { openNewTab } from "./openNewTab"
 import { openNewWindow } from "./openNewWindow"
 import { openTabs } from "./openTabs"
 import { pinCurrentTab } from "./pinCurrentTab"
+import { recentlyClosed } from "./recentlyClosed"
 import { reloadCurrentTab } from "./reloadCurrentTab"
+import { reopenLastClosedTab } from "./reopenLastClosedTab"
 import { unmuteCurrentTab } from "./unmuteCurrentTab"
 import { unpinCurrentTab } from "./unpinCurrentTab"
 
@@ -46,7 +48,9 @@ export const browserCommands = [
   openNewWindow,
   openTabs,
   pinCurrentTab,
+  recentlyClosed,
   reloadCurrentTab,
+  reopenLastClosedTab,
   unmuteCurrentTab,
   unpinCurrentTab,
   testChildren,
