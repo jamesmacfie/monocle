@@ -16,6 +16,25 @@ initializeKeybindingRegistry().catch(console.error)
 
 addRuntimeListener(createCrossBrowserMessageHandler(handleMessage))
 
+// Handle toolbar icon clicks
+if (browserAPI.action) {
+  browserAPI.action.onClicked.addListener((tab) => {
+    console.log("[Background] Toolbar icon clicked")
+
+    // Send toggle message to active tab
+    if (tab?.id) {
+      browserAPI.tabs
+        .sendMessage(tab.id, { type: "toggle-ui" })
+        .catch((error) => {
+          console.debug(
+            "[Background] Could not send toggle message to tab:",
+            error,
+          )
+        })
+    }
+  })
+}
+
 // Handle browser-level keyboard shortcuts
 if (browserAPI.commands) {
   browserAPI.commands.onCommand.addListener((command) => {

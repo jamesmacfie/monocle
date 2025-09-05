@@ -7,14 +7,26 @@
   "icons": {
     "48": "images/extension_48.png"
   },
+  "action": {
+    "default_icon": {
+      "48": "images/extension_48.png"
+    },
+    "default_title": "Toggle Monocle Command Palette"
+  },
   "background": {
     "chromium:service_worker": "background/index.ts",
-    "firefox:scripts": ["background/index.ts"]
+    "firefox:scripts": [
+      "background/index.ts"
+    ]
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["./content/scripts.tsx"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "./content/scripts.tsx"
+      ]
     }
   ],
   "chrome_url_overrides": {
@@ -39,8 +51,8 @@
   "commands": {
     "toggle-command-palette": {
       "suggested_key": {
-        "default": "Ctrl+J",
-        "mac": "Command+J"
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
       },
       "description": "Toggle command palette"
     }

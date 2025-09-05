@@ -30,11 +30,15 @@ export const useCommandPaletteStateRedux = () => {
     dispatch(toggleUI())
   }, [dispatch])
 
-  // Handle keyboard shortcut (Cmd+J)
+  // Handle keyboard shortcut (Cmd+/)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Check for Cmd+J (metaKey for Mac, could add ctrlKey for Windows/Linux)
-      if (event.key === "j" && event.metaKey) {
+      // Check for Cmd+/ (metaKey for Mac, could add ctrlKey for Windows/Linux)
+      if (
+        (event.key.toLowerCase() === "k") &&
+        event.metaKey &&
+        event.shiftKey
+      ) {
         event.preventDefault()
         event.stopImmediatePropagation()
         toggle()

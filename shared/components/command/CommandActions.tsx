@@ -197,20 +197,18 @@ function KeybindingCapture({
     <div className="w-full">
       <div
         {...divProps}
-        className={`w-full p-2 px-3 border-2 rounded-md bg-[var(--background)] outline-none text-sm font-mono min-h-[32px] flex items-center cursor-text focus:outline-none ${
-          hasConflict ? "border-red-500" : "border-blue-500"
-        }`}
+        className={`w-full p-2 px-3 border-2 rounded-md bg-[var(--background)] outline-none text-sm font-mono min-h-[32px] flex items-center cursor-text focus:outline-none ${hasConflict ? "border-red-500" : "border-blue-500"
+          }`}
       >
         {currentKeys.length > 0 ? (
           <div className="flex items-center gap-1">
             {currentKeys.map((key, index) => (
               <kbd
                 key={index}
-                className={`px-1.5 py-0.5 rounded text-xs ${
-                  hasConflict
+                className={`px-1.5 py-0.5 rounded text-xs ${hasConflict
                     ? "bg-red-100 border border-red-300 text-red-700"
                     : "bg-[var(--cmdk-list-item-background-active)]"
-                }`}
+                  }`}
               >
                 {key}
               </kbd>
