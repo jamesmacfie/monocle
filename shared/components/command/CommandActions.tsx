@@ -249,6 +249,18 @@ function ActionItem({
       if (onClose) {
         onClose(true)
       }
+
+      // Focus the input after closing the action menu
+      setTimeout(() => {
+        // Find the input through the action's parent context
+        // We need to look for the cmdk-input in the main command palette
+        const cmdkInput = document.querySelector(
+          "[cmdk-input]",
+        ) as HTMLInputElement
+        if (cmdkInput) {
+          cmdkInput.focus()
+        }
+      }, 50)
     } catch (error) {
       console.error("Failed to save keybinding:", error)
       // Keep capture active on error so user can try again
@@ -298,7 +310,9 @@ export function CommandActions({
   const actionInputRef = useRef<HTMLInputElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
 
-  useOnClickOutside(overlayRef, onClose)
+  useOnClickOutside(overlayRef, (_event) => {
+    onClose?.()
+  })
 
   useEffect(() => {
     if (open && actionInputRef.current) {

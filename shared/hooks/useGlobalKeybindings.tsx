@@ -14,6 +14,23 @@ function shouldSkipKeybinding(
   const tagName = element.tagName.toLowerCase()
   const inputTags = ["input", "textarea", "select"]
 
+  // Skip Enter key if we're inside the command palette (CMDK)
+  // This prevents keybinding conflicts when selecting commands
+  if (event.key === "Enter") {
+    // Check if the element or any parent has cmdk-related attributes
+    let current: Element | null = element
+    while (current && current !== document.body) {
+      if (
+        current.hasAttribute("cmdk-item") ||
+        current.hasAttribute("cmdk-root") ||
+        current.closest("[cmdk-root]")
+      ) {
+        return true // Skip the keybinding - let CMDK handle it
+      }
+      current = current.parentElement
+    }
+  }
+
   if (inputTags.includes(tagName)) {
     // Allow keybindings in command palette inputs (they have cmdk-input attribute)
     if (element.hasAttribute("cmdk-input")) {
