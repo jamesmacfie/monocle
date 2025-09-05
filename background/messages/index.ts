@@ -1,5 +1,6 @@
 import { match } from "ts-pattern"
 import type { Message } from "../../types/"
+import { checkKeybindingConflict } from "./checkKeybindingConflict"
 import { executeCommand } from "./executeCommand"
 import { executeKeybinding } from "./executeKeybinding"
 import { getChildrenCommands } from "./getChildrenCommands"
@@ -28,6 +29,9 @@ export const handleMessage = async (message: Message) => {
     })
     .with({ type: "update-command-setting" }, async (msg) => {
       return await updateCommandSetting(msg)
+    })
+    .with({ type: "check-keybinding-conflict" }, async (msg) => {
+      return await checkKeybindingConflict(msg)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${(message as any).type}`)

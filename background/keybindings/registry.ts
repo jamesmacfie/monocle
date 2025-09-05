@@ -102,12 +102,7 @@ function registerCommand(
     keybindingRegistry.set(normalized, command.id)
   }
 
-  // Also register action keybindings
-  if (command.actions) {
-    for (const action of command.actions) {
-      registerCommand(action, commandSettings)
-    }
-  }
+  // Actions should not be registered globally - they only work within action menus
 }
 
 // Initialize the registry with all commands

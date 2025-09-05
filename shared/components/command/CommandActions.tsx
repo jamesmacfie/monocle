@@ -19,28 +19,61 @@ import { CommandName } from "./CommandName"
 function KeybindingCapture({
   onComplete,
   onCancel,
+  commandId,
 }: {
   onComplete: (keybinding: string) => void
   onCancel: () => void
+  commandId?: string
 }) {
   const [capturedKeys, setCapturedKeys] = useState<string[]>([])
   const [currentKeys, setCurrentKeys] = useState<string[]>([])
-  const [, setIsCapturing] = useState(false)
+  const [hasConflict, setHasConflict] = useState(false)
+  // Saving the conflicting command for if we want to display it via a tooltip or something
+  const [_conflictingCommand, setConflictingCommand] = useState<{
+    id: string
+    name: string
+  } | null>(null)
   const captureRef = useRef<HTMLDivElement>(null)
+  const sendMessage = useSendMessage()
 
   useEffect(() => {
     // Focus the capture area when component mounts
     if (captureRef.current) {
       captureRef.current.focus()
     }
-    setIsCapturing(true)
   }, [])
+
+  // Function to check for keybinding conflicts
+  const checkForConflict = async (keybinding: string) => {
+    try {
+      const response = await sendMessage({
+        type: "check-keybinding-conflict",
+        keybinding,
+        excludeCommandId: commandId,
+      })
+
+      setHasConflict(response.hasConflict)
+      setConflictingCommand(response.conflictingCommand || null)
+    } catch (error) {
+      console.error("[KeybindingCapture] Failed to check conflict:", error)
+      setHasConflict(false)
+      setConflictingCommand(null)
+    }
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
     if (e.key === "Enter" && capturedKeys.length > 0) {
+      // Don't save if there's a conflict
+      if (hasConflict) {
+        console.log(
+          "[KeybindingCapture] Cannot save - keybinding conflict exists",
+        )
+        return
+      }
+
       // Save the most recent keybinding combination
       const keybinding = capturedKeys.join(" ")
       console.log("[KeybindingCapture] Saving keybinding:", keybinding)
@@ -146,6 +179,9 @@ function KeybindingCapture({
       setCurrentKeys(currentKeys)
       // Save the most recent keys pressed - this will be used when Enter is pressed
       setCapturedKeys([...currentKeys])
+
+      // Check for conflicts asynchronously
+      checkForConflict(currentKeys.join(" "))
     }
   }
 
@@ -158,26 +194,32 @@ function KeybindingCapture({
   }
 
   return (
-    <div
-      {...divProps}
-      className="w-full p-2 px-3 border-2 border-blue-500 rounded-md bg-[var(--background)] outline-none text-sm font-mono min-h-[32px] flex items-center cursor-text focus:outline-none"
-    >
-      {currentKeys.length > 0 ? (
-        <div className="flex items-center gap-1">
-          {currentKeys.map((key, index) => (
-            <kbd
-              key={index}
-              className="px-1.5 py-0.5 bg-[var(--cmdk-list-item-background-active)] rounded text-xs"
-            >
-              {key}
-            </kbd>
-          ))}
-        </div>
-      ) : (
-        <span className="text-[var(--cmdk-muted-foreground)] text-xs">
-          Press keys. Enter to save
-        </span>
-      )}
+    <div className="w-full">
+      <div
+        {...divProps}
+        className={`w-full p-2 px-3 border-2 rounded-md bg-[var(--background)] outline-none text-sm font-mono min-h-[32px] flex items-center cursor-text focus:outline-none ${hasConflict ? "border-red-500" : "border-blue-500"
+          }`}
+      >
+        {currentKeys.length > 0 ? (
+          <div className="flex items-center gap-1">
+            {currentKeys.map((key, index) => (
+              <kbd
+                key={index}
+                className={`px-1.5 py-0.5 rounded text-xs ${hasConflict
+                    ? "bg-red-100 border border-red-300 text-red-700"
+                    : "bg-[var(--cmdk-list-item-background-active)]"
+                  }`}
+              >
+                {key}
+              </kbd>
+            ))}
+          </div>
+        ) : (
+          <span className="text-[var(--cmdk-muted-foreground)] text-xs">
+            Press keys. Enter to save
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -187,11 +229,13 @@ function ActionItem({
   onSelect,
   onRefresh,
   onClose,
+  inputRef,
 }: {
   action: CommandSuggestion
   onSelect: (id: string) => void
   onRefresh?: () => void
   onClose?: (force?: boolean) => void
+  inputRef?: React.RefObject<HTMLInputElement>
 }) {
   const dispatch = useAppDispatch()
   const isCapturing = useAppSelector(selectIsCapturing)
@@ -250,16 +294,9 @@ function ActionItem({
         onClose(true)
       }
 
-      // Focus the input after closing the action menu
+      // Focus the main command palette input after closing
       setTimeout(() => {
-        // Find the input through the action's parent context
-        // We need to look for the cmdk-input in the main command palette
-        const cmdkInput = document.querySelector(
-          "[cmdk-input]",
-        ) as HTMLInputElement
-        if (cmdkInput) {
-          cmdkInput.focus()
-        }
+        inputRef?.current?.focus()
       }, 50)
     } catch (error) {
       console.error("Failed to save keybinding:", error)
@@ -278,6 +315,7 @@ function ActionItem({
         <KeybindingCapture
           onComplete={handleKeybindingComplete}
           onCancel={handleKeybindingCancel}
+          commandId={targetCommandId}
         />
       </Command.Item>
     )
@@ -373,6 +411,7 @@ export function CommandActions({
                   onSelect={handleActionSelect}
                   onRefresh={onRefresh}
                   onClose={onClose}
+                  inputRef={inputRef}
                 />
               ))}
             </Command.Group>

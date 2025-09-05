@@ -40,6 +40,12 @@ export type UpdateCommandSettingMessage = {
   value: any
 }
 
+export type CheckKeybindingConflictMessage = {
+  type: "check-keybinding-conflict"
+  keybinding: string
+  excludeCommandId?: string
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
@@ -47,6 +53,7 @@ export type Message =
   | ExecuteKeybindingMessage
   | ShowToastMessage
   | UpdateCommandSettingMessage
+  | CheckKeybindingConflictMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

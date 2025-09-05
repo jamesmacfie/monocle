@@ -1,5 +1,6 @@
 import * as React from "react"
 import type {
+  CheckKeybindingConflictMessage,
   ExecuteCommandMessage,
   ExecuteKeybindingMessage,
   GetChildrenMessage,
@@ -26,6 +27,7 @@ type SendableMessage =
   | GetChildrenMessageWithoutContext
   | ExecuteKeybindingMessageWithoutContext
   | UpdateCommandSettingMessage
+  | CheckKeybindingConflictMessage
 
 export function useSendMessage() {
   const { modifier } = useIsModifierKeyPressed()

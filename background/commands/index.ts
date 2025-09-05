@@ -52,6 +52,9 @@ const loadAllCommands = (): Command[] => {
   })
 }
 
+// Export all commands for use in other modules
+export const allCommands = loadAllCommands()
+
 // Helper function to recursively find all favorited commands including sub-commands
 const findFavoritedCommands = async (
   commands: Command[],
@@ -460,11 +463,6 @@ const _createResetKeybindingAction = async (
     return null
   }
 
-  // Check if command has a default keybinding
-  if (!command.keybinding) {
-    return null
-  }
-
   // Check if command has a custom keybinding set
   const { getCommandSettings } = require("./settings")
   const settings = await getCommandSettings(command.id)
@@ -475,7 +473,9 @@ const _createResetKeybindingAction = async (
   return {
     id: `reset-keybinding-${command.id}`,
     name: "Reset Custom Keybinding",
-    description: `Reset to default keybinding: ${command.keybinding}`,
+    description: command.keybinding
+      ? `Reset to default keybinding: ${command.keybinding}`
+      : "Reset to default keybinding",
     icon: { type: "lucide", name: "RotateCcw" },
     color: "orange",
     isParentCommand: false,
