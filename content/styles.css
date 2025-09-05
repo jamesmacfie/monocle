@@ -747,10 +747,6 @@
   cursor: pointer;
 }
 
-.cmdk-input-wrapper .cmdk-back-button + input {
-  padding-left: 0px;
-}
-
 .cmdk-back-button:hover {
   color: var(--gray11);
 }
@@ -845,6 +841,10 @@
 .cmdk-ui-input input:focus {
   border-color: var(--blue8);
   box-shadow: 0 0 0 1px var(--blue8);
+}
+
+.cmdk-input-wrapper .cmdk-back-button + input {
+  padding-left: 0px;
 }
 
 .cmdk-ui-text {
