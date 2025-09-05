@@ -656,6 +656,79 @@ Examples: `"⌘ K"`, `"⌃ d"`, `"⌥ ⇧ n"`
 5. Matching keybindings trigger command execution
 ```
 
+### Custom Keybindings
+
+The extension supports custom keybindings per command, allowing users to override default keyboard shortcuts with real-time conflict detection.
+
+#### Architecture
+
+**Storage**: Custom keybindings are stored in `chrome.storage.local` under the `monocle-settings` key:
+```typescript
+interface CommandSettings {
+  keybinding?: string
+}
+
+interface Settings {
+  global?: GlobalSettings
+  commands?: Record<string, CommandSettings>
+}
+```
+
+**Conflict Detection**: Before saving a custom keybinding, the system checks for conflicts:
+- Checks against all default command keybindings
+- Checks against other custom keybindings
+- Provides real-time visual feedback during keybinding capture
+
+**Message Flow**:
+```typescript
+// Check for keybinding conflicts
+CheckKeybindingConflictMessage {
+  type: "check-keybinding-conflict"
+  keybinding: string
+  excludeCommandId?: string
+}
+```
+
+#### Implementation Files
+
+- `background/commands/settings.ts`: Settings storage and retrieval
+- `background/messages/checkKeybindingConflict.ts`: Conflict detection logic
+- `shared/components/command/CommandActions.tsx`: Keybinding capture UI
+- `shared/store/slices/keybinding.slice.ts`: Redux state for capture mode
+- `types/settings.ts`: TypeScript definitions for settings
+
+#### User Experience
+
+1. **Setting Custom Keybinding**:
+   - User opens action menu for a command (Tab key)
+   - Selects "Set Custom Keybinding" action
+   - Enters keybinding capture mode with visual feedback
+   - Real-time conflict detection shows red border and warning if conflict exists
+   - Press Enter to save (disabled if conflict exists)
+   - Press Escape to cancel
+
+2. **Resetting to Default**:
+   - Commands with custom keybindings show "Reset Custom Keybinding" action
+   - Shows the default keybinding in the action description
+   - Available even if command has no default keybinding
+
+3. **Visual Indicators**:
+   - Blue border during normal capture
+   - Red border when conflict detected
+   - Conflict warning shows conflicting command name
+   - Individual keys shown as keyboard-styled badges
+
+#### API Methods
+
+```typescript
+// background/commands/settings.ts
+getCommandSettings(commandId: string): Promise<CommandSettings | undefined>
+setCommandSettings(commandId: string, settings: CommandSettings): Promise<void>
+updateCommandSettings(commandId: string, partialSettings: Partial<CommandSettings>): Promise<void>
+removeCommandSettings(commandId: string): Promise<void>
+getAllCommandSettings(): Promise<Record<string, CommandSettings>>
+```
+
 ## Browser Compatibility
 
 ### Cross-Browser API Abstraction
