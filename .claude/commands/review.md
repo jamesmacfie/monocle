@@ -111,11 +111,6 @@ async getNewFeatureData(): Promise<FeatureData[]> {
   return response.data || []
 }
 
-// 4. Use in Zustand store
-// src/ui/shared/stores/featureStore.ts
-const response = await browser.runtime.sendMessage({
-  type: MESSAGE_TYPES.GET_NEW_FEATURE_DATA
-})
 ```
 
 **❌ Anti-patterns to reject:**
@@ -136,7 +131,7 @@ const data = await browser.runtime.sendMessage(msg) // Wrong - no error handling
 1. **Add message type constant** to `src/shared/constants/index.ts`
 2. **Implement background handler** in `src/background/index.ts`
 3. **Add typing to messaging service** in `src/shared/utils/messaging.ts`
-4. **Use in Zustand stores** - UI components should access via stores, not direct messaging
+4. **Use in Redux stores** - UI components should access via stores, not direct messaging
 
 **Error handling requirements:**
 ```tsx
@@ -212,13 +207,14 @@ const BookmarkThing = ({ stuff, onStuff }) => { /* unclear what this does */ }
 
 **File structure requirements:**
 - **Imports grouped**: React/external libraries → internal utilities → components → types
+- **Top-level imports only**: All imports must be at the top of the file - no conditional imports, dynamic imports, or imports inside functions/components
 - **Component exports**: Use named exports for components, default export for single-purpose modules
 - **Type definitions**: Co-locate interfaces with their usage, extract to shared types when used across files
 
 ```tsx
 // ✅ Good import organization
 import React from "react"
-import { create } from "zustand"
+import { create } from "Redux"
 import browser from "webextension-polyfill"
 
 import { MESSAGE_TYPES } from "@/shared/constants"
@@ -231,50 +227,139 @@ import { useContainers } from "@/ui/shared/stores"
 
 ## Library Usage Philosophy
 
-### Zustand State Management
+### Redux State Management
 
-**Why Zustand:** Simple, lightweight, TypeScript-first state management without boilerplate
+**Why Redux Toolkit:** Provides predictable state management with excellent TypeScript support and developer tools integration
 
-**Required patterns:**
+**Required Redux patterns:**
+
+**✅ Store Creation Pattern:**
 ```tsx
-// ✅ Correct Zustand store structure
-interface StoreState {
-  data: DataType[]
+// ✅ Create store with preloaded state and typed thunks
+export const createNavigationStore = (
+  initialCommands: CommandData,
+  sendMessage: (message: any) => Promise<any>,
+) => {
+  return configureStore({
+    reducer: {
+      navigation: navigationSlice.reducer,
+    },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        thunk: {
+          extraArgument: { sendMessage } as ThunkApi,
+        },
+      }),
+    preloadedState: {
+      navigation: getInitialStateWithCommands(initialCommands),
+    },
+  })
+}
+```
+
+**✅ Slice Definition Pattern:**
+```tsx
+// ✅ Use createSlice with typed state and actions
+interface NavigationState {
+  pages: Page[]
+  ui: UI | null
   loading: boolean
-  error?: string
-  
-  actions: {
-    load: () => Promise<void>
-    create: (item: CreateRequest) => Promise<DataType>
-    clearError: () => void
-  }
+  error: string | null
 }
 
-export const useStore = create<StoreState>()(
-  subscribeWithSelector((set, get) => ({
-    data: [],
-    loading: false,
-    error: undefined,
-    
-    actions: {
-      load: async () => {
-        set({ loading: true, error: undefined })
-        try {
-          // ... implementation
-          set({ data: newData, loading: false })
-        } catch (error) {
-          set({ error: error.message, loading: false })
-        }
-      },
-      // ... other actions
-    }
-  }))
-)
-
-// Provide selector hooks for components
-export const useData = () => useStore(state => state.data)
-export const useActions = () => useStore(state => state.actions)
+const navigationSlice = createSlice({
+  name: 'navigation',
+  initialState,
+  reducers: {
+    updateSearchValue: (state, action: PayloadAction<string>) => {
+      const currentPage = getCurrentPage(state)
+      if (currentPage) {
+        currentPage.searchValue = action.payload
+      }
+    },
+    // More reducers...
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(navigateToCommand.pending, (state) => {
+        state.loading = true
+      })
+      .addCase(navigateToCommand.fulfilled, (state, action) => {
+        state.loading = false
+        state.pages.push(action.payload)
+      })
+  },
+})
 ```
+
+**✅ Async Thunk Pattern:**
+```tsx
+// ✅ Use createAsyncThunk with typed parameters
+export const navigateToCommand = createAsyncThunk<
+  Page,
+  { id: string; currentPage: Page; initialCommands: CommandData },
+  { extra: ThunkApi }
+>('navigation/navigateToCommand', async ({ id, currentPage, initialCommands }, { extra }) => {
+  const { sendMessage } = extra
+  const response = await sendMessage({
+    type: 'get-children-commands',
+    payload: { commandId: id, context: getContext() }
+  })
+  
+  return {
+    id,
+    commands: response.commands,
+    searchValue: '',
+    parent: findCommand(id, currentPage, initialCommands),
+    parentPath: [...currentPage.parentPath, id]
+  }
+})
+```
+
+**✅ Typed Hook Usage:**
+```tsx
+// ✅ Use typed Redux hooks
+import { useAppDispatch, useAppSelector } from '@/shared/store/hooks'
+import { selectCurrentPage, updateSearchValue } from '@/shared/store/slices/navigation.slice'
+
+const Component = () => {
+  const dispatch = useAppDispatch()
+  const currentPage = useAppSelector(selectCurrentPage)
+  
+  const handleSearch = (value: string) => {
+    dispatch(updateSearchValue(value))
+  }
+  
+  return <div>...</div>
+}
+```
+
+**❌ Anti-patterns to reject:**
+```tsx
+// ❌ Don't use untyped Redux hooks
+import { useDispatch, useSelector } from 'react-redux' // Wrong - use typed hooks
+
+// ❌ Don't mutate state outside reducers
+const updateState = (newValue) => {
+  state.pages[0].searchValue = newValue // Wrong - only in reducers
+}
+
+// ❌ Don't create store without TypeScript typing
+const store = createStore(reducer) // Wrong - use configureStore with types
+
+// ❌ Don't use thunks without proper typing
+const asyncAction = () => async (dispatch, getState, extra) => { // Wrong - not typed
+  // Missing return type and parameter types
+}
+```
+
+**Redux Integration Requirements:**
+- **Provider Setup**: Wrap components with `<Provider store={store}>` 
+- **Typed Hooks**: Always use `useAppDispatch`, `useAppSelector` from typed hooks file
+- **Slice Patterns**: Use `createSlice` for reducers, avoid hand-written reducers
+- **Async Thunks**: Use `createAsyncThunk` for async operations with proper typing
+- **Selectors**: Co-locate selectors with slices for better organization
+- **Immutability**: Redux Toolkit uses Immer - write "mutative" logic in reducers
 
 ### Tailwind CSS Styling
 
@@ -303,7 +388,7 @@ export const useActions = () => useStore(state => state.actions)
 
 **Required React patterns:**
 - **Functional components only** - No class components
-- **Hooks for state management** - useState for local state, Zustand stores for shared state
+- **Hooks for state management** - useState for local state, Redux stores for shared state
 - **TypeScript props** - All component props must be explicitly typed
 - **Error boundaries** - Wrap complex components in error boundaries where appropriate
 
@@ -348,7 +433,7 @@ describe('serviceName', () => {
 - [ ] Changes follow the established message passing patterns
 - [ ] New UI components use shared components where possible
 - [ ] Background services maintain clear separation of concerns
-- [ ] Zustand stores follow the established patterns
+- [ ] Redux stores follow the established patterns
 
 **Code Quality:**
 - [ ] Functions have clear, single responsibilities

@@ -2,6 +2,7 @@ import { Command } from "cmdk"
 import type { ReactNode } from "react"
 import type { CommandItemProps } from "../../types/command"
 import { Icon } from "../Icon"
+import { KeybindingDisplay } from "../KeybindingDisplay"
 import { CommandName } from "./CommandName"
 
 interface Props extends CommandItemProps {
@@ -43,19 +44,7 @@ export function CommandItem({
         <CommandName name={displayName} className="command-item-name" />
       </div>
       {suggestion.keybinding && (
-        <div cmdk-raycast-submenu-shortcuts="">
-          {suggestion.keybinding.split(" ").map((key) => {
-            // Normalize key symbols for better display
-            const normalizedKey = key
-              .replace(/⌃/g, "⌃")
-              .replace(/⌘/g, "⌘")
-              .replace(/⌥/g, "⌥")
-              .replace(/⇧/g, "⇧")
-              .replace(/↵/g, "↵")
-
-            return <kbd key={key}>{normalizedKey}</kbd>
-          })}
-        </div>
+        <KeybindingDisplay keybinding={suggestion.keybinding} />
       )}
       <span cmdk-raycast-meta="">
         {suggestion.isParentCommand ? "Group" : "Command"}

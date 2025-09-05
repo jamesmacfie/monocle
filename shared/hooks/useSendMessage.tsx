@@ -4,6 +4,7 @@ import type {
   ExecuteKeybindingMessage,
   GetChildrenMessage,
   GetCommandsMessage,
+  UpdateCommandSettingMessage,
 } from "../../types/"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
 
@@ -24,6 +25,7 @@ type SendableMessage =
   | GetCommandsMessageWithoutContext
   | GetChildrenMessageWithoutContext
   | ExecuteKeybindingMessageWithoutContext
+  | UpdateCommandSettingMessage
 
 export function useSendMessage() {
   const { modifier } = useIsModifierKeyPressed()

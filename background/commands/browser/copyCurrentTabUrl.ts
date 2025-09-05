@@ -19,6 +19,7 @@ export const copyCurrentTabUrl: Command = {
             type: "monocle-copyToClipboard",
             message: activeTab.url,
           })
+          console.log("URL copied to clipboard 5")
           await sendTabMessage(activeTab.id, {
             type: "monocle-toast",
             level: "success",
@@ -42,6 +43,7 @@ export const copyCurrentTabUrl: Command = {
               type: "monocle-copyToClipboard",
               message: cleanUrl,
             })
+            console.log("URL copied to clipboard 4")
             await sendTabMessage(activeTab.id, {
               type: "monocle-toast",
               level: "success",
@@ -87,6 +89,7 @@ export const copyCurrentTabUrl: Command = {
               type: "monocle-copyToClipboard",
               message: activeTab.url,
             })
+            console.log("URL copied to clipboard 3")
             await sendTabMessage(activeTab.id, {
               type: "monocle-toast",
               level: "success",
@@ -104,6 +107,7 @@ export const copyCurrentTabUrl: Command = {
         type: "monocle-copyToClipboard",
         message: activeTab.url,
       })
+      console.log("URL copied to clipboard", activeTab.url)
       await sendTabMessage(activeTab.id, {
         type: "monocle-toast",
         level: "success",

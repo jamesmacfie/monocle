@@ -28,6 +28,7 @@ export const copyTabUrl: ParentCommand = {
                 type: "monocle-copyToClipboard",
                 message: tab.url,
               })
+              console.log("URL copied to clipboard 2", tab.url)
               await sendTabMessage(activeTab.id, {
                 type: "monocle-toast",
                 level: "success",

@@ -36,7 +36,11 @@ export const createNavigationStore = (
     preloadedState: {
       navigation: getInitialStateWithCommands(initialCommands),
       commandPalette: { isOpen: false },
-      keybinding: { isCapturing: false, targetCommandId: null },
+      keybinding: {
+        isCapturing: false,
+        targetCommandId: null,
+        capturedKeybinding: null,
+      },
     },
   })
 }

@@ -335,7 +335,25 @@ export const executeCommand = async (
         await toggleFavoriteCommandId(ctx.targetCommandId)
       })
       .with({ type: "setKeybinding" }, (_ctx) => {
-        // TODO this will have to save the keybinding for the command in saved settings
+        // setKeybinding actions are handled entirely in the UI layer via Redux
+        // They should not reach the background script's executeCommand function
+        console.warn(
+          "setKeybinding action should be handled in UI layer, not background script",
+        )
+        return Promise.resolve()
+      })
+      .with({ type: "resetKeybinding" }, async (ctx) => {
+        // Reset custom keybinding by clearing it from settings
+        const { removeCommandSettings } = require("./settings")
+        await removeCommandSettings(ctx.targetCommandId)
+
+        // Refresh keybinding registry to use default keybinding
+        const { refreshKeybindingRegistry } = require("../keybindings/registry")
+        await refreshKeybindingRegistry()
+
+        console.log(
+          `[DEBUG] Reset keybinding for command: ${ctx.targetCommandId}`,
+        )
         return Promise.resolve()
       })
       .with({ type: "primary" }, (ctx) => {
@@ -391,15 +409,23 @@ export const executeCommand = async (
 const _createSetKeybindingAction = async (
   command: Command,
 ): Promise<CommandSuggestion | null> => {
+  console.log(`[DEBUG] Creating keybinding action for command: ${command.id}`)
+
   // Don't create action for ParentCommands
   if ("commands" in command) {
+    console.log(`[DEBUG] Skipping ParentCommand: ${command.id}`)
     return null
   }
 
   // Don't create action if command explicitly opts out
   if ((command as any).allowCustomKeybinding === false) {
+    console.log(
+      `[DEBUG] Command ${command.id} has allowCustomKeybinding: false`,
+    )
     return null
   }
+
+  console.log(`[DEBUG] Creating keybinding action for: ${command.id}`)
 
   return {
     id: `set-keybinding-${command.id}`,
@@ -415,6 +441,51 @@ const _createSetKeybindingAction = async (
     remainOpenOnSelect: true,
     executionContext: {
       type: "setKeybinding",
+      targetCommandId: command.id,
+    },
+  }
+}
+
+// Helper to create reset keybinding action
+const _createResetKeybindingAction = async (
+  command: Command,
+): Promise<CommandSuggestion | null> => {
+  // Don't create action for ParentCommands
+  if ("commands" in command) {
+    return null
+  }
+
+  // Don't create action if command explicitly opts out
+  if ((command as any).allowCustomKeybinding === false) {
+    return null
+  }
+
+  // Check if command has a default keybinding
+  if (!command.keybinding) {
+    return null
+  }
+
+  // Check if command has a custom keybinding set
+  const { getCommandSettings } = require("./settings")
+  const settings = await getCommandSettings(command.id)
+  if (!settings?.keybinding) {
+    return null // No custom keybinding to reset
+  }
+
+  return {
+    id: `reset-keybinding-${command.id}`,
+    name: "Reset Custom Keybinding",
+    description: `Reset to default keybinding: ${command.keybinding}`,
+    icon: { type: "lucide", name: "RotateCcw" },
+    color: "orange",
+    isParentCommand: false,
+    actionLabel: "Reset Keybinding",
+    keywords: ["reset", "keybinding", "default", "clear"],
+    isFavorite: false,
+    actions: undefined,
+    remainOpenOnSelect: false,
+    executionContext: {
+      type: "resetKeybinding",
       targetCommandId: command.id,
     },
   }
@@ -625,14 +696,16 @@ export const commandsToSuggestions = async (
         context,
       )
       const setKeybindingAction = await _createSetKeybindingAction(command)
+      const resetKeybindingAction = await _createResetKeybindingAction(command)
 
-      // Combine all actions: default Enter (if needed), modifier actions, custom actions, toggle favorite, set keybinding
+      // Combine all actions: default Enter (if needed), modifier actions, custom actions, toggle favorite, set keybinding, reset keybinding
       const allActions = [
         ...(primaryAction ? [primaryAction] : []),
         ...modifierKeyActions,
         ...(actions || []),
         toggleFavoriteAction,
         ...(setKeybindingAction ? [setKeybindingAction] : []),
+        ...(resetKeybindingAction ? [resetKeybindingAction] : []),
       ]
 
       const isParentCommand = "commands" in command

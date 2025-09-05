@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react"
 import type { CommandSuggestion } from "../../../types/"
 import { useActionLabel } from "../../hooks/useActionLabel"
 import { useCommandNavigation } from "../../hooks/useCommandNavigation"
+import { useAppSelector } from "../../store/hooks"
+import { selectIsCapturing } from "../../store/slices/keybinding.slice"
 import type { CommandData, Page } from "../../types/command"
 import { CommandNavigationError } from "../CommandNavigationError"
 import CommandUI from "../CommandUI"
@@ -181,6 +183,8 @@ export function CommandPalette({
     suggestion: null,
   })
 
+  const _isCapturing = useAppSelector(selectIsCapturing)
+
   const [_deepSearchItems, _setDeepSearchItems] = useState<CommandSuggestion[]>(
     [],
   )
@@ -217,11 +221,26 @@ export function CommandPalette({
     })
   }
 
-  const handleCloseActions = () => {
+  const handleCloseActions = (force = false) => {
+    // Don't close action menu if keybinding capture is active, unless forced
+    if (_isCapturing && !force) {
+      return
+    }
+
     setActionsState({
       open: false,
       suggestion: null,
     })
+  }
+
+  const handleRefreshForKeybinding = async () => {
+    // If on root page, refresh the main commands list
+    if (currentPage.id === "root") {
+      onRefreshCommands()
+    } else {
+      // If on child page, refresh the current page
+      await refreshCurrentPage()
+    }
   }
 
   const handleActionSelect = async (actionId: string) => {
@@ -235,6 +254,16 @@ export function CommandPalette({
     // to update the isFavorite flags of nested commands
     if (actionId.startsWith("toggle-favorite-")) {
       await refreshCurrentPage()
+    }
+
+    // If this is a reset keybinding action, refresh to show updated keybinding
+    if (actionId.startsWith("reset-keybinding-")) {
+      await refreshCurrentPage()
+    }
+
+    // For setKeybinding actions, don't close the menu - it will stay open for capture
+    if (actionId.startsWith("set-keybinding-")) {
+      return // Keep menu open
     }
   }
 
@@ -288,6 +317,7 @@ export function CommandPalette({
                 actions={actionsState.suggestion.actions}
                 onActionSelect={handleActionSelect}
                 onClose={handleCloseActions}
+                onRefresh={handleRefreshForKeybinding}
               />
             )}
           </Command>

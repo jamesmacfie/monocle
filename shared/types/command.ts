@@ -68,5 +68,6 @@ export interface CommandActionsProps {
   inputRef: RefObject<HTMLInputElement>
   actions?: CommandSuggestion[]
   onActionSelect?: (id: string) => void
-  onClose: () => void
+  onClose: (force?: boolean) => void
+  onRefresh?: () => void
 }

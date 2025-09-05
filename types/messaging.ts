@@ -33,12 +33,20 @@ export type ShowToastMessage = {
   message: string
 }
 
+export type UpdateCommandSettingMessage = {
+  type: "update-command-setting"
+  commandId: string
+  setting: string
+  value: any
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
   | GetCommandsMessage
   | ExecuteKeybindingMessage
   | ShowToastMessage
+  | UpdateCommandSettingMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

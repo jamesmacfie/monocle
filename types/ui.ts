@@ -43,6 +43,10 @@ export type ActionExecutionContext =
       type: "setKeybinding"
       targetCommandId: string
     }
+  | {
+      type: "resetKeybinding"
+      targetCommandId: string
+    }
 
 export type CommandSuggestion = {
   id: string
