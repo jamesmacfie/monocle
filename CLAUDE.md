@@ -465,9 +465,44 @@ The application uses Redux Toolkit for command palette state management, providi
 
 #### Redux Store Architecture
 
-The Redux store is created dynamically per instance and manages navigation state across both content script and new tab modes:
+The application uses two store factory functions for different use cases:
 
-**Store Configuration** (`/shared/store/index.ts`):
+**App Store Configuration** (`/shared/store/index.ts`):
+```typescript
+export const createAppStore = (
+  sendMessage?: (message: any) => Promise<any>,
+) => {
+  return configureStore({
+    reducer: {
+      settings: settingsSlice,
+      navigation: navigationSlice.reducer,
+      commandPalette: commandPaletteStateSlice.reducer,
+      keybinding: keybindingSlice,
+    },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        thunk: {
+          extraArgument: { sendMessage } as ThunkApi,
+        },
+      }),
+    preloadedState: {
+      settings: {
+        newTab: { clock: { show: true } },
+        loading: false,
+        error: null,
+      },
+      commandPalette: { isOpen: false },
+      keybinding: {
+        isCapturing: false,
+        targetCommandId: null,
+        capturedKeybinding: null,
+      },
+    },
+  })
+}
+```
+
+**Navigation Store Configuration** (for command palette):
 ```typescript
 export const createNavigationStore = (
   initialCommands: {
@@ -481,24 +516,23 @@ export const createNavigationStore = (
   return configureStore({
     reducer: {
       navigation: navigationSlice.reducer,
+      commandPalette: commandPaletteStateSlice.reducer,
+      keybinding: keybindingSlice,
+      settings: settingsSlice,
     },
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware({
-        thunk: {
-          extraArgument: { sendMessage } as ThunkApi,
-        },
-      }),
-    preloadedState: {
-      navigation: getInitialStateWithCommands(initialCommands),
-    },
+    // ... rest of configuration
   })
 }
 ```
 
+**Store Usage Patterns**:
+- **`createAppStore`**: Used by new tab page for full application state including settings
+- **`createNavigationStore`**: Used by command palette components with command data preloading
+
 **Key Features**:
-- **Dynamic Store Creation**: Each mode (content script/new tab) creates its own store instance
+- **Dynamic Store Creation**: Each context creates appropriate store instance
 - **Message Injection**: Background script messaging function injected as thunk extra argument
-- **Preloaded State**: Initial commands from background script loaded into store on creation
+- **Settings Integration**: Settings slice included for persistent user preferences
 - **Type Safety**: Full TypeScript support with typed hooks and selectors
 
 #### Navigation Slice (`/shared/store/slices/navigation.slice.ts`)
@@ -550,6 +584,70 @@ type Page = {
 - `selectUI`: Get active UI form
 - `selectInitialCommands`: Get root commands and deep search items
 - `selectLoading`/`selectError`: Get async operation state
+
+#### Settings Slice (`/shared/store/slices/settings.slice.ts`)
+
+The settings slice manages persistent user preferences with automatic storage synchronization:
+
+**State Shape**:
+```typescript
+interface SettingsState {
+  newTab: NewTabSettings      // New tab page specific settings
+  loading: boolean            // Loading state for async operations
+  error: string | null       // Error state for failed operations
+}
+
+interface NewTabSettings {
+  clock?: {
+    show?: boolean           // Example: clock visibility preference
+    // Room for future: format, timezone, etc.
+  }
+  greeting?: {
+    show?: boolean           // Example: greeting visibility
+    // Room for future: customText, name, etc.
+  }
+}
+```
+
+**Async Thunks**:
+- `loadSettings`: Load settings from `chrome.storage.local` on app initialization
+- `updateClockVisibility`: Example thunk that updates a specific setting and persists to storage
+
+**Synchronous Actions**:
+- `clearError`: Clear error state
+- `setClockVisibility`: Immediate UI update (used with async thunk for optimistic updates)
+
+**Selectors**:
+- `selectNewTabSettings`: Get all new tab settings
+- `selectClockVisibility`: Example selector for specific setting (with default fallback)
+- `selectSettingsLoading`/`selectSettingsError`: Get async operation state
+
+**Storage Synchronization Pattern**:
+```typescript
+// Async thunk example for updating settings
+export const updateClockVisibility = createAsyncThunk(
+  "settings/updateClockVisibility",
+  async (show: boolean, { rejectWithValue }) => {
+    try {
+      const result = await browserAPI.storage.local.get(STORAGE_KEY)
+      const currentSettings = result[STORAGE_KEY] || {}
+      
+      const updatedSettings = {
+        ...currentSettings,
+        newTab: {
+          ...currentSettings.newTab,
+          clock: { ...currentSettings.newTab?.clock, show },
+        },
+      }
+      
+      await browserAPI.storage.local.set({ [STORAGE_KEY]: updatedSettings })
+      return show
+    } catch (error) {
+      return rejectWithValue("Failed to update setting")
+    }
+  },
+)
+```
 
 #### Typed Redux Hooks (`/shared/store/hooks.ts`)
 
@@ -624,6 +722,46 @@ Key React hooks for state management:
 - `useAppDispatch`: Type-safe dispatch for Redux actions
 - `useAppSelector`: Type-safe selector for Redux state
 - `useAppStore`: Direct access to Redux store instance
+
+### Settings Subscription Pattern
+
+Components that need to react to settings changes use the Redux subscription pattern:
+
+```typescript
+// Subscribe to specific setting changes
+const dispatch = useAppDispatch()
+const showClock = useAppSelector(selectClockVisibility)
+
+// Load settings on component mount
+useEffect(() => {
+  dispatch(loadSettings())
+}, [dispatch])
+
+// Listen for cross-tab settings changes
+useEffect(() => {
+  const handleStorageChange = (changes: any, areaName: string) => {
+    if (areaName === "local" && changes["monocle-settings"]) {
+      dispatch(loadSettings()) // Sync state with storage
+    }
+  }
+
+  browserAPI.storage.onChanged.addListener(handleStorageChange)
+  return () => browserAPI.storage.onChanged.removeListener(handleStorageChange)
+}, [dispatch])
+
+// Use setting in render
+return (
+  <div>
+    {showClock && <ClockComponent />}
+  </div>
+)
+```
+
+This pattern ensures:
+- **Immediate Updates**: UI reflects setting changes instantly
+- **Cross-Tab Sync**: Changes in one tab appear in all tabs
+- **Persistence**: Settings survive browser restarts
+- **Type Safety**: TypeScript prevents runtime errors
 
 ### Deployment Mode Differences
 
@@ -792,10 +930,157 @@ The extension manifest supports both modes with the following key configurations
    - Command execution counts
    - Favorite command IDs
 
-2. **User Preferences** (future)
+2. **User Settings** (`chrome.storage.local`)
+   - Persistent user preferences via settings slice
    - Custom keybindings
+   - New tab preferences (visibility toggles, etc.)
    - Theme preferences
-   - Command visibility settings
+
+## Settings System
+
+The settings system provides persistent storage for user preferences with automatic synchronization across browser tabs and sessions.
+
+### Architecture
+
+**Storage Backend**: Uses `chrome.storage.local` with key `monocle-settings`
+
+**Redux Integration**: Settings slice manages state with automatic persistence
+
+**Cross-Tab Sync**: Storage change listeners keep UI synchronized across tabs
+
+### Settings Structure
+
+```typescript
+interface Settings {
+  theme?: ThemeSettings           // Theme preferences
+  newTab?: NewTabSettings         // New tab page settings
+  commands?: Record<string, CommandSettings>  // Per-command settings
+}
+
+interface NewTabSettings {
+  clock?: { show?: boolean }      // UI element visibility
+  greeting?: { show?: boolean }   // Additional UI preferences
+  // Extensible for future new tab features
+}
+```
+
+### API Methods (`background/commands/settings.ts`)
+
+**Loading Settings**:
+```typescript
+const loadSettings = async (): Promise<Settings>
+getAllSettings(): Promise<Settings>
+getNewTabSettings(): Promise<NewTabSettings>
+```
+
+**Updating Settings**:
+```typescript
+updateNewTabSettings(partialSettings: Partial<NewTabSettings>): Promise<void>
+updateNewTabClockSettings(clockSettings): Promise<void>
+setCommandSettings(commandId: string, settings: CommandSettings): Promise<void>
+```
+
+**Convenience Methods**:
+```typescript
+getNewTabClockSettings(): Promise<ClockSettings>
+updateNewTabClockSettings(settings): Promise<void>
+clearAllSettings(): Promise<void>
+```
+
+### Storage Synchronization Pattern
+
+**1. Load Settings on App Start**:
+```typescript
+// In NewTabApp component
+useEffect(() => {
+  dispatch(loadSettings())
+}, [dispatch])
+```
+
+**2. Listen for Storage Changes**:
+```typescript
+useEffect(() => {
+  const handleStorageChange = (changes: any, areaName: string) => {
+    if (areaName === "local" && changes["monocle-settings"]) {
+      dispatch(loadSettings())  // Reload settings from storage
+    }
+  }
+
+  browserAPI.storage.onChanged.addListener(handleStorageChange)
+  return () => browserAPI.storage.onChanged.removeListener(handleStorageChange)
+}, [dispatch])
+```
+
+**3. Update Settings via Redux**:
+```typescript
+// Component usage
+const dispatch = useAppDispatch()
+const showClock = useAppSelector(selectClockVisibility)
+
+// Update setting (persists automatically)
+dispatch(updateClockVisibility(!showClock))
+```
+
+### Implementation Example
+
+Using the visibility toggle pattern for any new setting:
+
+**1. Add to Types** (`types/settings.ts`):
+```typescript
+interface NewTabSettings {
+  newFeature?: {
+    show?: boolean
+    // Additional options...
+  }
+}
+```
+
+**2. Create Setting Command** (`background/commands/newTab/newFeature.ts`):
+```typescript
+const toggleNewFeature: RunCommand = {
+  id: "toggle-new-feature",
+  name: async () => {
+    const settings = await getNewTabNewFeatureSettings()
+    const isVisible = settings.show ?? true
+    return isVisible ? "Hide New Feature" : "Show New Feature"
+  },
+  run: async () => {
+    const current = await getNewTabNewFeatureSettings()
+    await updateNewTabNewFeatureSettings({
+      show: !(current.show ?? true)
+    })
+  },
+}
+```
+
+**3. Add to Redux Slice** (optional for UI state):
+```typescript
+// Add selector
+export const selectNewFeatureVisibility = (state: { settings: SettingsState }) =>
+  state.settings.newTab.newFeature?.show ?? true
+
+// Add async thunk if needed for complex updates
+export const updateNewFeatureVisibility = createAsyncThunk(...)
+```
+
+**4. Use in Component**:
+```typescript
+const showNewFeature = useAppSelector(selectNewFeatureVisibility)
+
+return (
+  <div>
+    {showNewFeature && <NewFeatureComponent />}
+  </div>
+)
+```
+
+### Benefits
+
+- **Persistent**: Settings survive browser restarts
+- **Cross-Tab Sync**: Changes immediately reflect across all extension contexts
+- **Type Safe**: Full TypeScript support prevents runtime errors
+- **Extensible**: Easy to add new settings categories
+- **Command Integration**: Settings can be modified via command palette
 
 ## Development Commands
 
