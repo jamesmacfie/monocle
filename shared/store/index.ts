@@ -6,12 +6,49 @@ import {
   getInitialStateWithCommands,
   navigationSlice,
 } from "./slices/navigation.slice"
+import settingsSlice from "./slices/settings.slice"
 
 // Define extra argument type for thunks
 export interface ThunkApi {
   sendMessage: (message: any) => Promise<any>
 }
 
+// Store factory for the entire app (including settings)
+export const createAppStore = () => {
+  return configureStore({
+    reducer: {
+      settings: settingsSlice,
+      navigation: navigationSlice.reducer,
+      commandPalette: commandPaletteStateSlice.reducer,
+      keybinding: keybindingSlice,
+    },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        thunk: {
+          extraArgument: {} as ThunkApi,
+        },
+      }),
+    preloadedState: {
+      settings: {
+        newTab: {
+          clock: {
+            show: true,
+          },
+        },
+        loading: false,
+        error: null,
+      },
+      commandPalette: { isOpen: false },
+      keybinding: {
+        isCapturing: false,
+        targetCommandId: null,
+        capturedKeybinding: null,
+      },
+    },
+  })
+}
+
+// Original store factory for command palette (still needed for existing usage)
 export const createNavigationStore = (
   initialCommands: {
     favorites: CommandSuggestion[]
@@ -26,6 +63,7 @@ export const createNavigationStore = (
       navigation: navigationSlice.reducer,
       commandPalette: commandPaletteStateSlice.reducer,
       keybinding: keybindingSlice,
+      settings: settingsSlice,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
@@ -41,10 +79,20 @@ export const createNavigationStore = (
         targetCommandId: null,
         capturedKeybinding: null,
       },
+      settings: {
+        newTab: {
+          clock: {
+            show: true,
+          },
+        },
+        loading: false,
+        error: null,
+      },
     },
   })
 }
 
-export type AppStore = ReturnType<typeof createNavigationStore>
+export type AppStore = ReturnType<typeof createAppStore>
+export type NavigationStore = ReturnType<typeof createNavigationStore>
 export type RootState = ReturnType<AppStore["getState"]>
 export type AppDispatch = AppStore["dispatch"]

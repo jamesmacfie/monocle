@@ -13,7 +13,7 @@ const handleGetCommands = async (message: GetCommandsMessage) => {
     favorites: cmdFavorites,
     recents: cmdRecents,
     suggestions: cmdSuggestions,
-  } = await getCommandsFromBackground()
+  } = await getCommandsFromBackground(message.context)
   console.debug("[GetCommands] Raw commands from background:", {
     favorites: cmdFavorites.length,
     recents: cmdRecents.length,

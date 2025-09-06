@@ -13,6 +13,7 @@ import {
   getFavoriteCommandIds,
   toggleFavoriteCommandId,
 } from "./favorites"
+import { newTabCommands } from "./newTab"
 import { clearRecentsCommand } from "./recents"
 import { getAllCommandSettings } from "./settings"
 import { toolCommands } from "./tools"
@@ -23,7 +24,7 @@ import {
 } from "./usage"
 
 // Helper function to load and filter all commands
-const loadAllCommands = (): Command[] => {
+const loadAllCommands = (context?: Browser.Context): Command[] => {
   // First load in common browser commands
   const allCommandsUnfiltered = [
     ...browserCommands,
@@ -32,6 +33,11 @@ const loadAllCommands = (): Command[] => {
     clearFavoritesCommand,
     debug,
   ]
+
+  // Add new tab specific commands only if on new tab page
+  if (context?.isNewTab) {
+    allCommandsUnfiltered.push(...newTabCommands)
+  }
 
   // Then, go and grab browser specific commands
   if (isFirefox) {
@@ -52,7 +58,7 @@ const loadAllCommands = (): Command[] => {
   })
 }
 
-// Export all commands for use in other modules
+// Export all commands for use in other modules (without context for general use)
 export const allCommands = loadAllCommands()
 
 // Helper function to recursively find all favorited commands including sub-commands
@@ -181,14 +187,16 @@ const _processSuggestions = async (
 }
 
 // Function to get all commands, including dynamically generated ones
-export const getCommands = async (): Promise<{
+export const getCommands = async (
+  context?: Browser.Context,
+): Promise<{
   favorites: Command[]
   recents: Command[]
   suggestions: Command[]
 }> => {
   console.debug("[Commands] Starting getCommands()")
 
-  const allCommands = loadAllCommands()
+  const allCommands = loadAllCommands(context)
   console.debug(
     "[Commands] All commands loaded:",
     allCommands.length,
@@ -204,10 +212,12 @@ export const getCommands = async (): Promise<{
   const favoriteCommandIds = await getFavoriteCommandIds()
 
   // Create a basic execution context for resolving command children
+  // Preserve the isNewTab flag from the input context
   const basicContext: Browser.Context = {
     url: "",
     title: "",
     modifierKey: null,
+    isNewTab: context?.isNewTab,
   }
 
   // Find all favorited commands including sub-commands
@@ -248,11 +258,23 @@ export const findCommand = async (
   commandId: string,
   context: Browser.Context,
 ): Promise<Command | undefined> => {
+  console.debug("[FindCommand] Searching for command:", commandId)
+  console.debug(
+    "[FindCommand] In commands:",
+    commands.map((c) => c.id),
+  )
+  console.debug("[FindCommand] Context:", context)
+
   // First try to find the command directly in the current level
   const directCommand = commands.find((cmd) => cmd.id === commandId)
   if (directCommand) {
+    console.debug("[FindCommand] Found direct command:", directCommand.id)
     return directCommand
   }
+
+  console.debug(
+    "[FindCommand] Command not found directly, searching children...",
+  )
 
   // If not found, recursively search children of commands that have children
   for (const command of commands) {
@@ -320,7 +342,7 @@ export const executeCommand = async (
     return
   }
 
-  const { favorites, recents, suggestions } = await getCommands()
+  const { favorites, recents, suggestions } = await getCommands(context)
   const allSuggestions = await commandsToSuggestions(
     [...favorites, ...recents, ...suggestions],
     context,
@@ -359,7 +381,21 @@ export const executeCommand = async (
         )
         return Promise.resolve()
       })
-      .with({ type: "primary" }, (ctx) => {
+      .with({ type: "primary" }, async (ctx) => {
+        const targetCommand = await findCommand(
+          [...favorites, ...recents, ...suggestions],
+          ctx.targetCommandId,
+          context,
+        )
+
+        // If this is a ParentCommand, we shouldn't execute it - the UI should navigate instead
+        if (targetCommand && "commands" in targetCommand) {
+          console.warn(
+            `[ExecuteCommand] Attempted to execute ParentCommand ${ctx.targetCommandId}. UI should navigate to children instead.`,
+          )
+          return Promise.resolve()
+        }
+
         const modifiedContext = {
           ...context,
         }

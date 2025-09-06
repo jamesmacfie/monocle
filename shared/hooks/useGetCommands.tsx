@@ -2,10 +2,11 @@ import * as React from "react"
 
 const { useState, useCallback } = React
 
+import type { Browser } from "../../types"
 import type { CommandData } from "../types/command"
 import { useSendMessage } from "./useSendMessage"
 
-export function useGetCommands() {
+export function useGetCommands(context?: Partial<Browser.Context>) {
   const [data, setData] = useState<CommandData>({
     favorites: [],
     suggestions: [],
@@ -18,9 +19,12 @@ export function useGetCommands() {
   const fetchCommands = useCallback(async () => {
     setIsLoading(true)
     try {
-      const response = await sendMessage({
-        type: "get-commands",
-      })
+      const response = await sendMessage(
+        {
+          type: "get-commands",
+        },
+        context,
+      )
 
       if (response.error) {
         console.error("Error fetching suggestions:", response.error)

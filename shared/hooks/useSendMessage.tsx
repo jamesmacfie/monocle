@@ -1,5 +1,6 @@
 import * as React from "react"
 import type {
+  Browser,
   CheckKeybindingConflictMessage,
   ExecuteCommandMessage,
   ExecuteKeybindingMessage,
@@ -37,24 +38,33 @@ export function useSendMessage() {
     modifierRef.current = modifier
   }, [modifier])
 
-  return React.useCallback((message: SendableMessage): Promise<any> => {
-    const context = {
-      title: document.title,
-      url: window.location.href,
-      modifierKey: modifierRef.current,
-    }
+  return React.useCallback(
+    (
+      message: SendableMessage,
+      contextOverride?: Partial<Browser.Context>,
+    ): Promise<any> => {
+      const baseContext = {
+        title: document.title,
+        url: window.location.href,
+        modifierKey: modifierRef.current,
+      }
 
-    // Add context to all messages since they all require it
-    const messageWithContext = { ...message, context }
+      // Merge base context with any overrides
+      const context = { ...baseContext, ...contextOverride }
 
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(messageWithContext, (response) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError)
-        } else {
-          resolve(response)
-        }
+      // Add context to all messages since they all require it
+      const messageWithContext = { ...message, context }
+
+      return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(messageWithContext, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError)
+          } else {
+            resolve(response)
+          }
+        })
       })
-    })
-  }, [])
+    },
+    [],
+  )
 }

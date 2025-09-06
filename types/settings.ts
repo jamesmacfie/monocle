@@ -5,20 +5,34 @@ export interface CommandSettings {
   keybinding?: string
 }
 
-// Global application settings (future expansion)
-export interface GlobalSettings {
-  // For future global preferences like themes, default behaviors, etc.
-  [key: string]: any
+// Theme settings
+export interface ThemeSettings {
+  mode?: "light" | "dark" | "system"
+}
+
+// New tab page settings
+export interface NewTabSettings {
+  backgroundCategories?: string[]
+  clock?: {
+    show?: boolean
+    // room for future: format, timezone, etc.
+  }
+  greeting?: {
+    show?: boolean
+    // room for future: customText, name, etc.
+  }
 }
 
 // Main settings structure
 export interface Settings {
-  global?: GlobalSettings
+  theme?: ThemeSettings
+  newTab?: NewTabSettings
   commands?: Record<string, CommandSettings>
 }
 
 // Settings that can be persisted
 export interface PersistedSettings {
-  global: GlobalSettings
+  theme: ThemeSettings
+  newTab: NewTabSettings
   commands: Record<string, CommandSettings>
 }

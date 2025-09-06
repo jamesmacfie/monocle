@@ -8,6 +8,7 @@ import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
 import { createNavigationStore } from "../../shared/store"
+import { useAppDispatch } from "../../shared/store/hooks"
 
 interface NewTabCommandPaletteProps {
   onClose?: () => void
@@ -20,8 +21,15 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
   className,
   autoFocus = false,
 }) => {
-  const { data, fetchCommands, isLoading } = useGetCommands()
+  const { data, fetchCommands, isLoading } = useGetCommands({ isNewTab: true })
   const sendMessage = useSendMessage()
+  const _dispatch = useAppDispatch()
+  const sendMessageWithNewTab = React.useCallback(
+    (message: any) => {
+      return sendMessage(message, { isNewTab: true })
+    },
+    [sendMessage],
+  )
 
   // Enable global keybindings
   useGlobalKeybindings()
@@ -40,15 +48,28 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
       parentNames?: string[],
     ) => {
       try {
-        const response = await sendMessage({
+        const response = await sendMessageWithNewTab({
           type: "execute-command",
           id,
           formValues,
           parentNames,
         })
 
-        if (response.success && navigateBack) {
-          if (onClose) {
+        if (response.success) {
+          // Refresh commands to update the UI (e.g., toggle button text)
+          fetchCommands()
+
+          // For settings-related commands, reload settings from storage
+          if (id.includes("clock") || id.includes("settings")) {
+            // Import loadSettings dynamically to avoid linter issues
+            import("../../shared/store/slices/settings.slice").then(
+              ({ loadSettings }) => {
+                _dispatch(loadSettings())
+              },
+            )
+          }
+
+          if (navigateBack && onClose) {
             onClose() // Close palette on successful execution (only if closeable)
           }
         }
@@ -61,7 +82,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
         )
       }
     },
-    [onClose, sendMessage],
+    [onClose, sendMessageWithNewTab, fetchCommands],
   )
 
   const handleClose = useCallback(() => {
@@ -75,8 +96,8 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
     if (!data.favorites && !data.recents && !data.suggestions) {
       return null
     }
-    return createNavigationStore(data, sendMessage)
-  }, [data, sendMessage])
+    return createNavigationStore(data, sendMessageWithNewTab)
+  }, [data, sendMessageWithNewTab])
 
   if (!store) {
     return <div className={className}>Loading...</div>

@@ -7,5 +7,6 @@ export namespace Browser {
     url: string
     title: string
     modifierKey: ModifierKey | null
+    isNewTab?: boolean
   }
 }

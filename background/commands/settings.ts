@@ -1,4 +1,10 @@
-import type { CommandSettings, GlobalSettings, Settings } from "../../types/"
+import { merge } from "lodash"
+import type {
+  CommandSettings,
+  NewTabSettings,
+  Settings,
+  ThemeSettings,
+} from "../../types/"
 
 // Cross-browser compatibility layer
 const browserAPI = typeof browser !== "undefined" ? browser : chrome
@@ -12,13 +18,15 @@ const loadSettings = async (): Promise<Settings> => {
     const settings = result[STORAGE_KEY] || {}
 
     return {
-      global: settings.global || {},
+      theme: settings.theme || {},
+      newTab: settings.newTab || {},
       commands: settings.commands || {},
     }
   } catch (error) {
     console.error("Failed to load settings:", error)
     return {
-      global: {},
+      theme: {},
+      newTab: {},
       commands: {},
     }
   }
@@ -98,32 +106,59 @@ export const removeCommandSettings = async (
   }
 }
 
-// Get global settings
-export const getGlobalSettings = async (): Promise<GlobalSettings> => {
+// Get theme settings
+export const getThemeSettings = async (): Promise<ThemeSettings> => {
   const settings = await loadSettings()
-  return settings.global || {}
+  return settings.theme || {}
 }
 
-// Set global settings
-export const setGlobalSettings = async (
-  globalSettings: GlobalSettings,
+// Set theme settings
+export const setThemeSettings = async (
+  themeSettings: ThemeSettings,
 ): Promise<void> => {
   const settings = await loadSettings()
-  settings.global = globalSettings
+  settings.theme = themeSettings
   await saveSettings(settings)
 }
 
-// Update global settings (merging with existing)
-export const updateGlobalSettings = async (
-  partialSettings: Partial<GlobalSettings>,
+// Update theme settings (merging with existing)
+export const updateThemeSettings = async (
+  partialSettings: Partial<ThemeSettings>,
 ): Promise<void> => {
   const settings = await loadSettings()
 
-  const existingGlobal = settings.global || {}
-  settings.global = {
-    ...existingGlobal,
+  const existingTheme = settings.theme || {}
+  settings.theme = {
+    ...existingTheme,
     ...partialSettings,
   }
+
+  await saveSettings(settings)
+}
+
+// Get new tab settings
+export const getNewTabSettings = async (): Promise<NewTabSettings> => {
+  const settings = await loadSettings()
+  return settings.newTab || {}
+}
+
+// Set new tab settings
+export const setNewTabSettings = async (
+  newTabSettings: NewTabSettings,
+): Promise<void> => {
+  const settings = await loadSettings()
+  settings.newTab = newTabSettings
+  await saveSettings(settings)
+}
+
+// Update new tab settings (merging with existing)
+export const updateNewTabSettings = async (
+  partialSettings: Partial<NewTabSettings>,
+): Promise<void> => {
+  const settings = await loadSettings()
+
+  const existingNewTab = settings.newTab || {}
+  settings.newTab = merge(existingNewTab, partialSettings)
 
   await saveSettings(settings)
 }
@@ -140,4 +175,36 @@ export const clearAllSettings = async (): Promise<void> => {
 // Get all settings
 export const getAllSettings = async (): Promise<Settings> => {
   return await loadSettings()
+}
+
+// Convenience methods for nested newTab settings access
+
+// Get new tab clock settings
+export const getNewTabClockSettings = async () => {
+  const settings = await getNewTabSettings()
+  return settings.clock || {}
+}
+
+// Update new tab clock settings
+export const updateNewTabClockSettings = async (
+  clockSettings: Partial<NonNullable<NewTabSettings["clock"]>>,
+): Promise<void> => {
+  await updateNewTabSettings({
+    clock: clockSettings,
+  })
+}
+
+// Get new tab greeting settings
+export const getNewTabGreetingSettings = async () => {
+  const settings = await getNewTabSettings()
+  return settings.greeting || {}
+}
+
+// Update new tab greeting settings
+export const updateNewTabGreetingSettings = async (
+  greetingSettings: Partial<NonNullable<NewTabSettings["greeting"]>>,
+): Promise<void> => {
+  await updateNewTabSettings({
+    greeting: greetingSettings,
+  })
 }
