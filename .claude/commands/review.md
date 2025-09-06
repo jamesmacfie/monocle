@@ -1,55 +1,165 @@
-You are a reviewer of this codebase and have been givin this a request Keeping these things in mind: 
+You are a reviewer of this codebase and have been given this request. Keep these things in mind:
 
-This document outlines the standards and patterns reviewers should enforce when reviewing code changes in the Silo Firefox extension. The codebase emphasizes simplicity, consistency, and clear architectural boundaries.
+This document outlines the standards and patterns reviewers should enforce when reviewing code changes in the Monocle browser extension. The codebase emphasizes simplicity, consistency, and clear architectural boundaries across dual deployment modes (content script overlay and new tab page).
 
 ## Core Review Principles
 
 ### 1. Architectural Adherence
-- **Respect the layered architecture** - UI components should not directly interact with browser APIs
-- **Maintain separation of concerns** - Background services handle business logic, UI handles presentation
-- **Follow the established message passing patterns** - All background communication must go through the messaging system
+- **Respect the dual-mode architecture** - Ensure changes work in both content script (overlay) and new tab modes
+- **Maintain separation of concerns** - Background script handles business logic, shared components handle presentation
+- **Follow established message passing patterns** - All background communication must go through the typed messaging system
+- **Preserve shared component architecture** - Use `/shared/components/` for cross-mode functionality
 
-### 2. Code Clarity & Readability
+### 2. Command System Integrity
+- **Respect command types** - RunCommand, ParentCommand, UICommand each have distinct patterns
+- **Maintain command organization** - Favorites, recents, suggestions, deep search items must be preserved
+- **Follow command execution flow** - User interaction → message → background script → browser action → UI feedback
+- **Honor browser compatibility** - Commands must work in both Chrome and Firefox
+
+### 3. Code Clarity & Readability
 - **Code should tell a story** - Functions and components should have clear, single responsibilities
 - **Prefer explicit over clever** - Choose readable code over performance micro-optimizations
 - **Use descriptive names** - Variables, functions, and components should clearly indicate their purpose
 
-## Shared UI Component Standards
+## Command System Standards
+
+### Command Definition Requirements
+
+**✅ DO: Follow established command patterns**
+```typescript
+// RunCommand - simple execution
+export const myCommand: RunCommand = {
+  id: "my-command", // kebab-case, descriptive
+  name: "My Command",
+  icon: { type: "lucide", name: "Star" },
+  color: "blue",
+  keybinding: "⌘ m",
+  run: async (context) => {
+    // Use background/utils/browser.ts for API calls
+    await callBrowserAPI("tabs", "create", { url: "..." })
+  }
+}
+
+// ParentCommand - with deep search for complex hierarchies
+export const bookmarks: ParentCommand = {
+  id: "bookmarks",
+  name: "Bookmarks",
+  enableDeepSearch: true, // Enable for nested commands
+  commands: async (context) => {
+    try {
+      const bookmarkTree = await getBookmarkTree()
+      return processBookmarkTree(bookmarkTree)
+    } catch (error) {
+      // Use NoOp commands for error states
+      return [
+        createNoOpCommand(
+          "bookmarks-error",
+          "Unable to Load Bookmarks",
+          "Please check browser permissions and try again",
+          { type: "lucide", name: "AlertTriangle" }
+        )
+      ]
+    }
+  }
+}
+
+// UICommand - requires user input
+export const searchCommand: UICommand = {
+  id: "google-search",
+  name: "Google Search",
+  ui: [
+    {
+      id: "query",
+      type: "text",
+      label: "Search query",
+      placeholder: "Enter search terms..."
+    }
+  ],
+  run: async (context, values) => {
+    const query = encodeURIComponent(values.query || "")
+    await callBrowserAPI("tabs", "create", { 
+      url: `https://google.com/search?q=${query}` 
+    })
+  }
+}
+```
+
+**❌ DON'T: Break command conventions**
+```typescript
+// Wrong - direct browser API usage
+export const badCommand: RunCommand = {
+  run: async () => {
+    chrome.tabs.create({ url: "..." }) // Wrong - use callBrowserAPI
+  }
+}
+
+// Wrong - missing error handling in ParentCommand
+export const badParent: ParentCommand = {
+  commands: async () => {
+    const data = await riskyAPICall() // Wrong - no try/catch
+    return processData(data)
+  }
+}
+
+// Wrong - not using NoOp for error states
+export const badErrorHandling: ParentCommand = {
+  commands: async () => {
+    try {
+      return await getData()
+    } catch (error) {
+      alert("Error occurred") // Wrong - use NoOp command
+      return []
+    }
+  }
+}
+```
+
+### Command Registration Pattern
+
+**Required registration flow:**
+1. Create command file: `background/commands/category/myCommand.ts`
+2. Export from category index: `background/commands/category/index.ts`
+3. Category registered in: `background/commands/index.ts`
+
+**Command organization requirements:**
+- **Favorites**: Must support recursive discovery through ParentCommand hierarchies
+- **Deep Search**: Pre-flatten nested commands with breadcrumb names and expanded keywords
+- **Usage Tracking**: All commands automatically tracked for recents unless `doNotAddToRecents: true`
+
+## Shared Component Standards
 
 ### Component Reusability Requirements
 
 **✅ DO: Use existing shared components**
 ```tsx
-// Use the established Modal system
-import { Modal, ModalFormRow, ModalLabel, ModalInput } from "@/ui/shared/components/Modal"
+// Use established command palette components
+import { CommandPalette } from "@/shared/components/command/CommandPalette"
+import { CommandItem } from "@/shared/components/command/CommandItem"
+import { CommandActions } from "@/shared/components/command/CommandActions"
 
-// Use shared layout components
-import { PageLayout, PageHeader } from "@/ui/shared/components/layout"
-
-// Use shared data display components
-import { Card } from "@/ui/shared/components/Card"
+// Use shared UI components
+import { Icon } from "@/shared/components/icon"
 ```
 
 **❌ DON'T: Create duplicate functionality**
 ```tsx
-// Don't create custom modals when Modal exists
-const CustomModal = ({ children }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-50"> {/* Wrong */}
+// Don't recreate command palette components
+const CustomCommandItem = ({ command }) => (
+  <div className="command-item"> {/* Wrong - use CommandItem */}
 ```
 
 ### Component Design Standards
 
 **Required for new shared components:**
 - **TypeScript props interface** - All props must be fully typed
-- **Consistent styling approach** - Use Tailwind CSS exclusively, no custom CSS
+- **Dual-mode compatibility** - Must work in both content script (shadow DOM) and new tab (regular DOM)
+- **Cross-browser support** - Test in Chrome and Firefox
+- **Consistent styling approach** - Use Tailwind CSS exclusively
 - **Accessibility compliance** - ARIA labels, keyboard navigation, focus management
-- **Responsive design** - Mobile-first responsive breakpoints
-- **Dark mode support** - All components must work in both light and dark themes
 
 **Component structure template:**
 ```tsx
 interface ComponentProps {
-  // All props explicitly typed
   required: string
   optional?: boolean
   onAction: (data: SpecificType) => void
@@ -60,11 +170,9 @@ export const Component: React.FC<ComponentProps> = ({
   optional = false, 
   onAction 
 }) => {
-  // Component logic here
-  
   return (
     <div className="flex items-center gap-2 p-4 bg-white dark:bg-gray-800">
-      {/* Tailwind CSS only */}
+      {/* Tailwind CSS only - works in both light and dark modes */}
     </div>
   )
 }
@@ -73,176 +181,88 @@ export const Component: React.FC<ComponentProps> = ({
 ### When to Create New Shared Components
 
 **Create shared components when:**
-- The pattern appears in 3+ places
-- The component encapsulates complex logic that benefits from reuse
-- The component implements a design system pattern (buttons, inputs, cards)
+- The pattern appears in both content script and new tab modes
+- The component encapsulates command palette logic
+- The component implements design system patterns (icons, buttons, forms)
 
 **Don't create shared components for:**
-- Single-use page-specific layouts
-- Simple wrapper divs with basic styling
-- Components tightly coupled to specific business logic
+- Mode-specific wrappers (ContentCommandPalette vs NewTabCommandPalette)
+- Simple styling containers
+- Components tightly coupled to specific command logic
 
 ## Message Passing Architecture
 
 ### Background ↔ UI Communication Standards
 
 **✅ Correct message passing pattern:**
-```tsx
-// 1. Define message type in constants
-// src/shared/constants/index.ts
-export const MESSAGE_TYPES = {
-  GET_NEW_FEATURE_DATA: "GET_NEW_FEATURE_DATA",
-  CREATE_NEW_FEATURE: "CREATE_NEW_FEATURE"
-} as const
+```typescript
+// 1. Define message types
+type Message = 
+  | ExecuteCommandMessage
+  | GetCommandsMessage  
+  | GetChildrenMessage
+  | ExecuteKeybindingMessage
 
-// 2. Add background message handler
-// src/background/index.ts
-case MESSAGE_TYPES.GET_NEW_FEATURE_DATA: {
-  const data = await newFeatureService.getData()
-  return { success: true, data }
+// 2. Background handler with pattern matching
+handleMessage(message) {
+  return await match(message)
+    .with({ type: "get-commands" }, async (msg) => {
+      return await getCommands(msg.context)
+    })
+    .with({ type: "execute-command" }, async (msg) => {
+      return await executeCommand(msg.commandId, msg.context, msg.values)
+    })
+    .otherwise(() => {
+      throw new Error(`Unknown message type`)
+    })
 }
 
-// 3. Add messaging service method
-// src/shared/utils/messaging.ts
-async getNewFeatureData(): Promise<FeatureData[]> {
-  const response = await this.sendMessage<FeatureData[]>(
-    MESSAGE_TYPES.GET_NEW_FEATURE_DATA
-  )
-  return response.data || []
-}
-
+// 3. UI components use via hooks
+const { data, error, loading } = useGetCommands()
 ```
 
 **❌ Anti-patterns to reject:**
 ```tsx
 // Don't bypass the messaging system
-const data = await browser.storage.local.get() // Wrong - UI shouldn't touch storage directly
+const data = await chrome.storage.local.get() // Wrong - use background script
 
 // Don't use untyped messages
-browser.runtime.sendMessage({ type: "some-random-string" }) // Wrong - not in MESSAGE_TYPES
+chrome.runtime.sendMessage({ type: "random-string" }) // Wrong - use typed messages
 
-// Don't ignore error handling
-const data = await browser.runtime.sendMessage(msg) // Wrong - no error handling
+// Don't skip error handling
+const data = await chrome.runtime.sendMessage(msg) // Wrong - no error handling
 ```
 
 ### Message Flow Requirements
 
 **All new background communication must:**
-1. **Add message type constant** to `src/shared/constants/index.ts`
-2. **Implement background handler** in `src/background/index.ts`
-3. **Add typing to messaging service** in `src/shared/utils/messaging.ts`
-4. **Use in Redux stores** - UI components should access via stores, not direct messaging
+1. **Define message type** in `types.ts`
+2. **Implement background handler** with pattern matching
+3. **Use through shared hooks** - UI components should use `useGetCommands`, `useSendMessage`
+4. **Handle errors gracefully** - Show user-friendly error states
 
-**Error handling requirements:**
-```tsx
-// Always handle errors in message passing
-try {
-  const response = await browser.runtime.sendMessage({ type, payload })
-  if (!response?.success) {
-    throw new Error(response?.error || "Operation failed")
-  }
-  return response.data
-} catch (error) {
-  // Set error state, log appropriately
-  set({ error: error instanceof Error ? error.message : "Unknown error" })
-  throw error
-}
-```
+## Redux State Management Standards
 
-## Code Quality Standards
+### Store Architecture Requirements
 
-### Function and Component Clarity
-
-**✅ Clear, purposeful functions:**
-```tsx
-// Good - single responsibility, clear purpose
-const validateBookmarkUrl = (url: string): boolean => {
-  try {
-    new URL(url)
-    return true
-  } catch {
-    return false
-  }
-}
-
-// Good - descriptive component name and props
-interface BookmarkFilterProps {
-  tags: Tag[]
-  selectedTags: string[]
-  onTagSelect: (tagId: string) => void
-}
-
-const BookmarkFilters: React.FC<BookmarkFilterProps> = ({ 
-  tags, 
-  selectedTags, 
-  onTagSelect 
-}) => {
-  // Clear, focused component logic
-}
-```
-
-**❌ Unclear patterns to reject:**
-```tsx
-// Bad - unclear purpose, multiple responsibilities
-const doStuff = (data: any) => {
-  // processes bookmarks
-  // updates containers  
-  // sends notifications
-  // ... too many responsibilities
-}
-
-// Bad - vague naming
-const BookmarkThing = ({ stuff, onStuff }) => { /* unclear what this does */ }
-```
-
-### Variable and Function Naming
-
-**Required naming conventions:**
-- **Boolean variables**: Use `is`, `has`, `should`, `can` prefixes (`isVisible`, `hasContainer`)
-- **Event handlers**: Use `handle` prefix (`handleBookmarkSelect`, `handleContainerCreate`)
-- **Async functions**: Use descriptive verbs (`fetchBookmarks`, `createContainer`, `updateRule`)
-- **Constants**: Use SCREAMING_SNAKE_CASE (`MESSAGE_TYPES`, `DEFAULT_PREFERENCES`)
-
-### Code Organization Standards
-
-**File structure requirements:**
-- **Imports grouped**: React/external libraries → internal utilities → components → types
-- **Top-level imports only**: All imports must be at the top of the file - no conditional imports, dynamic imports, or imports inside functions/components
-- **Component exports**: Use named exports for components, default export for single-purpose modules
-- **Type definitions**: Co-locate interfaces with their usage, extract to shared types when used across files
-
-```tsx
-// ✅ Good import organization
-import React from "react"
-import { create } from "Redux"
-import browser from "webextension-polyfill"
-
-import { MESSAGE_TYPES } from "@/shared/constants"
-import { Container } from "@/shared/types"
-import { logger } from "@/shared/utils/logger"
-
-import { Modal } from "@/ui/shared/components/Modal"
-import { useContainers } from "@/ui/shared/stores"
-```
-
-## Library Usage Philosophy
-
-### Redux State Management
-
-**Why Redux Toolkit:** Provides predictable state management with excellent TypeScript support and developer tools integration
-
-**Required Redux patterns:**
-
-**✅ Store Creation Pattern:**
-```tsx
-// ✅ Create store with preloaded state and typed thunks
+**✅ Follow established store patterns:**
+```typescript
+// Store factory with message injection
 export const createNavigationStore = (
-  initialCommands: CommandData,
+  initialCommands: {
+    favorites: CommandSuggestion[]
+    recents: CommandSuggestion[]
+    suggestions: CommandSuggestion[]
+    deepSearchItems: CommandSuggestion[]
+  },
   sendMessage: (message: any) => Promise<any>,
 ) => {
   return configureStore({
     reducer: {
       navigation: navigationSlice.reducer,
+      commandPalette: commandPaletteStateSlice.reducer,
+      keybinding: keybindingSlice,
+      settings: settingsSlice,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
@@ -257,68 +277,41 @@ export const createNavigationStore = (
 }
 ```
 
-**✅ Slice Definition Pattern:**
-```tsx
-// ✅ Use createSlice with typed state and actions
+### Navigation State Management
+
+**Required navigation state shape:**
+```typescript
 interface NavigationState {
-  pages: Page[]
-  ui: UI | null
+  pages: Page[]                    // Navigation stack for command hierarchy
+  ui: UI | null                   // Active UI form for input commands
+  initialCommands: {              // Root commands + deep search items
+    favorites: CommandSuggestion[]
+    recents: CommandSuggestion[]
+    suggestions: CommandSuggestion[]
+    deepSearchItems: CommandSuggestion[]
+  }
   loading: boolean
   error: string | null
 }
 
-const navigationSlice = createSlice({
-  name: 'navigation',
-  initialState,
-  reducers: {
-    updateSearchValue: (state, action: PayloadAction<string>) => {
-      const currentPage = getCurrentPage(state)
-      if (currentPage) {
-        currentPage.searchValue = action.payload
-      }
-    },
-    // More reducers...
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(navigateToCommand.pending, (state) => {
-        state.loading = true
-      })
-      .addCase(navigateToCommand.fulfilled, (state, action) => {
-        state.loading = false
-        state.pages.push(action.payload)
-      })
-  },
-})
+type Page = {
+  id: string                      // Command ID or "root"
+  commands: { favorites, recents, suggestions }
+  searchValue: string
+  parent?: CommandSuggestion
+  parentPath: string[]           // For efficient lookups
+}
 ```
 
-**✅ Async Thunk Pattern:**
-```tsx
-// ✅ Use createAsyncThunk with typed parameters
-export const navigateToCommand = createAsyncThunk<
-  Page,
-  { id: string; currentPage: Page; initialCommands: CommandData },
-  { extra: ThunkApi }
->('navigation/navigateToCommand', async ({ id, currentPage, initialCommands }, { extra }) => {
-  const { sendMessage } = extra
-  const response = await sendMessage({
-    type: 'get-children-commands',
-    payload: { commandId: id, context: getContext() }
-  })
-  
-  return {
-    id,
-    commands: response.commands,
-    searchValue: '',
-    parent: findCommand(id, currentPage, initialCommands),
-    parentPath: [...currentPage.parentPath, id]
-  }
-})
-```
+**Required navigation actions:**
+- `navigateToCommand`: Create new page for ParentCommand children
+- `setInitialCommands`: Update root commands (favorites/recents changes)
+- `updateSearchValue`: Update search input for current page
+- `navigateBack`: Pop page or close UI form
+- `showUI`/`hideUI`: Handle UI command forms
 
-**✅ Typed Hook Usage:**
+**✅ Typed Redux usage:**
 ```tsx
-// ✅ Use typed Redux hooks
 import { useAppDispatch, useAppSelector } from '@/shared/store/hooks'
 import { selectCurrentPage, updateSearchValue } from '@/shared/store/slices/navigation.slice'
 
@@ -334,95 +327,140 @@ const Component = () => {
 }
 ```
 
-**❌ Anti-patterns to reject:**
+**❌ Redux anti-patterns to reject:**
 ```tsx
-// ❌ Don't use untyped Redux hooks
-import { useDispatch, useSelector } from 'react-redux' // Wrong - use typed hooks
+// Don't use untyped hooks
+import { useDispatch, useSelector } from 'react-redux' // Wrong
 
-// ❌ Don't mutate state outside reducers
-const updateState = (newValue) => {
-  state.pages[0].searchValue = newValue // Wrong - only in reducers
+// Don't mutate state outside reducers
+currentPage.searchValue = newValue // Wrong
+
+// Don't create stores without proper typing
+const store = createStore(reducer) // Wrong - use configureStore
+```
+
+## Settings & Storage Standards
+
+### Settings Architecture
+
+**Required settings pattern:**
+```typescript
+// Settings stored in chrome.storage.local with Redux integration
+interface Settings {
+  theme?: ThemeSettings
+  newTab?: NewTabSettings         
+  commands?: Record<string, CommandSettings>  // Per-command settings
 }
 
-// ❌ Don't create store without TypeScript typing
-const store = createStore(reducer) // Wrong - use configureStore with types
+// Redux slice with automatic storage sync
+const settingsSlice = createSlice({
+  name: 'settings',
+  initialState,
+  reducers: {
+    // Immediate UI updates
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loadSettings.fulfilled, (state, action) => {
+        return { ...state, ...action.payload }
+      })
+      .addCase(updateClockVisibility.fulfilled, (state, action) => {
+        state.newTab.clock.show = action.payload
+      })
+  },
+})
 
-// ❌ Don't use thunks without proper typing
-const asyncAction = () => async (dispatch, getState, extra) => { // Wrong - not typed
-  // Missing return type and parameter types
+// Cross-tab sync pattern
+useEffect(() => {
+  const handleStorageChange = (changes: any, areaName: string) => {
+    if (areaName === "local" && changes["monocle-settings"]) {
+      dispatch(loadSettings())
+    }
+  }
+  
+  browserAPI.storage.onChanged.addListener(handleStorageChange)
+  return () => browserAPI.storage.onChanged.removeListener(handleStorageChange)
+}, [dispatch])
+```
+
+### Custom Keybindings
+
+**Required keybinding system:**
+- Storage in `chrome.storage.local` under `monocle-settings`
+- Real-time conflict detection during capture
+- Visual feedback (blue border normal, red border conflict)
+- Settings integration for persistence
+
+## Code Quality Standards
+
+### Function and Component Clarity
+
+**✅ Clear, purposeful functions:**
+```tsx
+// Good - single responsibility
+const validateCommandId = (id: string): boolean => {
+  return /^[a-z0-9-]+$/.test(id)
+}
+
+// Good - async command property
+const getDynamicName = async (context: Browser.Context): Promise<string> => {
+  const tab = await getCurrentTab()
+  return `Close "${tab.title}"`
+}
+
+// Good - modifier action support
+const modifierActionLabel = {
+  shift: "Open in new window",
+  cmd: "Open in background tab"
 }
 ```
 
-**Redux Integration Requirements:**
-- **Provider Setup**: Wrap components with `<Provider store={store}>` 
-- **Typed Hooks**: Always use `useAppDispatch`, `useAppSelector` from typed hooks file
-- **Slice Patterns**: Use `createSlice` for reducers, avoid hand-written reducers
-- **Async Thunks**: Use `createAsyncThunk` for async operations with proper typing
-- **Selectors**: Co-locate selectors with slices for better organization
-- **Immutability**: Redux Toolkit uses Immer - write "mutative" logic in reducers
-
-### Tailwind CSS Styling
-
-**Why Tailwind:** Utility-first approach prevents CSS bloat and ensures design consistency
-
-**Required styling patterns:**
+**❌ Unclear patterns to reject:**
 ```tsx
-// ✅ Use Tailwind utilities exclusively
-<div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-    Content
-  </span>
-  <button className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors">
-    Action
-  </button>
-</div>
+// Bad - multiple responsibilities
+const processCommand = (command: any) => {
+  // validates command
+  // executes command
+  // updates statistics
+  // handles errors
+  // ... too many responsibilities
+}
 
-// ❌ Don't use custom CSS or inline styles
-<div style={{ display: 'flex', padding: '16px' }}> {/* Wrong */}
-<div className="custom-container"> {/* Wrong - avoid custom CSS */}
+// Bad - missing async handling
+const name = () => getCurrentTab().title // Wrong - should be async
 ```
 
-### React Patterns
+### Variable and Function Naming
 
-**Why these patterns:** Hooks-first functional components with clear data flow
+**Required naming conventions:**
+- **Command IDs**: Use kebab-case (`goto-tab`, `close-current-tab`)
+- **Boolean variables**: Use `is`, `has`, `should`, `can` prefixes (`isVisible`, `hasChildren`)
+- **Event handlers**: Use `handle` prefix (`handleCommandSelect`, `handleSearch`)
+- **Async functions**: Use descriptive verbs (`fetchCommands`, `executeCommand`)
+- **Constants**: Use SCREAMING_SNAKE_CASE (`MESSAGE_TYPES`, `KEYBINDING_SYMBOLS`)
 
-**Required React patterns:**
-- **Functional components only** - No class components
-- **Hooks for state management** - useState for local state, Redux stores for shared state
-- **TypeScript props** - All component props must be explicitly typed
-- **Error boundaries** - Wrap complex components in error boundaries where appropriate
+### Browser Compatibility Requirements
 
-### Testing Approach
+**Cross-browser patterns:**
+```typescript
+// Use browser abstraction layer
+import { callBrowserAPI } from '@/background/utils/browser'
 
-**Why Jest + RTL:** Industry standard with excellent TypeScript support and component testing capabilities
+// Good - cross-browser API usage
+const createTab = async (url: string) => {
+  return await callBrowserAPI("tabs", "create", { url })
+}
 
-**Required testing patterns:**
-```tsx
-// ✅ Component testing pattern
-import { render, screen, fireEvent } from '@testing-library/react'
-import { ComponentName } from './ComponentName'
+// Good - browser detection
+const supportedBrowsers = ["chrome", "firefox"]
+if (supportedBrowsers.includes(getCurrentBrowser())) {
+  // Browser-specific functionality
+}
 
-describe('ComponentName', () => {
-  it('should handle user interaction correctly', () => {
-    const mockHandler = jest.fn()
-    render(<ComponentName onAction={mockHandler} />)
-    
-    fireEvent.click(screen.getByRole('button', { name: /action/i }))
-    
-    expect(mockHandler).toHaveBeenCalledWith(expectedData)
-  })
-})
-
-// ✅ Service testing pattern  
-import { serviceName } from './serviceName'
-
-describe('serviceName', () => {
-  it('should process data correctly', async () => {
-    const result = await serviceName.processData(inputData)
-    
-    expect(result).toEqual(expectedOutput)
-  })
-})
+// Good - Firefox container tabs (when supported)
+if (getCurrentBrowser() === "firefox") {
+  const containers = await callBrowserAPI("contextualIdentities", "query", {})
+}
 ```
 
 ## Review Checklist
@@ -430,57 +468,88 @@ describe('serviceName', () => {
 ### For Every Pull Request
 
 **Architecture & Design:**
-- [ ] Changes follow the established message passing patterns
-- [ ] New UI components use shared components where possible
-- [ ] Background services maintain clear separation of concerns
-- [ ] Redux stores follow the established patterns
+- [ ] Changes work in both content script (overlay) and new tab modes
+- [ ] Command system patterns are followed correctly
+- [ ] Message passing uses established typed patterns
+- [ ] Redux navigation state is properly managed
+- [ ] Browser compatibility is maintained (Chrome + Firefox)
+
+**Command System:**
+- [ ] New commands follow RunCommand/ParentCommand/UICommand patterns
+- [ ] Error handling uses NoOp commands for ParentCommands
+- [ ] Deep search is enabled for complex hierarchies (`enableDeepSearch: true`)
+- [ ] Browser API calls use `background/utils/browser.ts`
+- [ ] Command registration follows established flow
 
 **Code Quality:**
 - [ ] Functions have clear, single responsibilities
-- [ ] Variable and function names are descriptive and follow conventions
+- [ ] Variable and function names follow established conventions
 - [ ] TypeScript types are comprehensive and accurate
 - [ ] Error handling is implemented consistently
+- [ ] Async properties are handled correctly
 
 **UI & Styling:**
-- [ ] Uses Tailwind CSS exclusively (no custom CSS or inline styles)
-- [ ] Components work in both light and dark themes
-- [ ] Responsive design is implemented appropriately
+- [ ] Uses Tailwind CSS exclusively (no custom CSS)
+- [ ] Components work in both shadow DOM and regular DOM
+- [ ] Works in both light and dark themes
 - [ ] Accessibility standards are met (ARIA, keyboard navigation)
+- [ ] Shared components are used where possible
 
-**Testing & Documentation:**
-- [ ] New functionality includes appropriate tests
-- [ ] Complex business logic has unit tests
-- [ ] UI components have interaction tests where appropriate
-- [ ] Code changes are self-documenting through clear structure
+**State Management:**
+- [ ] Redux stores follow established patterns
+- [ ] Settings integration works with storage sync
+- [ ] Navigation state is properly managed
+- [ ] Typed Redux hooks are used (`useAppDispatch`, `useAppSelector`)
 
 **Performance & Security:**
-- [ ] No unnecessary re-renders or expensive operations in render paths
-- [ ] User input is properly validated and sanitized
-- [ ] Sensitive data handling follows security best practices
-- [ ] Bundle size impact is reasonable for the functionality added
+- [ ] No unnecessary re-renders in command palette
+- [ ] Command execution is efficient
+- [ ] User input is properly validated
+- [ ] Bundle size impact is reasonable
 
 ### Common Rejection Criteria
 
 **Immediate rejection for:**
-- Direct browser API usage in UI components (must go through background services)
+- Breaking dual-mode compatibility (content script and new tab)
+- Direct browser API usage outside background script
 - Custom CSS when Tailwind utilities would suffice
+- Bypassing the command system architecture
 - Untyped or poorly typed TypeScript
-- Missing error handling in async operations
-- Duplicate functionality when shared components exist
-- Breaking established naming conventions
-- Missing accessibility considerations
+- Missing error handling in command execution
+- Breaking established Redux patterns
+- Missing cross-browser compatibility
 
 ### Questions to Ask During Review
 
-1. **"Does this change respect the architectural boundaries?"**
-2. **"Could this functionality be achieved using existing shared components?"**
-3. **"Is the error handling comprehensive and user-friendly?"**
-4. **"Would a new developer understand this code in 6 months?"**
-5. **"Does this maintain consistency with the existing codebase patterns?"**
+1. **"Does this work identically in both content script overlay and new tab modes?"**
+2. **"Does this command follow the established RunCommand/ParentCommand/UICommand patterns?"**
+3. **"Is the Redux navigation state properly managed?"**
+4. **"Are browser APIs properly abstracted through the background script?"**
+5. **"Does this maintain the command execution flow and organization?"**
+6. **"Is error handling comprehensive and user-friendly (especially NoOp commands)?"**
+7. **"Would this work in both Chrome and Firefox?"**
+
+### Deep Search Considerations
+
+When reviewing ParentCommands:
+- [ ] Consider if `enableDeepSearch: true` would benefit users
+- [ ] Ensure nested commands have meaningful breadcrumb names
+- [ ] Verify expanded keywords include folder/parent names
+- [ ] Check that deep search items preserve full functionality
+
+### Keybinding System
+
+When reviewing keybinding changes:
+- [ ] Use proper keybinding format (`⌘ K`, `⌃ d`, `⌥ ⇧ n`)
+- [ ] Ensure conflict detection works properly
+- [ ] Verify custom keybindings persist correctly
+- [ ] Test modifier actions work as expected
 
 ## Conclusion
 
-The goal is to maintain a codebase that is simple, consistent, and maintainable. Every change should make the codebase easier to understand and extend, not more complex. When in doubt, favor simplicity and established patterns over clever solutions.
+The goal is to maintain a cohesive, dual-mode browser extension with a robust command system. Every change should work seamlessly across both deployment modes while maintaining the established architectural patterns. Focus on extensibility, type safety, and user experience consistency.
+
+When in doubt, favor the established patterns and architectural decisions that enable the extension's unique dual-mode capabilities.
 
 --- 
 
