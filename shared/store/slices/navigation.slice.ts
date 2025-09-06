@@ -76,7 +76,9 @@ export const navigateToCommand = createAsyncThunk<
   async ({ id, currentPage, initialCommands }, { extra, rejectWithValue }) => {
     try {
       if (!extra || typeof extra.sendMessage !== "function") {
-        return rejectWithValue("Messaging unavailable: sendMessage not provided")
+        return rejectWithValue(
+          "Messaging unavailable: sendMessage not provided",
+        )
       }
       // Build parent path for backend to efficiently locate the command
       const parentPath = currentPage.id === "root" ? [] : currentPage.parentPath
@@ -149,7 +151,9 @@ export const refreshCurrentPage = createAsyncThunk<
 
     try {
       if (!extra || typeof extra.sendMessage !== "function") {
-        return rejectWithValue("Messaging unavailable: sendMessage not provided")
+        return rejectWithValue(
+          "Messaging unavailable: sendMessage not provided",
+        )
       }
       // Re-fetch children for the current parent command
       const parentPath = currentPage.parentPath.slice(0, -1) // Remove current page ID to get parent path

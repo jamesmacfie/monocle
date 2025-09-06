@@ -39,14 +39,9 @@ function NewTabAppContent() {
   }, [dispatch])
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-6 flex items-center justify-center">
       <div className="max-w-2xl mx-auto">
         {showClock && <Clock className="mb-12" />}
-
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Monocle</h1>
-          <p className="text-gray-600">Command palette for the web</p>
-        </div>
 
         <div className="raycast new-tab-palette">
           <NewTabCommandPalette autoFocus={true} className="w-full" />
@@ -90,9 +85,10 @@ export default function NewTabApp() {
   }, [])
 
   // Create Redux store for the entire app (provide messaging to thunks)
-  const store = useMemo(() => createAppStore(sendMessageWithNewTab), [
-    sendMessageWithNewTab,
-  ])
+  const store = useMemo(
+    () => createAppStore(sendMessageWithNewTab),
+    [sendMessageWithNewTab],
+  )
 
   return (
     <Provider store={store}>

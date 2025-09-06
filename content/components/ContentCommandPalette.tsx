@@ -8,6 +8,7 @@ import { useCommandPaletteStateRedux } from "../../shared/hooks/useCommandPalett
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
+
 // Store is provided by ContentCommandPaletteWithState at the root
 
 interface ContentCommandPaletteProps {

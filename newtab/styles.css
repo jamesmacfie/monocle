@@ -66,6 +66,17 @@ body {
   color: #1f2937;
 }
 
+/* In the new tab context, render the palette in-flow instead of fixed overlay */
+.new-tab-palette [cmdk-root] {
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  z-index: auto;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* Remove shine gradient animations for new tab */
 .new-tab-palette [cmdk-root]:after,
 .new-tab-palette [cmdk-root]:before {
