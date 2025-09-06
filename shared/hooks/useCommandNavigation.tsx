@@ -11,6 +11,12 @@ import {
   navigateToCommand,
   type Page,
   refreshCurrentPage as refreshCurrentPageThunk,
+  selectCurrentPage,
+  selectError,
+  selectInitialCommands,
+  selectLoading,
+  selectPages,
+  selectUI,
   setInitialCommands,
   showUI,
   updateSearchValue as updateSearchValueAction,
@@ -110,16 +116,13 @@ export function useCommandNavigation(
 ) {
   const dispatch = useAppDispatch()
 
-  // Redux selectors - get entire navigation state in one call
-  const navigationState = useAppSelector((state) => state.navigation)
-  const {
-    pages,
-    ui,
-    initialCommands: storedInitialCommands,
-    loading,
-    error,
-  } = navigationState
-  const currentPage = pages[pages.length - 1]
+  // Redux selectors - subscribe only to what we need
+  const pages = useAppSelector(selectPages)
+  const ui = useAppSelector(selectUI)
+  const storedInitialCommands = useAppSelector(selectInitialCommands)
+  const loading = useAppSelector(selectLoading)
+  const error = useAppSelector(selectError)
+  const currentPage = useAppSelector(selectCurrentPage)
 
   // Ref flags to prevent various race conditions and loops:
   const ignoreSearchUpdate = useRef(false) // Prevents search updates from being saved during navigation

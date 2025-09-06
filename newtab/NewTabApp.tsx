@@ -68,8 +68,31 @@ function NewTabAppContent() {
 }
 
 export default function NewTabApp() {
-  // Create Redux store for the entire app
-  const store = useMemo(() => createAppStore(), [])
+  // Build a messaging function with new tab context and basic page info
+  const sendMessageWithNewTab = useMemo(() => {
+    return (message: any) =>
+      new Promise((resolve, reject) => {
+        const context = {
+          title: document.title,
+          url: window.location.href,
+          modifierKey: null,
+          isNewTab: true,
+        }
+        const messageWithContext = { ...message, context }
+        chrome.runtime.sendMessage(messageWithContext, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError)
+          } else {
+            resolve(response)
+          }
+        })
+      })
+  }, [])
+
+  // Create Redux store for the entire app (provide messaging to thunks)
+  const store = useMemo(() => createAppStore(sendMessageWithNewTab), [
+    sendMessageWithNewTab,
+  ])
 
   return (
     <Provider store={store}>

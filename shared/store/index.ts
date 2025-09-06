@@ -14,7 +14,9 @@ export interface ThunkApi {
 }
 
 // Store factory for the entire app (including settings)
-export const createAppStore = () => {
+export const createAppStore = (
+  sendMessage?: (message: any) => Promise<any>,
+) => {
   return configureStore({
     reducer: {
       settings: settingsSlice,
@@ -25,7 +27,8 @@ export const createAppStore = () => {
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
         thunk: {
-          extraArgument: {} as ThunkApi,
+          // Provide background messaging to async thunks where needed
+          extraArgument: { sendMessage } as ThunkApi,
         },
       }),
     preloadedState: {

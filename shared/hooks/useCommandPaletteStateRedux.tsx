@@ -1,8 +1,5 @@
 import { useCallback, useEffect } from "react"
-import {
-  useCommandPaletteDispatch,
-  useCommandPaletteSelector,
-} from "../store/commandPaletteHooks"
+import { useAppDispatch, useAppSelector } from "../store/hooks"
 import {
   hideUI,
   selectIsOpen,
@@ -15,8 +12,8 @@ const browserAPI = typeof browser !== "undefined" ? browser : chrome
 
 // Redux-based hook for managing command palette shortcuts and toggle state
 export const useCommandPaletteStateRedux = () => {
-  const dispatch = useCommandPaletteDispatch()
-  const isOpen = useCommandPaletteSelector(selectIsOpen)
+  const dispatch = useAppDispatch()
+  const isOpen = useAppSelector(selectIsOpen)
 
   const show = useCallback(() => {
     dispatch(showUI())

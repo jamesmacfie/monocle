@@ -1,5 +1,4 @@
 import * as React from "react"
-import { Provider } from "react-redux"
 
 const { useEffect, useCallback } = React
 
@@ -9,7 +8,7 @@ import { useCommandPaletteStateRedux } from "../../shared/hooks/useCommandPalett
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
-import { createNavigationStore } from "../../shared/store"
+// Store is provided by ContentCommandPaletteWithState at the root
 
 interface ContentCommandPaletteProps {
   onClose?: () => void
@@ -74,25 +73,15 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
     onClose?.()
   }, [hideUI, onClose])
 
-  // Create Redux store with current data
-  const store = React.useMemo(() => {
-    if (!data.favorites && !data.recents && !data.suggestions) {
-      return null
-    }
-    return createNavigationStore(data, sendMessage)
-  }, [data, sendMessage])
-
   return (
     <>
-      {isOpen && store && (
-        <Provider store={store}>
-          <CommandPalette
-            items={data}
-            executeCommand={executeCommand}
-            close={handleClose}
-            onRefreshCommands={fetchCommands}
-          />
-        </Provider>
+      {isOpen && (
+        <CommandPalette
+          items={data}
+          executeCommand={executeCommand}
+          close={handleClose}
+          onRefreshCommands={fetchCommands}
+        />
       )}
       <ToastContainer />
     </>
