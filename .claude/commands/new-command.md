@@ -1,96 +1,170 @@
-You are taked with maintaining the background commands. Here is some helpful info:
+You are tasked with maintaining the background commands. Here is some helpful info:
 
-This guide explains how to create new commands for the Monocle browser extension. Commands are the core functionality that users can access through the command palette.
+This guide explains how to create new commands for the Monocle browser extension. Commands are the core functionality that users can access through the command palette in both overlay mode (Cmd+K) and new tab mode.
 
-## Table of Contents
+## Command Architecture Overview
 
-1. [Command Types Overview](#command-types-overview)
-2. [Simple RunCommand Example](#simple-runcommand-example)
-3. [UICommand with Form Example](#uicommand-with-form-example)
-4. [ParentCommand with Dynamic Children](#parentcommand-with-dynamic-children)
-5. [NoOp Commands for Error States](#noop-commands-for-error-states)
-6. [Action System Architecture](#action-system-architecture)
-7. [Deep Search Feature](#deep-search-feature)
-8. [Alert/Notification Examples](#alertnotification-examples)
-9. [Command Properties Glossary](#command-properties-glossary)
-10. [Registration and Best Practices](#registration-and-best-practices)
+Commands in Monocle are TypeScript objects that extend `BaseCommand` and define how users interact with browser functionality. There are three main types:
 
-## Command Types Overview
+- **RunCommand**: Immediate execution commands with a `run()` function
+- **UICommand**: Commands requiring user input via forms before execution  
+- **ParentCommand**: Commands that generate dynamic child commands
 
-There are three main types of commands in Monocle, all extending `BaseCommand`:
+All commands work identically in both content script (overlay) and new tab deployment modes.
 
-- **RunCommand**: Simple executable commands with a `run()` function
-- **UICommand**: Commands that require user input via form fields
-- **ParentCommand**: Commands that generate child commands dynamically
+## BaseCommand Properties
 
-## Simple RunCommand Example
-
-The most basic command type that executes immediately when selected.
-
-### Example: Simple Notification Command
+Every command must have these core properties:
 
 ```typescript
-// background/commands/tools/simpleNotification.ts
-import type { RunCommand } from "../../../types"
-import { getActiveTab, sendTabMessage } from "../../utils/browser"
+interface BaseCommand {
+  id: string                                    // Unique identifier (kebab-case)
+  name: AsyncValue<string | string[]>           // Display name, can be async
+  description?: AsyncValue<string>              // Optional description
+  icon?: AsyncValue<CommandIcon>                // Icon configuration  
+  color?: AsyncValue<ColorName | string>        // Theme color
+  keywords?: AsyncValue<string[]>               // Search keywords
+  keybinding?: string                          // Keyboard shortcut ("⌘ K", "⌃ d")
+  supportedBrowsers?: Browser.Platform[]       // ["chrome", "firefox"]
+  actions?: Command[]                          // Custom action menu items
+  doNotAddToRecents?: boolean                  // Exclude from recent commands
+}
+```
 
-export const simpleNotification: RunCommand = {
-  id: "simple-notification",
-  name: "Show Simple Notification", 
-  description: "Shows a simple success notification",
-  icon: { name: "Bell" }, // Lucide React icon name
-  color: "green",
-  keybinding: "⌘ n", // Optional keyboard shortcut
-  keywords: ["notification", "alert", "message"],
-  run: async () => {
-    const activeTab = await getActiveTab()
-    
-    if (activeTab) {
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-alert",
-        level: "success",
-        message: "Hello from Monocle!",
-        icon: { name: "CheckCircle" }
-      })
+### AsyncValue Pattern
+
+Many properties support `AsyncValue<T>` which means they can be:
+- **Static**: `name: "My Command"`
+- **Async function**: `name: async (context) => \`Close "\${await getTabTitle()}"\``
+
+This allows commands to be dynamic based on current browser state.
+
+## RunCommand - Simple Execution
+
+The most basic command type for immediate actions:
+
+```typescript
+interface RunCommand extends BaseCommand {
+  run: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>
+  actionLabel?: AsyncValue<string>                           // Default action label
+  modifierActionLabel?: { [key in ModifierKey]?: string }   // Modifier key labels
+}
+```
+
+### Example: Simple Tab Command
+
+```typescript
+// background/commands/browser/closeCurrentTab.ts
+import type { RunCommand } from "../../../types"
+import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser"
+
+export const closeCurrentTab: RunCommand = {
+  id: "close-current-tab",
+  name: "Close Current Tab",
+  description: "Close the currently active tab",
+  icon: { type: "lucide", name: "X" },
+  color: "red",
+  keywords: ["close", "tab", "shut"],
+  keybinding: "⌘ w",
+  
+  // Modifier key behavior labels
+  modifierActionLabel: {
+    shift: "Close All Tabs",
+    cmd: "Close Other Tabs"
+  },
+  
+  run: async (context) => {
+    try {
+      const activeTab = await getActiveTab()
+      
+      if (context?.modifierKey === "shift") {
+        // Close all tabs
+        const tabs = await callBrowserAPI("tabs", "query", {})
+        for (const tab of tabs) {
+          await callBrowserAPI("tabs", "remove", tab.id)
+        }
+      } else if (context?.modifierKey === "cmd") {
+        // Close other tabs
+        const tabs = await callBrowserAPI("tabs", "query", {})
+        for (const tab of tabs) {
+          if (tab.id !== activeTab?.id) {
+            await callBrowserAPI("tabs", "remove", tab.id)
+          }
+        }
+      } else {
+        // Close current tab
+        if (activeTab) {
+          await callBrowserAPI("tabs", "remove", activeTab.id)
+        }
+      }
+      
+      // Success feedback
+      if (activeTab) {
+        await sendTabMessage(activeTab.id, {
+          type: "monocle-alert",
+          level: "success", 
+          message: "Tab closed successfully",
+          icon: { type: "lucide", name: "CheckCircle" }
+        })
+      }
+      
+    } catch (error) {
+      console.error("Failed to close tab:", error)
+      
+      const activeTab = await getActiveTab()
+      if (activeTab) {
+        await sendTabMessage(activeTab.id, {
+          type: "monocle-alert",
+          level: "error",
+          message: "Failed to close tab",
+          icon: { type: "lucide", name: "AlertTriangle" }
+        })
+      }
     }
   }
 }
 ```
 
-### Key Features:
-- **Immediate execution**: No user input required
-- **Browser API integration**: Uses utility functions to interact with tabs
-- **Alert system**: Sends notifications back to the browser
-- **Optional keybinding**: Allows keyboard shortcuts
-- **Automatic action menu**: Receives default actions (Execute, modifier keys, toggle favorite)
+### RunCommand Key Points:
+- **Immediate execution** when selected
+- **Modifier key support** via `context?.modifierKey` 
+- **Auto-generated actions**: Execute, modifier variants, toggle favorite
+- **Cross-browser compatibility** using `callBrowserAPI`
+- **User feedback** via alert system
 
-### Automatic Action Menu Generated:
+## UICommand - Form Input Required
+
+Commands that need user input before execution:
+
 ```typescript
-// This RunCommand automatically gets these action menu items:
-// 1. "Execute" (primary action - default Enter behavior)
-// 2. "Execute with ⌘" (Cmd modifier action)
-// 3. "Execute with ⇧" (Shift modifier action)  
-// 4. "Execute with ⌥" (Alt modifier action)
-// 5. "Execute with ⌃" (Ctrl modifier action)
-// 6. "Add to Favorites" or "Remove from Favorites" (toggle favorite)
+interface UICommand extends BaseCommand {
+  ui: CommandUI[]                              // Form field definitions
+  run: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>
+  actionLabel?: AsyncValue<string>
+  modifierActionLabel?: { [key in ModifierKey]?: string }
+}
+
+interface CommandUI {
+  id: string                    // Field identifier
+  type: "input" | "text"       // Input field or display text
+  label?: string               // Field label  
+  placeholder?: string         // Input placeholder
+  defaultValue?: string        // Default field value
+}
 ```
 
-## UICommand with Form Example
-
-Commands that require user input before execution.
-
-### Example: Custom Search Command
+### Example: Search Command with Form
 
 ```typescript
-// background/commands/tools/customSearch.ts
+// background/commands/tools/customSearch.ts  
 import type { UICommand } from "../../../types"
-import { getActiveTab, sendTabMessage } from "../../utils/browser"
+import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser"
 
 export const customSearch: UICommand = {
   id: "custom-search",
   name: "Custom Search",
   description: "Search any website with custom query",
-  icon: { name: "Search" },
+  icon: { type: "lucide", name: "Search" },
   color: "blue",
   keywords: ["search", "query", "find"],
   
@@ -99,32 +173,30 @@ export const customSearch: UICommand = {
     {
       id: "query",
       type: "input",
-      label: "Search Query", // Optional label
+      label: "Search Query",
       placeholder: "Enter your search terms...",
-      defaultValue: "" // Optional default value
+      defaultValue: ""
     },
     {
-      id: "website",
-      type: "input", 
+      id: "website", 
+      type: "input",
       label: "Website",
       placeholder: "e.g., stackoverflow.com",
       defaultValue: "google.com"
     }
   ],
   
-  // Action labels for different contexts
-  actionLabel: "Search",
+  // Modifier behaviors  
   modifierActionLabel: {
     cmd: "Search in New Window",
     shift: "Search in Private Window"
   },
   
   run: async (context, values) => {
-    const activeTab = await getActiveTab()
     const query = values?.query || ""
     const website = values?.website || "google.com"
     
-    // Build search URL based on website
+    // Build search URL
     let searchUrl = ""
     if (website.includes("google")) {
       searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`
@@ -132,127 +204,131 @@ export const customSearch: UICommand = {
       searchUrl = `https://${website}/search?q=${encodeURIComponent(query)}`
     }
     
-    if (activeTab) {
-      // Handle modifier keys for different behaviors
+    try {
+      // Handle modifier key behaviors
       if (context?.modifierKey === "cmd") {
-        // Open in new window
-        await sendTabMessage(activeTab.id, {
-          type: "monocle-newTab",
-          url: searchUrl
-        })
-      } else if (context?.modifierKey === "shift") {
-        // Open in private window - would need additional browser API calls
-        console.log("Opening in private window:", searchUrl)
+        // New window logic would go here
+        await callBrowserAPI("windows", "create", { url: searchUrl })
       } else {
         // Regular new tab
+        await callBrowserAPI("tabs", "create", { url: searchUrl })
+      }
+      
+      // Success feedback
+      const activeTab = await getActiveTab()
+      if (activeTab) {
         await sendTabMessage(activeTab.id, {
-          type: "monocle-newTab", 
-          url: searchUrl
+          type: "monocle-alert",
+          level: "success",
+          message: `Searching for "${query}" on ${website}`,
+          icon: { type: "lucide", name: "ExternalLink" }
         })
       }
       
-      // Show confirmation alert
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-alert",
-        level: "success",
-        message: `Searching for "${query}" on ${website}`,
-        icon: { name: "ExternalLink" }
-      })
+    } catch (error) {
+      console.error("Search failed:", error)
+      
+      const activeTab = await getActiveTab()
+      if (activeTab) {
+        await sendTabMessage(activeTab.id, {
+          type: "monocle-alert", 
+          level: "error",
+          message: "Search failed. Please try again.",
+          icon: { type: "lucide", name: "AlertTriangle" }
+        })
+      }
     }
   }
 }
 ```
 
-### Form Field Types:
-- **`input`**: Text input field with placeholder and default value
-- **`text`**: Display-only text (for instructions or labels)
+### UICommand Key Points:
+- **Form opens first** when command is selected
+- **User input accessible** via `values` parameter
+- **Auto-generated actions**: Configure (instead of Execute), toggle favorite
+- **No auto-modifier actions** - handle modifiers in `run()` function
+- **Form validation** should be done in the `run()` function
 
-### Key Features:
-- **Form validation**: Access user input via `values` parameter
-- **Modifier actions**: Different behavior based on pressed modifier keys
-- **Dynamic behavior**: Customize execution based on user input
-- **Smart action menu**: Gets "Configure" primary action instead of "Execute" since it has a form
+## ParentCommand - Dynamic Children
 
-### Automatic Action Menu Generated:
+Commands that generate child commands based on current browser state:
+
 ```typescript
-// This UICommand automatically gets these action menu items:
-// 1. "Configure" (primary action - opens form instead of "Execute")
-// 2. No modifier key actions (UICommands don't get these by default)
-// 3. "Add to Favorites" or "Remove from Favorites" (toggle favorite)
-// Note: Modifier key behavior is handled within the run() function using context?.modifierKey
+interface ParentCommand extends BaseCommand {
+  commands: (context: Browser.Context) => Promise<Command[]>
+  enableDeepSearch?: boolean                   // Enable deep search (optional)
+}
 ```
 
-## ParentCommand with Dynamic Children
-
-Commands that generate child commands dynamically based on current browser state or external data.
-
-### Example: Recent Bookmarks Command
+### Example: Recent Bookmarks with Error Handling
 
 ```typescript
 // background/commands/browser/recentBookmarks.ts
 import type { ParentCommand, RunCommand } from "../../../types"
-import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser"
+import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser" 
 import { createNoOpCommand } from "../../utils/commands"
 
 export const recentBookmarks: ParentCommand = {
   id: "recent-bookmarks",
-  name: "Go to Recent Bookmark",
-  description: "Navigate to a recently added bookmark",
-  icon: { name: "Bookmark" },
+  name: "Recent Bookmarks", 
+  description: "Navigate to recently added bookmarks",
+  icon: { type: "lucide", name: "Bookmark" },
   color: "yellow",
-  keywords: ["bookmark", "favorite", "saved"],
+  keywords: ["bookmark", "recent", "favorites"],
+  enableDeepSearch: true,  // Allow searching nested bookmarks directly
   
-  // Generate child commands dynamically
   commands: async (context) => {
     try {
-      // Fetch recent bookmarks using browser API
-      const bookmarks = await callBrowserAPI("bookmarks", "getRecent", 10)
+      const bookmarks = await callBrowserAPI("bookmarks", "getRecent", 20)
       
+      // Handle empty state
+      if (!bookmarks || bookmarks.length === 0) {
+        return [
+          createNoOpCommand(
+            "no-bookmarks",
+            "No Recent Bookmarks",
+            "No recently added bookmarks found",
+            { type: "lucide", name: "BookmarkX" }
+          )
+        ]
+      }
+      
+      // Convert bookmarks to commands
       return bookmarks
         .filter((bookmark: any) => bookmark.url && bookmark.title)
         .map((bookmark: any): RunCommand => ({
           id: `goto-bookmark-${bookmark.id}`,
-          
-          // Async name resolution
-          name: async () => bookmark.title,
-          
-          description: async () => `Navigate to ${bookmark.url}`,
-          
-          // Dynamic icon based on bookmark URL
-          icon: async () => {
-            if (bookmark.url.includes('github')) {
-              return { name: "Github" }
-            } else if (bookmark.url.includes('stackoverflow')) {
-              return { name: "MessageSquare" }
-            } else {
-              return { name: "Globe" }
-            }
-          },
-          
-          // Dynamic color based on bookmark type
-          color: async () => {
-            if (bookmark.url.includes('github')) return "purple"
-            if (bookmark.url.includes('stackoverflow')) return "orange" 
-            return "blue"
-          },
-          
-          keywords: ["bookmark", "navigate", bookmark.title.toLowerCase()],
+          name: bookmark.title,
+          description: `Navigate to ${bookmark.url}`,
+          icon: { type: "lucide", name: "Globe" },
+          color: "blue",
+          keywords: ["bookmark", bookmark.title.toLowerCase()],
           
           run: async () => {
-            const activeTab = await getActiveTab()
-            
-            if (activeTab) {
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-newTab",
-                url: bookmark.url
-              })
+            try {
+              await callBrowserAPI("tabs", "create", { url: bookmark.url })
               
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-alert",
-                level: "info",
-                message: `Opening ${bookmark.title}`,
-                icon: { name: "ExternalLink" }
-              })
+              const activeTab = await getActiveTab()
+              if (activeTab) {
+                await sendTabMessage(activeTab.id, {
+                  type: "monocle-alert",
+                  level: "info", 
+                  message: `Opening ${bookmark.title}`,
+                  icon: { type: "lucide", name: "ExternalLink" }
+                })
+              }
+            } catch (error) {
+              console.error("Failed to open bookmark:", error)
+              
+              const activeTab = await getActiveTab()
+              if (activeTab) {
+                await sendTabMessage(activeTab.id, {
+                  type: "monocle-alert",
+                  level: "error",
+                  message: "Failed to open bookmark",
+                  icon: { type: "lucide", name: "AlertTriangle" }
+                })
+              }
             }
           }
         }))
@@ -260,97 +336,10 @@ export const recentBookmarks: ParentCommand = {
     } catch (error) {
       console.error("Failed to load bookmarks:", error)
       
-      // Return NoOp error command instead of showing alerts
+      // Return NoOp error command (don't use alerts for ParentCommand errors)
       return [
         createNoOpCommand(
-          "bookmarks-error",
-          "Error Loading Bookmarks",
-          "Failed to fetch recent bookmarks. Please try again.",
-          { name: "AlertTriangle" }
-        )
-      ]
-    }
-  }
-}
-```
-
-### Key Features:
-- **Dynamic generation**: Child commands created based on live data
-- **Async properties**: Names, icons, and colors can be resolved asynchronously
-- **Error handling**: Graceful fallback when data fetching fails
-- **Context awareness**: Can use execution context to customize behavior
-- **Parent action menu**: Gets "Open" primary action to navigate into child commands
-
-### Automatic Action Menu Generated:
-```typescript
-// This ParentCommand automatically gets these action menu items:
-// 1. "Open" (primary action - navigates to show child commands)
-// 2. No modifier key actions (ParentCommands don't get these by default)
-// 3. "Add to Favorites" or "Remove from Favorites" (toggle favorite)
-// Note: Child commands each get their own action menus when generated
-```
-
-## NoOp Commands for Error States
-
-NoOp (No Operation) commands are special commands used to display error states, empty states, or informational messages in the command palette without performing any action when selected. They provide a better user experience than showing alerts for error conditions.
-
-### The createNoOpCommand Utility
-
-The extension provides a `createNoOpCommand` utility function for creating these display-only commands:
-
-```typescript
-// background/utils/commands.ts
-export function createNoOpCommand(
-  id: string,
-  name: string,
-  description: string,
-  icon: CommandIcon = { type: "lucide", name: "Info" }
-): Command
-```
-
-### Example: Error Handling in ParentCommand
-
-Instead of showing alerts for errors, return NoOp commands that display the error state:
-
-```typescript
-// background/commands/browser/myBookmarks.ts
-import type { ParentCommand } from "../../../types"
-import { callBrowserAPI } from "../../utils/browser"
-import { createNoOpCommand } from "../../utils/commands"
-
-export const myBookmarks: ParentCommand = {
-  id: "my-bookmarks",
-  name: "My Bookmarks",
-  description: "Access your browser bookmarks",
-  icon: { name: "Bookmark" },
-  color: "yellow",
-  
-  commands: async () => {
-    try {
-      const bookmarks = await callBrowserAPI("bookmarks", "getTree")
-      
-      // Handle empty state
-      if (!bookmarks || bookmarks.length === 0) {
-        return [
-          createNoOpCommand(
-            "no-bookmarks",
-            "No bookmarks found",
-            "No bookmarks available",
-            { type: "lucide", name: "BookmarkX" }
-          )
-        ]
-      }
-      
-      // Process bookmarks normally
-      return processBookmarks(bookmarks)
-      
-    } catch (error) {
-      console.error("Failed to load bookmarks:", error)
-      
-      // Return error state command instead of showing alert
-      return [
-        createNoOpCommand(
-          "bookmarks-error",
+          "bookmarks-error", 
           "Error Loading Bookmarks",
           "Failed to fetch bookmarks. Please try again.",
           { type: "lucide", name: "AlertTriangle" }
@@ -361,958 +350,193 @@ export const myBookmarks: ParentCommand = {
 }
 ```
 
-### Common NoOp Command Patterns
-
-#### Empty State
-```typescript
-createNoOpCommand(
-  "no-results",
-  "No results found",
-  "No items match your criteria",
-  { type: "lucide", name: "Search" }
-)
-```
-
-#### Loading State
-```typescript
-createNoOpCommand(
-  "loading",
-  "Loading...",
-  "Fetching data, please wait",
-  { type: "lucide", name: "Loader" }
-)
-```
-
-#### Error State  
-```typescript
-createNoOpCommand(
-  "fetch-error",
-  "Unable to load data",
-  "Check your connection and try again",
-  { type: "lucide", name: "AlertTriangle" }
-)
-```
-
-#### Permission Error
-```typescript
-createNoOpCommand(
-  "permission-denied",
-  "Permission Required",
-  "This feature requires additional browser permissions",
-  { type: "lucide", name: "Lock" }
-)
-```
-
-#### Feature Unavailable
-```typescript
-createNoOpCommand(
-  "feature-unavailable",
-  "Feature Not Available",
-  "This feature is not supported in your browser",
-  { type: "lucide", name: "XCircle" }
-)
-```
-
-### Best Practices for NoOp Commands
-
-**Use NoOp commands instead of alerts for:**
-- Empty state messages
-- Error conditions in ParentCommands
-- Loading states
-- Permission errors
-- Feature availability messages
-
-**NoOp Command Guidelines:**
-- Use descriptive IDs that indicate the state: `"no-bookmarks"`, `"tab-error"`
-- Provide clear, user-friendly names and descriptions
-- Choose appropriate icons that match the message type:
-  - `AlertTriangle` for errors
-  - `Search` or `X` for empty results  
-  - `Lock` for permission issues
-  - `Info` for general information
-- Use `gray` color (default) for most NoOp commands
-- Keep descriptions actionable when possible ("Try again", "Check settings")
-
-**Color and Icon Recommendations:**
-
-| State Type | Icon | Color | Example |
-|------------|------|--------|---------|
-| Error | `AlertTriangle`, `XCircle` | `red` | Connection failed |
-| Empty | `Search`, `FileX` | `gray` | No results found |
-| Loading | `Loader`, `Clock` | `blue` | Fetching data... |
-| Permission | `Lock`, `Shield` | `amber` | Permission required |
-| Info | `Info`, `MessageCircle` | `gray` | Feature unavailable |
-
-### When NOT to Use NoOp Commands
-
-Don't use NoOp commands for:
-- **Success messages** - Use alerts for positive feedback
-- **Action confirmations** - Use alerts to confirm completed actions
-- **Interactive content** - NoOp commands don't perform actions
-- **Single-time notifications** - Use alerts for temporary messages
-
-### Example: Complete Error Handling Pattern
-
-```typescript
-export const advancedParentCommand: ParentCommand = {
-  id: "advanced-parent",
-  name: "Advanced Parent Command",
-  
-  commands: async (context) => {
-    try {
-      // Attempt to fetch data
-      const data = await fetchSomeData()
-      
-      if (!data) {
-        return [createNoOpCommand(
-          "no-data",
-          "No Data Available", 
-          "No items found",
-          { type: "lucide", name: "FileX" }
-        )]
-      }
-      
-      if (data.length === 0) {
-        return [createNoOpCommand(
-          "empty-results",
-          "Empty Results",
-          "No items match your criteria", 
-          { type: "lucide", name: "Search" }
-        )]
-      }
-      
-      // Process data normally
-      return data.map(item => createCommandFromItem(item))
-      
-    } catch (error) {
-      console.error("Data fetch failed:", error)
-      
-      if (error.message.includes('permission')) {
-        return [createNoOpCommand(
-          "permission-error",
-          "Permission Required",
-          "Please grant necessary permissions",
-          { type: "lucide", name: "Lock" }
-        )]
-      }
-      
-      return [createNoOpCommand(
-        "fetch-error", 
-        "Unable to Load Data",
-        "Please check your connection and try again",
-        { type: "lucide", name: "AlertTriangle" }
-      )]
-    }
-  }
-}
-```
-
-This pattern ensures users always see helpful information in the command palette, even when things go wrong, without intrusive alert popups.
-
-## Action System Architecture
-
-The command palette features an advanced action menu system that automatically generates context-aware actions for every command. This system enhances user productivity by providing multiple ways to execute commands with different behaviors based on modifier keys.
-
-### Automatic Action Generation
-
-Every command in the system automatically receives a set of context-aware actions:
-
-1. **Primary Action**: Default behavior when pressing Enter
-2. **Modifier Key Actions**: Alternative behaviors for Cmd, Shift, Alt, and Ctrl combinations
-3. **Toggle Favorite Action**: Add/remove command from favorites list
-4. **Custom Actions**: Developer-defined actions specific to the command
-
-### Action Types and Execution Context
-
-Actions are powered by the `ActionExecutionContext` system, which defines how actions should be executed:
-
-```typescript
-type ActionExecutionContext =
-  | { type: "primary"; targetCommandId: string }
-  | { type: "modifier"; targetCommandId: string; modifierKey: Browser.ModifierKey }
-  | { type: "favorite"; targetCommandId: string }
-```
-
-### Primary Actions
-
-Primary actions represent the default Enter key behavior and are automatically generated based on command type:
-
-**RunCommand with no custom actions**:
-- **Name**: "Execute"
-- **Description**: "Execute this command"
-- **Icon**: `Play`
-
-**ParentCommand**:
-- **Name**: "Open"
-- **Description**: "Open this group"
-- **Icon**: `FolderOpen`
-
-**UICommand**:
-- **Name**: "Configure"
-- **Description**: "Open form to configure this command"
-- **Icon**: `Settings`
-
-### Modifier Key Actions
-
-For executable RunCommands (without UI forms or child commands), the system automatically generates modifier actions:
-
-```typescript
-// Automatically generated for RunCommands
-const modifierActions = [
-  { key: "cmd", icon: "Command", symbol: "⌘", description: "Cmd" },
-  { key: "shift", icon: "ArrowUp", symbol: "⇧", description: "Shift" },
-  { key: "alt", icon: "Option", symbol: "⌥", description: "Alt" },
-  { key: "ctrl", icon: "SquareAsterisk", symbol: "⌃", description: "Ctrl" }
-]
-```
-
-Each modifier action uses:
-- **Name**: Based on `modifierActionLabel` if defined, otherwise "Execute with {Modifier}"
-- **Description**: "Execute this command with {modifier} key pressed"
-- **Icon**: Modifier-specific icon
-- **Execution**: Passes the modifier key in the execution context
-
-### Favorite Toggle Actions
-
-Every command automatically receives a toggle favorite action:
-
-```typescript
-// Automatically generated for all commands
-{
-  id: `toggle-favorite-${command.id}`,
-  name: isFavorite ? "Remove from Favorites" : "Add to Favorites",
-  icon: { name: isFavorite ? "StarOff" : "Star" },
-  color: "amber",
-  executionContext: { type: "favorite", targetCommandId: command.id }
-}
-```
-
-### Action Menu Display
-
-Actions are displayed in the command palette as sub-items that appear when hovering over or focusing on a command. The action menu shows:
-
-1. **Primary action** (if applicable)
-2. **Modifier key actions** (for executable commands)
-3. **Custom actions** (developer-defined)
-4. **Toggle favorite action** (always present)
-
-### Example: Complete Action Menu
-
-```typescript
-// For a simple RunCommand like "Close Current Tab"
-export const closeCurrentTab: RunCommand = {
-  id: "close-current-tab",
-  name: "Close Current Tab",
-  icon: { name: "X" },
-  modifierActionLabel: {
-    cmd: "Close All Tabs",
-    shift: "Close Other Tabs"
-  },
-  run: async (context) => {
-    if (context?.modifierKey === "cmd") {
-      // Close all tabs
-    } else if (context?.modifierKey === "shift") {
-      // Close other tabs
-    } else {
-      // Close current tab
-    }
-  }
-}
-
-// Automatically generates these action menu items:
-// 1. "Execute" (primary action)
-// 2. "Close All Tabs" (⌘ modifier action)
-// 3. "Close Other Tabs" (⇧ modifier action)
-// 4. "Execute with Alt" (⌥ modifier action)
-// 5. "Execute with Ctrl" (⌃ modifier action)
-// 6. "Add to Favorites" or "Remove from Favorites"
-```
-
-### Custom Actions Integration
-
-When commands define custom actions, they integrate seamlessly with the auto-generated system:
-
-```typescript
-export const customActionsCommand: RunCommand = {
-  id: "custom-actions-example",
-  name: "Command with Custom Actions",
-  icon: { name: "Settings" },
-  
-  // Custom actions are preserved
-  actions: [
-    {
-      id: "custom-action-1",
-      name: "Custom Action",
-      icon: { name: "Star" },
-      run: async () => { /* custom logic */ }
-    }
-  ],
-  
-  run: async (context) => { /* main logic */ }
-}
-
-// Final action menu will include:
-// 1. Primary action (Execute)
-// 2. Modifier actions (⌘, ⇧, ⌥, ⌃)
-// 3. Custom Action (developer-defined)
-// 4. Toggle Favorite
-```
-
-### Action Execution Flow
-
-When a user selects an action, the system follows this execution pattern:
-
-1. **Action Selection**: User clicks or presses key for an action
-2. **Context Resolution**: System looks up `executionContext` for the selected action
-3. **Pattern Matching**: Uses pattern matching to determine execution type:
-   ```typescript
-   await match(executionContext)
-     .with({ type: "favorite" }, async (ctx) => {
-       await toggleFavoriteCommandId(ctx.targetCommandId)
-     })
-     .with({ type: "primary" }, (ctx) => {
-       return executeCommand(ctx.targetCommandId, context, formValues)
-     })
-     .with({ type: "modifier" }, (ctx) => {
-       const modifiedContext = { ...context, modifierKey: ctx.modifierKey }
-       return executeCommand(ctx.targetCommandId, modifiedContext, formValues)
-     })
-   ```
-4. **Command Execution**: Target command runs with appropriate context
-
-### Best Practices for Actions
-
-**Leveraging Auto-Generated Actions**:
-- Define `modifierActionLabel` to provide clear descriptions for modifier behaviors
-- Implement modifier key handling in your command's `run()` function
-- Use the `context?.modifierKey` parameter to alter behavior
-
-**Custom Actions**:
-- Use custom actions for specialized behaviors that don't fit modifier patterns
-- Custom actions integrate with auto-generated ones in the action menu
-- Provide clear names and descriptions for custom actions
-
-**Avoiding Conflicts**:
-- Auto-generated actions don't conflict with custom actions
-- Primary actions are skipped if custom actions are defined
-- Modifier actions are always generated for executable commands
-
-### Helper Functions for Action Generation
-
-The system uses several helper functions to automatically generate actions. These functions are used internally by the `commandsToSuggestions()` function:
-
-#### `createFavoriteToggleAction(command, favoriteCommandIds)`
-
-Generates the toggle favorite action for any command:
-
-```typescript
-const createFavoriteToggleAction = async (
-  command: Command,
-  favoriteCommandIds: string[],
-): Promise<CommandSuggestion>
-```
-
-**Behavior**:
-- Creates an action with ID `toggle-favorite-${command.id}`
-- Shows "Remove from Favorites" or "Add to Favorites" based on current state
-- Uses `StarOff` or `Star` icon accordingly
-- Sets `remainOpenOnSelect: true` so palette stays open after toggling
-- Includes `executionContext: { type: "favorite", targetCommandId: command.id }`
-
-#### `createPrimaryAction(command, context)`
-
-Generates the default Enter key action based on command type:
-
-```typescript
-const createPrimaryAction = async (
-  command: Command,
-  context: Browser.Context,
-): Promise<CommandSuggestion | null>
-```
-
-**Behavior**:
-- Returns `null` if command already has custom actions (avoids duplication)
-- For `RunCommand`: Creates "Execute" action with `Play` icon
-- For `ParentCommand`: Creates "Open" action with `FolderOpen` icon
-- For `UICommand`: Creates "Configure" action with `Settings` icon
-- Sets `executionContext: { type: "primary", targetCommandId: command.id }`
-
-#### `createModifierKeyActions(command, context)`
-
-Generates modifier key actions for executable commands:
-
-```typescript
-const createModifierKeyActions = async (
-  command: Command,
-  context: Browser.Context,
-): Promise<CommandSuggestion[]>
-```
-
-**Behavior**:
-- Only generates actions for `RunCommand` (not `ParentCommand` or `UICommand`)
-- Creates actions for all four modifier keys: `cmd`, `shift`, `alt`, `ctrl`
-- Uses command's `modifierActionLabel` if defined, otherwise defaults to "Execute with {Modifier}"
-- Each action includes appropriate icon and execution context:
-  ```typescript
-  executionContext: { 
-    type: "modifier", 
-    targetCommandId: command.id, 
-    modifierKey: "cmd" // or shift/alt/ctrl
-  }
-  ```
-
-### Action Integration Process
-
-The `commandsToSuggestions()` function combines all actions in this order:
-
-1. **Primary Action** (if no custom actions defined)
-2. **Modifier Key Actions** (for executable commands)
-3. **Custom Actions** (developer-defined `command.actions`)
-4. **Toggle Favorite Action** (always present)
-
-```typescript
-// Example of final action array for a RunCommand with custom actions:
-const allActions = [
-  // No primary action (skipped because custom actions exist)
-  ...modifierKeyActions,     // ⌘, ⇧, ⌥, ⌃ modifier actions
-  ...command.actions,        // Developer-defined custom actions
-  toggleFavoriteAction       // Always present toggle favorite
-]
-```
+### ParentCommand Key Points:
+- **Dynamic child generation** based on browser state
+- **Error handling with NoOp commands** (not alerts)
+- **Deep search support** with `enableDeepSearch: true`
+- **Auto-generated actions**: Open (to show children), toggle favorite
+- **Child commands get their own actions** when generated
 
 ## Deep Search Feature
 
-The deep search feature allows users to search for deeply nested commands directly from the top level, without navigating through parent command hierarchies. This is particularly useful for commands like bookmarks, where users can type "react" and find "React Documentation" even if it's buried in "Bookmarks → Development → GitHub → React Documentation".
-
-### Enabling Deep Search
-
-To enable deep search on a `ParentCommand`, add the `enableDeepSearch: true` property:
+Enable `enableDeepSearch: true` on ParentCommands to allow users to search nested commands directly:
 
 ```typescript
-// background/commands/browser/bookmarks.ts
 export const bookmarks: ParentCommand = {
   id: "bookmarks",
-  name: "Bookmarks",
-  description: "Access your browser bookmarks",
-  icon: { name: "Bookmark" },
-  color: "yellow",
-  keywords: ["bookmarks", "favorites", "saved", "links"],
-  enableDeepSearch: true, // Enable deep search for this parent command
+  name: "Bookmarks", 
+  enableDeepSearch: true,  // Users can search "react" to find deeply nested "React Docs"
   commands: async () => {
-    // Your bookmark tree logic
-    const bookmarkTree = await getBookmarkTree()
-    return bookmarkTree
+    // Return nested bookmark structure
+    // Deep search will flatten this automatically
   }
 }
 ```
 
-### How Deep Search Works
+**Benefits:**
+- Users can search deeply nested commands without navigation
+- Results show breadcrumb paths: `["React Docs", "GitHub", "Development", "Bookmarks"]`
+- All command features work (actions, modifiers, keybindings)
+- Pre-processed for instant search results
 
-When `enableDeepSearch: true` is set on a `ParentCommand`:
+## NoOp Commands for Error States
 
-1. **Background Processing**: The system recursively walks through all child commands during the initial `getCommands()` call
-2. **Breadcrumb Generation**: Each nested command gets enhanced with breadcrumb names showing its path
-3. **Keyword Enhancement**: Search keywords include all folder names in the path
-4. **Instant Results**: Deep search items appear immediately when typing because they're pre-loaded
-
-### Example: Deep Search Enabled Bookmarks
+Use `createNoOpCommand` for display-only error/empty states in ParentCommands:
 
 ```typescript
-// background/commands/browser/myBookmarks.ts
-import type { ParentCommand, RunCommand } from "../../../types"
-import { callBrowserAPI } from "../../utils/browser"
+import { createNoOpCommand } from "../../utils/commands"
 
-export const myBookmarks: ParentCommand = {
-  id: "my-bookmarks",
-  name: "My Bookmarks",
-  description: "Browse bookmarks with deep search",
-  icon: { name: "Bookmark" },
-  color: "yellow",
-  keywords: ["bookmarks", "favorites", "links"],
-  enableDeepSearch: true, // This enables deep search functionality
-  
-  commands: async () => {
-    const bookmarks = await callBrowserAPI("bookmarks", "getTree")
-    
-    // Convert bookmark tree to nested commands
-    const convertBookmarkNode = (node: any): RunCommand | ParentCommand => {
-      if (node.url) {
-        // Leaf bookmark - becomes a RunCommand
-        return {
-          id: `bookmark-${node.id}`,
-          name: node.title,
-          description: `Open ${node.url}`,
-          icon: { name: "Globe" },
-          color: "blue",
-          keywords: [node.title.toLowerCase(), node.url],
-          run: async () => {
-            // Open bookmark logic
-            await callBrowserAPI("tabs", "create", { url: node.url })
-          }
-        }
-      } else {
-        // Folder - becomes a nested ParentCommand
-        return {
-          id: `bookmark-folder-${node.id}`,
-          name: node.title,
-          description: `Bookmark folder: ${node.title}`,
-          icon: { name: "Folder" },
-          color: "yellow",
-          keywords: [node.title.toLowerCase()],
-          // Inherit deep search from parent
-          enableDeepSearch: true,
-          commands: async () => {
-            return node.children?.map(convertBookmarkNode) || []
-          }
-        }
-      }
-    }
-    
-    return bookmarks[0].children?.map(convertBookmarkNode) || []
+// In ParentCommand error handling
+return [
+  createNoOpCommand(
+    "error-id",
+    "Error Title",
+    "Error description with helpful guidance", 
+    { type: "lucide", name: "AlertTriangle" }
+  )
+]
+```
+
+**Common patterns:**
+- **Empty state**: `"No results found"` with `Search` icon
+- **Error state**: `"Unable to load data"` with `AlertTriangle` icon  
+- **Permission error**: `"Permission required"` with `Lock` icon
+- **Loading state**: `"Loading..."` with `Loader` icon
+
+## Action System & Modifier Keys
+
+Every command automatically gets context-aware actions:
+
+### Auto-Generated Actions:
+1. **Primary Action**: 
+   - RunCommand: "Execute"
+   - ParentCommand: "Open" 
+   - UICommand: "Configure"
+2. **Modifier Actions** (RunCommand only):
+   - "Execute with ⌘/⇧/⌥/⌃" or custom `modifierActionLabel`
+3. **Toggle Favorite**: Add/remove from favorites (all commands)
+
+### Browser.Context Parameter:
+```typescript
+interface Browser.Context {
+  url: string                           // Current page URL
+  title: string                        // Current page title  
+  modifierKey: ModifierKey | null      // Active modifier: "cmd" | "shift" | "alt" | "ctrl"
+}
+```
+
+Use `context?.modifierKey` to implement different behaviors:
+```typescript
+run: async (context) => {
+  if (context?.modifierKey === "cmd") {
+    // Cmd+Enter behavior
+  } else if (context?.modifierKey === "shift") {
+    // Shift+Enter behavior
+  } else {
+    // Default Enter behavior
   }
 }
 ```
 
-### Deep Search Results
+## Browser API Integration
 
-When users search with deep search enabled, they'll see results like:
-
-- **Name**: `["React Documentation", "GitHub", "Development", "Bookmarks"]`
-- **Searchable by**: "react", "documentation", "github", "development", "bookmarks"
-- **Full Features**: Action menus (Alt+click), keyboard shortcuts, modifier actions all work
-
-### Performance Considerations
-
-- **Pre-processing**: Deep search items are processed once during `getCommands()` and cached
-- **Memory Usage**: Large bookmark trees create more deep search items in memory
-- **Search Speed**: Instant results because no additional network requests are made during search
-
-### When to Use Deep Search
-
-**Good candidates for deep search:**
-- **Bookmarks**: Users often know the bookmark name but not the folder structure
-- **Settings/Preferences**: Nested configuration options that users want to find quickly  
-- **File/Document hierarchies**: When users search by content name rather than location
-- **Menu systems**: Deep navigation structures that benefit from direct access
-
-**Not recommended for:**
-- **Simple parent commands** with only 2-3 children
-- **Commands with expensive child generation** (deep search processes all children upfront)
-- **Frequently changing data** that would cause excessive re-processing
-
-### Technical Implementation
-
-The deep search system:
-
-1. **Scans commands** for `enableDeepSearch: true` during `getCommands()`
-2. **Recursively processes** child commands using `flattenDeepSearchCommands()`
-3. **Creates enhanced commands** with breadcrumb names and expanded keywords
-4. **Returns in single response** as `deepSearchItems` alongside regular commands
-5. **Integrates with UI** to show deep search results when users type in the search box
-
-This architecture ensures optimal performance by processing the command tree once and providing instant search results without additional API calls.
-
-## Alert/Notification Examples
-
-The extension provides several ways to send feedback to users through the alert system.
-
-### Alert Types and Usage
-
+**Always use the browser abstraction layer:**
 ```typescript
-// Different alert levels
-await sendTabMessage(activeTab.id, {
-  type: "monocle-alert",
-  level: "success", // "info" | "warning" | "success" | "error"
-  message: "Operation completed successfully!",
-  icon: { name: "CheckCircle" }, // Optional custom icon
-  copyText: "Text to copy when alert is clicked" // Optional
-})
+import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser"
 
-// Info alert
-await sendTabMessage(activeTab.id, {
-  type: "monocle-alert",
-  level: "info",
-  message: "Processing your request...",
-  icon: { name: "Info" }
-})
+// Good - cross-browser compatible
+await callBrowserAPI("tabs", "create", { url: "https://example.com" })
 
-// Warning alert
-await sendTabMessage(activeTab.id, {
-  type: "monocle-alert", 
-  level: "warning",
-  message: "This action cannot be undone",
-  icon: { name: "AlertTriangle" }
-})
-
-// Error alert
-await sendTabMessage(activeTab.id, {
-  type: "monocle-alert",
-  level: "error", 
-  message: "Failed to complete operation",
-  icon: { name: "XCircle" }
-})
+// Bad - Chrome-specific  
+chrome.tabs.create({ url: "https://example.com" })
 ```
 
-### Copy to Clipboard
-
+**Common browser operations:**
 ```typescript
-// Direct clipboard copy
-await sendTabMessage(activeTab.id, {
-  type: "monocle-copyToClipboard",
-  message: "Text copied to clipboard!"
-})
+// Get active tab
+const activeTab = await getActiveTab()
 
-// Alert with copy functionality
+// Create new tab  
+await callBrowserAPI("tabs", "create", { url: "..." })
+
+// Query tabs
+const tabs = await callBrowserAPI("tabs", "query", {})
+
+// Send message to tab (for alerts/actions)
 await sendTabMessage(activeTab.id, {
   type: "monocle-alert",
   level: "success",
-  message: "UUID Generated: 123e4567-e89b-12d3-a456-426614174000",
-  copyText: "123e4567-e89b-12d3-a456-426614174000", // Click alert to copy
-  icon: { name: "Copy" }
+  message: "Operation completed",
+  icon: { type: "lucide", name: "CheckCircle" }
 })
 ```
 
-### New Tab/Navigation
-
-```typescript
-// Open URL in new tab
-await sendTabMessage(activeTab.id, {
-  type: "monocle-newTab",
-  url: "https://example.com"
-})
-```
-
-## Command Properties Glossary
-
-### Required Properties
-
-| Property | Type                                        | Description                                                           |
-| -------- | ------------------------------------------- | --------------------------------------------------------------------- |
-| `id`     | `string`                                    | Unique identifier for the command (kebab-case recommended)            |
-| `name`   | `AsyncValue<string \| string[]>`            | Display name, can be string, array for breadcrumbs, or async function |
-
-### Optional BaseCommand Properties
-
-| Property            | Type                                                | Description                            | Examples                                            |
-| ------------------- | --------------------------------------------------- | -------------------------------------- | --------------------------------------------------- |
-| `description`       | `AsyncValue<string>`                                | Command description shown in UI        | "Opens a new browser tab"                           |
-| `icon`              | `AsyncValue<Icon>`                                  | Icon configuration                     | `{ name: "Plus" }` or `{ url: "path/to/icon.png" }` |
-| `color`             | `AsyncValue<ColorName \| string>`                   | Theme color for the command            | `"red"`, `"blue"`, `"#ff0000"`                      |
-| `keywords`          | `AsyncValue<string[]>`                              | Search keywords for fuzzy matching     | `["tab", "new", "open"]`                            |
-| `keybinding`        | `string`                                            | Keyboard shortcut                      | `"⌘ K"`, `"⌃ d"`, `"⌥ ⇧ n"`                         |
-| `priority`          | `(context: Browser.Context) => Promise<Command[]>`  | Function to determine command priority | Used for ranking in suggestions                     |
-| `supportedBrowsers` | `Browser.Platform[]`                                | Browser compatibility                  | `["chrome", "firefox"]`                             |
-| `actions`           | `Command[]`                                         | Custom actions for the command         | Integrates with auto-generated actions              |
-| `doNotAddToRecents` | `boolean`                                           | Flag to exclude from recent commands   | `true` to prevent recent tracking                   |
-
-### RunCommand & UICommand Specific Properties
-
-| Property              | Type                                                     | Description                     | Examples                                            |
-| --------------------- | -------------------------------------------------------- | ------------------------------- | --------------------------------------------------- |
-| `actionLabel`         | `AsyncValue<string>`                                     | Default action label            | `"Execute"`, `"Open"`, `"Search"`                   |
-| `modifierActionLabel` | `{[K in Browser.ModifierKey]?: AsyncValue<string>}`      | Action labels for modifier keys | `{ shift: "Open in New Window", cmd: "Copy Link" }` |
-| `run`                 | `(context?: Browser.Context, values?: Record<string, string>) => void \| Promise<void>` | Execution function | Main command logic |
-
-### UICommand Specific Properties
-
-| Property | Type          | Description            |
-| -------- | ------------- | ---------------------- |
-| `ui`     | `CommandUI[]` | Form field definitions |
-
-### ParentCommand Specific Properties
-
-| Property          | Type                                                | Description                            |
-| ----------------- | --------------------------------------------------- | -------------------------------------- |
-| `commands`        | `(context: Browser.Context) => Promise<Command[]>`  | Function that generates child commands |
-| `enableDeepSearch` | `boolean`                                           | Enable deep search for nested commands (optional, default: false) |
-
-### CommandSuggestion Properties (UI Representation)
-
-These properties are used internally by the system when converting commands to UI suggestions:
-
-| Property            | Type                                                | Description                            | Examples                                            |
-| ------------------- | --------------------------------------------------- | -------------------------------------- | --------------------------------------------------- |
-| `isParentCommand`   | `boolean`                                           | Whether this is a ParentCommand        | `true` for commands with child commands             |
-| `remainOpenOnSelect`| `boolean`                                           | Keep palette open after action         | `true` for favorite toggle actions                  |
-| `executionContext`  | `ActionExecutionContext`                            | Context for action execution           | `{ type: "modifier", targetCommandId: "...", modifierKey: "cmd" }` |
-
-#### ActionExecutionContext Types
-
-```typescript
-type ActionExecutionContext =
-  | { type: "primary"; targetCommandId: string }
-  | { type: "modifier"; targetCommandId: string; modifierKey: Browser.ModifierKey }
-  | { type: "favorite"; targetCommandId: string }
-```
-
-- **`primary`**: Default Enter key behavior for the target command
-- **`modifier`**: Execute target command with a specific modifier key pressed
-- **`favorite`**: Toggle favorite status for the target command
-
-### Supported Color Values
-
-**Named Colors:**
-`red`, `green`, `blue`, `amber`, `lightBlue`, `gray`, `purple`, `orange`, `teal`, `pink`, `indigo`, `yellow`
-
-**Custom Colors:**
-Any valid CSS color value: `"#ff0000"`, `"rgb(255, 0, 0)"`, `"hsl(0, 100%, 50%)"`
-
-**Note:** The new type system supports both `ColorName` and custom string values through the `AsyncValue<ColorName | string>` type.
-
-### Keybinding Format
-
-- `⌘` = Cmd/Meta key (Mac)
-- `⌃` = Ctrl key  
-- `⌥` = Alt/Option key
-- `⇧` = Shift key
-
-Examples: `"⌘ K"`, `"⌃ d"`, `"⌥ ⇧ n"`, `"⌘ ⇧ p"`
-
-### Modifier Keys
-
-Available in `Browser.Context.modifierKey`:
-- `"shift"` - Shift key pressed
-- `"cmd"` - Cmd/Meta key pressed  
-- `"alt"` - Alt/Option key pressed
-- `"ctrl"` - Ctrl key pressed
-- `null` - No modifier key
-
-### Async Property Resolution
-
-Many properties support `AsyncValue<T>` which means they can be:
-
-1. **Static value**: `name: "My Command"`
-2. **Async function**: `name: async (context: Browser.Context) => { return await getTabTitle() }`
-
-This allows commands to dynamically update based on current browser state. The `context` parameter provides access to the current page's URL, title, and any active modifier keys.
-
-## Registration and Best Practices
+## Command Registration
 
 ### 1. Create Command File
-
 ```typescript
 // background/commands/category/myCommand.ts
-import type { RunCommand, Browser } from "../../../types"
+import type { RunCommand } from "../../../types"
 
 export const myCommand: RunCommand = {
   id: "my-command",
-  name: "My Command",
-  description: "Description of what this command does",
-  icon: { name: "Star" },
-  color: "blue",
-  keywords: ["my", "command"],
-  run: async (context?: Browser.Context, values?: Record<string, string>) => {
-    // Command implementation here
-  }
+  name: "My Command", 
+  // ... command definition
 }
 ```
 
-### 2. Register in Category Index
-
-```typescript  
+### 2. Register in Category
+```typescript
 // background/commands/category/index.ts
 import { myCommand } from "./myCommand"
 
 export const categoryCommands = [
   // existing commands,
-  myCommand, // Add your command here
+  myCommand
 ]
 ```
 
-### 3. Best Practices
-
-**Naming Conventions:**
-- Use kebab-case for IDs: `"close-current-tab"`
-- Use descriptive names: `"Close Current Tab"` not `"Close"`
-- Include category in ID for uniqueness: `"browser-close-tab"`
-
-**Action System Best Practices:**
-
-**Working with Auto-Generated Actions:**
-- Every command automatically gets a toggle favorite action - don't create custom ones
-- Use `modifierActionLabel` to provide descriptive labels for modifier key actions
-- Implement modifier key logic in your `run()` function using `context?.modifierKey`
-- Primary actions are automatically generated based on command type - only override if needed
-
-**Custom Actions Integration:**
-- Custom actions appear alongside auto-generated actions in the action menu
-- Define custom actions for specialized behaviors that don't fit the standard modifier pattern
-- Custom actions will prevent automatic primary action generation (avoids duplication)
-- Use clear, descriptive names for custom actions to distinguish from auto-generated ones
-
-**Action Menu Design:**
+### 3. Category Registered in Main Index
 ```typescript
-// Good: Clear modifier labels
-modifierActionLabel: {
-  cmd: "Copy to Clipboard",
-  shift: "Open in New Window"
-}
+// background/commands/index.ts - already configured
+import { categoryCommands } from "./category"
 
-// Bad: Generic or unclear labels
-modifierActionLabel: {
-  cmd: "Do something else",
-  shift: "Alternative action"
-}
+// Categories are automatically loaded
 ```
 
-**Error Handling:**
+## Best Practices
 
-For RunCommand and UICommand errors, use alerts to provide immediate feedback:
-```typescript
-run: async (context?: Browser.Context, values?: Record<string, string>) => {
-  try {
-    // Your command logic
-    await someAsyncOperation()
-  } catch (error) {
-    console.error(`Error in command:`, error)
-    
-    // Show error alert for immediate feedback
-    const activeTab = await getActiveTab()
-    if (activeTab) {
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-alert",
-        level: "error",
-        message: "Operation failed. Please try again.",
-        icon: { name: "AlertTriangle" }
-      })
-    }
-  }
-}
-```
+### Naming & Structure:
+- **IDs**: kebab-case, descriptive (`"close-current-tab"`)
+- **Names**: Clear action verbs (`"Close Current Tab"`)
+- **Keywords**: Include synonyms and common terms
+- **Colors**: Match action context (red for delete, green for create)
 
-For ParentCommand errors, use NoOp commands instead of alerts:
-```typescript
-commands: async (context) => {
-  try {
-    const data = await fetchData()
-    return processData(data)
-  } catch (error) {
-    console.error("Failed to load data:", error)
-    
-    // Return NoOp command for error state
-    return [
-      createNoOpCommand(
-        "data-error",
-        "Unable to Load Data",
-        "Please check your connection and try again",
-        { name: "AlertTriangle" }
-      )
-    ]
-  }
-}
-```
+### Error Handling:
+- **RunCommand/UICommand errors**: Use alert system for immediate feedback
+- **ParentCommand errors**: Use NoOp commands to display error states
+- **Always log errors** to console for debugging
 
-**Browser Compatibility:**
+### Performance:
+- **Async properties**: Use sparingly, evaluated each load
+- **ParentCommand children**: Avoid expensive operations
+- **Cache when possible**: Store results of expensive API calls
+
+### User Experience:
+- **Provide feedback**: Always show success/error messages
+- **Use appropriate icons**: Match context and meaning
+- **Implement modifier keys**: Power-user shortcuts
+- **Test both modes**: Ensure commands work in overlay and new tab
+
+### Cross-Browser Compatibility:
 ```typescript
 export const myCommand: RunCommand = {
-  // ... other properties
-  supportedBrowsers: ["chrome"], // Only show in Chrome
-  // or 
-  supportedBrowsers: ["chrome", "firefox"], // Show in both
-  // or omit property to support all browsers
+  supportedBrowsers: ["chrome", "firefox"], // Specify compatibility
+  // or omit to support all browsers
 }
 ```
 
-**Note:** The `supportedBrowsers` property now uses the `Browser.Platform[]` type for better type safety.
-
-**Performance:**
-- Use async properties sparingly - they're evaluated each time commands are loaded
-- Cache expensive operations when possible
-- Avoid heavy computations in `priority` functions
-
-**Action Execution Flow:**
-
-The system follows a specific pattern when executing actions:
-
-1. **Action Selection**: User selects an action from the action menu
-2. **Context Lookup**: System finds the `ActionExecutionContext` for the selected action
-3. **Pattern Matching**: Uses `ts-pattern` to handle different execution types:
-   ```typescript
-   await match(executionContext)
-     .with({ type: "favorite" }, async (ctx) => {
-       // Toggle favorite status directly
-       await toggleFavoriteCommandId(ctx.targetCommandId)
-     })
-     .with({ type: "primary" }, (ctx) => {
-       // Execute target command with original context
-       return executeCommand(ctx.targetCommandId, context, formValues)
-     })
-     .with({ type: "modifier" }, (ctx) => {
-       // Execute target command with modifier key set
-       const modifiedContext = { ...context, modifierKey: ctx.modifierKey }
-       return executeCommand(ctx.targetCommandId, modifiedContext, formValues)
-     })
-   ```
-4. **Recursive Execution**: For primary/modifier actions, the system recursively calls `executeCommand` with the target command ID
-
-**User Experience:**
-- Provide clear, descriptive names and descriptions
-- Use appropriate icons and colors for context
-- Include relevant keywords for search
-- Handle errors gracefully with user-friendly messages
-- Use modifier actions for power-user features
-- Leverage the automatic action system for consistent UX
-
-### Example: Complete Command with All Features
-
-```typescript
-import type { UICommand, Browser } from "../../../types"
-
-export const advancedExample: UICommand = {
-  id: "advanced-example",
-  name: async (context: Browser.Context) => `Advanced Command (${context.url})`,
-  description: "A comprehensive example showing all features",
-  icon: { name: "Zap" },
-  color: async () => Math.random() > 0.5 ? "blue" : "purple",
-  keywords: ["advanced", "example", "demo"],
-  keybinding: "⌘ ⇧ a",
-  supportedBrowsers: ["chrome", "firefox"],
-  doNotAddToRecents: false,
-  
-  ui: [
-    {
-      id: "input1",
-      type: "input",
-      label: "Primary Input",
-      placeholder: "Enter value...",
-      defaultValue: "default"
-    }
-  ],
-  
-  actionLabel: "Execute",
-  modifierActionLabel: {
-    shift: "Execute in Background",
-    cmd: "Execute and Copy Result"
-  },
-  
-  // Custom actions integrate with auto-generated ones
-  actions: [
-    {
-      id: "sub-action",
-      name: "Custom Sub Action",
-      icon: { name: "Star" },
-      color: "amber",
-      run: async () => {
-        console.log("Custom action executed")
-      }
-    }
-  ],
-  
-  run: async (context?: Browser.Context, values?: Record<string, string>) => {
-    // Implementation with full error handling and user feedback
-    console.log('Context:', context)
-    console.log('Values:', values)
-  }
-}
-
-// This command automatically receives these action menu items:
-// 1. No primary action (skipped because custom actions are defined)
-// 2. No modifier actions (skipped because it's a UICommand with form)
-// 3. "Custom Sub Action" (developer-defined)
-// 4. "Add to Favorites" or "Remove from Favorites" (automatic)
-// Note: The form opens when the command is selected, and modifier behavior
-// is handled within the run() function using context?.modifierKey
-```
+This architecture ensures commands work identically across both deployment modes while providing rich, context-aware functionality to users.
 
 --- 
 
