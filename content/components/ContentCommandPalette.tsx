@@ -94,7 +94,6 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
           />
         </Provider>
       )}
-      <p>test</p>
       <ToastContainer />
     </>
   )
