@@ -33,6 +33,7 @@
     }
   },
   "permissions": [
+    "activeTab",
     "bookmarks",
     "browsingData",
     "cookies",
