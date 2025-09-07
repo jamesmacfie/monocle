@@ -263,17 +263,7 @@ export const downloads: ParentCommand = {
               const activeTab = await getActiveTab()
 
               try {
-                // Always show download location in Finder/Explorer
                 await showDownload(item.id)
-
-                if (activeTab) {
-                  await sendTabMessage(activeTab.id, {
-                    type: "monocle-alert",
-                    level: "info",
-                    message: `Showing ${filename} in Finder`,
-                    icon: { name: "FolderOpen" },
-                  })
-                }
               } catch (error) {
                 console.error(`Failed to show download: ${filename}`, error)
 
