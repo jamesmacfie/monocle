@@ -5,6 +5,7 @@ import { executeCommand } from "./executeCommand"
 import { executeKeybinding } from "./executeKeybinding"
 import { getChildrenCommands } from "./getChildrenCommands"
 import { getCommands } from "./getCommands"
+import { getUnsplashBackground } from "./getUnsplashBackground"
 import { showToast } from "./showToast"
 import { updateCommandSetting } from "./updateCommandSetting"
 
@@ -32,6 +33,9 @@ export const handleMessage = async (message: Message) => {
     })
     .with({ type: "check-keybinding-conflict" }, async (msg) => {
       return await checkKeybindingConflict(msg)
+    })
+    .with({ type: "get-unsplash-background" }, async (msg) => {
+      return await getUnsplashBackground(msg)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${(message as any).type}`)

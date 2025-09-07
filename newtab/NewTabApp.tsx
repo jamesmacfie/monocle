@@ -7,6 +7,7 @@ import {
   loadSettings,
   selectClockVisibility,
 } from "../shared/store/slices/settings.slice"
+import { BackgroundImage } from "./components/BackgroundImage"
 import { Clock } from "./components/Clock"
 import { NewTabCommandPalette } from "./components/NewTabCommandPalette"
 
@@ -39,22 +40,25 @@ function NewTabAppContent() {
   }, [dispatch])
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 flex items-center justify-center">
-      <div className="max-w-2xl mx-auto">
-        {showClock && <Clock className="mb-12" />}
+    <div className="min-h-screen relative">
+      <BackgroundImage />
+      <div className="relative z-10 p-6 flex items-center justify-center min-h-screen">
+        <div className="max-w-2xl mx-auto">
+          {showClock && <Clock className="mb-12" />}
 
-        <div className="raycast new-tab-palette">
-          <NewTabCommandPalette autoFocus={true} className="w-full" />
-        </div>
+          <div className="raycast new-tab-palette">
+            <NewTabCommandPalette autoFocus={true} className="w-full" />
+          </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-gray-500 text-sm">
-            Press{" "}
-            <kbd className="px-2 py-1 bg-white border border-gray-300 text-gray-700 rounded text-xs">
-              Cmd+Shift+K
-            </kbd>{" "}
-            on any webpage to open the command palette
-          </p>
+          <div className="mt-8 text-center">
+            <p className="text-white text-sm drop-shadow-lg">
+              Press{" "}
+              <kbd className="px-2 py-1 bg-black/20 backdrop-blur-sm border border-white/30 text-white rounded text-xs">
+                Cmd+Shift+K
+              </kbd>{" "}
+              on any webpage to open the command palette
+            </p>
+          </div>
         </div>
       </div>
       <ToastContainer />

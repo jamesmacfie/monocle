@@ -35,10 +35,12 @@ export const Clock: React.FC<ClockProps> = ({ className = "" }) => {
 
   return (
     <div className={`text-center ${className}`}>
-      <div className="text-6xl font-light text-gray-900 mb-2">
+      <div className="text-6xl font-light text-white mb-2 drop-shadow-lg">
         {formatTime(time)}
       </div>
-      <div className="text-lg text-gray-600">{formatDate(time)}</div>
+      <div className="text-lg text-white/90 drop-shadow-lg">
+        {formatDate(time)}
+      </div>
     </div>
   )
 }

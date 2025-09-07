@@ -46,6 +46,11 @@ export type CheckKeybindingConflictMessage = {
   excludeCommandId?: string
 }
 
+export type GetUnsplashBackgroundMessage = {
+  type: "get-unsplash-background"
+  context: Browser.Context
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
@@ -54,6 +59,7 @@ export type Message =
   | ShowToastMessage
   | UpdateCommandSettingMessage
   | CheckKeybindingConflictMessage
+  | GetUnsplashBackgroundMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message
