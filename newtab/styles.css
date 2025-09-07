@@ -68,7 +68,7 @@ body {
 
 /* In the new tab context, render the palette in-flow instead of fixed overlay */
 .new-tab-palette [cmdk-root] {
-  position: static;
+  position: relative;
   left: auto;
   top: auto;
   transform: none;

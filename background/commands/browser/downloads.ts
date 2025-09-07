@@ -218,7 +218,6 @@ export const downloads: ParentCommand = {
   icon: { type: "lucide", name: "Download" },
   color: "blue",
   keywords: ["downloads", "files", "recent", "downloaded"],
-  enableDeepSearch: true,
   commands: async () => {
     try {
       const downloadItems = await getRecentDownloads(50)
