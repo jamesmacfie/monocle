@@ -1,8 +1,6 @@
 import type { RunCommand } from "../../../types/"
 import {
-  callBrowserAPI,
-  getActiveTab,
-  sendTabMessage,
+  callBrowserAPI
 } from "../../utils/browser"
 
 export const reloadCurrentTab: RunCommand = {
@@ -13,13 +11,4 @@ export const reloadCurrentTab: RunCommand = {
   keybinding: "⌘ r",
   run: async () => {
     await callBrowserAPI("tabs", "reload")
-    const activeTab = await getActiveTab()
-    if (activeTab) {
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-toast",
-        level: "success",
-        message: "Tab reloaded",
-      })
-    }
-  },
-}
+  }
