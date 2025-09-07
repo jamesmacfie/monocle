@@ -1,7 +1,5 @@
 import type { RunCommand } from "../../../types/"
-import {
-  callBrowserAPI
-} from "../../utils/browser"
+import { callBrowserAPI } from "../../utils/browser"
 
 export const reloadCurrentTab: RunCommand = {
   id: "reload-current-tab",
@@ -11,4 +9,5 @@ export const reloadCurrentTab: RunCommand = {
   keybinding: "⌘ r",
   run: async () => {
     await callBrowserAPI("tabs", "reload")
-  }
+  },
+}
