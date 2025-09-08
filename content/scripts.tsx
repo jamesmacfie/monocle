@@ -47,7 +47,7 @@ async function initial() {
 
   // Injecting content_scripts inside a shadow dom with Firefox compatibility
   try {
-    const shadowRoot = rootDiv.attachShadow({ mode: "open" })
+    const shadowRoot = rootDiv.attachShadow({ mode: "closed" })
 
     // Use traditional style element approach instead of adoptedStyleSheets for Firefox compatibility
     const styleElement = document.createElement("style")
