@@ -14,7 +14,11 @@ const browserAPI = typeof browser !== "undefined" ? browser : chrome
 // Initialize keybinding registry on startup
 initializeKeybindingRegistry().catch(console.error)
 
-addRuntimeListener(createCrossBrowserMessageHandler(handleMessage))
+addRuntimeListener(
+  createCrossBrowserMessageHandler((message, sender) =>
+    handleMessage(message, sender),
+  ),
+)
 
 // Handle toolbar icon clicks
 if (browserAPI.action) {

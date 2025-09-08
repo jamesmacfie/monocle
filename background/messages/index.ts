@@ -9,9 +9,7 @@ import { getUnsplashBackground } from "./getUnsplashBackground"
 import { showToast } from "./showToast"
 import { updateCommandSetting } from "./updateCommandSetting"
 
-export const handleMessage = async (message: Message) => {
-  console.debug("[HandleMessage] Received message:", message.type, message)
-
+export const handleMessage = async (message: Message, _sender?: any) => {
   return await match(message)
     .with({ type: "get-commands" }, async (msg) => {
       return await getCommands(msg)
