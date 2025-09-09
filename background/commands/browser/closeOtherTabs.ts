@@ -11,6 +11,7 @@ export const closeOtherTabs: RunCommand = {
   name: "Close other tabs",
   icon: { type: "lucide", name: "XOctagon" },
   color: "red",
+  confirmAction: true,
   run: async () => {
     const activeTab = await getActiveTab()
 

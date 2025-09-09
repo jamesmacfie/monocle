@@ -11,6 +11,7 @@ export const closeTabsToLeft: RunCommand = {
   name: "Close tabs to the left",
   icon: { type: "lucide", name: "ChevronLeft" },
   color: "red",
+  confirmAction: true,
   run: async () => {
     const activeTab = await getActiveTab()
 

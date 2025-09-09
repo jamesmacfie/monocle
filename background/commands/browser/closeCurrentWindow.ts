@@ -7,6 +7,7 @@ export const closeCurrentWindow: RunCommand = {
   icon: { type: "lucide", name: "XOctagon" },
   color: "red",
   keybinding: "⌘ ⇧ w",
+  confirmAction: true,
   run: async () => {
     const current_window = await getCurrentWindow()
     if (current_window.id) {
