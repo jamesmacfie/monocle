@@ -12,7 +12,7 @@ Monocle is a browser extension built with Extension.js that provides a VS Code-s
 
 ### Directory Structure
 ```
-bifocal/
+monocle/
 ├── background/          # Service worker - command definitions, message handlers, keybindings
 ├── content/            # Content script - shadow DOM, overlay palette
 ├── newtab/             # New tab page - standalone palette
