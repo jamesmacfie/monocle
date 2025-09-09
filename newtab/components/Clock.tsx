@@ -16,30 +16,27 @@ export const Clock: React.FC<ClockProps> = ({ className = "" }) => {
     return () => clearInterval(interval)
   }, [])
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    })
-  }
+  const formattedTime = time.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  })
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString([], {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
-  }
+  const formattedDate = time.toLocaleDateString([], {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+
 
   return (
     <div className={`text-center ${className}`}>
       <div className="text-6xl font-light text-white mb-2 drop-shadow-lg">
-        {formatTime(time)}
+        {formattedTime}
       </div>
       <div className="text-lg text-white/90 drop-shadow-lg">
-        {formatDate(time)}
+        {formattedDate}
       </div>
     </div>
   )
