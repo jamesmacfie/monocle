@@ -65,6 +65,7 @@ export type CommandSuggestion = {
   keybinding?: string
   isFavorite?: boolean
   remainOpenOnSelect?: boolean
+  confirmAction?: boolean // Add confirmAction property
   executionContext?: ActionExecutionContext // Context for action execution
 }
 

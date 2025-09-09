@@ -244,6 +244,12 @@ function ActionItem({
   const targetCommandId = useAppSelector(selectTargetCommandId)
   const sendMessage = useSendMessage()
 
+  // Add confirmation state
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
+
+  // Check if this action requires confirmation
+  const requiresConfirmation = action.confirmAction === true
+
   // Check if this is a setKeybinding action that's currently being captured
   const isSetKeybindingAction =
     action.executionContext?.type === "setKeybinding"
@@ -252,6 +258,32 @@ function ActionItem({
     isSetKeybindingAction &&
     targetCommandId === action.executionContext?.targetCommandId
 
+  // Reset confirmation state when action changes (similar to CommandItem pattern)
+  useEffect(() => {
+    setAwaitingConfirmation(false)
+  }, [])
+
+  // Clear confirmation when action menu loses focus or closes
+  useEffect(() => {
+    if (awaitingConfirmation) {
+      const handleKeyDown = (event: KeyboardEvent) => {
+        // Clear confirmation on Escape or when navigating away
+        if (
+          event.key === "Escape" ||
+          event.key === "ArrowUp" ||
+          event.key === "ArrowDown"
+        ) {
+          setAwaitingConfirmation(false)
+        }
+      }
+
+      document.addEventListener("keydown", handleKeyDown)
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown)
+      }
+    }
+  }, [awaitingConfirmation])
+
   const handleSelect = () => {
     // If this is a setKeybinding action, start the capture flow instead of executing the command
     if (action.executionContext?.type === "setKeybinding") {
@@ -259,13 +291,27 @@ function ActionItem({
       return
     }
 
+    // Handle confirmation logic (skip confirmation for reset keybinding actions)
+    if (
+      requiresConfirmation &&
+      !awaitingConfirmation &&
+      action.executionContext?.type !== "resetKeybinding"
+    ) {
+      // First press - show confirmation
+      setAwaitingConfirmation(true)
+      return
+    }
+
     // Handle reset keybinding action
     if (action.executionContext?.type === "resetKeybinding") {
       // This will be handled by the background script's executeCommand function
+      setAwaitingConfirmation(false)
       onSelect(action.id)
       return
     }
 
+    // Execute action (confirmation passed or not needed)
+    setAwaitingConfirmation(false)
     onSelect(action.id)
   }
 
@@ -323,9 +369,20 @@ function ActionItem({
     )
   }
 
+  // Show confirmation message when awaiting confirmation
+  const displayName = awaitingConfirmation ? "Are you sure?" : action.name
+
   return (
-    <Command.Item onSelect={handleSelect}>
-      <CommandName name={action.name} />
+    <Command.Item
+      value={action.id}
+      keywords={[
+        typeof action.name === "string"
+          ? action.name
+          : action.name?.join(" ") || "",
+      ]}
+      onSelect={handleSelect}
+    >
+      <CommandName name={displayName} />
       {action.keybinding && (
         <KeybindingDisplay keybinding={action.keybinding} />
       )}
@@ -342,13 +399,16 @@ export function CommandActions({
   onClose,
   onRefresh,
 }: CommandActionsProps) {
-  console.log(
-    `[DEBUG] CommandActions rendered with ${actions.length} actions:`,
-    actions.map((a) => a.name),
-  )
-
   const actionInputRef = useRef<HTMLInputElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
+
+  // Clear all confirmation states when the menu closes
+  useEffect(() => {
+    if (!open) {
+      // When menu closes, all ActionItems will unmount and their state will be cleared naturally
+      // This ensures consistent state reset behavior
+    }
+  }, [open])
 
   useOnClickOutside(overlayRef, (_event) => {
     onClose?.()

@@ -55,6 +55,7 @@ export type RunCommand = BaseCommand &
       context?: Browser.Context,
       values?: Record<string, string>,
     ) => void | Promise<void>
+    confirmAction?: boolean
   }
 
 export type ParentCommand = BaseCommand & {

@@ -168,6 +168,7 @@ export const clearBrowserData: ParentCommand = {
               description: timeSpan.description,
               icon: timeSpan.icon,
               color: "red",
+              confirmAction: true,
               keywords: [
                 "clear",
                 dataType.name.toLowerCase(),

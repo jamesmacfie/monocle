@@ -605,6 +605,8 @@ const createPrimaryAction = async (
     isFavorite: false,
     actions: undefined,
     keybinding: "↵",
+    confirmAction:
+      "confirmAction" in command ? command.confirmAction : undefined,
     executionContext: {
       type: "primary",
       targetCommandId: command.id,
@@ -660,6 +662,7 @@ const createModifierKeyActions = async (
         isFavorite: false,
         actions: undefined,
         keybinding: `${symbol} ↵`,
+        confirmAction: command.confirmAction,
         executionContext: {
           type: "modifier",
           targetCommandId: command.id,
@@ -763,6 +766,8 @@ export const commandsToSuggestions = async (
         keybinding:
           commandSettings[command.id]?.keybinding || command.keybinding,
         isFavorite: favoriteCommandIds.includes(command.id),
+        confirmAction:
+          "confirmAction" in command ? command.confirmAction : undefined,
       } as CommandSuggestion
     }),
   )

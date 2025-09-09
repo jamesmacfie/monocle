@@ -1,5 +1,5 @@
-import { Command } from "cmdk"
-import type { ReactNode } from "react"
+import { Command, useCommandState } from "cmdk"
+import { type ReactNode, useEffect, useState } from "react"
 import type { CommandItemProps } from "../../types/command"
 import { Icon } from "../Icon"
 import { KeybindingDisplay } from "../KeybindingDisplay"
@@ -15,8 +15,36 @@ export function CommandItem({
   currentPage,
   children,
 }: Props) {
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
+  const focusedValue = useCommandState((state) => state.value)
+
+  // Check if this command requires confirmation
+  const requiresConfirmation =
+    !suggestion.isParentCommand &&
+    !suggestion.ui &&
+    suggestion.confirmAction === true
+
+  // Reset confirmation state when suggestion changes (navigation)
+  useEffect(() => {
+    setAwaitingConfirmation(false)
+  }, [])
+
+  // Clear confirmation when this item is no longer focused
+  useEffect(() => {
+    if (awaitingConfirmation && focusedValue !== suggestion.id) {
+      setAwaitingConfirmation(false)
+    }
+  }, [focusedValue, suggestion.id, awaitingConfirmation])
+
   const handleSelect = () => {
-    onSelect(suggestion.id)
+    if (requiresConfirmation && !awaitingConfirmation) {
+      // First press - show confirmation
+      setAwaitingConfirmation(true)
+    } else {
+      // Second press (confirmation) or no confirmation needed - execute
+      setAwaitingConfirmation(false)
+      onSelect(suggestion.id)
+    }
   }
 
   // Process the display name based on context
@@ -30,7 +58,9 @@ export function CommandItem({
     return name // Show as-is for top-level views
   }
 
-  const displayName = getContextualDisplayName(suggestion.name)
+  const displayName = awaitingConfirmation
+    ? "Are you sure?"
+    : getContextualDisplayName(suggestion.name)
 
   return (
     <Command.Item
