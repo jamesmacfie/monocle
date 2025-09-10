@@ -1,6 +1,6 @@
 // UI representations, forms, and display types
 import type { Browser } from "./browser"
-import type { CommandIcon } from "./commands"
+import type { BrowserPermission, CommandIcon } from "./commands"
 
 export type FormField = {
   id: string
@@ -67,6 +67,7 @@ export type CommandSuggestion = {
   remainOpenOnSelect?: boolean
   confirmAction?: boolean // Add confirmAction property
   executionContext?: ActionExecutionContext // Context for action execution
+  permissions?: BrowserPermission[]
 }
 
 // Resolved UI representation of commands

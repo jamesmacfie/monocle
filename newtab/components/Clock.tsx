@@ -29,7 +29,6 @@ export const Clock: React.FC<ClockProps> = ({ className = "" }) => {
     day: "numeric",
   })
 
-
   return (
     <div className={`text-center ${className}`}>
       <div className="text-6xl font-light text-white mb-2 drop-shadow-lg">

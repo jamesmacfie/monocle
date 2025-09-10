@@ -227,6 +227,7 @@ export const browsingHistory: ParentCommand = {
   icon: { type: "lucide", name: "History" },
   color: "green",
   keywords: ["history", "browsing", "visited", "past", "sites"],
+  permissions: ["history"],
   commands: async () => {
     try {
       // Return time period commands

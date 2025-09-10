@@ -1,9 +1,11 @@
 import { Command, useCommandState } from "cmdk"
 import { type ReactNode, useEffect, useState } from "react"
+import { usePermissionsGranted } from "../../hooks/usePermissionsGranted"
 import type { CommandItemProps } from "../../types/command"
 import { Icon } from "../Icon"
 import { KeybindingDisplay } from "../KeybindingDisplay"
 import { CommandName } from "./CommandName"
+import { useToast } from "../../hooks/useToast"
 
 interface Props extends CommandItemProps {
   children?: ReactNode
@@ -15,8 +17,12 @@ export function CommandItem({
   currentPage,
   children,
 }: Props) {
+  const toast = useToast()
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
   const focusedValue = useCommandState((state) => state.value)
+  const { isGrantedAllPermissions } = usePermissionsGranted(
+    suggestion.permissions || [],
+  )
 
   // Check if this command requires confirmation
   const requiresConfirmation =
@@ -37,6 +43,10 @@ export function CommandItem({
   }, [focusedValue, suggestion.id, awaitingConfirmation])
 
   const handleSelect = () => {
+    if (!isGrantedAllPermissions) {
+      toast('error', "Permissions required. Check the action menu to give these")
+      return
+    }
     if (requiresConfirmation && !awaitingConfirmation) {
       // First press - show confirmation
       setAwaitingConfirmation(true)
@@ -71,7 +81,11 @@ export function CommandItem({
       <Icon icon={suggestion.icon} color={suggestion.color} />
       <div className="command-item-content">
         {suggestion.isFavorite && <Icon name="Star" color="#fbbf24" />}
-        <CommandName name={displayName} className="command-item-name" />
+        <CommandName
+          permissions={suggestion.permissions}
+          name={displayName}
+          className="command-item-name"
+        />
       </div>
       {suggestion.keybinding && (
         <KeybindingDisplay keybinding={suggestion.keybinding} />

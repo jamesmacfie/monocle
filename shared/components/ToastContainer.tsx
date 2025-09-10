@@ -10,8 +10,7 @@ interface ToastItem {
   timestamp: number
 }
 
-const _TOAST_DURATION = 5000
-const _TOAST_EXIT_ANIMATION_DURATION = 300
+const TOAST_DURATION = 5000
 
 export const ToastContainer = () => {
   const [toasts, setToasts] = useState<ToastItem[]>([])
@@ -64,7 +63,7 @@ export const ToastContainer = () => {
           message={toast.message}
           level={toast.level}
           onRemove={removeToast}
-          duration={_TOAST_DURATION}
+          duration={TOAST_DURATION}
         />
       ))}
     </div>

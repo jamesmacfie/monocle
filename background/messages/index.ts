@@ -5,9 +5,11 @@ import { executeCommand } from "./executeCommand"
 import { executeKeybinding } from "./executeKeybinding"
 import { getChildrenCommands } from "./getChildrenCommands"
 import { getCommands } from "./getCommands"
+import { getPermissions } from "./getPermissions"
 import { getUnsplashBackground } from "./getUnsplashBackground"
 import { showToast } from "./showToast"
 import { updateCommandSetting } from "./updateCommandSetting"
+import { requestToast } from "./requestToast"
 
 export const handleMessage = async (message: Message, _sender?: any) => {
   return await match(message)
@@ -26,6 +28,9 @@ export const handleMessage = async (message: Message, _sender?: any) => {
     .with({ type: "show-toast" }, async (msg) => {
       return await showToast(msg)
     })
+    .with({ type: "request-toast" }, async (msg) => {
+      return await requestToast(msg)
+    })
     .with({ type: "update-command-setting" }, async (msg) => {
       return await updateCommandSetting(msg)
     })
@@ -34,6 +39,9 @@ export const handleMessage = async (message: Message, _sender?: any) => {
     })
     .with({ type: "get-unsplash-background" }, async (msg) => {
       return await getUnsplashBackground(msg)
+    })
+    .with({ type: "get-permissions" }, async (msg) => {
+      return await getPermissions(msg)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${(message as any).type}`)

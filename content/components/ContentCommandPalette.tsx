@@ -8,6 +8,8 @@ import { useCommandPaletteStateRedux } from "../../shared/hooks/useCommandPalett
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
+import { useAppDispatch } from "../../shared/store/hooks"
+import { loadPermissions } from "../../shared/store/slices/settings.slice"
 
 // Store is provided by ContentCommandPaletteWithState at the root
 
@@ -21,12 +23,14 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
   const { data, fetchCommands } = useGetCommands()
   const { isOpen, hideUI } = useCommandPaletteStateRedux()
   const sendMessage = useSendMessage()
+  const dispatch = useAppDispatch()
 
   // Enable global keybindings for content script
   useGlobalKeybindings()
 
-  // Fetch commands on initial render
+  // Load permissions and fetch commands on initial render
   useEffect(() => {
+    dispatch(loadPermissions())
     fetchCommands()
   }, [])
 

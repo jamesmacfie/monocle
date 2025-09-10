@@ -768,6 +768,7 @@ export const commandsToSuggestions = async (
         isFavorite: favoriteCommandIds.includes(command.id),
         confirmAction:
           "confirmAction" in command ? command.confirmAction : undefined,
+        permissions: command.permissions,
       } as CommandSuggestion
     }),
   )

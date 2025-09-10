@@ -38,6 +38,21 @@ export const createAppStore = (
             show: true,
           },
         },
+        permissions: {
+          isLoaded: false,
+          access: {
+            activeTab: false,
+            bookmarks: false,
+            browsingData: false,
+            contextualIdentities: false,
+            cookies: false,
+            downloads: false,
+            history: false,
+            sessions: false,
+            storage: false,
+            tabs: false,
+          },
+        },
         loading: false,
         error: null,
       },
@@ -86,6 +101,21 @@ export const createNavigationStore = (
         newTab: {
           clock: {
             show: true,
+          },
+        },
+        permissions: {
+          isLoaded: false,
+          access: {
+            activeTab: false,
+            bookmarks: false,
+            browsingData: false,
+            contextualIdentities: false,
+            cookies: false,
+            downloads: false,
+            history: false,
+            sessions: false,
+            storage: false,
+            tabs: false,
           },
         },
         loading: false,

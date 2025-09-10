@@ -3,7 +3,11 @@ import {
   createSlice,
   type PayloadAction,
 } from "@reduxjs/toolkit"
-import type { NewTabSettings, Settings } from "../../../types"
+import type {
+  NewTabSettings,
+  PermissionSettings,
+  Settings,
+} from "../../../types"
 
 // Cross-browser compatibility layer
 const browserAPI = typeof browser !== "undefined" ? browser : chrome
@@ -11,6 +15,7 @@ const browserAPI = typeof browser !== "undefined" ? browser : chrome
 // Settings state structure
 interface SettingsState {
   newTab: NewTabSettings
+  permissions: PermissionSettings
   loading: boolean
   error: string | null
 }
@@ -19,6 +24,21 @@ const initialState: SettingsState = {
   newTab: {
     clock: {
       show: true, // Default to showing clock
+    },
+  },
+  permissions: {
+    isLoaded: false,
+    access: {
+      activeTab: false,
+      bookmarks: false,
+      browsingData: false,
+      contextualIdentities: false,
+      cookies: false,
+      downloads: false,
+      history: false,
+      sessions: false,
+      storage: false,
+      tabs: false,
     },
   },
   loading: false,
@@ -45,10 +65,37 @@ export const loadSettings = createAsyncThunk(
   },
 )
 
+// Async thunk to load permissions from background script
+export const loadPermissions = createAsyncThunk(
+  "settings/loadPermissions",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await new Promise((resolve, reject) => {
+        browserAPI.runtime.sendMessage(
+          { type: "get-permissions" },
+          (response) => {
+            if (browserAPI.runtime.lastError) {
+              reject(browserAPI.runtime.lastError)
+            } else {
+              resolve(response)
+            }
+          },
+        )
+      })
+
+      return response as PermissionSettings
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to load permissions",
+      )
+    }
+  },
+)
+
 // Async thunk to update clock visibility and sync to storage
 export const updateClockVisibility = createAsyncThunk(
   "settings/updateClockVisibility",
-  async (show: boolean, { getState, rejectWithValue }) => {
+  async (show: boolean, { rejectWithValue }) => {
     try {
       const STORAGE_KEY = "monocle-settings"
 
@@ -141,6 +188,21 @@ export const settingsSlice = createSlice({
         state.loading = false
         state.error = action.payload as string
       })
+
+      // Load permissions
+      .addCase(loadPermissions.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(loadPermissions.fulfilled, (state, action) => {
+        state.loading = false
+        state.error = null
+        state.permissions = action.payload
+      })
+      .addCase(loadPermissions.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
   },
 })
 
@@ -158,5 +220,11 @@ export const selectSettingsLoading = (state: { settings: SettingsState }) =>
 
 export const selectSettingsError = (state: { settings: SettingsState }) =>
   state.settings.error
+
+export const selectPermissions = (state: { settings: SettingsState }) =>
+  state.settings.permissions
+
+export const selectPermissionsLoaded = (state: { settings: SettingsState }) =>
+  state.settings.permissions.isLoaded
 
 export default settingsSlice.reducer

@@ -6,6 +6,8 @@ import type {
   ExecuteKeybindingMessage,
   GetChildrenMessage,
   GetCommandsMessage,
+  GetPermissionsMessage,
+  RequestToastMessage,
   UpdateCommandSettingMessage,
 } from "../../types/"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
@@ -29,6 +31,8 @@ type SendableMessage =
   | ExecuteKeybindingMessageWithoutContext
   | UpdateCommandSettingMessage
   | CheckKeybindingConflictMessage
+  | GetPermissionsMessage
+  | RequestToastMessage
 
 export function useSendMessage() {
   const { modifier } = useIsModifierKeyPressed()
@@ -52,8 +56,9 @@ export function useSendMessage() {
       // Merge base context with any overrides
       const context = { ...baseContext, ...contextOverride }
 
-      // Add context to all messages since they all require it
-      const messageWithContext = { ...message, context }
+      // Add context to messages that require it (not GetPermissionsMessage)
+      const messageWithContext =
+        message.type === "get-permissions" ? message : { ...message, context }
 
       return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(messageWithContext, (response) => {

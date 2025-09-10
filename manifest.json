@@ -32,8 +32,8 @@
       "id": "ff@monocle.com"
     }
   },
-  "permissions": [
-    "activeTab",
+  "permissions": ["activeTab", "storage"],
+  "optional_permissions": [
     "bookmarks",
     "browsingData",
     "cookies",
@@ -41,8 +41,7 @@
     "downloads",
     "history",
     "sessions",
-    "tabs",
-    "storage"
+    "tabs"
   ],
   "commands": {
     "toggle-command-palette": {

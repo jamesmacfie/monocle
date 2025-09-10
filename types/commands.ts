@@ -24,6 +24,18 @@ export type ColorName =
 
 export type CommandColor = { preset: ColorName } | { custom: string }
 
+export type BrowserPermission =
+  | "activeTab"
+  | "bookmarks"
+  | "browsingData"
+  | "contextualIdentities"
+  | "cookies"
+  | "downloads"
+  | "history"
+  | "sessions"
+  | "storage"
+  | "tabs"
+
 // Base command with all common properties
 export interface BaseCommand {
   id: string
@@ -37,6 +49,7 @@ export interface BaseCommand {
   doNotAddToRecents?: boolean
   priority?: (context: Browser.Context) => Promise<Command[]>
   actions?: Command[]
+  permissions?: BrowserPermission[]
   allowCustomKeybinding?: boolean
 }
 

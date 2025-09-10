@@ -33,6 +33,12 @@ export type ShowToastMessage = {
   message: string
 }
 
+export type RequestToastMessage = {
+  type: "request-toast"
+  level: "info" | "warning" | "success" | "error"
+  message: string
+}
+
 export type UpdateCommandSettingMessage = {
   type: "update-command-setting"
   commandId: string
@@ -51,15 +57,21 @@ export type GetUnsplashBackgroundMessage = {
   context: Browser.Context
 }
 
+export type GetPermissionsMessage = {
+  type: "get-permissions"
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
   | GetCommandsMessage
   | ExecuteKeybindingMessage
   | ShowToastMessage
+  | RequestToastMessage
   | UpdateCommandSettingMessage
   | CheckKeybindingConflictMessage
   | GetUnsplashBackgroundMessage
+  | GetPermissionsMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

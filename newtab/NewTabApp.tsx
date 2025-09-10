@@ -4,6 +4,7 @@ import { ToastContainer } from "../shared/components/ToastContainer"
 import { createAppStore } from "../shared/store"
 import { useAppDispatch, useAppSelector } from "../shared/store/hooks"
 import {
+  loadPermissions,
   loadSettings,
   selectClockVisibility,
 } from "../shared/store/slices/settings.slice"
@@ -18,9 +19,10 @@ function NewTabAppContent() {
   const showClock = useAppSelector(selectClockVisibility)
   const dispatch = useAppDispatch()
 
-  // Load initial settings on mount
+  // Load initial settings and permissions on mount
   useEffect(() => {
     dispatch(loadSettings())
+    dispatch(loadPermissions())
   }, [dispatch])
 
   // Listen for storage changes and reload settings
