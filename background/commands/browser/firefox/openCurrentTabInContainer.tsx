@@ -9,6 +9,7 @@ export const openCurrentTabInContainer: ParentCommand = {
   description: "Reopen the current tab in a container profile",
   icon: { type: "lucide", name: "RefreshCw" },
   color: "blue",
+  permissions: ["tabs", "contextualIdentities"],
   keywords: ["container", "tab", "profile", "reopen", "current"],
   commands: async (): Promise<Command[]> => {
     try {

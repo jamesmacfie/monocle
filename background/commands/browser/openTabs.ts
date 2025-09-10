@@ -134,6 +134,7 @@ export const openTabs: ParentCommand = {
   icon: { type: "lucide", name: "Tabs" },
   color: "blue",
   keybinding: "⌘ t",
+  permissions: ["tabs"],
   enableDeepSearch: true, // Enable deep search for nested tab access
   commands: async () => {
     try {

@@ -6,6 +6,7 @@ export const moveCurrentTabToANewWindow: RunCommand = {
   name: "Move this tab to a new window",
   icon: { type: "lucide", name: "SquareArrowOutUpRight" },
   color: "yellow",
+  permissions: ["tabs"],
   run: async () => {
     const active_tabs = await queryTabs({
       currentWindow: true,

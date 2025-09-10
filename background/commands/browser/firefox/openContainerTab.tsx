@@ -9,6 +9,7 @@ export const openContainerTab: ParentCommand = {
   description: "Open a new tab in a container profile",
   icon: { type: "lucide", name: "Box" },
   color: "green",
+  permissions: ["contextualIdentities"],
   keywords: ["container", "tab", "profile"],
   commands: async (): Promise<Command[]> => {
     try {

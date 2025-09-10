@@ -6,6 +6,7 @@ export const moveCurrentTabToPopupWindow: RunCommand = {
   name: "Move current tab to popup window",
   icon: { type: "lucide", name: "Maximize2" },
   color: "yellow",
+  permissions: ["tabs"],
   run: async () => {
     const active_tabs = await queryTabs({
       currentWindow: true,

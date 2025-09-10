@@ -7,6 +7,7 @@ export const gotoTab: ParentCommand = {
   name: "Go to tab",
   icon: { type: "lucide", name: "ArrowRightSquare" },
   color: "green",
+  permissions: ["tabs"],
   commands: async () => {
     const tabs = await queryTabs({ currentWindow: true })
     return tabs

@@ -7,6 +7,7 @@ export const copyTabUrl: ParentCommand = {
   name: "Copy tab URL",
   icon: { type: "lucide", name: "Copy" },
   color: "teal",
+  permissions: ["tabs"],
   commands: async () => {
     const tabs = await queryTabs({ currentWindow: true })
     return tabs
