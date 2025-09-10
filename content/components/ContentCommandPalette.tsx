@@ -81,12 +81,15 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
   return (
     <>
       {isOpen && (
-        <CommandPalette
-          items={data}
-          executeCommand={executeCommand}
-          close={handleClose}
-          onRefreshCommands={fetchCommands}
-        />
+        <>
+          <div className="command-palette-overlay" onClick={handleClose} />
+          <CommandPalette
+            items={data}
+            executeCommand={executeCommand}
+            close={handleClose}
+            onRefreshCommands={fetchCommands}
+          />
+        </>
       )}
       <ToastContainer />
     </>
