@@ -92,6 +92,35 @@ export const loadPermissions = createAsyncThunk(
   },
 )
 
+// Async thunk to refresh permissions from background script
+export const refreshPermissions = createAsyncThunk(
+  "settings/refreshPermissions",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await new Promise((resolve, reject) => {
+        browserAPI.runtime.sendMessage(
+          { type: "get-permissions" },
+          (response) => {
+            if (browserAPI.runtime.lastError) {
+              reject(browserAPI.runtime.lastError)
+            } else {
+              resolve(response)
+            }
+          },
+        )
+      })
+
+      return response as PermissionSettings
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error
+          ? error.message
+          : "Failed to refresh permissions",
+      )
+    }
+  },
+)
+
 // Async thunk to update clock visibility and sync to storage
 export const updateClockVisibility = createAsyncThunk(
   "settings/updateClockVisibility",
@@ -200,6 +229,21 @@ export const settingsSlice = createSlice({
         state.permissions = action.payload
       })
       .addCase(loadPermissions.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+
+      // Refresh permissions
+      .addCase(refreshPermissions.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(refreshPermissions.fulfilled, (state, action) => {
+        state.loading = false
+        state.error = null
+        state.permissions = action.payload
+      })
+      .addCase(refreshPermissions.rejected, (state, action) => {
         state.loading = false
         state.error = action.payload as string
       })

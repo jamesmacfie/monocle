@@ -1,10 +1,7 @@
 import { Command } from "cmdk"
 import { useEffect, useRef } from "react"
 import { useOnClickOutside } from "usehooks-ts"
-import {
-  type PermissionKey,
-  usePermissionsGranted,
-} from "../../hooks/usePermissionsGranted"
+import { usePermissionsGranted } from "../../hooks/usePermissionsGranted"
 import type { CommandActionsProps } from "../../types/command"
 import { CommandActionsList } from "./CommandActionsList"
 import { PermissionActions } from "./PermissionActions"
@@ -77,10 +74,6 @@ export function CommandActions({
     }, 50)
   }
 
-  const handlePermissionRequest = (permission: PermissionKey) => {
-    console.log(`Permission request for: ${permission}`)
-  }
-
   if (!selectedValue || !actions.length || !open) {
     return null
   }
@@ -98,7 +91,8 @@ export function CommandActions({
               {!isGrantedAllPermissions ? (
                 <PermissionActions
                   missingPermissions={missingPermissions}
-                  onPermissionRequest={handlePermissionRequest}
+                  onRefresh={onRefresh}
+                  onClose={onClose}
                 />
               ) : (
                 <CommandActionsList

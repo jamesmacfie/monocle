@@ -218,7 +218,7 @@ export const downloads: ParentCommand = {
   icon: { type: "lucide", name: "Download" },
   color: "blue",
   keywords: ["downloads", "files", "recent", "downloaded"],
-  permissions: ['downloads'],
+  permissions: ["downloads"],
   commands: async () => {
     try {
       const downloadItems = await getRecentDownloads(50)

@@ -141,6 +141,81 @@ modifierActionLabel: {
 }
 ```
 
+## Permissions System
+
+### Overview
+
+Monocle uses a selective permissions model where commands can opt-in to browser permissions as needed. This minimizes the extension's initial permission footprint while allowing powerful commands when users choose to grant access.
+
+**Permission Types**:
+- **Required Permissions**: `activeTab`, `storage` - automatically granted at install time
+- **Optional Permissions**: `bookmarks`, `browsingData`, `contextualIdentities`, `cookies`, `downloads`, `history`, `sessions`, `tabs` - requested on-demand
+
+### Command Permission Declaration
+
+Commands specify required permissions using the `permissions` property:
+
+```typescript
+export const bookmarks: ParentCommand = {
+  id: "bookmarks",
+  name: "Bookmarks",
+  permissions: ["bookmarks"],  // Required permissions
+  commands: async () => {
+    // Command implementation
+  }
+}
+```
+
+**Available Permissions**:
+- `activeTab`: Access to current tab info
+- `bookmarks`: Read/write bookmarks
+- `browsingData`: Clear browsing data
+- `contextualIdentities`: Container tabs (Firefox)
+- `cookies`: Read/write cookies
+- `downloads`: Access downloads
+- `history`: Browse history
+- `sessions`: Recently closed tabs/windows
+- `storage`: Local storage (auto-granted)
+- `tabs`: Tab management
+
+### Permission Flow
+
+1. **Command Selection**: User selects command requiring permissions
+2. **Permission Check**: `usePermissionsGranted` hook validates required permissions
+3. **Action Menu Fallback**: If permissions missing, action menu shows permission requests instead of command actions
+4. **User Grant**: User clicks "Grant X permission" → `chrome.permissions.request()` called directly from content script → browser shows permission dialog → actions menu closes automatically
+5. **State Update**: On grant, `refreshPermissions` thunk updates Redux store from actual browser permissions → UI refreshes to show available actions
+6. **Command Execution**: Command runs with granted permissions
+
+### Permission UI Components
+
+**PermissionActions Component**: Displays permission grant options in action menu
+- Calls `chrome.permissions.request()` directly from content script
+- Maps technical permission names to user-friendly labels
+- Auto-closes actions menu after permission dialog
+- Triggers `refreshPermissions` thunk and command list reload on success
+
+**usePermissionsGranted Hook**: Checks command permission status
+```typescript
+const { isGrantedAllPermissions, missingPermissions } = 
+  usePermissionsGranted(commandPermissions)
+```
+
+### Implementation Details
+
+**Permission Requests**: `PermissionActions` component calls `chrome.permissions.request()` directly from content script
+
+**Permission Storage**: Permissions stored in Redux `settings.slice` with automatic sync to `chrome.storage.local`
+
+**State Synchronization**: After successful grant, `refreshPermissions` thunk updates Redux store from actual browser permissions
+
+### Developer Guidelines
+
+1. **Minimal Permissions**: Only request permissions your command actually needs
+2. **Graceful Degradation**: Handle missing permissions with NoOp commands when appropriate
+3. **User Communication**: Use clear descriptions explaining why permissions are needed
+4. **Testing**: Test commands both with and without permissions granted
+
 ## Browser Compatibility
 
 **API Abstraction**: `background/utils/browser.ts` wraps browser.* vs chrome.* APIs
