@@ -314,7 +314,7 @@ export function CommandPalette({
                 open={actionsState.open}
                 selectedValue={getDisplayName(actionsState.suggestion.name)}
                 inputRef={inputRef}
-                actions={actionsState.suggestion.actions}
+                suggestion={actionsState.suggestion}
                 onActionSelect={handleActionSelect}
                 onClose={handleCloseActions}
                 onRefresh={handleRefreshForKeybinding}

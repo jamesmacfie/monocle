@@ -66,7 +66,7 @@ export interface CommandActionsProps {
   open: boolean
   selectedValue: string
   inputRef: RefObject<HTMLInputElement>
-  actions?: CommandSuggestion[]
+  suggestion: CommandSuggestion
   onActionSelect?: (id: string) => void
   onClose: (force?: boolean) => void
   onRefresh?: () => void

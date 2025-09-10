@@ -7,9 +7,9 @@ import { getChildrenCommands } from "./getChildrenCommands"
 import { getCommands } from "./getCommands"
 import { getPermissions } from "./getPermissions"
 import { getUnsplashBackground } from "./getUnsplashBackground"
+import { requestToast } from "./requestToast"
 import { showToast } from "./showToast"
 import { updateCommandSetting } from "./updateCommandSetting"
-import { requestToast } from "./requestToast"
 
 export const handleMessage = async (message: Message, _sender?: any) => {
   return await match(message)
