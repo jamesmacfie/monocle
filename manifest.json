@@ -33,11 +33,11 @@
     }
   },
   "permissions": ["activeTab", "storage"],
+  "firefox:permissions": ["activeTab", "storage", "contextualIdentities"],
   "optional_permissions": [
     "bookmarks",
     "browsingData",
     "cookies",
-    "contextualIdentities",
     "downloads",
     "history",
     "sessions",
