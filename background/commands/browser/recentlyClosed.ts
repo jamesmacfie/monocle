@@ -29,6 +29,7 @@ export const recentlyClosed: ParentCommand = {
   description: "Browse and restore recently closed tabs and windows",
   icon: { type: "lucide", name: "History" },
   color: "blue",
+  permissions: ['sessions'],
   keywords: [
     "recently",
     "closed",

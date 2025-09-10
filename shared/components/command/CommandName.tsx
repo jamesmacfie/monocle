@@ -68,7 +68,7 @@ export function CommandName({ name, className, permissions = [] }: Props) {
       {name}
       {permissionDisplay && (
         <span className="ml-2 text-red-400">
-          &gt; Requires missing permissions: {permissionDisplay}
+          &gt; Missing permissions: {permissionDisplay}
         </span>
       )}
     </span>

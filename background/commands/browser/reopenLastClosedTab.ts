@@ -15,6 +15,7 @@ export const reopenLastClosedTab: RunCommand = {
   keywords: ["reopen", "restore", "closed", "tab", "undo", "last", "recent"],
   keybinding: "⌘ ⇧ T",
   actionLabel: "Reopen",
+  permissions: ['sessions'],
   run: async () => {
     const activeTab = await getActiveTab()
 

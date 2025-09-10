@@ -18,6 +18,7 @@ export const clearBrowserData: ParentCommand = {
   name: "Clear Browser Data",
   description: "Clear different types of browser data for various time periods",
   icon: { name: "Trash2", type: "lucide" },
+  permissions: ['browsingData', 'history', 'cookies', 'sessions'],
   color: "red",
   keywords: [
     "clear",
