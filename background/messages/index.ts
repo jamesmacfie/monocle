@@ -1,5 +1,5 @@
 import { match } from "ts-pattern"
-import type { Message } from "../../types/"
+import { validateIncomingMessage } from "../utils/validation"
 import { checkKeybindingConflict } from "./checkKeybindingConflict"
 import { executeCommand } from "./executeCommand"
 import { executeKeybinding } from "./executeKeybinding"
@@ -12,7 +12,29 @@ import { requestToast } from "./requestToast"
 import { showToast } from "./showToast"
 import { updateCommandSetting } from "./updateCommandSetting"
 
-export const handleMessage = async (message: Message, _sender?: any) => {
+export const handleMessage = async (rawMessage: unknown, sender?: any) => {
+  // Validate the incoming message with comprehensi security checks
+  const validation = validateIncomingMessage(rawMessage, sender)
+
+  if (!validation.success) {
+    // Log security/validation failures for monitoring
+    console.error("[MessageHandler] Message validation failed:", {
+      error: validation.error,
+      issues: validation.issues,
+      sender: validation.senderId,
+      messageType: (rawMessage as any)?.type || "unknown",
+    })
+
+    // Return structured error response
+    return {
+      error: `Message validation failed: ${validation.error}`,
+      validationIssues: validation.issues,
+    }
+  }
+
+  const message = validation.data
+
+  // Route validated message to appropriate handler
   return await match(message)
     .with({ type: "get-commands" }, async (msg) => {
       return await getCommands(msg)
@@ -48,6 +70,6 @@ export const handleMessage = async (message: Message, _sender?: any) => {
       return await requestPermission(msg)
     })
     .otherwise(() => {
-      throw new Error(`Unknown message type: ${(message as any).type}`)
+      throw new Error(`Unknown message type: ${message.type}`)
     })
 }
