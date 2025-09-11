@@ -419,6 +419,29 @@ export const executeCommand = async (
 
   if (commandToRun) {
     if ("run" in commandToRun) {
+      // Check permissions before executing the command
+      if (commandToRun.permissions) {
+        const { checkPermissions } = require("../utils/permissions")
+        const { showToast } = require("../messages/showToast")
+
+        const { hasAllPermissions, missingPermissions } =
+          await checkPermissions(commandToRun.permissions)
+
+        if (!hasAllPermissions) {
+          const permissionList = missingPermissions
+            .map((p: string) => p.charAt(0).toUpperCase() + p.slice(1))
+            .join(", ")
+
+          await showToast({
+            type: "show-toast",
+            level: "error",
+            message: `Missing permissions: ${permissionList}. Please grant these permissions to use this command.`,
+          })
+
+          return
+        }
+      }
+
       try {
         await commandToRun.run(context, formValues)
 
