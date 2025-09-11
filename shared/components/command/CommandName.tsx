@@ -56,13 +56,6 @@ export function CommandName({ name, className, permissions = [] }: Props) {
     <>{formatHumanReadablePermissions(missingPermissions)}</>
   ) : null
 
-  console.log(
-    name,
-    isGrantedAllPermissions,
-    missingPermissions,
-    permissionDisplay,
-  )
-
   return (
     <span className={className} title={name}>
       {name}

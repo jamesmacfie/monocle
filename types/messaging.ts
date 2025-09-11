@@ -61,6 +61,16 @@ export type GetPermissionsMessage = {
   type: "get-permissions"
 }
 
+export type RequestPermissionMessage = {
+  type: "request-permission"
+  permission: string
+}
+
+export interface RequestPermissionResponse {
+  granted: boolean
+  error?: string
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
@@ -72,6 +82,7 @@ export type Message =
   | CheckKeybindingConflictMessage
   | GetUnsplashBackgroundMessage
   | GetPermissionsMessage
+  | RequestPermissionMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

@@ -7,6 +7,7 @@ import type {
   GetChildrenMessage,
   GetCommandsMessage,
   GetPermissionsMessage,
+  RequestPermissionMessage,
   RequestToastMessage,
   UpdateCommandSettingMessage,
 } from "../../types/"
@@ -32,6 +33,7 @@ type SendableMessage =
   | UpdateCommandSettingMessage
   | CheckKeybindingConflictMessage
   | GetPermissionsMessage
+  | RequestPermissionMessage
   | RequestToastMessage
 
 export function useSendMessage() {
@@ -56,9 +58,12 @@ export function useSendMessage() {
       // Merge base context with any overrides
       const context = { ...baseContext, ...contextOverride }
 
-      // Add context to messages that require it (not GetPermissionsMessage)
+      // Add context to messages that require it (not GetPermissionsMessage or RequestPermissionMessage)
       const messageWithContext =
-        message.type === "get-permissions" ? message : { ...message, context }
+        message.type === "get-permissions" ||
+        message.type === "request-permission"
+          ? message
+          : { ...message, context }
 
       return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(messageWithContext, (response) => {

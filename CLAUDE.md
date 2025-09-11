@@ -123,9 +123,11 @@ Primary interface: `useCommandNavigation` hook maintains same API as previous im
 
 ## Messaging System
 
-**Message Types**: `get-commands`, `execute-command`, `get-children-commands`, `execute-keybinding`
+**Message Types**: `get-commands`, `execute-command`, `get-children-commands`, `execute-keybinding`, `request-permission`
 
 **Browser.Context**: Every command execution includes current page URL, title, and active modifier key.
+
+**Permission Messages**: `request-permission` messages are used in Chrome to route permission requests through the background script for security compliance.
 
 ## Keybinding System
 
@@ -183,9 +185,21 @@ export const bookmarks: ParentCommand = {
 1. **Command Selection**: User selects command requiring permissions
 2. **Permission Check**: `usePermissionsGranted` hook validates required permissions
 3. **Action Menu Fallback**: If permissions missing, action menu shows permission requests instead of command actions
-4. **User Grant**: User clicks "Grant X permission" → `chrome.permissions.request()` called directly from content script → browser shows permission dialog → actions menu closes automatically
+4. **User Grant**: User clicks "Grant X permission" → browser-specific permission request flow → browser shows permission dialog → actions menu closes automatically
 5. **State Update**: On grant, `refreshPermissions` thunk updates Redux store from actual browser permissions → UI refreshes to show available actions
 6. **Command Execution**: Command runs with granted permissions
+
+#### Browser-Specific Permission Flows
+
+**Firefox**: Permission requests are made directly from the content script using `browser.permissions.request()` (original flow)
+
+**Chrome**: Permission requests are routed through the background script:
+- Content script sends `request-permission` message to background
+- Background script calls `chrome.permissions.request()` 
+- Background returns success/failure result to content script
+- Content script updates UI and Redux store accordingly
+
+This approach ensures compatibility with both browsers' permission security models.
 
 ### Permission UI Components
 
@@ -203,11 +217,19 @@ const { isGrantedAllPermissions, missingPermissions } =
 
 ### Implementation Details
 
-**Permission Requests**: `PermissionActions` component calls `chrome.permissions.request()` directly from content script
+**Permission Requests**: `PermissionActions` component uses browser-specific flows:
+- Firefox: Direct `browser.permissions.request()` calls from content script
+- Chrome: Sends `request-permission` message to background script for processing
+
+**Browser Detection**: Uses `shared/utils/browser.ts` for consistent browser detection across components
+
+**Message Types**: Added `RequestPermissionMessage` for Chrome background permission requests
 
 **Permission Storage**: Permissions stored in Redux `settings.slice` with automatic sync to `chrome.storage.local`
 
 **State Synchronization**: After successful grant, `refreshPermissions` thunk updates Redux store from actual browser permissions
+
+**Firefox-Specific Permissions**: `contextualIdentities` permission is Firefox-only and handled appropriately in Chrome
 
 ### Developer Guidelines
 

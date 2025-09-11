@@ -231,6 +231,7 @@ export const settingsSlice = createSlice({
       .addCase(loadPermissions.rejected, (state, action) => {
         state.loading = false
         state.error = action.payload as string
+        state.permissions.isLoaded = false
       })
 
       // Refresh permissions

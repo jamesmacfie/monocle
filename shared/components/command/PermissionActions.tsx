@@ -3,6 +3,7 @@ import type { PermissionKey } from "../../hooks/usePermissionsGranted"
 import { useSendMessage } from "../../hooks/useSendMessage"
 import { useAppDispatch } from "../../store/hooks"
 import { refreshPermissions } from "../../store/slices/settings.slice"
+import { isFirefox } from "../../utils/browser"
 import { CommandName } from "./CommandName"
 
 // Cross-browser compatibility layer
@@ -38,10 +39,24 @@ export function PermissionActions({
 
   const handlePermissionRequest = async (permission: PermissionKey) => {
     try {
-      // Request permission directly from content script
-      const granted = await browserAPI.permissions.request({
-        permissions: [permission],
-      })
+      let granted = false
+      let errorMessage: string | undefined
+
+      if (isFirefox) {
+        // Firefox: Request permission directly from content script (current flow)
+        granted = await browserAPI.permissions.request({
+          permissions: [permission],
+        })
+      } else {
+        // Chrome: Send request to background script
+        const response: { granted: boolean; error?: string } =
+          await sendMessage({
+            type: "request-permission",
+            permission,
+          })
+        granted = response?.granted || false
+        errorMessage = response?.error
+      }
 
       if (granted) {
         // Update permissions in Redux store
@@ -57,17 +72,18 @@ export function PermissionActions({
         await sendMessage({
           type: "request-toast",
           level: "success",
-          message: `${permission} permission granted successfully`,
+          message: `${permissionDisplayNames[permission]} permission granted successfully`,
         })
       } else {
         // Close the actions menu
         onClose?.()
 
-        // Show warning toast for denied permission
+        // Show warning toast with specific error if available
+        const message = errorMessage || "Permission was denied"
         await sendMessage({
           type: "request-toast",
           level: "warning",
-          message: "Permission was denied",
+          message,
         })
       }
     } catch (error) {
@@ -76,11 +92,13 @@ export function PermissionActions({
       // Close the actions menu
       onClose?.()
 
-      // Show error toast
+      // Show error toast with specific error message
+      const errorMsg =
+        error instanceof Error ? error.message : "Unknown error occurred"
       await sendMessage({
         type: "request-toast",
         level: "error",
-        message: "Failed to request permission",
+        message: `Failed to request ${permissionDisplayNames[permission]} permission: ${errorMsg}`,
       })
     }
   }

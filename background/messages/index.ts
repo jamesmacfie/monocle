@@ -7,6 +7,7 @@ import { getChildrenCommands } from "./getChildrenCommands"
 import { getCommands } from "./getCommands"
 import { getPermissions } from "./getPermissions"
 import { getUnsplashBackground } from "./getUnsplashBackground"
+import { requestPermission } from "./requestPermission"
 import { requestToast } from "./requestToast"
 import { showToast } from "./showToast"
 import { updateCommandSetting } from "./updateCommandSetting"
@@ -42,6 +43,9 @@ export const handleMessage = async (message: Message, _sender?: any) => {
     })
     .with({ type: "get-permissions" }, async (msg) => {
       return await getPermissions(msg)
+    })
+    .with({ type: "request-permission" }, async (msg) => {
+      return await requestPermission(msg)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${(message as any).type}`)
