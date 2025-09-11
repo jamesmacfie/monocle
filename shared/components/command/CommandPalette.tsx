@@ -231,6 +231,11 @@ export function CommandPalette({
       open: false,
       suggestion: null,
     })
+
+    // Refocus the search input after closing the action menu
+    setTimeout(() => {
+      inputRef?.current?.focus()
+    }, 50)
   }
 
   const handleRefreshForKeybinding = async () => {
