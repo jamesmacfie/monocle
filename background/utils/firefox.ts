@@ -1,7 +1,7 @@
 /**
  * Firefox-specific browser features and utilities
  */
-import { isFirefox } from "./browser"
+import { isFirefox } from "../../shared/utils/browser"
 
 /**
  * Toggles reader mode for a tab (Firefox only)

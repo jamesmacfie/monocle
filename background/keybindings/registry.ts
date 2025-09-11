@@ -1,11 +1,11 @@
 import { match } from "ts-pattern"
+import { isFirefox } from "../../shared/utils/browser"
 import type { Command } from "../../types/"
 import { browserCommands } from "../commands/browser"
 import { firefoxCommands } from "../commands/browser/firefox"
 import { debug } from "../commands/debug"
 import { getAllCommandSettings } from "../commands/settings"
 import { toolCommands } from "../commands/tools"
-import { isFirefox } from "../utils/browser"
 
 // Map of keybinding string to command ID
 const keybindingRegistry = new Map<string, string>()

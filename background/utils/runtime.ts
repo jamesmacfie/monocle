@@ -1,7 +1,7 @@
 /**
  * Cross-browser runtime utilities for consistent API usage
  */
-import { isFirefox } from "./browser"
+import { isFirefox } from "../../shared/utils/browser"
 
 /**
  * Adds a runtime message listener with cross-browser compatibility

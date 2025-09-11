@@ -1,6 +1,6 @@
 import { match } from "ts-pattern"
+import { isFirefox } from "../../shared/utils/browser"
 import type { Browser, Command, CommandSuggestion } from "../../types/"
-import { isFirefox } from "../utils/browser"
 import {
   resolveActionLabel,
   resolveAsyncProperty,

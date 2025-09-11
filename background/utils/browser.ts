@@ -1,3 +1,4 @@
+import { isFirefox } from "../../shared/utils/browser"
 import type { Event } from "../../types/"
 
 type BrowserAPIObject =
@@ -9,11 +10,6 @@ type BrowserAPIObject =
   | "browsingData"
   | "downloads"
   | "sessions"
-
-// Cross-browser API helpers to handle Chrome vs Firefox differences
-export const isFirefox = chrome.runtime
-  .getURL("")
-  .startsWith("moz-extension://")
 
 // Generic wrapper to handle API methods that exist in both browsers but with different signatures
 export function callBrowserAPI(
