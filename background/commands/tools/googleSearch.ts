@@ -19,7 +19,7 @@ export const googleSearch: UICommand = {
       try {
         await sendTabMessage(activeTab.id, {
           type: "monocle-newTab",
-          url: `https://www.google.com/search?q=${values?.search}`,
+          url: `https://www.google.com/search?q=${encodeURIComponent(values?.search || "")}`,
         })
       } catch (error) {
         console.error("Error sending message:", error)

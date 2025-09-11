@@ -10,7 +10,18 @@ export default function NewTabListener() {
     ) => {
       if (message.type === "monocle-newTab") {
         const newTabEvent = message as NewTabEvent
-        window.open(newTabEvent.url, "_blank")
+
+        try {
+          const url = new URL(newTabEvent.url)
+          // Only allow safe URL schemes
+          if (url.protocol === "http:" || url.protocol === "https:") {
+            window.open(newTabEvent.url, "_blank")
+          } else {
+            console.warn("Blocked unsafe URL scheme:", url.protocol)
+          }
+        } catch (error) {
+          console.error("Invalid URL:", newTabEvent.url, error)
+        }
 
         sendResponse({ received: true })
         return true
