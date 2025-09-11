@@ -1,17 +1,46 @@
+import { isFirefox } from "../../shared/utils/browser"
 import type { CommandIcon } from "../../types"
 
 /**
- * Get favicon URL for a given website URL using Google's favicon service
+ * Get local favicon URL using Chrome's built-in favicon service
  * @param url The website URL to get favicon for
- * @returns Favicon URL from Google's service, or empty string if URL is invalid
+ * @returns Chrome favicon URL, or empty string if not Chrome or invalid URL
  */
-export function getFaviconUrl(url: string): string {
+export function getLocalFaviconUrl(url: string): string {
+  if (isFirefox) {
+    return ""
+  }
+
   try {
-    const domain = new URL(url).hostname
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=16`
+    // Chrome's local favicon service
+    return `chrome://favicon/size/16@1x/${encodeURIComponent(url)}`
   } catch {
     return ""
   }
+}
+
+/**
+ * Get favicon URL using DuckDuckGo's privacy-focused favicon service
+ * @param url The website URL to get favicon for
+ * @returns Favicon URL from DuckDuckGo's service, or empty string if URL is invalid
+ */
+export function getDuckDuckGoFaviconUrl(url: string): string {
+  try {
+    const domain = new URL(url).hostname
+    return `https://icons.duckduckgo.com/ip3/${domain}.ico`
+  } catch {
+    return ""
+  }
+}
+
+/**
+ * Get favicon URL for a given website URL using privacy-preserving services
+ * @param url The website URL to get favicon for
+ * @returns Favicon URL from DuckDuckGo's service, or empty string if URL is invalid
+ * @deprecated Use getFaviconIcon instead for better fallback logic
+ */
+export function getFaviconUrl(url: string): string {
+  return getDuckDuckGoFaviconUrl(url)
 }
 
 /**
@@ -38,15 +67,23 @@ export async function getFaviconIcon(options: {
     return { type: "url", url: options.browserFaviconUrl }
   }
 
-  // Second priority: Try Google favicon service if we have a URL
+  // Second priority: Try local Chrome favicon service if available
+  if (options.url && !isFirefox) {
+    const localFaviconUrl = getLocalFaviconUrl(options.url)
+    if (localFaviconUrl) {
+      return { type: "url", url: localFaviconUrl }
+    }
+  }
+
+  // Third priority: Try DuckDuckGo favicon service if we have a URL
   if (options.url) {
-    const faviconUrl = getFaviconUrl(options.url)
+    const faviconUrl = getDuckDuckGoFaviconUrl(options.url)
     if (faviconUrl) {
       return { type: "url", url: faviconUrl }
     }
   }
 
-  // Third priority: Use tab state-based icons if enabled
+  // Fourth priority: Use tab state-based icons if enabled
   if (options.fallback?.useTabStateIcons) {
     const { pinned, audible, muted } = options.fallback
 
