@@ -34,6 +34,9 @@
   },
   "permissions": ["activeTab", "storage"],
   "firefox:permissions": ["activeTab", "storage", "contextualIdentities"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self' https://api.unsplash.com"
+  },
   "optional_permissions": [
     "bookmarks",
     "browsingData",
