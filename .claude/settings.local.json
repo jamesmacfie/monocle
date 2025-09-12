@@ -3,11 +3,12 @@
     "allow": [
       "Bash(mkdir:*)",
       "Bash(find:*)",
-      "Bash(npm run*)",
+      "Bash(npm run:*)",
       "WebSearch",
       "Bash(npx tsc:*)",
       "Bash(grep:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebFetch(domain:extension.js.org)"
     ],
     "deny": [],
     "ask": []
