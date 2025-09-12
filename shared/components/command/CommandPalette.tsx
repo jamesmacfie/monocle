@@ -30,12 +30,14 @@ function CommandContent({
   close,
   executeCommand,
   onOpenActions,
+  onCloseActions,
   onRefreshCommands,
   onRefreshCurrentPage,
   deepSearchItems = [],
   onDeepSearchItemsChange,
   isLoading = false,
   isActionsOpen = false,
+  actionsOpenForSuggestion = null,
 }: {
   pages: Page[]
   currentPage: Page
@@ -50,12 +52,14 @@ function CommandContent({
     navigateBack?: boolean,
   ) => Promise<void>
   onOpenActions: (suggestion: CommandSuggestion) => void
+  onCloseActions: (force?: boolean) => void
   onRefreshCommands: () => void
   onRefreshCurrentPage: () => void
   deepSearchItems?: CommandSuggestion[]
   onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
   isLoading?: boolean
   isActionsOpen?: boolean
+  actionsOpenForSuggestion?: CommandSuggestion | null
 }) {
   const focusedValue = useCommandState((state) => state.value)
 
@@ -71,6 +75,20 @@ function CommandContent({
       (item: CommandSuggestion) => item.id === focusedValue,
     ) ||
     deepSearchItems.find((item: CommandSuggestion) => item.id === focusedValue)
+
+  // Close action menu when focused command changes and is different from the one with actions open
+  useEffect(() => {
+    if (isActionsOpen && actionsOpenForSuggestion) {
+      // If there's a focused value and it's different from the one the action menu is open for, close it
+      // Also close if there's no focused value (hovering away from commands)
+      if (
+        (focusedValue && focusedValue !== actionsOpenForSuggestion.id) ||
+        !focusedValue
+      ) {
+        onCloseActions()
+      }
+    }
+  }, [focusedValue, isActionsOpen, actionsOpenForSuggestion, onCloseActions])
 
   const actionLabel = useActionLabel(currentPage)
 
@@ -306,12 +324,14 @@ export function CommandPalette({
               close={close}
               executeCommand={executeCommand}
               onOpenActions={handleOpenActions}
+              onCloseActions={handleCloseActions}
               onRefreshCommands={onRefreshCommands}
               onRefreshCurrentPage={refreshCurrentPage}
               deepSearchItems={items.deepSearchItems || []}
               onDeepSearchItemsChange={_setDeepSearchItems}
               isLoading={loading || isLoading}
               isActionsOpen={actionsState.open}
+              actionsOpenForSuggestion={actionsState.suggestion}
             />
 
             {actionsState.suggestion && (
