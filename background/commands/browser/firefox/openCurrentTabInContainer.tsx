@@ -1,8 +1,9 @@
-import type { Command, ParentCommand } from "../../../../types/"
+import type { CommandNode } from "../../../../types/"
 import { createTab, queryTabs, removeTab } from "../../../utils/browser"
 import { queryContainers } from "../../../utils/firefox"
 
-export const openCurrentTabInContainer: ParentCommand = {
+export const openCurrentTabInContainer: CommandNode = {
+  type: "group",
   id: "open-current-tab-in-container",
   supportedBrowsers: ["firefox"],
   name: "Open current tab in container",
@@ -11,7 +12,7 @@ export const openCurrentTabInContainer: ParentCommand = {
   color: "blue",
   permissions: ["tabs", "contextualIdentities"],
   keywords: ["container", "tab", "profile", "reopen", "current"],
-  commands: async (): Promise<Command[]> => {
+  children: async (): Promise<CommandNode[]> => {
     try {
       const containers = await queryContainers({})
       const [currentTab] = await queryTabs({
@@ -35,14 +36,15 @@ export const openCurrentTabInContainer: ParentCommand = {
         }
         // For other hex colors, keep them as-is since they're container-specific
 
-        const command: Command = {
+        const command: CommandNode = {
+          type: "action",
           id: `open-current-tab-in-container-${container.cookieStoreId}`,
           name: async () => profileName,
           icon: async () => {
             return { type: "url", url: container.iconUrl }
           },
           color: async () => colorCode,
-          run: async () => {
+          execute: async () => {
             if (currentTab?.url) {
               await createTab({
                 url: currentTab.url,

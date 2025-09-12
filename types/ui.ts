@@ -54,9 +54,9 @@ export type CommandSuggestion = {
   description?: string
   color?: string
   keywords?: string[]
-  isParentCommand: boolean
   icon?: CommandIcon
-  ui?: FormField[]
+  type: "group" | "action" | "input" | "display"
+  inputField?: FormField // when type === 'input'
   actionLabel: string
   modifierActionLabel?: {
     [modifierKey in Browser.ModifierKey]?: string
@@ -68,26 +68,4 @@ export type CommandSuggestion = {
   confirmAction?: boolean // Add confirmAction property
   executionContext?: ActionExecutionContext // Context for action execution
   permissions?: BrowserPermission[]
-}
-
-// Resolved UI representation of commands
-export interface CommandListItem {
-  id: string
-  name: string | string[]
-  description?: string
-  icon?: CommandIcon
-  color?: string // Use simple string
-  keywords?: string[]
-  keybinding?: string
-
-  // Resolved action labels
-  actionLabel: string
-  modifierLabels?: Record<Browser.ModifierKey, string>
-
-  // UI state
-  hasChildren: boolean
-  childActions?: CommandListItem[]
-  form?: FormField[]
-  isFavorite?: boolean
-  category: "favorites" | "recents" | "suggestions"
 }

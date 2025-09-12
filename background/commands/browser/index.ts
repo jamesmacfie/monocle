@@ -1,4 +1,3 @@
-import { testChildren } from "../testChildren"
 import { bookmarks } from "./bookmarks"
 import { clearBrowserData } from "./clearBrowserData"
 import { closeCurrentTab } from "./closeCurrentTab"
@@ -53,5 +52,4 @@ export const browserCommands = [
   reopenLastClosedTab,
   unmuteCurrentTab,
   unpinCurrentTab,
-  testChildren,
 ]

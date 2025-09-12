@@ -36,23 +36,6 @@ export type BrowserPermission =
   | "storage"
   | "tabs"
 
-// Base command with all common properties
-export interface BaseCommand {
-  id: string
-  name: AsyncValue<string | string[]>
-  description?: AsyncValue<string>
-  icon?: AsyncValue<CommandIcon>
-  color?: AsyncValue<CommandColor | string>
-  keywords?: AsyncValue<string[]>
-  keybinding?: string
-  supportedBrowsers?: Browser.Platform[]
-  doNotAddToRecents?: boolean
-  priority?: (context: Browser.Context) => Promise<Command[]>
-  actions?: Command[]
-  permissions?: BrowserPermission[]
-  allowCustomKeybinding?: boolean
-}
-
 // Action labels
 export type ActionLabel = {
   actionLabel?: AsyncValue<string>
@@ -61,62 +44,61 @@ export type ActionLabel = {
   }
 }
 
-// Command types with proper structure
-export type RunCommand = BaseCommand &
-  ActionLabel & {
-    run: (
-      context?: Browser.Context,
-      values?: Record<string, string>,
-    ) => void | Promise<void>
-    confirmAction?: boolean
-  }
+// ===========
+// Node-based Command Model (inline UI as commands)
+// ===========
 
-export type ParentCommand = BaseCommand & {
-  commands: (context: Browser.Context) => Promise<Command[]>
-  enableDeepSearch?: boolean
-}
-
-export type UICommand = BaseCommand &
-  ActionLabel & {
-    ui: FormField[]
-    run: (
-      context?: Browser.Context,
-      values?: Record<string, string>,
-    ) => void | Promise<void>
-  }
-
-export type Command = RunCommand | ParentCommand | UICommand
-
-// New structure (for gradual migration)
-export interface CommandDefinition {
+// Common base for all node-based command nodes (minimal surface)
+export interface CommandNodeBase {
   id: string
+  supportedBrowsers?: Browser.Platform[]
   name: AsyncValue<string | string[]>
   description?: AsyncValue<string>
   icon?: AsyncValue<CommandIcon>
   color?: AsyncValue<CommandColor | string>
   keywords?: AsyncValue<string[]>
-  keybinding?: string
-  supportedPlatforms?: Browser.Platform[]
-  doNotTrack?: boolean
-
-  actions?: {
-    label?: AsyncValue<string>
-    modifiers?: {
-      [K in Browser.ModifierKey]?: AsyncValue<string>
-    }
-  }
+  // Keep permissions at base so groups/inputs can participate if needed
+  permissions?: BrowserPermission[]
 }
 
-type CommandExecutor = (
+// Group of children; replaces UI forms composed of multiple fields
+export interface GroupCommandNode extends CommandNodeBase {
+  type: "group"
+  children: (context: Browser.Context) => Promise<CommandNode[]>
+  enableDeepSearch?: boolean
+}
+
+// Executable action; contains execution behavior and labels
+export type CommandExecutor = (
   context?: Browser.Context,
   values?: Record<string, string>,
 ) => void | Promise<void>
 
-export interface ExecutableCommand extends CommandDefinition {
+export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
+  type: "action"
   execute: CommandExecutor
+  // Action-only metadata (moved off the base)
+  doNotAddToRecents?: boolean
+  confirmAction?: boolean
+  remainOpenOnSelect?: boolean
+  allowCustomKeybinding?: boolean
+  keybinding?: string
 }
 
-export interface FormCommand extends CommandDefinition {
-  form: FormField[]
-  execute: CommandExecutor
+// A single inline input rendered as a list item
+// Each previous FormField becomes one of these
+export interface InputCommandNode extends CommandNodeBase {
+  type: "input"
+  field: FormField // reuse existing FormField shape for consistency
 }
+
+// Pure display-only row (e.g., headings, help text)
+export interface DisplayCommandNode extends CommandNodeBase {
+  type: "display"
+}
+
+export type CommandNode =
+  | GroupCommandNode
+  | ActionCommandNode
+  | InputCommandNode
+  | DisplayCommandNode

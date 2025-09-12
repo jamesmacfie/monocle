@@ -1,29 +1,43 @@
-import type { UICommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
 
-export const googleSearch: UICommand = {
+export const googleSearch: CommandNode = {
+  type: "group",
   id: "google-search",
   name: "Google Search",
   icon: { type: "lucide", name: "Search" },
   color: "teal",
-  ui: [
-    {
-      id: "search",
-      type: "text",
-      placeholder: "Your search query",
-    },
-  ],
-  run: async (_context, values) => {
-    const activeTab = await getActiveTab()
-    if (activeTab) {
-      try {
-        await sendTabMessage(activeTab.id, {
-          type: "monocle-newTab",
-          url: `https://www.google.com/search?q=${encodeURIComponent(values?.search || "")}`,
-        })
-      } catch (error) {
-        console.error("Error sending message:", error)
-      }
-    }
+  async children() {
+    return [
+      {
+        type: "input",
+        id: "google-search-input",
+        name: "Query",
+        field: {
+          id: "search",
+          type: "text",
+          placeholder: "Your search query",
+        },
+      },
+      {
+        type: "action",
+        id: "google-search-execute",
+        name: "Search",
+        actionLabel: "Search",
+        async execute(_context, values) {
+          const activeTab = await getActiveTab()
+          if (activeTab) {
+            try {
+              await sendTabMessage(activeTab.id, {
+                type: "monocle-newTab",
+                url: `https://www.google.com/search?q=${encodeURIComponent(values?.search || "")}`,
+              })
+            } catch (error) {
+              console.error("Error sending message:", error)
+            }
+          }
+        },
+      },
+    ]
   },
 }

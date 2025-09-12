@@ -1,8 +1,8 @@
 import type { RefObject } from "react"
-import type { CommandSuggestion, FormField } from "../../types/"
+import type { CommandSuggestion } from "../../types/"
 
 // Re-export main types for convenience
-export type { CommandSuggestion, FormField } from "../../types/"
+export type { CommandSuggestion } from "../../types/"
 
 // Command navigation types
 export type Page = {
@@ -17,11 +17,7 @@ export type Page = {
   parentPath: string[] // Track the path of parent command IDs
 }
 
-export type UI = {
-  id: string
-  name: string
-  ui: FormField[]
-}
+// UI overlay removed in node-based migration
 
 // Command data structure
 export type CommandData = {

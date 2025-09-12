@@ -1,12 +1,13 @@
-import type { RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import { getActiveTab, sendTabMessage, updateTab } from "../../utils/browser"
 
-export const unmuteCurrentTab: RunCommand = {
+export const unmuteCurrentTab: CommandNode = {
+  type: "action",
   id: "unmute-current-tab",
   name: "Unmute current tab",
   icon: { type: "lucide", name: "Volume2" },
   color: "green",
-  run: async () => {
+  execute: async () => {
     const activeTab = await getActiveTab()
     if (activeTab) {
       await updateTab(activeTab.id, { muted: false })

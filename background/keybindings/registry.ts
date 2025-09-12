@@ -1,9 +1,8 @@
 import { match } from "ts-pattern"
 import { isFirefox } from "../../shared/utils/browser"
-import type { Command } from "../../types/"
+import type { CommandNode } from "../../types/"
 import { browserCommands } from "../commands/browser"
 import { firefoxCommands } from "../commands/browser/firefox"
-import { debug } from "../commands/debug"
 import { getAllCommandSettings } from "../commands/settings"
 import { toolCommands } from "../commands/tools"
 
@@ -90,16 +89,17 @@ export function matchesKeybinding(
 
 // Register a command's keybinding with settings override
 function registerCommand(
-  command: Command,
+  command: CommandNode,
   commandSettings: Record<string, any>,
 ): void {
   // Use settings keybinding if available, otherwise use command's default
-  const keybinding =
-    commandSettings[command.id]?.keybinding || command.keybinding
+  const id = command.id
+  const defaultKey = "keybinding" in command ? command.keybinding : undefined
+  const keybinding = commandSettings[id]?.keybinding || defaultKey
 
   if (keybinding) {
     const normalized = normalizeKeybinding(keybinding)
-    keybindingRegistry.set(normalized, command.id)
+    keybindingRegistry.set(normalized, id)
   }
 
   // Actions should not be registered globally - they only work within action menus
@@ -128,8 +128,6 @@ export async function initializeKeybindingRegistry(): Promise<void> {
       registerCommand(command, commandSettings)
     }
   }
-  // Register debug command
-  registerCommand(debug, commandSettings)
 }
 
 // Get command ID for a keybinding

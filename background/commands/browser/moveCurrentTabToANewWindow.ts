@@ -1,13 +1,14 @@
-import type { RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import { createWindow, queryTabs } from "../../utils/browser"
 
-export const moveCurrentTabToANewWindow: RunCommand = {
+export const moveCurrentTabToANewWindow: CommandNode = {
+  type: "action",
   id: "move-current-tab-to-a-new-window",
   name: "Move this tab to a new window",
   icon: { type: "lucide", name: "SquareArrowOutUpRight" },
   color: "yellow",
   permissions: ["tabs"],
-  run: async () => {
+  execute: async () => {
     const active_tabs = await queryTabs({
       currentWindow: true,
       active: true,

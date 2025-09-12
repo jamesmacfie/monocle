@@ -1,13 +1,14 @@
-import type { RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import { createWindow, queryTabs } from "../../utils/browser"
 
-export const moveCurrentTabToPopupWindow: RunCommand = {
+export const moveCurrentTabToPopupWindow: CommandNode = {
+  type: "action",
   id: "move-current-tab-to-popup-window",
   name: "Move current tab to popup window",
   icon: { type: "lucide", name: "Maximize2" },
   color: "yellow",
   permissions: ["tabs"],
-  run: async () => {
+  execute: async () => {
     const active_tabs = await queryTabs({
       currentWindow: true,
       active: true,

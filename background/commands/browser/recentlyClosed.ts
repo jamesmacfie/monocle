@@ -1,4 +1,4 @@
-import type { ParentCommand, RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import {
   getActiveTab,
   getRecentlyClosed,
@@ -23,7 +23,8 @@ function formatClosedTime(timestamp: number): string {
   return "Just now"
 }
 
-export const recentlyClosed: ParentCommand = {
+export const recentlyClosed: CommandNode = {
+  type: "group",
   id: "recently-closed",
   name: "Recently Closed",
   description: "Browse and restore recently closed tabs and windows",
@@ -40,7 +41,7 @@ export const recentlyClosed: ParentCommand = {
     "sessions",
   ],
   enableDeepSearch: true,
-  commands: async () => {
+  children: async () => {
     try {
       const sessions = await getRecentlyClosed()
 
@@ -55,7 +56,7 @@ export const recentlyClosed: ParentCommand = {
         ]
       }
 
-      const commands: RunCommand[] = []
+      const commands: CommandNode[] = []
 
       sessions.forEach((session) => {
         if (session.tab) {
@@ -65,6 +66,7 @@ export const recentlyClosed: ParentCommand = {
           const timeAgo = formatClosedTime(session.lastModified)
 
           commands.push({
+            type: "action",
             id: `restore-tab-${tab.sessionId}`,
             name: tab.title || tab.url || "Untitled Tab",
             description: `${tab.url} • Closed ${timeAgo}`,
@@ -81,7 +83,7 @@ export const recentlyClosed: ParentCommand = {
             ],
             actionLabel: "Restore Tab",
             allowCustomKeybinding: false, // Dynamic session commands shouldn't have custom keybindings
-            run: async () => {
+            execute: async () => {
               const activeTab = await getActiveTab()
 
               try {
@@ -121,6 +123,7 @@ export const recentlyClosed: ParentCommand = {
             firstTab?.title || firstTab?.url || `Window (${tabCount} tabs)`
 
           commands.push({
+            type: "action",
             id: `restore-window-${window.sessionId}`,
             name: windowName,
             description: `Window with ${tabCount} tabs • Closed ${timeAgo}`,
@@ -135,7 +138,7 @@ export const recentlyClosed: ParentCommand = {
             ],
             actionLabel: "Restore Window",
             allowCustomKeybinding: false, // Dynamic session commands shouldn't have custom keybindings
-            run: async () => {
+            execute: async () => {
               const activeTab = await getActiveTab()
 
               try {

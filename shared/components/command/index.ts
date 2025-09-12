@@ -9,7 +9,6 @@ export type {
   CommandItemProps,
   CommandListProps,
   Page,
-  UI,
 } from "../../types/command"
 export { CommandActions } from "./CommandActions"
 export { CommandActionsList } from "./CommandActionsList"

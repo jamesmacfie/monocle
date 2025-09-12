@@ -1,12 +1,11 @@
 import type { RefObject } from "react"
 import { useEffect, useRef } from "react"
-import type { CommandSuggestion, FormField } from "../../types/"
+import type { CommandSuggestion } from "../../types/"
 import { getDisplayName } from "../components/Command/CommandName"
 import { useAppDispatch, useAppSelector } from "../store/hooks"
 import { startCapture } from "../store/slices/keybinding.slice"
 import {
   clearError,
-  hideUI,
   navigateBack as navigateBackAction,
   navigateToCommand,
   type Page,
@@ -16,9 +15,7 @@ import {
   selectInitialCommands,
   selectLoading,
   selectPages,
-  selectUI,
   setInitialCommands,
-  showUI,
   updateSearchValue as updateSearchValueAction,
 } from "../store/slices/navigation.slice"
 
@@ -63,7 +60,7 @@ function _clearAndResetSearch(
 }
 
 // Re-export types for convenience
-export type { Page, UI } from "../store/slices/navigation.slice"
+export type { Page } from "../store/slices/navigation.slice"
 
 /**
  * Helper function to extract parent names for breadcrumb display in recent commands
@@ -118,7 +115,6 @@ export function useCommandNavigation(
 
   // Redux selectors - subscribe only to what we need
   const pages = useAppSelector(selectPages)
-  const ui = useAppSelector(selectUI)
   const storedInitialCommands = useAppSelector(selectInitialCommands)
   const loading = useAppSelector(selectLoading)
   const error = useAppSelector(selectError)
@@ -203,14 +199,6 @@ export function useCommandNavigation(
    * Restores the previous page's search state
    */
   const navigateBack = () => {
-    // If UI form is open, close it and return to command list
-    if (ui) {
-      dispatch(hideUI())
-      // Delay focus to ensure DOM is ready after state update
-      setTimeout(() => inputRef.current?.focus(), 0)
-      return true
-    }
-
     // Can't go back from root page
     if (pages.length <= 1) return false
 
@@ -262,27 +250,21 @@ export function useCommandNavigation(
       return
     }
 
+    // Inline input/display items are non-executable and should not navigate
+    const type = selectedCommand.type
+    if (type === "input" || type === "display") {
+      return
+    }
+
     // Check for set keybinding action
     if (selectedCommand.executionContext?.type === "setKeybinding") {
       dispatch(startCapture(selectedCommand.executionContext.targetCommandId))
       return // Don't execute normal command flow
     }
 
-    if (selectedCommand.isParentCommand) {
+    if (selectedCommand.type === "group") {
       // Parent command: navigate to its children
       await navigateTo(id)
-    } else if (selectedCommand.ui) {
-      // UI command: show form for user input
-      const displayName = getDisplayName(selectedCommand.name)
-
-      dispatch(
-        showUI({
-          id: selectedCommand.id,
-          name: displayName,
-          ui: selectedCommand.ui as FormField[],
-          remainOpenOnSelect: selectedCommand.remainOpenOnSelect,
-        }),
-      )
     } else {
       // Leaf command: execute immediately
       // Pass remainOpenOnSelect flag (defaults to false if not set)
@@ -323,7 +305,6 @@ export function useCommandNavigation(
     updateSearchValue,
     navigateTo,
     navigateBack,
-    ui,
     selectCommand,
     refreshCurrentPage,
     // Expose loading and error states

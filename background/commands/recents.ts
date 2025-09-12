@@ -1,13 +1,14 @@
-import type { Command } from "../../types/"
+import type { ActionCommandNode } from "../../types/"
 import { getActiveTab } from "../utils/browser"
 
-export const clearRecentsCommand: Command = {
+export const clearRecentsCommand: ActionCommandNode = {
+  type: "action",
   id: "clear-recents",
   name: "Clear recents",
   description: "Clear all recently selected commands",
   icon: { type: "lucide", name: "Trash2" },
   doNotAddToRecents: true,
-  run: async () => {
+  execute: async () => {
     try {
       await browser.storage.local.remove("monocle-commandUsage")
 

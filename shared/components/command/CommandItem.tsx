@@ -1,5 +1,5 @@
 import { Command, useCommandState } from "cmdk"
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { usePermissionsGranted } from "../../hooks/usePermissionsGranted"
 import { useToast } from "../../hooks/useToast"
 import type { CommandItemProps } from "../../types/command"
@@ -23,12 +23,15 @@ export function CommandItem({
   const { isGrantedAllPermissions } = usePermissionsGranted(
     suggestion.permissions || [],
   )
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  const type = suggestion.type
+  const isInlineInput = type === "input"
+  const isDisplayOnly = type === "display"
 
   // Check if this command requires confirmation
   const requiresConfirmation =
-    !suggestion.isParentCommand &&
-    !suggestion.ui &&
-    suggestion.confirmAction === true
+    type !== "group" && !isInlineInput && suggestion.confirmAction === true
 
   // Reset confirmation state when suggestion changes (navigation)
   useEffect(() => {
@@ -42,7 +45,18 @@ export function CommandItem({
     }
   }, [focusedValue, suggestion.id, awaitingConfirmation])
 
+  // Focus inline input when this item becomes focused
+  useEffect(() => {
+    if (isInlineInput && focusedValue === suggestion.id) {
+      inputRef.current?.focus()
+    }
+  }, [focusedValue, suggestion.id, isInlineInput])
+
   const handleSelect = () => {
+    // Do nothing for inline input or display rows
+    if (isInlineInput || isDisplayOnly) {
+      return
+    }
     if (!isGrantedAllPermissions) {
       toast(
         "error",
@@ -75,6 +89,17 @@ export function CommandItem({
     ? "Are you sure?"
     : getContextualDisplayName(suggestion.name)
 
+  const inputField = suggestion.inputField
+  const onInlineInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      e.preventDefault()
+      const searchInput = document.querySelector(
+        "input[cmdk-input]",
+      ) as HTMLInputElement | null
+      searchInput?.focus()
+    }
+  }
+
   return (
     <Command.Item
       value={suggestion.id}
@@ -84,17 +109,41 @@ export function CommandItem({
       <Icon icon={suggestion.icon} color={suggestion.color} />
       <div className="command-item-content">
         {suggestion.isFavorite && <Icon name="Star" color="#fbbf24" />}
-        <CommandName
-          permissions={suggestion.permissions}
-          name={displayName}
-          className="command-item-name"
-        />
+        {isInlineInput && inputField?.type === "text" ? (
+          <div className="command-item-inline-input">
+            {inputField.label && (
+              <label className="command-item-label" htmlFor={inputField.id}>
+                {inputField.label}
+              </label>
+            )}
+            <input
+              id={inputField.id}
+              ref={inputRef}
+              type="text"
+              placeholder={inputField.placeholder}
+              defaultValue={inputField.defaultValue}
+              onKeyDown={onInlineInputKeyDown}
+            />
+          </div>
+        ) : (
+          <CommandName
+            permissions={suggestion.permissions}
+            name={displayName}
+            className="command-item-name"
+          />
+        )}
       </div>
       {suggestion.keybinding && (
         <KeybindingDisplay keybinding={suggestion.keybinding} />
       )}
       <span cmdk-raycast-meta="">
-        {suggestion.isParentCommand ? "Group" : "Command"}
+        {type === "input"
+          ? "Input"
+          : type === "display"
+            ? "Display"
+            : type === "group"
+              ? "Group"
+              : "Command"}
       </span>
       {children}
     </Command.Item>

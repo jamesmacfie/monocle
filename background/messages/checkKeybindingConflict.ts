@@ -10,7 +10,7 @@ export const checkKeybindingConflict = async ({
     // Check default keybindings from all commands
     for (const command of allCommands) {
       if (command.id === excludeCommandId) continue
-      if (command.keybinding === keybinding) {
+      if (command.type === "action" && command.keybinding === keybinding) {
         return {
           hasConflict: true,
           conflictingCommand: {
@@ -27,7 +27,7 @@ export const checkKeybindingConflict = async ({
       if (commandId === excludeCommandId) continue
       if (settings.keybinding === keybinding) {
         // Find the command to get its name
-        const command = allCommands.find((c: any) => c.id === commandId)
+        const command = allCommands.find((c) => c.id === commandId)
         return {
           hasConflict: true,
           conflictingCommand: {

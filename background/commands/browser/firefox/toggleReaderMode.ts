@@ -1,8 +1,9 @@
-import type { RunCommand } from "../../../../types/"
+import type { CommandNode } from "../../../../types/"
 import { getActiveTab, sendTabMessage } from "../../../utils/browser"
 import { toggleReaderMode as toggleReaderModeAPI } from "../../../utils/firefox"
 
-export const toggleReaderMode: RunCommand = {
+export const toggleReaderMode: CommandNode = {
+  type: "action",
   id: "toggle-reader-mode",
   name: "Toggle Reader Mode",
   description: "Toggle Firefox Reader Mode for the current tab",
@@ -12,7 +13,7 @@ export const toggleReaderMode: RunCommand = {
   supportedBrowsers: ["firefox"],
   actionLabel: "Toggle Reader Mode",
   keybinding: "⌥ ⌘ R",
-  run: async () => {
+  execute: async () => {
     const activeTab = await getActiveTab()
 
     if (!activeTab?.id) {

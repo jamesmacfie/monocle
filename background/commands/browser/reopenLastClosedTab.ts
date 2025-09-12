@@ -1,4 +1,4 @@
-import type { RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import {
   getActiveTab,
   getRecentlyClosed,
@@ -6,7 +6,8 @@ import {
   sendTabMessage,
 } from "../../utils/browser"
 
-export const reopenLastClosedTab: RunCommand = {
+export const reopenLastClosedTab: CommandNode = {
+  type: "action",
   id: "reopen-last-closed-tab",
   name: "Reopen Last Closed Tab",
   description: "Restore the most recently closed tab",
@@ -16,7 +17,7 @@ export const reopenLastClosedTab: RunCommand = {
   keybinding: "⌘ ⇧ T",
   actionLabel: "Reopen",
   permissions: ["sessions"],
-  run: async () => {
+  execute: async () => {
     const activeTab = await getActiveTab()
 
     try {

@@ -7,7 +7,6 @@ import { useAppSelector } from "../../store/hooks"
 import { selectIsCapturing } from "../../store/slices/keybinding.slice"
 import type { CommandData, Page } from "../../types/command"
 import { CommandNavigationError } from "../CommandNavigationError"
-import CommandUI from "../CommandUI"
 import CopyToClipboardListener from "../Listeners/CopyToClipboardListener"
 import NewTabListener from "../Listeners/NewTabListener"
 import { CommandActions } from "./CommandActions"
@@ -212,7 +211,6 @@ export function CommandPalette({
     currentPage,
     updateSearchValue,
     navigateBack,
-    ui,
     selectCommand,
     refreshCurrentPage,
     loading,
@@ -297,57 +295,41 @@ export function CommandPalette({
       {error && (
         <CommandNavigationError error={error} onClearError={clearError} />
       )}
-      {ui ? (
+      <>
         <Command>
-          <CommandUI
+          <CommandContent
+            pages={pages}
             currentPage={currentPage}
-            ui={ui}
-            onBack={navigateBack}
-            onEscape={navigateBack}
-            onExecute={(id, values) => {
-              // Pass remainOpenOnSelect flag (defaults to false if not set)
-              const shouldNavigateBack = !ui.remainOpenOnSelect
-              return executeCommand(id, values, shouldNavigateBack)
-            }}
+            inputRef={inputRef}
+            navigateBack={navigateBack}
+            updateSearchValue={updateSearchValue}
+            selectCommand={selectCommand}
+            close={close}
+            executeCommand={executeCommand}
+            onOpenActions={handleOpenActions}
+            onCloseActions={handleCloseActions}
+            onRefreshCommands={onRefreshCommands}
+            onRefreshCurrentPage={refreshCurrentPage}
+            deepSearchItems={items.deepSearchItems || []}
+            onDeepSearchItemsChange={_setDeepSearchItems}
+            isLoading={loading || isLoading}
+            isActionsOpen={actionsState.open}
+            actionsOpenForSuggestion={actionsState.suggestion}
           />
-        </Command>
-      ) : (
-        <>
-          <Command>
-            <CommandContent
-              pages={pages}
-              currentPage={currentPage}
-              inputRef={inputRef}
-              navigateBack={navigateBack}
-              updateSearchValue={updateSearchValue}
-              selectCommand={selectCommand}
-              close={close}
-              executeCommand={executeCommand}
-              onOpenActions={handleOpenActions}
-              onCloseActions={handleCloseActions}
-              onRefreshCommands={onRefreshCommands}
-              onRefreshCurrentPage={refreshCurrentPage}
-              deepSearchItems={items.deepSearchItems || []}
-              onDeepSearchItemsChange={_setDeepSearchItems}
-              isLoading={loading || isLoading}
-              isActionsOpen={actionsState.open}
-              actionsOpenForSuggestion={actionsState.suggestion}
-            />
 
-            {actionsState.suggestion && (
-              <CommandActions
-                open={actionsState.open}
-                selectedValue={getDisplayName(actionsState.suggestion.name)}
-                inputRef={inputRef}
-                suggestion={actionsState.suggestion}
-                onActionSelect={handleActionSelect}
-                onClose={handleCloseActions}
-                onRefresh={handleRefreshForKeybinding}
-              />
-            )}
-          </Command>
-        </>
-      )}
+          {actionsState.suggestion && (
+            <CommandActions
+              open={actionsState.open}
+              selectedValue={getDisplayName(actionsState.suggestion.name)}
+              inputRef={inputRef}
+              suggestion={actionsState.suggestion}
+              onActionSelect={handleActionSelect}
+              onClose={handleCloseActions}
+              onRefresh={handleRefreshForKeybinding}
+            />
+          )}
+        </Command>
+      </>
     </div>
   )
 }

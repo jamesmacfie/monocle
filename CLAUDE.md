@@ -26,43 +26,79 @@ monocle/
 
 Both modes share the same core `CommandPalette` component from `/shared/components/command/`.
 
-## Command System
+## Command System (Node-Based Model)
 
-### Command Types
+### Command Node Types
 
-All commands extend `BaseCommand` (id, name, icon, color, keywords, keybinding, etc.):
+All commands use a discriminated union type `CommandNode` with a `type` field determining the node kind:
 
-**RunCommand**: Simple execution with `run()` function
+**ActionCommandNode**: Executable command with `execute()` function
 ```typescript
-run: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>
+type: "action"
+execute: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>
 actionLabel?: string
 modifierActionLabel?: { [key in ModifierKey]?: string }
+keybinding?: string
+confirmAction?: boolean
+remainOpenOnSelect?: boolean
+allowCustomKeybinding?: boolean
+doNotAddToRecents?: boolean
 ```
 
-**ParentCommand**: Generates dynamic child commands
+**GroupCommandNode**: Container for child commands (replaces ParentCommand)
 ```typescript
-commands: (context: Browser.Context) => Promise<Command[]>
+type: "group"
+children: (context: Browser.Context) => Promise<CommandNode[]>
 enableDeepSearch?: boolean  // Makes nested commands searchable at top level
 ```
 
-**UICommand**: Requires user input via form fields
+**InputCommandNode**: Inline input field rendered as a list item
 ```typescript
-ui: CommandUI[]
-run: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>
+type: "input"
+field: FormField  // Text, select, or checkbox input configuration
+```
+
+**DisplayCommandNode**: Static display row (headings, help text)
+```typescript
+type: "display"
+// No additional properties beyond base
+```
+
+### Base Properties (All Nodes)
+
+```typescript
+interface CommandNodeBase {
+  id: string
+  name: AsyncValue<string | string[]>
+  description?: AsyncValue<string>
+  icon?: AsyncValue<CommandIcon>
+  color?: AsyncValue<CommandColor | string>
+  keywords?: AsyncValue<string[]>
+  permissions?: BrowserPermission[]
+  supportedBrowsers?: Browser.Platform[]
+}
 ```
 
 ### Command Flow
 
 1. User opens palette → UI sends `execute-command` message
-2. Background script finds command → executes `run()` → updates usage stats
+2. Background script finds command → executes `execute()` → updates usage stats
 3. Browser action performed → UI feedback (close overlay or stay open)
+
+### Inline UI Model
+
+Instead of separate UI overlays, input fields are rendered inline as command items:
+- Groups can contain a mix of inputs, actions, and display nodes
+- Input values are captured in form state within the navigation slice
+- When executing actions, form values are passed to the `execute()` function
+- Example: Calculator command has input nodes for the expression and action nodes for calculate/copy
 
 ### Command Organization
 
-- **Favorites**: Starred commands with recursive discovery through ParentCommand hierarchies
+- **Favorites**: Starred commands with recursive discovery through group hierarchies
 - **Recents**: Auto-tracked recent executions  
 - **Suggestions**: All other commands, usage-ranked
-- **Deep Search Items**: Pre-flattened nested commands from ParentCommands with `enableDeepSearch: true`
+- **Deep Search Items**: Pre-flattened nested commands from groups with `enableDeepSearch: true`
 
 ### Deep Search Feature
 
@@ -71,17 +107,17 @@ Enables searching deeply nested commands (e.g., bookmarks) without navigation. C
 - Expanded keywords including all folder names
 - Full feature parity (actions, modifiers, keybindings)
 
-Enable with `enableDeepSearch: true` on ParentCommand.
+Enable with `enableDeepSearch: true` on GroupCommandNode.
 
 ### NoOp Commands
 
-Display-only commands for error/empty states in ParentCommands:
+Display-only commands for error/empty states in groups:
 ```typescript
 // background/utils/commands.ts
 createNoOpCommand(id: string, name: string, description: string, icon?: CommandIcon)
 ```
 
-Use for ParentCommand errors instead of alerts for better UX.
+Use for group errors instead of alerts for better UX.
 
 ## State Management (Redux)
 
@@ -94,7 +130,6 @@ Key state shape:
 ```typescript
 interface NavigationState {
   pages: Page[]                    // Navigation stack (command hierarchy)
-  ui: UI | null                   // Active form for UI commands
   initialCommands: {              // Root commands + deep search
     favorites: CommandSuggestion[]
     recents: CommandSuggestion[]
@@ -109,17 +144,41 @@ type Page = {
   searchValue: string
   parent?: CommandSuggestion
   parentPath: string[]           // For efficient lookups
+  formValues?: Record<string, string>  // Inline input values
 }
 ```
 
 ### Key Navigation Actions
-- `navigateToCommand`: Create new page for ParentCommand children
+- `navigateToCommand`: Create new page for group children
 - `setInitialCommands`: Update root commands (favorites/recents changes)
 - `updateSearchValue`: Update search input
-- `navigateBack`: Pop page or close UI form
-- `showUI`/`hideUI`: Handle UI command forms
+- `navigateBack`: Pop page
+- `setFormValue`: Update inline input value
+- `clearFormValues`: Reset form state
 
-Primary interface: `useCommandNavigation` hook maintains same API as previous implementation.
+Primary interface: `useCommandNavigation` hook maintains consistent API.
+
+## Command Suggestions
+
+The UI receives `CommandSuggestion` objects with metadata:
+```typescript
+interface CommandSuggestion {
+  id: string
+  name: string | string[]
+  description?: string
+  icon?: CommandIcon
+  type: "group" | "action" | "input" | "display"
+  actionLabel?: string
+  modifierActionLabel?: { [key in ModifierKey]?: string }
+  keybinding?: string
+  isFavorite: boolean
+  confirmAction?: boolean
+  permissions?: BrowserPermission[]
+  inputField?: FormField  // For input nodes
+  actions?: CommandSuggestion[]  // Available actions
+  executionContext?: ExecutionContext
+}
+```
 
 ## Messaging System
 
@@ -158,11 +217,12 @@ Monocle uses a selective permissions model where commands can opt-in to browser 
 Commands specify required permissions using the `permissions` property:
 
 ```typescript
-export const bookmarks: ParentCommand = {
+export const bookmarks: GroupCommandNode = {
+  type: "group",
   id: "bookmarks",
   name: "Bookmarks",
   permissions: ["bookmarks"],  // Required permissions
-  commands: async () => {
+  children: async () => {
     // Command implementation
   }
 }
@@ -259,10 +319,27 @@ dispatch(updateClockVisibility(!showClock))
 ## Adding New Commands
 
 1. Create command file: `background/commands/category/myCommand.ts`
-2. Export from category index: `export const categoryCommands = [existingCommand, myCommand]`
-3. Best practices:
+2. Import and use the appropriate node type:
+   ```typescript
+   import type { ActionCommandNode, GroupCommandNode } from "../../../types/"
+   
+   export const myCommand: ActionCommandNode = {
+     type: "action",
+     id: "my-command",
+     name: "My Command",
+     icon: { type: "lucide", name: "Star" },
+     execute: async (context, values) => {
+       // Implementation
+     }
+   }
+   ```
+3. Export from category index: `export const categoryCommands = [existingCommand, myCommand]`
+4. Best practices:
+   - Always specify `type` discriminant
+   - Use `execute` for actions (not `run`)
+   - Use `children` for groups (not `commands`)
    - Use descriptive kebab-case IDs
-   - Handle errors with NoOp commands for ParentCommands
+   - Handle errors with NoOp commands for groups
    - Enable `enableDeepSearch` for complex hierarchies
    - Use `background/utils/browser.ts` for API calls
    - Test both Chrome and Firefox
@@ -274,11 +351,37 @@ dispatch(updateClockVisibility(!showClock))
 name: async (context) => `Tab: ${await getTabTitle()}`
 ```
 
-**Dynamic Children**: ParentCommands generate children based on current state
+**Dynamic Children**: Groups generate children based on current state
 ```typescript
-commands: async () => {
+children: async () => {
   const tabs = await getAllTabs()
   return tabs.map(tab => createTabCommand(tab))
+}
+```
+
+**Inline Input Pattern**: Groups with inputs for user interaction
+```typescript
+export const calculator: GroupCommandNode = {
+  type: "group",
+  id: "calculator",
+  name: "Calculator",
+  children: async () => [
+    {
+      type: "input",
+      id: "calc-input",
+      name: "Expression",
+      field: { id: "calculation", type: "text", placeholder: "e.g. 2+2" }
+    },
+    {
+      type: "action",
+      id: "calc-execute",
+      name: "Calculate",
+      execute: async (context, values) => {
+        const result = evaluate(values?.calculation)
+        // Handle result
+      }
+    }
+  ]
 }
 ```
 

@@ -1,7 +1,12 @@
 /**
  * Utility functions for working with commands
  */
-import type { Browser, Command, CommandIcon } from "../../types/"
+import type { Browser, CommandNode } from "../../types/"
+import type {
+  ActionCommandNode,
+  AsyncValue,
+  CommandIcon,
+} from "../../types/commands"
 
 // Helper type for properties that can be static or async
 type AsyncProperty<T> = T | ((context: Browser.Context) => Promise<T>)
@@ -26,7 +31,7 @@ export async function resolveAsyncProperty<T>(
  * Resolves actionLabel with default value handling
  */
 export async function resolveActionLabel(
-  command: Command,
+  command: ActionCommandNode | { actionLabel?: AsyncValue<string> },
   context: Browser.Context,
 ): Promise<string> {
   if ("actionLabel" in command && command.actionLabel) {
@@ -39,7 +44,13 @@ export async function resolveActionLabel(
  * Resolves all modifier action labels
  */
 export async function resolveModifierActionLabels(
-  command: Command,
+  command:
+    | ActionCommandNode
+    | {
+        modifierActionLabel?: {
+          [K in Browser.ModifierKey]?: AsyncValue<string>
+        }
+      },
   context: Browser.Context,
 ): Promise<{
   alt?: string
@@ -56,7 +67,7 @@ export async function resolveModifierActionLabels(
     }
   }
 
-  const { modifierActionLabel } = command
+  const { modifierActionLabel } = command as any
 
   return {
     alt: await resolveAsyncProperty(modifierActionLabel.alt, context),
@@ -93,19 +104,14 @@ export function createNoOpCommand(
   id: string,
   name: string,
   description: string,
-  icon: CommandIcon = {
-    type: "lucide",
-    name: "Info",
-  },
-): Command {
+  icon: CommandIcon = { type: "lucide", name: "Info" },
+): CommandNode {
   return {
+    type: "display",
     id,
     name,
     description,
     icon,
     color: "gray",
-    run: async () => {
-      // no op
-    },
   }
 }

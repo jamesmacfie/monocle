@@ -1,10 +1,11 @@
-import type { Browser, Command, CommandSuggestion } from "../../types/"
+import type { Browser, CommandNode, CommandSuggestion } from "../../types/"
+import type { ActionCommandNode, GroupCommandNode } from "../../types/commands"
 import { commandsToSuggestions, getCommands } from "../commands"
 import { resolveAsyncProperty } from "../utils/commands"
 
 // Helper function to recursively flatten commands with enableDeepSearch: true
 export async function flattenDeepSearchCommands(
-  commands: Command[],
+  commands: Array<CommandNode>,
   context: Browser.Context,
   parentPath: string[] = [],
   inheritedDeepSearch: boolean = false,
@@ -12,15 +13,16 @@ export async function flattenDeepSearchCommands(
   const flattenedCommands: CommandSuggestion[] = []
 
   for (const command of commands) {
-    // Check if this command should be deep searched
+    // Check if this is a group command with deep search enabled
+    if (command.type !== "group") continue
+
+    const enableFlag = command.enableDeepSearch
     const shouldDeepSearch =
-      "commands" in command &&
-      (command.enableDeepSearch === true ||
-        (inheritedDeepSearch && command.enableDeepSearch !== false))
+      enableFlag === true || (inheritedDeepSearch && enableFlag !== false)
 
     if (shouldDeepSearch) {
       try {
-        const children = await command.commands(context)
+        const children = await command.children(context)
         const commandName = await resolveAsyncProperty(command.name, context)
         const parentNameString = Array.isArray(commandName)
           ? commandName[0]
@@ -29,10 +31,10 @@ export async function flattenDeepSearchCommands(
         // Create new path by adding this command's name to the path
         const newPath = [...parentPath, parentNameString]
 
-        // Process leaf commands (RunCommand or UICommand)
+        // Process action nodes
         for (const child of children) {
-          if ("run" in child || "ui" in child) {
-            // Enhance the child command with breadcrumb name and keywords
+          if (child.type === "action") {
+            // Enhance the action command with breadcrumb name and keywords
             const childName = await resolveAsyncProperty(child.name, context)
             const childKeywords =
               (await resolveAsyncProperty(child.keywords, context)) || []
@@ -41,22 +43,21 @@ export async function flattenDeepSearchCommands(
               context,
             )
 
-            const enhancedChild: Command = {
+            const enhancedChild: ActionCommandNode = {
               ...child,
               name:
                 newPath.length > 0
-                  ? [childName as string, ...newPath.reverse()]
+                  ? [childName as string, ...[...newPath].reverse()]
                   : (childName as string),
               keywords: [
                 ...childKeywords,
-                ...newPath.map((p) => p.toLowerCase()), // Add parent folder names
+                ...newPath.map((p) => p.toLowerCase()),
                 ...(childDescription && typeof childDescription === "string"
                   ? [childDescription.toLowerCase()]
-                  : []), // Add description/URL
+                  : []),
               ],
             }
 
-            // Convert to CommandSuggestion
             const [suggestion] = await commandsToSuggestions(
               [enhancedChild],
               context,
@@ -65,9 +66,12 @@ export async function flattenDeepSearchCommands(
           }
         }
 
-        // Recursively process child folders
+        // Recursively process child groups
+        const childGroups = children.filter(
+          (child): child is GroupCommandNode => child.type === "group",
+        )
         const childFlattenedCommands = await flattenDeepSearchCommands(
-          children.filter((child) => "commands" in child),
+          childGroups,
           context,
           newPath,
           true,

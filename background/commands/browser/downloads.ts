@@ -1,4 +1,4 @@
-import type { ParentCommand, RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import {
   getActiveTab,
   getRecentDownloads,
@@ -211,7 +211,8 @@ function formatDownloadTime(timeString: string): string {
   }
 }
 
-export const downloads: ParentCommand = {
+export const downloads: CommandNode = {
+  type: "group",
   id: "downloads",
   name: "Downloads",
   description: "Browse and manage your downloads",
@@ -219,7 +220,7 @@ export const downloads: ParentCommand = {
   color: "blue",
   keywords: ["downloads", "files", "recent", "downloaded"],
   permissions: ["downloads"],
-  commands: async () => {
+  children: async () => {
     try {
       const downloadItems = await getRecentDownloads(50)
 
@@ -238,7 +239,7 @@ export const downloads: ParentCommand = {
         .filter(
           (item: DownloadItem) => item.filename && item.state === "complete",
         )
-        .map((item: DownloadItem): RunCommand => {
+        .map((item: DownloadItem): CommandNode => {
           const fileIcon = getFileTypeIcon(item.filename, item.mime)
           const fileSize = formatFileSize(item.totalBytes)
           const timeAgo = formatDownloadTime(item.startTime)
@@ -247,6 +248,7 @@ export const downloads: ParentCommand = {
           const filename = item.filename.split("/").pop() || item.filename
 
           return {
+            type: "action",
             id: `download-${item.id}`,
             name: filename,
             description: `${fileSize} • Downloaded ${timeAgo}`,
@@ -260,7 +262,7 @@ export const downloads: ParentCommand = {
             ],
             actionLabel: "Show in Finder",
             allowCustomKeybinding: false, // Dynamic download commands shouldn't have custom keybindings
-            run: async () => {
+            execute: async () => {
               const activeTab = await getActiveTab()
 
               try {

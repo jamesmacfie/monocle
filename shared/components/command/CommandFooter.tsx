@@ -32,10 +32,12 @@ export function CommandFooter({
       <div className="footer-actions">
         {focusedSuggestion && (
           <>
-            <button cmdk-raycast-open-trigger="">
-              {focusedSuggestion.isParentCommand ? "Open" : actionLabel}
-              <kbd>↵</kbd>
-            </button>
+            {(focusedSuggestion.type === "group" || actionLabel) && (
+              <button cmdk-raycast-open-trigger="">
+                {focusedSuggestion.type === "group" ? "Open" : actionLabel}
+                <kbd>↵</kbd>
+              </button>
+            )}
             {focusedSuggestion.actions?.length && (
               <>
                 <hr />

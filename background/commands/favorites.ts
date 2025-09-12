@@ -1,4 +1,4 @@
-import type { Browser, Command } from "../../types/"
+import type { ActionCommandNode, Browser } from "../../types/"
 import { getActiveTab } from "../utils/browser"
 
 const STORAGE_KEY = "monocle-favoriteCommandIds"
@@ -82,14 +82,18 @@ export const isCommandFavorite = async (
 }
 
 // Toggle favorite command that can be used as an action
-export const toggleFavoriteCommand: Command = {
+export const toggleFavoriteCommand: ActionCommandNode = {
+  type: "action",
   id: "toggle-favorite",
   name: "Toggle Favorite",
   description: "Toggle favorite status for a command",
   icon: { type: "lucide", name: "Star" },
   color: "amber",
   doNotAddToRecents: true,
-  run: async (_context?: Browser.Context, values?: Record<string, string>) => {
+  execute: async (
+    _context?: Browser.Context,
+    values?: Record<string, string>,
+  ) => {
     const commandId = values?.commandId
     if (commandId) {
       await toggleFavoriteCommandId(commandId)
@@ -98,13 +102,14 @@ export const toggleFavoriteCommand: Command = {
 }
 
 // Clear favorites command
-export const clearFavoritesCommand: Command = {
+export const clearFavoritesCommand: ActionCommandNode = {
+  type: "action",
   id: "clear-favorites",
   name: "Clear favorites",
   description: "Clear all favorite commands",
   icon: { type: "lucide", name: "Trash2" },
   doNotAddToRecents: true,
-  run: async () => {
+  execute: async () => {
     try {
       await browser.storage.local.remove(STORAGE_KEY)
 

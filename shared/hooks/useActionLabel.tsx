@@ -23,6 +23,11 @@ export function useActionLabel(
     return defaultLabel
   }
 
+  const type = focusedSuggestion.type
+  if (type === "input" || type === "display") {
+    return ""
+  }
+
   if (!modifier) {
     return focusedSuggestion.actionLabel || defaultLabel
   }

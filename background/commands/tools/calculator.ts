@@ -1,4 +1,4 @@
-import type { Command } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
 
 function stringMath(eq: string): number {
@@ -62,42 +62,53 @@ function stringMath(eq: string): number {
   }
 }
 
-export const calculator: Command = {
+export const calculator: CommandNode = {
+  type: "group",
   id: "calculator",
   name: "Calculator",
   icon: { type: "lucide", name: "Calculator" },
   color: "teal",
-  ui: [
-    {
-      id: "calculation",
-      type: "text",
-      placeholder: "1 + 2",
-    },
-  ],
-  // TODO - need to have a way to have action labels for UI elements
-  run: async (context, values) => {
-    const activeTab = await getActiveTab()
+  async children() {
+    return [
+      {
+        type: "input",
+        id: "calculator-input",
+        name: "Expression",
+        field: {
+          id: "calculation",
+          type: "text",
+          placeholder: "1 + 2",
+        },
+      },
+      {
+        type: "action",
+        id: "calculator-execute",
+        name: "Calculate",
+        actionLabel: "Calculate",
+        async execute(context, values) {
+          const activeTab = await getActiveTab()
+          if (activeTab) {
+            const result = stringMath(values?.calculation || "")
+            try {
+              sendTabMessage(activeTab.id, {
+                type: "monocle-alert",
+                level: "success",
+                message: result.toString(),
+                copyText: result.toString(),
+              })
 
-    if (activeTab) {
-      const result = stringMath(values?.calculation || "")
-
-      try {
-        sendTabMessage(activeTab.id, {
-          type: "monocle-alert",
-          level: "success",
-          message: result.toString(),
-          copyText: result.toString(),
-        })
-
-        if (context?.modifierKey === "cmd") {
-          sendTabMessage(activeTab.id, {
-            type: "monocle-copyToClipboard",
-            message: result.toString(),
-          })
-        }
-      } catch (error) {
-        console.error("Error sending message:", error)
-      }
-    }
+              if (context?.modifierKey === "cmd") {
+                sendTabMessage(activeTab.id, {
+                  type: "monocle-copyToClipboard",
+                  message: result.toString(),
+                })
+              }
+            } catch (error) {
+              console.error("Error sending message:", error)
+            }
+          }
+        },
+      },
+    ]
   },
 }

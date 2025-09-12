@@ -1,7 +1,8 @@
-import type { RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import { createTab } from "../../utils/browser"
 
-export const openNewTab: RunCommand = {
+export const openNewTab: CommandNode = {
+  type: "action",
   id: "open-new-tab",
   name: "Open new tab",
   icon: { type: "lucide", name: "PlusSquare" },
@@ -11,7 +12,7 @@ export const openNewTab: RunCommand = {
   modifierActionLabel: {
     shift: "New tab ←",
   },
-  run: async (context) => {
+  execute: async (context) => {
     const options = {
       index: context?.modifierKey === "cmd" ? 0 : undefined,
     }

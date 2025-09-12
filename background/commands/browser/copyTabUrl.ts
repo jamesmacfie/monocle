@@ -1,28 +1,30 @@
-import type { ParentCommand, RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import { getActiveTab, queryTabs, sendTabMessage } from "../../utils/browser"
 import { getFaviconIcon } from "../../utils/favicon"
 
-export const copyTabUrl: ParentCommand = {
+export const copyTabUrl: CommandNode = {
+  type: "group",
   id: "copy-tab-url",
   name: "Copy tab URL",
   icon: { type: "lucide", name: "Copy" },
   color: "teal",
   permissions: ["tabs"],
-  commands: async () => {
+  children: async () => {
     const tabs = await queryTabs({ currentWindow: true })
     return tabs
       .filter((tab) => !!tab.title)
       .map((tab) => {
-        const command: RunCommand = {
+        const node: CommandNode = {
+          type: "action",
           id: `copy-tab-url-${tab.id}`,
-          name: async () => tab.title,
+          name: async () => tab.title!,
           icon: async () => {
             return await getFaviconIcon({
               browserFaviconUrl: tab.favIconUrl,
               url: tab.url,
             })
           },
-          run: async () => {
+          execute: async () => {
             const activeTab = await getActiveTab()
             if (activeTab) {
               await sendTabMessage(activeTab.id, {
@@ -39,7 +41,7 @@ export const copyTabUrl: ParentCommand = {
           },
         }
 
-        return command
+        return node
       })
   },
 }

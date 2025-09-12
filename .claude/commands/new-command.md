@@ -4,30 +4,29 @@ This guide explains how to create new commands for the Monocle browser extension
 
 ## Command Architecture Overview
 
-Commands in Monocle are TypeScript objects that extend `BaseCommand` and define how users interact with browser functionality. There are three main types:
+Commands in Monocle use a node-based system with discriminated union types. Each command is a `CommandNode` with a `type` field that determines its behavior:
 
-- **RunCommand**: Immediate execution commands with a `run()` function
-- **UICommand**: Commands requiring user input via forms before execution  
-- **ParentCommand**: Commands that generate dynamic child commands
+- **ActionCommandNode**: Executable command with an `execute()` function
+- **GroupCommandNode**: Container that generates dynamic child commands
+- **InputCommandNode**: Inline input field rendered as a list item
+- **DisplayCommandNode**: Static display row for headings or help text
 
 All commands work identically in both content script (overlay) and new tab deployment modes.
 
-## BaseCommand Properties
+## Base Properties (All Nodes)
 
-Every command must have these core properties:
+Every command node must have these core properties:
 
 ```typescript
-interface BaseCommand {
+interface CommandNodeBase {
   id: string                                    // Unique identifier (kebab-case)
   name: AsyncValue<string | string[]>           // Display name, can be async
   description?: AsyncValue<string>              // Optional description
   icon?: AsyncValue<CommandIcon>                // Icon configuration  
   color?: AsyncValue<ColorName | string>        // Theme color
   keywords?: AsyncValue<string[]>               // Search keywords
-  keybinding?: string                          // Keyboard shortcut ("⌘ K", "⌃ d")
-  supportedBrowsers?: Browser.Platform[]       // ["chrome", "firefox"]
-  actions?: Command[]                          // Custom action menu items
-  doNotAddToRecents?: boolean                  // Exclude from recent commands
+  permissions?: BrowserPermission[]             // Required browser permissions
+  supportedBrowsers?: Browser.Platform[]        // ["chrome", "firefox"]
 }
 ```
 
@@ -39,15 +38,21 @@ Many properties support `AsyncValue<T>` which means they can be:
 
 This allows commands to be dynamic based on current browser state.
 
-## RunCommand - Simple Execution
+## ActionCommandNode - Executable Commands
 
-The most basic command type for immediate actions:
+The most common command type for actions:
 
 ```typescript
-interface RunCommand extends BaseCommand {
-  run: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>
+interface ActionCommandNode extends CommandNodeBase {
+  type: "action"                                              // Required discriminant
+  execute: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>
   actionLabel?: AsyncValue<string>                           // Default action label
   modifierActionLabel?: { [key in ModifierKey]?: string }   // Modifier key labels
+  keybinding?: string                                       // Keyboard shortcut ("⌘ K", "⌃ d")
+  confirmAction?: boolean                                   // Require confirmation
+  remainOpenOnSelect?: boolean                             // Keep palette open after execution
+  allowCustomKeybinding?: boolean                          // Allow user to customize keybinding
+  doNotAddToRecents?: boolean                             // Exclude from recent commands
 }
 ```
 
@@ -55,10 +60,11 @@ interface RunCommand extends BaseCommand {
 
 ```typescript
 // background/commands/browser/closeCurrentTab.ts
-import type { RunCommand } from "../../../types"
-import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser"
+import type { ActionCommandNode } from "../../../types/"
+import { queryTabs, removeTab, sendTabMessage } from "../../utils/browser"
 
-export const closeCurrentTab: RunCommand = {
+export const closeCurrentTab: ActionCommandNode = {
+  type: "action",  // Required type discriminant
   id: "close-current-tab",
   name: "Close Current Tab",
   description: "Close the currently active tab",
@@ -66,6 +72,7 @@ export const closeCurrentTab: RunCommand = {
   color: "red",
   keywords: ["close", "tab", "shut"],
   keybinding: "⌘ w",
+  confirmAction: true,
   
   // Modifier key behavior labels
   modifierActionLabel: {
@@ -73,33 +80,34 @@ export const closeCurrentTab: RunCommand = {
     cmd: "Close Other Tabs"
   },
   
-  run: async (context) => {
+  execute: async (context) => {
     try {
-      const activeTab = await getActiveTab()
+      const tabs = await queryTabs({ active: true, currentWindow: true })
+      const activeTab = tabs[0]
       
       if (context?.modifierKey === "shift") {
         // Close all tabs
-        const tabs = await callBrowserAPI("tabs", "query", {})
-        for (const tab of tabs) {
-          await callBrowserAPI("tabs", "remove", tab.id)
+        const allTabs = await queryTabs({})
+        for (const tab of allTabs) {
+          if (tab.id) await removeTab(tab.id)
         }
       } else if (context?.modifierKey === "cmd") {
         // Close other tabs
-        const tabs = await callBrowserAPI("tabs", "query", {})
-        for (const tab of tabs) {
-          if (tab.id !== activeTab?.id) {
-            await callBrowserAPI("tabs", "remove", tab.id)
+        const allTabs = await queryTabs({ currentWindow: true })
+        for (const tab of allTabs) {
+          if (tab.id !== activeTab?.id && tab.id) {
+            await removeTab(tab.id)
           }
         }
       } else {
         // Close current tab
-        if (activeTab) {
-          await callBrowserAPI("tabs", "remove", activeTab.id)
+        if (activeTab?.id) {
+          await removeTab(activeTab.id)
         }
       }
       
       // Success feedback
-      if (activeTab) {
+      if (activeTab?.id) {
         await sendTabMessage(activeTab.id, {
           type: "monocle-alert",
           level: "success", 
@@ -111,9 +119,9 @@ export const closeCurrentTab: RunCommand = {
     } catch (error) {
       console.error("Failed to close tab:", error)
       
-      const activeTab = await getActiveTab()
-      if (activeTab) {
-        await sendTabMessage(activeTab.id, {
+      const tabs = await queryTabs({ active: true, currentWindow: true })
+      if (tabs[0]?.id) {
+        await sendTabMessage(tabs[0].id, {
           type: "monocle-alert",
           level: "error",
           message: "Failed to close tab",
@@ -125,138 +133,24 @@ export const closeCurrentTab: RunCommand = {
 }
 ```
 
-### RunCommand Key Points:
+### ActionCommandNode Key Points:
+- **Always specify `type: "action"`** for the discriminant
+- **Use `execute` not `run`** for the execution function
 - **Immediate execution** when selected
 - **Modifier key support** via `context?.modifierKey` 
 - **Auto-generated actions**: Execute, modifier variants, toggle favorite
-- **Cross-browser compatibility** using `callBrowserAPI`
+- **Cross-browser compatibility** using browser utils
 - **User feedback** via alert system
 
-## UICommand - Form Input Required
-
-Commands that need user input before execution:
-
-```typescript
-interface UICommand extends BaseCommand {
-  ui: CommandUI[]                              // Form field definitions
-  run: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>
-  actionLabel?: AsyncValue<string>
-  modifierActionLabel?: { [key in ModifierKey]?: string }
-}
-
-interface CommandUI {
-  id: string                    // Field identifier
-  type: "input" | "text"       // Input field or display text
-  label?: string               // Field label  
-  placeholder?: string         // Input placeholder
-  defaultValue?: string        // Default field value
-}
-```
-
-### Example: Search Command with Form
-
-```typescript
-// background/commands/tools/customSearch.ts  
-import type { UICommand } from "../../../types"
-import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser"
-
-export const customSearch: UICommand = {
-  id: "custom-search",
-  name: "Custom Search",
-  description: "Search any website with custom query",
-  icon: { type: "lucide", name: "Search" },
-  color: "blue",
-  keywords: ["search", "query", "find"],
-  
-  // Form configuration
-  ui: [
-    {
-      id: "query",
-      type: "input",
-      label: "Search Query",
-      placeholder: "Enter your search terms...",
-      defaultValue: ""
-    },
-    {
-      id: "website", 
-      type: "input",
-      label: "Website",
-      placeholder: "e.g., stackoverflow.com",
-      defaultValue: "google.com"
-    }
-  ],
-  
-  // Modifier behaviors  
-  modifierActionLabel: {
-    cmd: "Search in New Window",
-    shift: "Search in Private Window"
-  },
-  
-  run: async (context, values) => {
-    const query = values?.query || ""
-    const website = values?.website || "google.com"
-    
-    // Build search URL
-    let searchUrl = ""
-    if (website.includes("google")) {
-      searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`
-    } else {
-      searchUrl = `https://${website}/search?q=${encodeURIComponent(query)}`
-    }
-    
-    try {
-      // Handle modifier key behaviors
-      if (context?.modifierKey === "cmd") {
-        // New window logic would go here
-        await callBrowserAPI("windows", "create", { url: searchUrl })
-      } else {
-        // Regular new tab
-        await callBrowserAPI("tabs", "create", { url: searchUrl })
-      }
-      
-      // Success feedback
-      const activeTab = await getActiveTab()
-      if (activeTab) {
-        await sendTabMessage(activeTab.id, {
-          type: "monocle-alert",
-          level: "success",
-          message: `Searching for "${query}" on ${website}`,
-          icon: { type: "lucide", name: "ExternalLink" }
-        })
-      }
-      
-    } catch (error) {
-      console.error("Search failed:", error)
-      
-      const activeTab = await getActiveTab()
-      if (activeTab) {
-        await sendTabMessage(activeTab.id, {
-          type: "monocle-alert", 
-          level: "error",
-          message: "Search failed. Please try again.",
-          icon: { type: "lucide", name: "AlertTriangle" }
-        })
-      }
-    }
-  }
-}
-```
-
-### UICommand Key Points:
-- **Form opens first** when command is selected
-- **User input accessible** via `values` parameter
-- **Auto-generated actions**: Configure (instead of Execute), toggle favorite
-- **No auto-modifier actions** - handle modifiers in `run()` function
-- **Form validation** should be done in the `run()` function
-
-## ParentCommand - Dynamic Children
+## GroupCommandNode - Dynamic Children
 
 Commands that generate child commands based on current browser state:
 
 ```typescript
-interface ParentCommand extends BaseCommand {
-  commands: (context: Browser.Context) => Promise<Command[]>
-  enableDeepSearch?: boolean                   // Enable deep search (optional)
+interface GroupCommandNode extends CommandNodeBase {
+  type: "group"                                               // Required discriminant
+  children: (context: Browser.Context) => Promise<CommandNode[]>  // Child generator
+  enableDeepSearch?: boolean                                  // Enable deep search (optional)
 }
 ```
 
@@ -264,22 +158,25 @@ interface ParentCommand extends BaseCommand {
 
 ```typescript
 // background/commands/browser/recentBookmarks.ts
-import type { ParentCommand, RunCommand } from "../../../types"
-import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser" 
+import type { GroupCommandNode, ActionCommandNode } from "../../../types/"
+import { getBookmarkTree, createTab, sendTabMessage } from "../../utils/browser" 
 import { createNoOpCommand } from "../../utils/commands"
 
-export const recentBookmarks: ParentCommand = {
+export const recentBookmarks: GroupCommandNode = {
+  type: "group",  // Required type discriminant
   id: "recent-bookmarks",
   name: "Recent Bookmarks", 
   description: "Navigate to recently added bookmarks",
   icon: { type: "lucide", name: "Bookmark" },
   color: "yellow",
   keywords: ["bookmark", "recent", "favorites"],
+  permissions: ["bookmarks"],
   enableDeepSearch: true,  // Allow searching nested bookmarks directly
   
-  commands: async (context) => {
+  children: async (context) => {
     try {
-      const bookmarks = await callBrowserAPI("bookmarks", "getRecent", 20)
+      const tree = await getBookmarkTree()
+      const bookmarks = extractRecentBookmarks(tree)
       
       // Handle empty state
       if (!bookmarks || bookmarks.length === 0) {
@@ -293,10 +190,11 @@ export const recentBookmarks: ParentCommand = {
         ]
       }
       
-      // Convert bookmarks to commands
+      // Convert bookmarks to action nodes
       return bookmarks
         .filter((bookmark: any) => bookmark.url && bookmark.title)
-        .map((bookmark: any): RunCommand => ({
+        .map((bookmark: any): ActionCommandNode => ({
+          type: "action",
           id: `goto-bookmark-${bookmark.id}`,
           name: bookmark.title,
           description: `Navigate to ${bookmark.url}`,
@@ -304,13 +202,13 @@ export const recentBookmarks: ParentCommand = {
           color: "blue",
           keywords: ["bookmark", bookmark.title.toLowerCase()],
           
-          run: async () => {
+          execute: async () => {
             try {
-              await callBrowserAPI("tabs", "create", { url: bookmark.url })
+              await createTab({ url: bookmark.url })
               
-              const activeTab = await getActiveTab()
-              if (activeTab) {
-                await sendTabMessage(activeTab.id, {
+              const tabs = await queryTabs({ active: true, currentWindow: true })
+              if (tabs[0]?.id) {
+                await sendTabMessage(tabs[0].id, {
                   type: "monocle-alert",
                   level: "info", 
                   message: `Opening ${bookmark.title}`,
@@ -320,9 +218,9 @@ export const recentBookmarks: ParentCommand = {
             } catch (error) {
               console.error("Failed to open bookmark:", error)
               
-              const activeTab = await getActiveTab()
-              if (activeTab) {
-                await sendTabMessage(activeTab.id, {
+              const tabs = await queryTabs({ active: true, currentWindow: true })
+              if (tabs[0]?.id) {
+                await sendTabMessage(tabs[0].id, {
                   type: "monocle-alert",
                   level: "error",
                   message: "Failed to open bookmark",
@@ -336,7 +234,7 @@ export const recentBookmarks: ParentCommand = {
     } catch (error) {
       console.error("Failed to load bookmarks:", error)
       
-      // Return NoOp error command (don't use alerts for ParentCommand errors)
+      // Return NoOp error command (don't use alerts for group errors)
       return [
         createNoOpCommand(
           "bookmarks-error", 
@@ -350,23 +248,113 @@ export const recentBookmarks: ParentCommand = {
 }
 ```
 
-### ParentCommand Key Points:
+### GroupCommandNode Key Points:
+- **Always specify `type: "group"`** for the discriminant
+- **Use `children` not `commands`** for the child generator
 - **Dynamic child generation** based on browser state
+- **Children must be CommandNode types** (not legacy Command)
 - **Error handling with NoOp commands** (not alerts)
 - **Deep search support** with `enableDeepSearch: true`
 - **Auto-generated actions**: Open (to show children), toggle favorite
-- **Child commands get their own actions** when generated
+
+## Inline UI Pattern - Groups with Inputs
+
+Groups can contain input nodes for user interaction:
+
+```typescript
+// background/commands/tools/calculator.ts
+import type { GroupCommandNode, InputCommandNode, ActionCommandNode } from "../../../types/"
+
+export const calculator: GroupCommandNode = {
+  type: "group",
+  id: "calculator",
+  name: "Calculator",
+  description: "Evaluate mathematical expressions",
+  icon: { type: "lucide", name: "Calculator" },
+  color: "green",
+  
+  children: async () => [
+    // Input node for expression
+    {
+      type: "input",
+      id: "calc-expression",
+      name: "Expression",
+      field: {
+        id: "calculation",
+        type: "text",
+        placeholder: "e.g., 2 + 2, 10 * 5, sqrt(16)",
+        required: true
+      }
+    } as InputCommandNode,
+    
+    // Action to calculate
+    {
+      type: "action",
+      id: "calc-execute",
+      name: "Calculate",
+      icon: { type: "lucide", name: "Equal" },
+      actionLabel: "Calculate",
+      modifierActionLabel: {
+        cmd: "Calculate & Copy"
+      },
+      
+      execute: async (context, values) => {
+        const expression = values?.calculation
+        if (!expression) {
+          // Show error
+          return
+        }
+        
+        try {
+          const result = evaluateExpression(expression)
+          
+          if (context?.modifierKey === "cmd") {
+            // Copy to clipboard
+            await navigator.clipboard.writeText(result.toString())
+          }
+          
+          // Show result
+          await sendTabMessage(activeTab.id, {
+            type: "monocle-alert",
+            level: "success",
+            message: `${expression} = ${result}`,
+            icon: { type: "lucide", name: "Calculator" }
+          })
+        } catch (error) {
+          // Handle error
+        }
+      }
+    } as ActionCommandNode,
+    
+    // Display node for help text
+    {
+      type: "display",
+      id: "calc-help",
+      name: "Supported: +, -, *, /, %, sqrt, pow, abs, round",
+      icon: { type: "lucide", name: "Info" }
+    } as DisplayCommandNode
+  ]
+}
+```
+
+### Inline UI Key Points:
+- **Groups can mix node types**: inputs, actions, and displays
+- **Input values passed to actions** via `values` parameter
+- **Form state managed automatically** by navigation slice
+- **No separate UI overlay** - everything renders inline
+- **Display nodes** for static text/help
 
 ## Deep Search Feature
 
-Enable `enableDeepSearch: true` on ParentCommands to allow users to search nested commands directly:
+Enable `enableDeepSearch: true` on GroupCommandNodes to allow users to search nested commands directly:
 
 ```typescript
-export const bookmarks: ParentCommand = {
+export const bookmarks: GroupCommandNode = {
+  type: "group",
   id: "bookmarks",
   name: "Bookmarks", 
   enableDeepSearch: true,  // Users can search "react" to find deeply nested "React Docs"
-  commands: async () => {
+  children: async () => {
     // Return nested bookmark structure
     // Deep search will flatten this automatically
   }
@@ -381,12 +369,12 @@ export const bookmarks: ParentCommand = {
 
 ## NoOp Commands for Error States
 
-Use `createNoOpCommand` for display-only error/empty states in ParentCommands:
+Use `createNoOpCommand` for display-only error/empty states in groups:
 
 ```typescript
 import { createNoOpCommand } from "../../utils/commands"
 
-// In ParentCommand error handling
+// In GroupCommandNode error handling
 return [
   createNoOpCommand(
     "error-id",
@@ -409,12 +397,14 @@ Every command automatically gets context-aware actions:
 
 ### Auto-Generated Actions:
 1. **Primary Action**: 
-   - RunCommand: "Execute"
-   - ParentCommand: "Open" 
-   - UICommand: "Configure"
-2. **Modifier Actions** (RunCommand only):
+   - ActionCommandNode: "Execute" or custom `actionLabel`
+   - GroupCommandNode: "Open" 
+   - InputCommandNode: No primary action
+   - DisplayCommandNode: No primary action
+2. **Modifier Actions** (ActionCommandNode only):
    - "Execute with ⌘/⇧/⌥/⌃" or custom `modifierActionLabel`
 3. **Toggle Favorite**: Add/remove from favorites (all commands)
+4. **Set/Reset Keybinding**: For commands that allow custom keybindings
 
 ### Browser.Context Parameter:
 ```typescript
@@ -422,12 +412,13 @@ interface Browser.Context {
   url: string                           // Current page URL
   title: string                        // Current page title  
   modifierKey: ModifierKey | null      // Active modifier: "cmd" | "shift" | "alt" | "ctrl"
+  isNewTab?: boolean                   // Whether in new tab mode
 }
 ```
 
 Use `context?.modifierKey` to implement different behaviors:
 ```typescript
-run: async (context) => {
+execute: async (context, values) => {
   if (context?.modifierKey === "cmd") {
     // Cmd+Enter behavior
   } else if (context?.modifierKey === "shift") {
@@ -442,10 +433,10 @@ run: async (context) => {
 
 **Always use the browser abstraction layer:**
 ```typescript
-import { callBrowserAPI, getActiveTab, sendTabMessage } from "../../utils/browser"
+import { queryTabs, createTab, removeTab, sendTabMessage } from "../../utils/browser"
 
 // Good - cross-browser compatible
-await callBrowserAPI("tabs", "create", { url: "https://example.com" })
+await createTab({ url: "https://example.com" })
 
 // Bad - Chrome-specific  
 chrome.tabs.create({ url: "https://example.com" })
@@ -453,14 +444,15 @@ chrome.tabs.create({ url: "https://example.com" })
 
 **Common browser operations:**
 ```typescript
-// Get active tab
-const activeTab = await getActiveTab()
+// Query tabs
+const tabs = await queryTabs({ active: true, currentWindow: true })
+const activeTab = tabs[0]
 
 // Create new tab  
-await callBrowserAPI("tabs", "create", { url: "..." })
+await createTab({ url: "..." })
 
-// Query tabs
-const tabs = await callBrowserAPI("tabs", "query", {})
+// Remove tab
+await removeTab(tabId)
 
 // Send message to tab (for alerts/actions)
 await sendTabMessage(activeTab.id, {
@@ -476,12 +468,15 @@ await sendTabMessage(activeTab.id, {
 ### 1. Create Command File
 ```typescript
 // background/commands/category/myCommand.ts
-import type { RunCommand } from "../../../types"
+import type { ActionCommandNode } from "../../../types/"
 
-export const myCommand: RunCommand = {
+export const myCommand: ActionCommandNode = {
+  type: "action",  // Always specify type
   id: "my-command",
   name: "My Command", 
-  // ... command definition
+  execute: async (context, values) => {
+    // Implementation
+  }
 }
 ```
 
@@ -506,6 +501,12 @@ import { categoryCommands } from "./category"
 
 ## Best Practices
 
+### Type Safety:
+- **Always specify `type` discriminant** on every node
+- **Use `execute` not `run`** for actions
+- **Use `children` not `commands`** for groups
+- **Import correct types** (`ActionCommandNode`, `GroupCommandNode`, etc.)
+
 ### Naming & Structure:
 - **IDs**: kebab-case, descriptive (`"close-current-tab"`)
 - **Names**: Clear action verbs (`"Close Current Tab"`)
@@ -513,13 +514,13 @@ import { categoryCommands } from "./category"
 - **Colors**: Match action context (red for delete, green for create)
 
 ### Error Handling:
-- **RunCommand/UICommand errors**: Use alert system for immediate feedback
-- **ParentCommand errors**: Use NoOp commands to display error states
+- **ActionCommandNode errors**: Use alert system for immediate feedback
+- **GroupCommandNode errors**: Use NoOp commands to display error states
 - **Always log errors** to console for debugging
 
 ### Performance:
 - **Async properties**: Use sparingly, evaluated each load
-- **ParentCommand children**: Avoid expensive operations
+- **Group children**: Avoid expensive operations
 - **Cache when possible**: Store results of expensive API calls
 
 ### User Experience:
@@ -530,9 +531,20 @@ import { categoryCommands } from "./category"
 
 ### Cross-Browser Compatibility:
 ```typescript
-export const myCommand: RunCommand = {
+export const myCommand: ActionCommandNode = {
+  type: "action",
   supportedBrowsers: ["chrome", "firefox"], // Specify compatibility
   // or omit to support all browsers
+  // ...
+}
+```
+
+### Permissions:
+```typescript
+export const myCommand: ActionCommandNode = {
+  type: "action",
+  permissions: ["tabs", "bookmarks"], // Required browser permissions
+  // ...
 }
 ```
 

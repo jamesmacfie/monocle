@@ -10,7 +10,10 @@
       "Bash(npm run dev)",
       "WebSearch",
       "Bash(npx tsc:*)",
-      "Bash(npm run tsc:*)"
+      "Bash(npm run tsc:*)",
+      "Bash(grep:*)",
+      ,
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

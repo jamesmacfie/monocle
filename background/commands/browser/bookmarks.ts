@@ -1,5 +1,5 @@
 import { isValidUrl } from "../../../shared/utils"
-import type { Command, ParentCommand, RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import {
   getActiveTab,
   getBookmarkTree,
@@ -22,8 +22,8 @@ interface BookmarkNode {
 function processBookmarkNode(
   node: BookmarkNode,
   parentPath: string[] = [],
-): Command[] {
-  const commands: Command[] = []
+): CommandNode[] {
+  const commands: CommandNode[] = []
 
   // Skip separators
   if (node.type === "separator") {
@@ -32,16 +32,17 @@ function processBookmarkNode(
 
   if (node.type === "folder" && node.children) {
     // This is a folder - create a ParentCommand
-    const folderCommand: ParentCommand = {
+    const folderCommand: CommandNode = {
+      type: "group",
       id: `bookmark-folder-${node.id}`,
       name: node.title || "Untitled Folder",
       description: `Browse ${node.title || "folder"} bookmarks`,
       icon: { type: "lucide", name: "Folder" },
       color: "amber",
       keywords: [node.title?.toLowerCase() || "folder"],
-      commands: async () => {
+      children: async () => {
         // Process children and return as commands
-        const childCommands: Command[] = []
+        const childCommands: CommandNode[] = []
 
         for (const child of node.children || []) {
           const childPath = [...parentPath, node.title || "Untitled Folder"]
@@ -56,7 +57,8 @@ function processBookmarkNode(
   } else if (node.url && node.title && isValidUrl(node.url)) {
     // This is a bookmark with a valid HTTP/HTTPS URL
     const faviconUrl = getFaviconUrl(node.url)
-    const bookmarkCommand: RunCommand = {
+    const bookmarkCommand: CommandNode = {
+      type: "action",
       id: `bookmark-${node.id}`,
       name: node.title,
       description: node.url,
@@ -70,7 +72,7 @@ function processBookmarkNode(
         cmd: "Open in New Tab",
       },
       allowCustomKeybinding: false, // Dynamic bookmark commands shouldn't have custom keybindings
-      run: async (context) => {
+      execute: async (context) => {
         const activeTab = await getActiveTab()
 
         if (activeTab && node.url) {
@@ -128,7 +130,8 @@ function processBookmarkNode(
   return commands
 }
 
-export const bookmarks: ParentCommand = {
+export const bookmarks: CommandNode = {
+  type: "group",
   id: "bookmarks",
   name: "Bookmarks",
   description: "Browse and open your bookmarks",
@@ -137,7 +140,7 @@ export const bookmarks: ParentCommand = {
   keywords: ["bookmarks", "favorites", "saved", "links"],
   permissions: ["bookmarks"],
   enableDeepSearch: true,
-  commands: async () => {
+  children: async () => {
     try {
       const bookmarkTree = await getBookmarkTree()
 
@@ -153,7 +156,7 @@ export const bookmarks: ParentCommand = {
       }
 
       // Process all bookmark nodes from the tree
-      const allCommands: Command[] = []
+      const allCommands: CommandNode[] = []
       for (const rootNode of bookmarkTree) {
         if (rootNode.children) {
           for (const child of rootNode.children) {

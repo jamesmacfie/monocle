@@ -1,4 +1,5 @@
-import type { GetChildrenMessage } from "../../types/"
+import type { CommandNode, GetChildrenMessage } from "../../types/"
+import type { GroupCommandNode } from "../../types/commands"
 import {
   commandsToSuggestions,
   findCommand,
@@ -35,9 +36,11 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
         message.context,
       )
 
-      if (parentCommand && "commands" in parentCommand) {
+      if (parentCommand && parentCommand.type === "group") {
         // Get the children for the next level of search
-        commandToSearch = await parentCommand.commands(message.context)
+        commandToSearch = await (parentCommand as GroupCommandNode).children(
+          message.context,
+        )
       } else {
         // If we can't find a parent in the path, something went wrong
         console.error(`Parent command ${parentId} not found in path`)
@@ -67,20 +70,27 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
     targetCommand ? targetCommand.id : "null",
   )
   console.debug(
-    "[GetChildrenCommands] Is ParentCommand?",
-    targetCommand && "commands" in targetCommand,
+    "[GetChildrenCommands] Is Group?",
+    targetCommand && (targetCommand as CommandNode).type === "group",
   )
 
-  if (targetCommand && "commands" in targetCommand) {
+  const isGroup = !!(
+    targetCommand &&
+    "type" in (targetCommand as CommandNode) &&
+    (targetCommand as CommandNode).type === "group"
+  )
+  if (targetCommand && isGroup) {
     console.debug(
       "[GetChildrenCommands] Getting children for command:",
       targetCommand.id,
     )
-    const children = await targetCommand.commands(message.context)
+    const children = await (targetCommand as GroupCommandNode).children(
+      message.context,
+    )
     console.debug(
       "[GetChildrenCommands] Children found:",
       children.length,
-      children.map((c) => c.id),
+      (children as Array<CommandNode>).map((c) => c.id),
     )
 
     const parentNameString = await resolveCommandName(
@@ -101,7 +111,7 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
   }
 
   console.debug(
-    "[GetChildrenCommands] No target command or not a ParentCommand, returning empty",
+    "[GetChildrenCommands] No target command or not a group, returning empty",
   )
   return { children: [] }
 }

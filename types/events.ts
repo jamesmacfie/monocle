@@ -1,6 +1,6 @@
 // Browser extension events
 
-// Legacy Icon type for events (matches Alert component expectations)
+// Icon type for events (matches Alert component expectations)
 type LegacyIcon = {
   name?: string
   url?: string

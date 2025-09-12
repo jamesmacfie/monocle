@@ -1,5 +1,5 @@
 import { match } from "ts-pattern"
-import type { Command, ParentCommand, RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import {
   createTab,
   getTab,
@@ -32,11 +32,12 @@ interface WindowInfo {
 }
 
 // Convert tab to command with various actions
-function createTabCommand(tab: TabInfo, _windowTitle: string): RunCommand {
+function createTabCommand(tab: TabInfo, _windowTitle: string): CommandNode {
   const tabName = tab.title || "Untitled Tab"
   const tabUrl = tab.url || ""
 
   return {
+    type: "action",
     id: `open-tab-${tab.id}`,
     name: tabName,
     description: tabUrl,
@@ -69,7 +70,7 @@ function createTabCommand(tab: TabInfo, _windowTitle: string): RunCommand {
       shift: "Close Tab",
       alt: "Pin/Unpin Tab",
     },
-    run: async (context) => {
+    execute: async (context) => {
       try {
         await match(context?.modifierKey)
           .with("shift", async () => {
@@ -106,11 +107,12 @@ function createTabCommand(tab: TabInfo, _windowTitle: string): RunCommand {
 }
 
 // Create window folder command that groups tabs by window
-function createWindowCommand(windowInfo: WindowInfo): ParentCommand {
+function createWindowCommand(windowInfo: WindowInfo): CommandNode {
   const windowTitle = windowInfo.focused ? "Current Window" : "Other Window"
   const tabCount = windowInfo.tabs.length
 
   return {
+    type: "group",
     id: `window-${windowInfo.id}`,
     name: `${windowTitle} (${tabCount} tab${tabCount !== 1 ? "s" : ""})`,
     description: `Browse ${tabCount} tabs in this window`,
@@ -119,7 +121,7 @@ function createWindowCommand(windowInfo: WindowInfo): ParentCommand {
       name: windowInfo.focused ? "WindowMaximize" : "Window",
     },
     color: windowInfo.focused ? "green" : "blue",
-    commands: async () => {
+    children: async () => {
       return windowInfo.tabs
         .sort((a, b) => a.index - b.index) // Sort by tab order
         .map((tab) => createTabCommand(tab, windowTitle))
@@ -127,16 +129,16 @@ function createWindowCommand(windowInfo: WindowInfo): ParentCommand {
   }
 }
 
-export const openTabs: ParentCommand = {
+export const openTabs: CommandNode = {
+  type: "group",
   id: "open-tabs",
   name: "Open Tabs",
   description: "Browse and manage all open tabs across all windows",
   icon: { type: "lucide", name: "Tabs" },
   color: "blue",
-  keybinding: "⌘ t",
   permissions: ["tabs"],
   enableDeepSearch: true, // Enable deep search for nested tab access
-  commands: async () => {
+  children: async () => {
     try {
       // Get all tabs from all windows
       const allTabs = await queryTabs({})
@@ -189,7 +191,7 @@ export const openTabs: ParentCommand = {
         })
       }
 
-      const commands: Command[] = []
+      const commands: CommandNode[] = []
 
       // If only one window, show tabs directly without window grouping
       if (windowMap.size === 1) {

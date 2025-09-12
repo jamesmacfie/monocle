@@ -1,8 +1,9 @@
-import type { Command, ParentCommand } from "../../../../types/"
+import type { CommandNode } from "../../../../types/"
 import { createTab } from "../../../utils/browser"
 import { queryContainers } from "../../../utils/firefox"
 
-export const openContainerTab: ParentCommand = {
+export const openContainerTab: CommandNode = {
+  type: "group",
   id: "open-container-tab",
   supportedBrowsers: ["firefox"],
   name: "Open container tab",
@@ -11,7 +12,7 @@ export const openContainerTab: ParentCommand = {
   color: "green",
   permissions: ["contextualIdentities"],
   keywords: ["container", "tab", "profile"],
-  commands: async (): Promise<Command[]> => {
+  children: async (): Promise<CommandNode[]> => {
     try {
       const containers = await queryContainers({})
 
@@ -31,7 +32,8 @@ export const openContainerTab: ParentCommand = {
         }
         // For other hex colors, keep them as-is since they're container-specific
 
-        const command: Command = {
+        const command: CommandNode = {
+          type: "action",
           id: `open-container-tab-${container.cookieStoreId}`,
           name: async () => profileName,
           icon: async () => {
@@ -42,7 +44,7 @@ export const openContainerTab: ParentCommand = {
           modifierActionLabel: {
             cmd: "New tab ←",
           },
-          run: async (context) => {
+          execute: async (context) => {
             const options = {
               cookieStoreId: container.cookieStoreId,
               index: context?.modifierKey === "cmd" ? 0 : undefined,

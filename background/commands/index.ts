@@ -1,13 +1,12 @@
 import { match } from "ts-pattern"
 import { isFirefox } from "../../shared/utils/browser"
-import type { Browser, Command, CommandSuggestion } from "../../types/"
+import type { Browser, CommandNode, CommandSuggestion } from "../../types/"
 import {
   resolveActionLabel,
   resolveAsyncProperty,
   resolveModifierActionLabels,
 } from "../utils/commands"
 import { browserCommands, firefoxCommands } from "./browser"
-import { debug } from "./debug"
 import {
   clearFavoritesCommand,
   getFavoriteCommandIds,
@@ -24,14 +23,13 @@ import {
 } from "./usage"
 
 // Helper function to load and filter all commands
-const loadAllCommands = (context?: Browser.Context): Command[] => {
+const loadAllCommands = (context?: Browser.Context): Array<CommandNode> => {
   // First load in common browser commands
   const allCommandsUnfiltered = [
     ...browserCommands,
     ...toolCommands,
     clearRecentsCommand,
     clearFavoritesCommand,
-    debug,
   ]
 
   // Add new tab specific commands only if on new tab page
@@ -47,7 +45,7 @@ const loadAllCommands = (context?: Browser.Context): Command[] => {
   // Filter commands based on browser compatibility
   return allCommandsUnfiltered.filter((command) => {
     // If no browsers property is defined, the command works everywhere
-    if (!command.supportedBrowsers) {
+    if (!("supportedBrowsers" in command) || !command.supportedBrowsers) {
       return true
     }
 
@@ -63,12 +61,12 @@ export const allCommands = loadAllCommands()
 
 // Helper function to recursively find all favorited commands including sub-commands
 const findFavoritedCommands = async (
-  commands: Command[],
+  commands: Array<CommandNode>,
   favoriteCommandIds: string[],
   context: Browser.Context,
   parentName?: string,
-): Promise<Command[]> => {
-  const favoritedCommands: Command[] = []
+): Promise<Array<CommandNode>> => {
+  const favoritedCommands: Array<CommandNode> = []
 
   for (const command of commands) {
     // Check if this command is favorited
@@ -78,7 +76,7 @@ const findFavoritedCommands = async (
         const resolvedName = await resolveAsyncProperty(command.name, context)
 
         // Create a new command object with the modified name
-        const modifiedCommand: Command = {
+        const modifiedCommand = {
           ...command,
           name: Array.isArray(resolvedName)
             ? resolvedName
@@ -91,9 +89,9 @@ const findFavoritedCommands = async (
     }
 
     // If this is a ParentCommand, recursively search its children
-    if ("commands" in command) {
+    if (command.type === "group") {
       try {
-        const children = await command.commands(context)
+        const children = await command.children(context)
         const commandName = await resolveAsyncProperty(command.name, context)
         const parentNameString = Array.isArray(commandName)
           ? commandName[0]
@@ -120,11 +118,11 @@ const findFavoritedCommands = async (
 
 // Helper function to process recent commands
 const _processRecentCommands = async (
-  allCommands: Command[],
+  allCommands: Array<CommandNode>,
   context: Browser.Context,
   addedCommandIds: Set<string>,
-): Promise<Command[]> => {
-  const recentResult: Command[] = []
+): Promise<Array<CommandNode>> => {
+  const recentResult: Array<CommandNode> = []
   const recentCommandIds = (await getRankedCommandIds()).slice(0, 5)
   const allUsageStats = await getAllUsageStats()
 
@@ -141,7 +139,7 @@ const _processRecentCommands = async (
             recentCommand.name,
             context,
           )
-          const commandWithBreadcrumbs: Command = {
+          const commandWithBreadcrumbs: any = {
             ...recentCommand,
             name: [resolvedName as string, ...usageStats.parentNames],
           }
@@ -159,9 +157,9 @@ const _processRecentCommands = async (
 
 // Helper function to process suggestions (remaining commands ranked by usage)
 const _processSuggestions = async (
-  allCommands: Command[],
+  allCommands: Array<CommandNode>,
   addedCommandIds: Set<string>,
-): Promise<Command[]> => {
+): Promise<Array<CommandNode>> => {
   // Get usage-based ranking for suggestions
   const rankedCommandIds = await getRankedCommandIds()
 
@@ -173,11 +171,11 @@ const _processSuggestions = async (
 
   // Add remaining commands without duplicates, sorted by usage ranking
   const remainingCommands = allCommands.filter(
-    (command) => !addedCommandIds.has(command.id),
+    (command: any) => !addedCommandIds.has(command.id),
   )
 
   // Sort remaining commands by their usage ranking (commands with no usage data go to the end)
-  remainingCommands.sort((a, b) => {
+  remainingCommands.sort((a: any, b: any) => {
     const rankA = rankingMap.get(a.id) ?? Number.MAX_SAFE_INTEGER
     const rankB = rankingMap.get(b.id) ?? Number.MAX_SAFE_INTEGER
     return rankA - rankB
@@ -190,9 +188,9 @@ const _processSuggestions = async (
 export const getCommands = async (
   context?: Browser.Context,
 ): Promise<{
-  favorites: Command[]
-  recents: Command[]
-  suggestions: Command[]
+  favorites: Array<CommandNode>
+  recents: Array<CommandNode>
+  suggestions: Array<CommandNode>
 }> => {
   console.debug("[Commands] Starting getCommands()")
 
@@ -203,9 +201,9 @@ export const getCommands = async (
     allCommands.map((c) => c.id),
   )
 
-  const favoriteResult: Command[] = []
-  const recentResult: Command[] = []
-  const suggestionsResult: Command[] = []
+  const favoriteResult: Array<CommandNode> = []
+  const recentResult: Array<CommandNode> = []
+  const suggestionsResult: Array<CommandNode> = []
   const addedCommandIds = new Set<string>()
 
   // Add favorite commands first
@@ -254,10 +252,10 @@ export const getCommands = async (
 
 // Helper function to find a command with depth-first traversal
 export const findCommand = async (
-  commands: Command[],
+  commands: Array<CommandNode>,
   commandId: string,
   context: Browser.Context,
-): Promise<Command | undefined> => {
+): Promise<CommandNode | undefined> => {
   console.debug("[FindCommand] Searching for command:", commandId)
   console.debug(
     "[FindCommand] In commands:",
@@ -278,26 +276,20 @@ export const findCommand = async (
 
   // If not found, recursively search children of commands that have children
   for (const command of commands) {
-    // Search through command children (ParentCommand)
-    if ("commands" in command) {
-      const children = await command.commands(context)
-      const foundInChildren = await findCommand(children, commandId, context)
+    // Group node children
+    if (command.type === "group") {
+      const children = await command.children(context)
+      const foundInChildren = await findCommand(
+        children as Array<CommandNode>,
+        commandId,
+        context,
+      )
       if (foundInChildren) {
         return foundInChildren
       }
     }
 
-    // Search through actions
-    if (command.actions && Array.isArray(command.actions)) {
-      const foundInActions = await findCommand(
-        command.actions,
-        commandId,
-        context,
-      )
-      if (foundInActions) {
-        return foundInActions
-      }
-    }
+    // No action search at node level (actions are created dynamically)
   }
 
   return undefined
@@ -388,10 +380,10 @@ export const executeCommand = async (
           context,
         )
 
-        // If this is a ParentCommand, we shouldn't execute it - the UI should navigate instead
-        if (targetCommand && "commands" in targetCommand) {
+        // If this is a group, we shouldn't execute it - the UI should navigate instead
+        if (targetCommand && targetCommand.type === "group") {
           console.warn(
-            `[ExecuteCommand] Attempted to execute ParentCommand ${ctx.targetCommandId}. UI should navigate to children instead.`,
+            `[ExecuteCommand] Attempted to execute group ${ctx.targetCommandId}. UI should navigate to children instead.`,
           )
           return Promise.resolve()
         }
@@ -412,13 +404,13 @@ export const executeCommand = async (
   }
 
   // If no metadata found, fall back to the original command lookup
-  const allCommands = [...favorites, ...recents, ...suggestions, debug]
+  const allCommands = [...favorites, ...recents, ...suggestions]
 
   // Find and execute the command
-  const commandToRun = await findCommand(allCommands, id, context)
+  const commandToRun = await findCommand(allCommands as any, id, context)
 
   if (commandToRun) {
-    if ("run" in commandToRun) {
+    if (commandToRun.type === "action") {
       // Check permissions before executing the command
       if (commandToRun.permissions) {
         const { checkPermissions } = require("../utils/permissions")
@@ -443,22 +435,15 @@ export const executeCommand = async (
       }
 
       try {
-        await commandToRun.run(context, formValues)
-
-        // Only add to recents if the command doesn't have doNotAddToRecents flag
-        if (!commandToRun.doNotAddToRecents) {
-          await recordCommandUsage(id, parentNames)
-        }
-
+        await commandToRun.execute(context, formValues)
+        await recordCommandUsage(id, parentNames)
         return
       } catch (error) {
-        console.error(`[ExecuteCommand] Error executing command ${id}:`, error)
+        console.error(`[ExecuteCommand] Error executing action ${id}:`, error)
         throw error
       }
     } else {
-      console.error(
-        `[ExecuteCommand] Command found but has no run method: ${id}`,
-      )
+      console.error(`[ExecuteCommand] Command found but not executable: ${id}`)
       throw new Error(`Command ${id} is not executable`)
     }
   } else {
@@ -469,18 +454,18 @@ export const executeCommand = async (
 
 // Helper to create set keybinding action
 const _createSetKeybindingAction = async (
-  command: Command,
+  command: CommandNode,
 ): Promise<CommandSuggestion | null> => {
   console.log(`[DEBUG] Creating keybinding action for command: ${command.id}`)
 
-  // Don't create action for ParentCommands
-  if ("commands" in command) {
-    console.log(`[DEBUG] Skipping ParentCommand: ${command.id}`)
+  // Don't create action for groups
+  if (command.type === "group") {
+    console.log(`[DEBUG] Skipping group: ${command.id}`)
     return null
   }
 
   // Don't create action if command explicitly opts out
-  if ((command as any).allowCustomKeybinding === false) {
+  if (command.type === "action" && command.allowCustomKeybinding === false) {
     console.log(
       `[DEBUG] Command ${command.id} has allowCustomKeybinding: false`,
     )
@@ -495,7 +480,7 @@ const _createSetKeybindingAction = async (
     description: "Set a custom keyboard shortcut for this command",
     icon: { type: "lucide", name: "Keyboard" },
     color: "blue",
-    isParentCommand: false,
+    type: "action",
     actionLabel: "Set Keybinding",
     keywords: ["keybinding", "keyboard", "shortcut", "hotkey"],
     isFavorite: false,
@@ -510,15 +495,15 @@ const _createSetKeybindingAction = async (
 
 // Helper to create reset keybinding action
 const _createResetKeybindingAction = async (
-  command: Command,
+  command: CommandNode,
 ): Promise<CommandSuggestion | null> => {
-  // Don't create action for ParentCommands
-  if ("commands" in command) {
+  // Don't create action for groups
+  if (command.type === "group") {
     return null
   }
 
   // Don't create action if command explicitly opts out
-  if ((command as any).allowCustomKeybinding === false) {
+  if (command.type === "action" && command.allowCustomKeybinding === false) {
     return null
   }
 
@@ -532,12 +517,13 @@ const _createResetKeybindingAction = async (
   return {
     id: `reset-keybinding-${command.id}`,
     name: "Reset Custom Keybinding",
-    description: command.keybinding
-      ? `Reset to default keybinding: ${command.keybinding}`
-      : "Reset to default keybinding",
+    description:
+      command.type === "action" && command.keybinding
+        ? `Reset to default keybinding: ${command.keybinding}`
+        : "Reset to default keybinding",
     icon: { type: "lucide", name: "RotateCcw" },
     color: "orange",
-    isParentCommand: false,
+    type: "action",
     actionLabel: "Reset Keybinding",
     keywords: ["reset", "keybinding", "default", "clear"],
     isFavorite: false,
@@ -552,7 +538,7 @@ const _createResetKeybindingAction = async (
 
 // Helper to create toggle favorite action
 const createFavoriteToggleAction = async (
-  command: Command,
+  command: CommandNode,
   favoriteCommandIds: string[],
 ): Promise<CommandSuggestion> => {
   const isFavorite = favoriteCommandIds.includes(command.id)
@@ -564,7 +550,7 @@ const createFavoriteToggleAction = async (
       : "Add this command to favorites",
     icon: { type: "lucide", name: isFavorite ? "StarOff" : "Star" },
     color: "amber",
-    isParentCommand: false,
+    type: "action",
     actionLabel: isFavorite ? "Remove" : "Add",
     keywords: ["favorite", "star", isFavorite ? "remove" : "add"],
     isFavorite: false,
@@ -577,222 +563,136 @@ const createFavoriteToggleAction = async (
   }
 }
 
-// Helper to create primary action (default Enter key behavior)
-const createPrimaryAction = async (
-  command: Command,
-  context: Browser.Context,
-): Promise<CommandSuggestion | null> => {
-  // Skip if command already has custom actions defined
-  if (command.actions?.length) {
-    return null
-  }
-
-  const isParentCommand = "commands" in command
-  const hasUIForm = "ui" in command
-  const resolvedActionLabel = await resolveActionLabel(command, context)
-
-  // Determine action properties based on command type
-  const getPrimaryActionProperties = () => {
-    if (isParentCommand) {
-      return {
-        name: "Open",
-        description: "Open this group",
-        icon: "FolderOpen" as const,
-        actionLabel: "Open",
-      }
-    }
-    if (hasUIForm) {
-      return {
-        name: resolvedActionLabel,
-        description: "Open UI",
-        icon: "FormInput" as const,
-        actionLabel: resolvedActionLabel,
-      }
-    }
-    return {
-      name: resolvedActionLabel,
-      description: "Execute this command",
-      icon: "Play" as const,
-      actionLabel: resolvedActionLabel,
-    }
-  }
-
-  const primaryActionProperties = getPrimaryActionProperties()
-  return {
-    id: `${command.id}-enter-action`,
-    name: primaryActionProperties.name,
-    description: primaryActionProperties.description,
-    icon: { type: "lucide", name: primaryActionProperties.icon },
-    isParentCommand: false,
-    actionLabel: primaryActionProperties.actionLabel,
-    isFavorite: false,
-    actions: undefined,
-    keybinding: "↵",
-    confirmAction:
-      "confirmAction" in command ? command.confirmAction : undefined,
-    executionContext: {
-      type: "primary",
-      targetCommandId: command.id,
-    },
-  }
-}
-
-// Helper to create modifier key actions
-const createModifierKeyActions = async (
-  command: Command,
-  context: Browser.Context,
-): Promise<CommandSuggestion[]> => {
-  const isParentCommand = "commands" in command
-  const hasUIForm = "ui" in command
-
-  // Only create modifier actions for executable commands (not parent/UI commands)
-  if (isParentCommand || hasUIForm) {
-    return []
-  }
-
-  const modifierActions: CommandSuggestion[] = []
-  const modifierLabels = await resolveModifierActionLabels(command, context)
-
-  // Configuration for each modifier key
-  const modifierKeyDefinitions = [
-    { key: "cmd" as const, icon: "Command", symbol: "⌘", description: "Cmd" },
-    {
-      key: "shift" as const,
-      icon: "ArrowUp",
-      symbol: "⇧",
-      description: "Shift",
-    },
-    { key: "alt" as const, icon: "Option", symbol: "⌥", description: "Alt" },
-    {
-      key: "ctrl" as const,
-      icon: "SquareAsterisk",
-      symbol: "⌃",
-      description: "Ctrl",
-    },
-  ] as const
-
-  for (const { key, icon, symbol, description } of modifierKeyDefinitions) {
-    const label = modifierLabels[key]
-    if (label) {
-      modifierActions.push({
-        id: `${command.id}-${key}-enter-action`,
-        name: label,
-        description: `Execute with ${description} key`,
-        icon: { type: "lucide", name: icon },
-        isParentCommand: false,
-        actionLabel: label,
-        keywords: [],
-        isFavorite: false,
-        actions: undefined,
-        keybinding: `${symbol} ↵`,
-        confirmAction: command.confirmAction,
-        executionContext: {
-          type: "modifier",
-          targetCommandId: command.id,
-          modifierKey: key,
-        },
-      })
-    }
-  }
-
-  return modifierActions
-}
-
-// Helper to build command name for display
-const buildCommandDisplayName = async (
-  command: Command,
-  context: Browser.Context,
-  parentName?: string,
-  favoriteCommandIds: string[] = [],
-): Promise<string | string[]> => {
-  const resolvedName = await resolveAsyncProperty(command.name, context)
-
-  // Create name array if this is a favorited subcommand
-  return parentName && favoriteCommandIds.includes(command.id)
-    ? Array.isArray(resolvedName)
-      ? resolvedName
-      : [resolvedName || "Unnamed Command", parentName]
-    : resolvedName || "Unnamed Command"
-}
-
 export const commandsToSuggestions = async (
-  commands: Command[],
+  commands: Array<CommandNode>,
   context: Browser.Context,
-  parentName?: string,
+  _parentName?: string,
 ): Promise<CommandSuggestion[]> => {
   const favoriteCommandIds = await getFavoriteCommandIds()
   const commandSettings = await getAllCommandSettings()
 
   return await Promise.all(
     commands.map(async (command) => {
-      // Process existing actions if they exist
-      let actions: CommandSuggestion[] | undefined
-      if (command.actions && Array.isArray(command.actions)) {
-        const commandName = await resolveAsyncProperty(command.name, context)
-        const resolvedParentName = Array.isArray(commandName)
-          ? commandName[0]
-          : commandName!
-        actions = await commandsToSuggestions(
-          command.actions,
-          context,
-          resolvedParentName,
-        )
+      const node = command
+      const baseName = await resolveAsyncProperty(node.name, context)
+      const displayName = (baseName ?? "Unnamed Command") as string
+
+      const suggestion: CommandSuggestion = {
+        id: node.id,
+        name: displayName,
+        description: await resolveAsyncProperty(node.description, context),
+        icon: await resolveAsyncProperty(node.icon, context),
+        keywords: await resolveAsyncProperty(node.keywords, context),
+        color: (await resolveAsyncProperty(node.color, context)) as any,
+        type: node.type,
+        actionLabel:
+          node.type === "group"
+            ? "Open"
+            : node.type === "action"
+              ? await resolveActionLabel(node, context)
+              : "",
+        modifierActionLabel:
+          node.type === "action"
+            ? await resolveModifierActionLabels(node, context)
+            : undefined,
+        actions: undefined,
+        keybinding:
+          commandSettings[node.id]?.keybinding ||
+          (node.type === "action" ? node.keybinding : undefined),
+        isFavorite: favoriteCommandIds.includes(node.id),
+        confirmAction: node.type === "action" ? node.confirmAction : undefined,
+        permissions: node.permissions,
       }
 
-      // Resolve display name
-      const displayName = await buildCommandDisplayName(
-        command,
-        context,
-        parentName,
-        favoriteCommandIds,
-      )
+      // Input nodes carry additional field metadata
+      if (node.type === "input") {
+        suggestion.inputField = node.field
+      }
 
-      // Create actions using helper functions
-      const toggleFavoriteAction = await createFavoriteToggleAction(
-        command,
-        favoriteCommandIds,
-      )
-      const primaryAction = await createPrimaryAction(command, context)
-      const modifierKeyActions = await createModifierKeyActions(
-        command,
-        context,
-      )
-      const setKeybindingAction = await _createSetKeybindingAction(command)
-      const resetKeybindingAction = await _createResetKeybindingAction(command)
-
-      // Combine all actions: default Enter (if needed), modifier actions, custom actions, toggle favorite, set keybinding, reset keybinding
-      const allActions = [
-        ...(primaryAction ? [primaryAction] : []),
-        ...modifierKeyActions,
-        ...(actions || []),
-        toggleFavoriteAction,
-        ...(setKeybindingAction ? [setKeybindingAction] : []),
-        ...(resetKeybindingAction ? [resetKeybindingAction] : []),
-      ]
-
-      const isParentCommand = "commands" in command
-      const resolvedActionLabel = await resolveActionLabel(command, context)
-      const modifierLabels = await resolveModifierActionLabels(command, context)
-
-      return {
-        id: command.id,
-        name: displayName,
-        description: await resolveAsyncProperty(command.description, context),
-        icon: await resolveAsyncProperty(command.icon, context),
-        keywords: await resolveAsyncProperty(command.keywords, context),
-        color: await resolveAsyncProperty(command.color, context),
-        isParentCommand,
-        ui: "ui" in command ? command.ui : undefined,
-        actionLabel: resolvedActionLabel,
-        modifierActionLabel: modifierLabels,
-        actions: allActions,
-        keybinding:
-          commandSettings[command.id]?.keybinding || command.keybinding,
-        isFavorite: favoriteCommandIds.includes(command.id),
-        confirmAction:
-          "confirmAction" in command ? command.confirmAction : undefined,
-        permissions: command.permissions,
-      } as CommandSuggestion
+      const actions: CommandSuggestion[] = []
+      if (node.type === "group" || node.type === "action") {
+        const primaryLabel =
+          node.type === "group"
+            ? "Open"
+            : await resolveActionLabel(node, context)
+        actions.push({
+          id: `${node.id}-enter-action`,
+          name: primaryLabel,
+          description:
+            node.type === "group" ? "Open this group" : "Execute this command",
+          icon: {
+            type: "lucide",
+            name: node.type === "group" ? "FolderOpen" : "Play",
+          },
+          type: "action",
+          actionLabel: primaryLabel,
+          isFavorite: false,
+          actions: undefined,
+          keybinding: "↵",
+          confirmAction:
+            node.type === "action" ? node.confirmAction : undefined,
+          executionContext: { type: "primary", targetCommandId: node.id },
+        })
+      }
+      if (node.type === "action") {
+        const modifierLabels = await resolveModifierActionLabels(node, context)
+        const defs = [
+          {
+            key: "cmd" as const,
+            icon: "Command",
+            symbol: "⌘",
+            description: "Cmd",
+          },
+          {
+            key: "shift" as const,
+            icon: "ArrowUp",
+            symbol: "⇧",
+            description: "Shift",
+          },
+          {
+            key: "alt" as const,
+            icon: "Option",
+            symbol: "⌥",
+            description: "Alt",
+          },
+          {
+            key: "ctrl" as const,
+            icon: "SquareAsterisk",
+            symbol: "⌃",
+            description: "Ctrl",
+          },
+        ]
+        for (const { key, icon, symbol, description } of defs) {
+          const label = modifierLabels[key]
+          if (label) {
+            actions.push({
+              id: `${node.id}-${key}-enter-action`,
+              name: label,
+              description: `Execute with ${description} key`,
+              icon: { type: "lucide", name: icon },
+              type: "action",
+              actionLabel: label,
+              keywords: [],
+              isFavorite: false,
+              actions: undefined,
+              keybinding: `${symbol} ↵`,
+              confirmAction: node.confirmAction,
+              executionContext: {
+                type: "modifier",
+                targetCommandId: node.id,
+                modifierKey: key,
+              },
+            })
+          }
+        }
+      }
+      actions.push(await createFavoriteToggleAction(node, favoriteCommandIds))
+      const setKB = await _createSetKeybindingAction(node)
+      const resetKB = await _createResetKeybindingAction(node)
+      if (setKB) actions.push(setKB)
+      if (resetKB) actions.push(resetKB)
+      suggestion.actions = actions
+      return suggestion
     }),
   )
 }

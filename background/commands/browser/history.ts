@@ -1,4 +1,4 @@
-import type { Command, ParentCommand, RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import {
   getActiveTab,
   getHistoryItems,
@@ -88,11 +88,12 @@ function formatVisitTime(timestamp: number): string {
 }
 
 // Create a history item command
-function createHistoryItemCommand(item: HistoryItem): RunCommand {
+function createHistoryItemCommand(item: HistoryItem): CommandNode {
   const faviconUrl = getFaviconUrl(item.url || "")
   const visitTime = formatVisitTime(item.lastVisitTime || 0)
 
   return {
+    type: "action",
     id: `history-${item.id}`,
     name: item.title || item.url || "Untitled",
     description: `${item.url} • ${visitTime}`,
@@ -111,7 +112,7 @@ function createHistoryItemCommand(item: HistoryItem): RunCommand {
       cmd: "Open in New Tab",
     },
     allowCustomKeybinding: false, // Dynamic history commands shouldn't have custom keybindings
-    run: async (context) => {
+    execute: async (context) => {
       const activeTab = await getActiveTab()
 
       if (activeTab && item.url) {
@@ -159,18 +160,19 @@ function createHistoryItemCommand(item: HistoryItem): RunCommand {
 }
 
 // Create time period commands
-function createTimePeriodCommands(): Command[] {
+function createTimePeriodCommands(): CommandNode[] {
   const periods = getTimePeriods()
 
   return periods.map(
-    (period): ParentCommand => ({
+    (period): CommandNode => ({
+      type: "group",
       id: `history-${period.id}`,
       name: period.name,
       description: period.description,
       icon: { type: "lucide", name: period.icon },
       color: "blue",
       keywords: [period.name.toLowerCase(), "history"],
-      commands: async () => {
+      children: async () => {
         try {
           // Fetch history items for this time period
           const historyItems = await getHistoryItems({
@@ -220,7 +222,8 @@ function createTimePeriodCommands(): Command[] {
   )
 }
 
-export const browsingHistory: ParentCommand = {
+export const browsingHistory: CommandNode = {
+  type: "group",
   id: "history",
   name: "History",
   description: "Browse your browsing history by time period",
@@ -228,7 +231,7 @@ export const browsingHistory: ParentCommand = {
   color: "green",
   keywords: ["history", "browsing", "visited", "past", "sites"],
   permissions: ["history"],
-  commands: async () => {
+  children: async () => {
     try {
       // Return time period commands
       const timePeriodCommands = createTimePeriodCommands()

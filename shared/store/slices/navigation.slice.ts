@@ -3,7 +3,7 @@ import {
   createSlice,
   type PayloadAction,
 } from "@reduxjs/toolkit"
-import type { CommandSuggestion, FormField } from "../../../types"
+import type { CommandSuggestion } from "../../../types"
 import type { ThunkApi } from "../index"
 
 // Types from original hook
@@ -19,17 +19,9 @@ export type Page = {
   parentPath: string[] // Track the path of parent command IDs
 }
 
-export type UI = {
-  id: string
-  name: string
-  ui: FormField[]
-  remainOpenOnSelect?: boolean
-}
-
 // State shape
 interface NavigationState {
   pages: Page[]
-  ui: UI | null
   // Keep initial commands for root page updates and deep search
   initialCommands: {
     favorites: CommandSuggestion[]
@@ -213,7 +205,6 @@ export const navigationSlice = createSlice({
             parentPath: [],
           },
         ],
-    ui: null,
     initialCommands: initialCommands || {
       favorites: [],
       recents: [],
@@ -256,29 +247,13 @@ export const navigationSlice = createSlice({
       }
     },
 
-    // Navigate back to previous page or close UI
+    // Navigate back to previous page
     navigateBack: (state) => {
-      // If UI form is open, close it
-      if (state.ui) {
-        state.ui = null
-        return
-      }
-
       // Can't go back from root page
       if (state.pages.length <= 1) return
 
       // Pop current page from navigation stack
       state.pages = state.pages.slice(0, -1)
-    },
-
-    // Show UI form for commands that require input
-    showUI: (state, action: PayloadAction<UI>) => {
-      state.ui = action.payload
-    },
-
-    // Hide UI form
-    hideUI: (state) => {
-      state.ui = null
     },
 
     // Clear error state
@@ -354,7 +329,6 @@ export const navigationSlice = createSlice({
     // Current page is always the last one in the stack
     selectCurrentPage: (state) => state.pages[state.pages.length - 1],
     selectPages: (state) => state.pages,
-    selectUI: (state) => state.ui,
     selectInitialCommands: (state) => state.initialCommands,
     selectLoading: (state) => state.loading,
     selectError: (state) => state.error,
@@ -366,8 +340,6 @@ export const {
   setInitialCommands,
   updateSearchValue,
   navigateBack,
-  showUI,
-  hideUI,
   clearError,
   addPage,
   updateCurrentPageCommands,
@@ -377,7 +349,6 @@ export const {
 export const {
   selectCurrentPage,
   selectPages,
-  selectUI,
   selectInitialCommands,
   selectLoading,
   selectError,
@@ -395,7 +366,6 @@ export const getInitialStateWithCommands = (
       parentPath: [],
     },
   ],
-  ui: null,
   initialCommands,
   loading: false,
   error: null,

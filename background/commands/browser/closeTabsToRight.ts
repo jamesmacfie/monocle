@@ -1,4 +1,4 @@
-import type { RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import {
   getActiveTab,
   queryTabs,
@@ -6,14 +6,15 @@ import {
   sendTabMessage,
 } from "../../utils/browser"
 
-export const closeTabsToRight: RunCommand = {
+export const closeTabsToRight: CommandNode = {
+  type: "action",
   id: "close-tabs-to-right",
   name: "Close tabs to the right",
   icon: { type: "lucide", name: "ChevronRight" },
   color: "red",
   permissions: ["tabs"],
   confirmAction: true,
-  run: async () => {
+  execute: async () => {
     const activeTab = await getActiveTab()
 
     if (!activeTab) {

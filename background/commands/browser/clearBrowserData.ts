@@ -1,4 +1,4 @@
-import type { ParentCommand, RunCommand } from "../../../types"
+import type { CommandNode } from "../../../types"
 import {
   clearAllBrowserData,
   clearCache,
@@ -13,7 +13,8 @@ import {
   clearServiceWorkers,
 } from "../../utils/browser"
 
-export const clearBrowserData: ParentCommand = {
+export const clearBrowserData: CommandNode = {
+  type: "group",
   id: "clear-browser-data",
   name: "Clear Browser Data",
   description: "Clear different types of browser data for various time periods",
@@ -31,7 +32,7 @@ export const clearBrowserData: ParentCommand = {
     "cache",
   ],
 
-  commands: async () => {
+  children: async () => {
     const dataTypes = [
       {
         id: "all",
@@ -113,7 +114,8 @@ export const clearBrowserData: ParentCommand = {
     ]
 
     return dataTypes.map(
-      (dataType): ParentCommand => ({
+      (dataType): CommandNode => ({
+        type: "group",
         id: `clear-${dataType.id}`,
         name: dataType.name,
         description: dataType.description,
@@ -121,7 +123,7 @@ export const clearBrowserData: ParentCommand = {
         color: "red",
         keywords: ["clear", "delete", dataType.name.toLowerCase()],
 
-        commands: async () => {
+        children: async () => {
           const now = Date.now()
 
           const timeSpans = [
@@ -163,7 +165,8 @@ export const clearBrowserData: ParentCommand = {
           ]
 
           return timeSpans.map(
-            (timeSpan): RunCommand => ({
+            (timeSpan): CommandNode => ({
+              type: "action",
               id: `clear-${dataType.id}-${timeSpan.id}`,
               name: timeSpan.name,
               description: timeSpan.description,
@@ -176,7 +179,7 @@ export const clearBrowserData: ParentCommand = {
                 timeSpan.name.toLowerCase(),
               ],
 
-              run: async () => {
+              execute: async () => {
                 try {
                   let startTime: number
 

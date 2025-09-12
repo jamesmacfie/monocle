@@ -1,21 +1,23 @@
-import type { ParentCommand, RunCommand } from "../../../types/"
+import type { CommandNode } from "../../../types/"
 import { getTab, queryTabs, updateTab, updateWindow } from "../../utils/browser"
 import { getFaviconIcon } from "../../utils/favicon"
 
-export const gotoTab: ParentCommand = {
+export const gotoTab: CommandNode = {
+  type: "group",
   id: "goto-tab",
   name: "Go to tab",
   icon: { type: "lucide", name: "ArrowRightSquare" },
   color: "green",
   permissions: ["tabs"],
-  commands: async () => {
+  children: async () => {
     const tabs = await queryTabs({ currentWindow: true })
     return tabs
       .filter((tab) => !!tab.title)
       .map((tab) => {
-        const command: RunCommand = {
+        const node: CommandNode = {
+          type: "action",
           id: `go-to-tab-${tab.id}`,
-          name: async () => tab.title,
+          name: async () => tab.title!,
           icon: async () => {
             return await getFaviconIcon({
               browserFaviconUrl: tab.favIconUrl,
@@ -23,7 +25,7 @@ export const gotoTab: ParentCommand = {
             })
           },
           allowCustomKeybinding: false, // Dynamic tab commands shouldn't have custom keybindings
-          run: async () => {
+          execute: async () => {
             try {
               await updateTab(tab.id, { active: true })
               // Optional: Bring the window to the front if the tab is in another window
@@ -37,7 +39,7 @@ export const gotoTab: ParentCommand = {
           },
         }
 
-        return command
+        return node
       })
   },
 }

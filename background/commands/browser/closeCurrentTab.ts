@@ -1,14 +1,15 @@
-import type { Command } from "../../../types/"
+import type { ActionCommandNode } from "../../../types/"
 import { queryTabs, removeTab } from "../../utils/browser"
 
-export const closeCurrentTab: Command = {
+export const closeCurrentTab: ActionCommandNode = {
   id: "close-current-tab",
   name: "Close current tab",
   icon: { type: "lucide", name: "X" },
   color: "red",
+  type: "action",
   keybinding: "⌘ w",
   confirmAction: true,
-  run: async () => {
+  execute: async () => {
     const tabs = await queryTabs({
       active: true,
       currentWindow: true,
