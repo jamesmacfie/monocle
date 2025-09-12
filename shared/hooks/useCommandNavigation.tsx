@@ -39,7 +39,7 @@ function _findCommandInPage(
 
 // Helper function to clear search input
 function _clearAndResetSearch(
-  inputRef: RefObject<HTMLInputElement>,
+  inputRef: RefObject<HTMLInputElement | null>,
   ignoreSearchUpdate: React.MutableRefObject<boolean>,
 ) {
   // Set flag to prevent the search clear from being saved to page state
@@ -103,7 +103,7 @@ export function useCommandNavigation(
     suggestions: CommandSuggestion[]
     deepSearchItems: CommandSuggestion[]
   },
-  inputRef: RefObject<HTMLInputElement>,
+  inputRef: RefObject<HTMLInputElement | null>,
   executeCommand: (
     id: string,
     formValues: Record<string, string>,

@@ -40,7 +40,7 @@ function CommandContent({
 }: {
   pages: Page[]
   currentPage: Page
-  inputRef: React.RefObject<HTMLInputElement>
+  inputRef: React.RefObject<HTMLInputElement | null>
   navigateBack: () => void
   updateSearchValue: (search: string) => void
   selectCommand: (id: string) => void

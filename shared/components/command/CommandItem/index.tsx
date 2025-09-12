@@ -6,6 +6,7 @@ import type { CommandItemProps } from "../../../types/command"
 import { Icon } from "../../Icon"
 import { KeybindingDisplay } from "../../KeybindingDisplay"
 import { CommandName } from "../CommandName"
+import { CommandItemInput } from "./CommandItemInput"
 
 interface Props extends CommandItemProps {
   children?: ReactNode
@@ -109,22 +110,12 @@ export function CommandItem({
       <Icon icon={suggestion.icon} color={suggestion.color} />
       <div className="command-item-content">
         {suggestion.isFavorite && <Icon name="Star" color="#fbbf24" />}
-        {isInlineInput && inputField?.type === "text" ? (
-          <div className="command-item-inline-input">
-            {inputField.label && (
-              <label className="command-item-label" htmlFor={inputField.id}>
-                {inputField.label}
-              </label>
-            )}
-            <input
-              id={inputField.id}
-              ref={inputRef}
-              type="text"
-              placeholder={inputField.placeholder}
-              defaultValue={inputField.defaultValue}
-              onKeyDown={onInlineInputKeyDown}
-            />
-          </div>
+        {isInlineInput && inputField ? (
+          <CommandItemInput
+            field={inputField}
+            inputRef={inputRef}
+            onKeyDown={onInlineInputKeyDown}
+          />
         ) : (
           <CommandName
             permissions={suggestion.permissions}

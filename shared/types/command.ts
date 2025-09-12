@@ -43,7 +43,7 @@ export interface CommandListProps {
 export interface CommandHeaderProps {
   pages: Page[]
   currentPage: Page
-  inputRef: RefObject<HTMLInputElement>
+  inputRef: RefObject<HTMLInputElement | null>
   onNavigateBack: () => void
   onSearchChange: (search: string) => void
 }
@@ -52,7 +52,7 @@ export interface CommandFooterProps {
   currentPage: Page
   focusedSuggestion: CommandSuggestion | undefined
   actionLabel: string
-  inputRef: RefObject<HTMLInputElement>
+  inputRef: RefObject<HTMLInputElement | null>
   onActionSelect?: (id: string) => void
   onOpenActions?: (suggestion: CommandSuggestion) => void
   actionsButtonRef?: RefObject<HTMLButtonElement>
@@ -61,7 +61,7 @@ export interface CommandFooterProps {
 export interface CommandActionsProps {
   open: boolean
   selectedValue: string
-  inputRef: RefObject<HTMLInputElement>
+  inputRef: RefObject<HTMLInputElement | null>
   suggestion: CommandSuggestion
   onActionSelect?: (id: string) => void
   onClose: (force?: boolean) => void

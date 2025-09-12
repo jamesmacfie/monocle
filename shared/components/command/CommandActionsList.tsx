@@ -235,7 +235,7 @@ function ActionItem({
   onSelect: (id: string) => void
   onRefresh?: () => void
   onClose?: (force?: boolean) => void
-  inputRef?: React.RefObject<HTMLInputElement>
+  inputRef?: React.RefObject<HTMLInputElement | null>
 }) {
   const dispatch = useAppDispatch()
   const isCapturing = useAppSelector(selectIsCapturing)
@@ -393,7 +393,7 @@ interface CommandActionsListProps {
   onActionSelect: (id: string) => void
   onRefresh?: () => void
   onClose?: (force?: boolean) => void
-  inputRef?: React.RefObject<HTMLInputElement>
+  inputRef?: React.RefObject<HTMLInputElement | null>
 }
 
 export function CommandActionsList({

@@ -32,7 +32,7 @@ export function CommandActions({
     }
   }, [open])
 
-  useOnClickOutside(overlayRef, (_event) => {
+  useOnClickOutside(overlayRef as React.RefObject<HTMLElement>, (_event) => {
     onClose?.()
   })
 
