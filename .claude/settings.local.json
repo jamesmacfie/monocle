@@ -1,18 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(rm:*)",
       "Bash(mkdir:*)",
-      "Bash(mv:*)",
-      "Bash(yarn tsc:*)",
       "Bash(find:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm run dev)",
+      "Bash(npm run*)",
       "WebSearch",
       "Bash(npx tsc:*)",
-      "Bash(npm run tsc:*)",
       "Bash(grep:*)",
-      ,
       "Bash(cat:*)"
     ],
     "deny": [],
