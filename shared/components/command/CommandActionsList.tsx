@@ -23,7 +23,8 @@ function KeybindingCapture({
   onCancel: () => void
   commandId?: string
 }) {
-  const [capturedKeys, setCapturedKeys] = useState<string[]>([])
+  // Sequence capture: array of completed strokes (e.g., ["⌘ K", "G"]) and current stroke parts
+  const [strokes, setStrokes] = useState<string[]>([])
   const [currentKeys, setCurrentKeys] = useState<string[]>([])
   const [hasConflict, setHasConflict] = useState(false)
   // Saving the conflicting command for if we want to display it via a tooltip or something
@@ -63,7 +64,7 @@ function KeybindingCapture({
     e.preventDefault()
     e.stopPropagation()
 
-    if (e.key === "Enter" && capturedKeys.length > 0) {
+    if (e.key === "Enter" && (strokes.length > 0 || currentKeys.length > 0)) {
       // Don't save if there's a conflict
       if (hasConflict) {
         console.log(
@@ -72,8 +73,18 @@ function KeybindingCapture({
         return
       }
 
-      // Save the most recent keybinding combination
-      const keybinding = capturedKeys.join(" ")
+      // Complete the current stroke if it has a primary key
+      let finalStrokes = [...strokes]
+      if (
+        currentKeys.some(
+          (k) => k !== "⌘" && k !== "⌃" && k !== "⌥" && k !== "⇧",
+        )
+      ) {
+        finalStrokes = [...finalStrokes, currentKeys.join(" ")]
+      }
+
+      // Save the sequence (strokes separated by comma)
+      const keybinding = finalStrokes.join(", ")
       console.log("[KeybindingCapture] Saving keybinding:", keybinding)
       onComplete(keybinding)
       return
@@ -85,13 +96,13 @@ function KeybindingCapture({
       return
     }
 
-    // Build current keybinding string for real-time display
-    const currentKeys: string[] = []
+    // Build current keybinding string for real-time display (one stroke)
+    const current: string[] = []
 
-    if (e.metaKey) currentKeys.push("⌘")
-    if (e.ctrlKey) currentKeys.push("⌃")
-    if (e.altKey) currentKeys.push("⌥")
-    if (e.shiftKey) currentKeys.push("⇧")
+    if (e.metaKey) current.push("⌘")
+    if (e.ctrlKey) current.push("⌃")
+    if (e.altKey) current.push("⌥")
+    if (e.shiftKey) current.push("⇧")
 
     // Use e.code for better consistency and prevent macOS key composition issues
     // Only add non-modifier keys
@@ -167,19 +178,25 @@ function KeybindingCapture({
       }
 
       if (keyName) {
-        currentKeys.push(keyName)
+        current.push(keyName)
       }
     }
 
     // Only update if we have at least one key (including just modifiers)
-    if (currentKeys.length > 0) {
-      // Always update both the current display AND the captured keys for saving
-      setCurrentKeys(currentKeys)
-      // Save the most recent keys pressed - this will be used when Enter is pressed
-      setCapturedKeys([...currentKeys])
+    if (current.length > 0) {
+      // Update the current stroke display
+      setCurrentKeys(current)
 
-      // Check for conflicts asynchronously
-      checkForConflict(currentKeys.join(" "))
+      // If a non-modifier key is present, finalize this stroke
+      const hasPrimary = current.some((k) => !["⌘", "⌃", "⌥", "⇧"].includes(k))
+      if (hasPrimary) {
+        const newStrokes = [...strokes, current.join(" ")]
+        setStrokes(newStrokes)
+        setCurrentKeys([])
+
+        // Check for conflicts on the completed sequence so far
+        checkForConflict(newStrokes.join(", "))
+      }
     }
   }
 
@@ -199,25 +216,50 @@ function KeybindingCapture({
           hasConflict ? "border-red-500" : "border-blue-500"
         }`}
       >
-        {currentKeys.length > 0 ? (
-          <div className="flex items-center gap-1">
-            {currentKeys.map((key, index) => (
-              <kbd
-                key={index}
-                className={`px-1.5 py-0.5 rounded text-xs ${
-                  hasConflict
-                    ? "bg-red-100 border border-red-300 text-red-700"
-                    : "bg-[var(--cmdk-list-item-background-active)]"
-                }`}
-              >
-                {key}
-              </kbd>
-            ))}
-          </div>
-        ) : (
+        {strokes.length === 0 && currentKeys.length === 0 ? (
           <span className="text-[var(--cmdk-muted-foreground)] text-xs">
-            Press keys. Enter to save
+            Press keys in sequence. Enter to save
           </span>
+        ) : (
+          <div className="flex items-center gap-1">
+            {strokes.map((stroke, idx) => (
+              <div key={`stroke-${idx}`} className="flex items-center gap-1">
+                {stroke.split(" ").map((k, kIdx) => (
+                  <kbd
+                    key={`${idx}-${kIdx}`}
+                    className={`px-1.5 py-0.5 rounded text-xs ${
+                      hasConflict
+                        ? "bg-red-100 border border-red-300 text-red-700"
+                        : "bg-[var(--cmdk-list-item-background-active)]"
+                    }`}
+                  >
+                    {k}
+                  </kbd>
+                ))}
+                {idx < strokes.length - 1 && (
+                  <span className="px-1 text-xs text-[var(--cmdk-muted-foreground)]">
+                    →
+                  </span>
+                )}
+              </div>
+            ))}
+            {currentKeys.length > 0 && (
+              <div className="flex items-center gap-1">
+                {currentKeys.map((k, kIdx) => (
+                  <kbd
+                    key={`current-${kIdx}`}
+                    className={`px-1.5 py-0.5 rounded text-xs ${
+                      hasConflict
+                        ? "bg-red-100 border border-red-300 text-red-700"
+                        : "bg-[var(--cmdk-list-item-background-active)]"
+                    }`}
+                  >
+                    {k}
+                  </kbd>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -7,11 +7,12 @@ import {
   setFormValue,
 } from "../../../store/slices/navigation.slice"
 import { validateWithJsonSchema } from "../../../utils/validation"
+import { CommandItemSelect } from "./CommandItemSelect"
 
 interface CommandItemInputProps {
   field: FormField
   inputRef: RefObject<HTMLInputElement | null>
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
+  onKeyDown: (e: React.KeyboardEvent<any>) => void
   onSubmit?: () => void // Called when Enter is pressed or input is blurred
 }
 
@@ -47,8 +48,12 @@ export function CommandItemInput({
   }
 
   const _handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // eslint-disable-next-line no-console
+    console.log("[CMDK][Input] KeyDown", e.key, { id: field.id })
     if (e.key === "Enter" && onSubmit) {
       e.preventDefault()
+      // eslint-disable-next-line no-console
+      console.log("[CMDK][Input] Submit via Enter", { id: field.id })
       onSubmit()
       return
     }
@@ -57,6 +62,19 @@ export function CommandItemInput({
     if (e.key === "Backspace") {
       e.stopPropagation()
       // Don't prevent default - let the input handle the backspace normally
+      return
+    }
+
+    // Escape should refocus the main cmdk search input rather than navigating back
+    if (e.key === "Escape") {
+      e.preventDefault()
+      e.stopPropagation()
+      // eslint-disable-next-line no-console
+      console.log("[CMDK][Input] Escape -> focus search", { id: field.id })
+      const searchInput = document.querySelector(
+        "input[cmdk-input]",
+      ) as HTMLInputElement | null
+      searchInput?.focus()
       return
     }
 
@@ -96,6 +114,17 @@ export function CommandItemInput({
     )
   }
 
-  // TODO: Add support for select and checkbox types
+  if (field.type === "select") {
+    return (
+      <CommandItemSelect
+        field={field}
+        inputRef={inputRef as any}
+        onKeyDown={onKeyDown as any}
+        onSubmit={onSubmit}
+      />
+    )
+  }
+
+  // TODO: Add support for checkbox types
   return null
 }

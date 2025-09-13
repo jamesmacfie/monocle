@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ## Project Overview
 
-Monocle is a browser extension built with Extension.js that provides a VS Code-style command palette for browser operations. It operates in two modes: overlay command palette on any webpage (Cmd+K) and dedicated new tab page.
+Monocle is a browser extension built with Extension.js that provides a VS Code-style command palette for browser operations. It operates in two modes: overlay command palette on any webpage (Cmd+Shift+K) and dedicated new tab page.
 
 **Key Features**: Fuzzy search (CMDK), categorized commands (favorites/recents/suggestions), deep search for nested commands, cross-browser compatibility (Chrome/Firefox), Shadow DOM isolation, shared component architecture.
 
@@ -21,7 +21,7 @@ monocle/
 
 ### Dual-Mode Architecture
 
-**Content Script Mode**: Injected into all pages, shadow DOM isolation, toggles with Cmd+K
+**Content Script Mode**: Injected into all pages, shadow DOM isolation, toggles with Cmd+Shift+K
 **New Tab Mode**: Always-visible palette, regular DOM, auto-focus
 
 Both modes share the same core `CommandPalette` component from `/shared/components/command/`.

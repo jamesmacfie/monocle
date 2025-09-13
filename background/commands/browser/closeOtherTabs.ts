@@ -3,7 +3,7 @@ import {
   getActiveTab,
   queryTabs,
   removeTab,
-  sendTabMessage,
+  sendSuccessToastToActiveTab,
 } from "../../utils/browser"
 
 export const closeOtherTabs: CommandNode = {
@@ -35,11 +35,9 @@ export const closeOtherTabs: CommandNode = {
     }
 
     if (closedCount > 0) {
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-toast",
-        level: "success",
-        message: `${closedCount} other tab${closedCount === 1 ? "" : "s"} closed`,
-      })
+      await sendSuccessToastToActiveTab(
+        `${closedCount} other tab${closedCount === 1 ? "" : "s"} closed`,
+      )
     }
   },
 }

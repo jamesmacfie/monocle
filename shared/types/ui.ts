@@ -17,6 +17,7 @@ export type FormField = {
       type: "select"
       options: Array<{ value: string; label: string }>
       defaultValue?: string
+      placeholder?: string
     }
   | {
       type: "checkbox"

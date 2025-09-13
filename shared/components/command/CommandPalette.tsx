@@ -62,6 +62,8 @@ function CommandContent({
   actionsOpenForSuggestion?: Suggestion | null
 }) {
   const focusedValue = useCommandState((state) => state.value)
+  // Track the last key pressed to correlate with focus changes
+  const _lastKeyRef = useRef<string | null>(null)
 
   // Find the focused suggestion based on its value
   const focusedSuggestion =
@@ -90,6 +92,24 @@ function CommandContent({
     }
   }, [focusedValue, isActionsOpen, actionsOpenForSuggestion, onCloseActions])
 
+  // Debug: Log navigation focus changes with last key pressed
+  useEffect(() => {
+    if (!focusedValue) return
+    const key = _lastKeyRef.current
+    const display = focusedSuggestion
+      ? Array.isArray(focusedSuggestion.name)
+        ? focusedSuggestion.name.join(" > ")
+        : focusedSuggestion.name
+      : focusedValue
+    // eslint-disable-next-line no-console
+    console.log("[CMDK] Focus", {
+      key,
+      value: focusedValue,
+      type: focusedSuggestion?.type,
+      name: display,
+    })
+  }, [focusedValue, focusedSuggestion])
+
   const actionLabel = useActionLabel(currentPage)
 
   const handleActionSelect = async (actionId: string) => {
@@ -107,6 +127,10 @@ function CommandContent({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    _lastKeyRef.current = e.key
+    // Debug: log keydown at the container level
+    // eslint-disable-next-line no-console
+    console.log("[CMDK] KeyDown", e.key)
     // Don't handle keyboard shortcuts if action menu is open
     if (isActionsOpen) {
       return
@@ -122,18 +146,24 @@ function CommandContent({
     ) {
       e.preventDefault()
       onOpenActions(focusedSuggestion)
+      // eslint-disable-next-line no-console
+      console.log("[CMDK] Open actions for", focusedSuggestion.id)
       return
     }
 
     // Escape goes to previous page
     if (e.key === "Escape" && pages.length > 1) {
       e.preventDefault()
+      // eslint-disable-next-line no-console
+      console.log("[CMDK] Escape: navigateBack")
       navigateBack()
       return
     }
 
     // If on root and Escape, close
     if (e.key === "Escape" && pages.length === 1) {
+      // eslint-disable-next-line no-console
+      console.log("[CMDK] Escape: close palette")
       close()
       return
     }
@@ -145,6 +175,8 @@ function CommandContent({
     const search = inputElement?.value || ""
     if (e.key === "Backspace" && !search && pages.length > 1) {
       e.preventDefault()
+      // eslint-disable-next-line no-console
+      console.log("[CMDK] Backspace on empty search: navigateBack")
       navigateBack()
     }
   }

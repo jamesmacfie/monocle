@@ -3,6 +3,8 @@ import { isValidUrl } from "../../../shared/utils"
 import {
   getActiveTab,
   getBookmarkTree,
+  sendErrorToastToActiveTab,
+  sendSuccessToastToActiveTab,
   sendTabMessage,
   updateTab,
 } from "../../utils/browser"
@@ -85,21 +87,18 @@ function processBookmarkNode(
               })
 
               // Show success notification
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-alert",
-                level: "success",
-                message: `Opening ${node.title} in new tab`,
-                icon: { name: "ExternalLink" },
-              })
+              await sendSuccessToastToActiveTab(
+                `Opening ${node.title} in new tab`,
+                {
+                  icon: { name: "ExternalLink" },
+                },
+              )
             } else {
               // Default: Navigate current tab to bookmark URL
               await updateTab(activeTab.id, { url: node.url })
 
               // Show success notification
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-alert",
-                level: "success",
-                message: `Opening ${node.title}`,
+              await sendSuccessToastToActiveTab(`Opening ${node.title}`, {
                 icon: { name: "ExternalLink" },
               })
             }
@@ -107,10 +106,7 @@ function processBookmarkNode(
             console.error(`Failed to open bookmark: ${node.title}`, error)
 
             // Show error notification
-            await sendTabMessage(activeTab.id, {
-              type: "monocle-alert",
-              level: "error",
-              message: "Failed to open bookmark",
+            await sendErrorToastToActiveTab("Failed to open bookmark", {
               icon: { name: "AlertTriangle" },
             })
           }

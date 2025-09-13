@@ -11,6 +11,8 @@ import {
   clearPasswords,
   clearPluginData,
   clearServiceWorkers,
+  sendErrorToastToActiveTab,
+  sendSuccessToastToActiveTab,
 } from "../../utils/browser"
 
 export const clearBrowserData: CommandNode = {
@@ -196,17 +198,9 @@ export const clearBrowserData: CommandNode = {
                   await dataType.clearFunction(startTime)
 
                   // Send success toast
-                  const { getActiveTab, sendTabMessage } = await import(
-                    "../../utils/browser"
+                  await sendSuccessToastToActiveTab(
+                    `${dataType.name} cleared ${timeSpan.id === "all-time" ? "(all time)" : `(${timeSpan.name.toLowerCase()})`}`,
                   )
-                  const activeTab = await getActiveTab()
-                  if (activeTab) {
-                    await sendTabMessage(activeTab.id, {
-                      type: "monocle-toast",
-                      level: "success",
-                      message: `${dataType.name} cleared ${timeSpan.id === "all-time" ? "(all time)" : `(${timeSpan.name.toLowerCase()})`}`,
-                    })
-                  }
                 } catch (error) {
                   console.error(
                     `Failed to clear ${dataType.name.toLowerCase()}:`,
@@ -214,17 +208,9 @@ export const clearBrowserData: CommandNode = {
                   )
 
                   // Send error toast
-                  const { getActiveTab, sendTabMessage } = await import(
-                    "../../utils/browser"
+                  await sendErrorToastToActiveTab(
+                    `Failed to clear ${dataType.name.toLowerCase()}`,
                   )
-                  const activeTab = await getActiveTab()
-                  if (activeTab) {
-                    await sendTabMessage(activeTab.id, {
-                      type: "monocle-toast",
-                      level: "error",
-                      message: `Failed to clear ${dataType.name.toLowerCase()}`,
-                    })
-                  }
                 }
               },
             }),

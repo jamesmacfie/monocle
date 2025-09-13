@@ -1169,3 +1169,137 @@
 .dark .validation-dot.invalid {
   background-color: #ef9a9a;
 }
+
+/* Command Item Select Styles */
+.command-item-select {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  height: auto;
+  margin: 4px 0 4px 2px;
+  width: 450px;
+  position: relative;
+}
+
+/* React Select component styles */
+.monocle-select__control {
+  min-height: 30px;
+  height: 30px;
+  background: var(--gray2);
+  border: 1px solid var(--gray5);
+  border-radius: 8px;
+  box-shadow: none;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.monocle-select__control:hover {
+  border-color: var(--gray6);
+}
+
+.monocle-select__control--is-focused {
+  border-color: var(--blue8);
+  box-shadow: 0 0 0 1px var(--blue8);
+  background: var(--gray1);
+}
+
+.monocle-select__value-container {
+  height: 28px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+}
+
+.monocle-select__single-value {
+  color: var(--gray12);
+  margin: 0;
+  position: static;
+  transform: none;
+}
+
+.monocle-select__placeholder {
+  color: var(--gray9);
+  margin: 0;
+  position: static;
+  transform: none;
+}
+
+.monocle-select__input-container {
+  margin: 0;
+  padding: 0;
+}
+
+.monocle-select__indicators {
+  height: 28px;
+  padding: 0 4px;
+}
+
+.monocle-select__indicator-separator {
+  display: none;
+}
+
+.monocle-select__dropdown-indicator {
+  padding: 4px;
+  color: var(--gray9);
+}
+
+.monocle-select__dropdown-indicator:hover {
+  color: var(--gray11);
+}
+
+.monocle-select__menu {
+  background: var(--gray1);
+  border: 1px solid var(--gray6);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  margin-top: 4px;
+}
+
+.monocle-select__menu-list {
+  padding: 4px;
+}
+
+.monocle-select__option {
+  background: transparent;
+  color: var(--gray12);
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 2px 0;
+  padding: 8px 12px;
+}
+
+.monocle-select__option--is-focused {
+  background: var(--gray3);
+}
+
+.monocle-select__option--is-selected {
+  background: var(--blue4);
+  color: var(--blue12);
+}
+
+/* Dark mode adjustments for select */
+.dark .monocle-select__control {
+  background: var(--gray3);
+  border-color: var(--gray6);
+}
+
+.dark .monocle-select__control:hover {
+  border-color: var(--gray7);
+}
+
+.dark .monocle-select__control--is-focused {
+  background: var(--gray2);
+  border-color: var(--blue8);
+}
+
+/* Fix validation indicator positioning for select */
+.command-item-select .validation-indicator {
+  position: absolute;
+  right: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}

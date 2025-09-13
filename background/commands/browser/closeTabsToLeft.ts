@@ -3,7 +3,7 @@ import {
   getActiveTab,
   queryTabs,
   removeTab,
-  sendTabMessage,
+  sendSuccessToastToActiveTab,
 } from "../../utils/browser"
 
 export const closeTabsToLeft: CommandNode = {
@@ -18,7 +18,6 @@ export const closeTabsToLeft: CommandNode = {
     const activeTab = await getActiveTab()
 
     if (!activeTab) {
-      console.error("No active tab found")
       return
     }
 
@@ -35,11 +34,9 @@ export const closeTabsToLeft: CommandNode = {
     }
 
     if (closedCount > 0) {
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-toast",
-        level: "success",
-        message: `${closedCount} tab${closedCount === 1 ? "" : "s"} to the left closed`,
-      })
+      await sendSuccessToastToActiveTab(
+        `${closedCount} tab${closedCount === 1 ? "" : "s"} to the left closed`,
+      )
     }
   },
 }

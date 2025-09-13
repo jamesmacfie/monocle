@@ -10,15 +10,18 @@ import { toolCommands } from "../commands/tools"
 const keybindingRegistry = new Map<string, string>()
 
 // Convert keybinding string to normalized format
-function normalizeKeybinding(keybinding: string): string {
-  return keybinding
+export function normalizeKeybinding(keybinding: string): string {
+  const lowered = keybinding
     .toLowerCase()
     .replace(/⌘/g, "cmd")
     .replace(/⌥/g, "alt")
     .replace(/⇧/g, "shift")
     .replace(/⌃/g, "ctrl")
     .replace(/↵/g, "enter")
-    .replace(/\s+/g, " ")
+
+  return lowered
+    .replace(/\s+/g, " ") // collapse whitespace
+    .replace(/\s*,\s*/g, ", ") // normalize comma spacing
     .trim()
 }
 
@@ -87,6 +90,45 @@ export function matchesKeybinding(
   return matches
 }
 
+// --- Sequence helpers ---
+
+// Returns the command ID if the full keybinding (single or sequence) matches
+export function getCommandIdForKeybinding(
+  keybinding: string,
+): string | undefined {
+  const normalized = normalizeKeybinding(keybinding)
+  const commandId = keybindingRegistry.get(normalized)
+  return commandId
+}
+
+// Returns true if any registered keybinding starts with the given prefix (sequence)
+export function hasKeybindingStartingWith(prefix: string): boolean {
+  const normalizedPrefix = normalizeKeybinding(prefix)
+  const prefixStrokes = normalizedPrefix
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  for (const key of keybindingRegistry.keys()) {
+    const candidateStrokes = key
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+
+    if (candidateStrokes.length > prefixStrokes.length) {
+      let startsWith = true
+      for (let i = 0; i < prefixStrokes.length; i++) {
+        if (candidateStrokes[i] !== prefixStrokes[i]) {
+          startsWith = false
+          break
+        }
+      }
+      if (startsWith) return true
+    }
+  }
+  return false
+}
+
 // Register a command's keybinding with settings override
 function registerCommand(
   command: CommandNode,
@@ -131,14 +173,6 @@ export async function initializeKeybindingRegistry(): Promise<void> {
 }
 
 // Get command ID for a keybinding
-export function getCommandIdForKeybinding(
-  keybinding: string,
-): string | undefined {
-  const normalized = normalizeKeybinding(keybinding)
-  const commandId = keybindingRegistry.get(normalized)
-  return commandId
-}
-
 // Get all registered keybindings
 export function getAllKeybindings(): Map<string, string> {
   return new Map(keybindingRegistry)

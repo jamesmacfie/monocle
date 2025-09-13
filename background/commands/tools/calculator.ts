@@ -87,6 +87,27 @@ export const calculator: CommandNode = {
         },
       },
       {
+        type: "input",
+        id: "calculator-precision",
+        name: "Precision",
+        field: {
+          id: "precision",
+          label: "Decimal Places",
+          type: "select",
+          options: [
+            { value: "0", label: "None (integers)" },
+            { value: "2", label: "2 decimal places" },
+            { value: "4", label: "4 decimal places" },
+            { value: "6", label: "6 decimal places" },
+          ],
+          defaultValue: "2",
+          validation: {
+            type: "string",
+            enum: ["0", "2", "4", "6"],
+          },
+        },
+      },
+      {
         type: "submit",
         id: "calculator-execute",
         name: "Calculate",
@@ -95,6 +116,7 @@ export const calculator: CommandNode = {
           const activeTab = await getActiveTab()
           if (activeTab) {
             const expression = values?.calculation || ""
+            const precision = parseInt(values?.precision || "2", 10)
 
             if (!expression) {
               return
@@ -102,17 +124,22 @@ export const calculator: CommandNode = {
 
             try {
               const result = stringMath(expression)
-              console.log("result", result)
+              const formattedResult =
+                precision === 0
+                  ? Math.round(result).toString()
+                  : result.toFixed(precision)
+
+              console.log("result", formattedResult)
               sendTabMessage(activeTab.id, {
                 type: "monocle-toast",
                 level: "success",
-                message: result.toString(),
+                message: formattedResult,
               })
 
               if (context?.modifierKey === "cmd") {
                 sendTabMessage(activeTab.id, {
                   type: "monocle-copyToClipboard",
-                  message: result.toString(),
+                  message: formattedResult,
                 })
               }
             } catch (error) {

@@ -62,6 +62,36 @@ export async function getActiveTab(): Promise<any | null> {
   return activeTab?.id ? activeTab : null
 }
 
+export async function sendSuccessToastToActiveTab(
+  message: string,
+  event?: Partial<Event>,
+): Promise<void> {
+  const activeTab = await getActiveTab()
+  if (activeTab) {
+    await sendTabMessage(activeTab.id, {
+      ...(event || {}),
+      type: "monocle-toast",
+      level: "success",
+      message: message,
+    })
+  }
+}
+
+export async function sendErrorToastToActiveTab(
+  message: string,
+  event?: Partial<Event>,
+): Promise<void> {
+  const activeTab = await getActiveTab()
+  if (activeTab) {
+    await sendTabMessage(activeTab.id, {
+      ...(event || {}),
+      type: "monocle-toast",
+      level: "error",
+      message: message,
+    })
+  }
+}
+
 export async function getCurrentWindow(): Promise<any> {
   return callBrowserAPI("windows", "getCurrent")
 }

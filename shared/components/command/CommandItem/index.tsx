@@ -35,6 +35,7 @@ export function CommandItem({
   )
   const inputRef = useRef<HTMLInputElement | null>(null)
   const submitRef = useRef<HTMLButtonElement | null>(null)
+  const itemRef = useRef<HTMLDivElement | null>(null)
 
   const type = suggestion.type
   const isInlineInput = type === "input"
@@ -62,8 +63,19 @@ export function CommandItem({
   useEffect(() => {
     if (isInlineInput && focusedValue === suggestion.id) {
       inputRef.current?.focus()
+      // eslint-disable-next-line no-console
+      console.log("[CMDK][Input] Focused", { id: suggestion.id })
     }
   }, [focusedValue, suggestion.id, isInlineInput])
+
+  // Focus submit button when this item becomes focused
+  useEffect(() => {
+    if (_isSubmitButton && focusedValue === suggestion.id) {
+      submitRef.current?.focus()
+      // eslint-disable-next-line no-console
+      console.log("[CMDK][Submit] Focused", { id: suggestion.id })
+    }
+  }, [focusedValue, suggestion.id, _isSubmitButton])
 
   const handleSelect = () => {
     // Do nothing for inline input or display rows
@@ -104,13 +116,34 @@ export function CommandItem({
 
   const inputField =
     suggestion.type === "input" ? suggestion.inputField : undefined
-  const onInlineInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const onInlineInputKeyDown = (e: React.KeyboardEvent<any>) => {
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      // Prevent native behavior and forward navigation to CMDK search input.
       e.preventDefault()
+      e.stopPropagation()
+
       const searchInput = document.querySelector(
         "input[cmdk-input]",
       ) as HTMLInputElement | null
-      searchInput?.focus()
+
+      // Check if this item is the first selectable in the list. If so and ArrowUp, focus search.
+      if (e.key === "ArrowUp" && itemRef.current) {
+        const list = itemRef.current.closest("[cmdk-list]")
+        const firstItem = list?.querySelector(
+          '[cmdk-item]:not([data-disabled="true"])',
+        ) as HTMLElement | null
+        if (firstItem === itemRef.current) {
+          // eslint-disable-next-line no-console
+          console.log("[CMDK][Input] ArrowUp on first item -> focus search")
+          searchInput?.focus()
+          return
+        }
+      }
+
+      if (searchInput) {
+        const ev = new KeyboardEvent("keydown", { key: e.key, bubbles: true })
+        searchInput.dispatchEvent(ev)
+      }
     }
   }
 
@@ -123,6 +156,7 @@ export function CommandItem({
 
   return (
     <Command.Item
+      ref={itemRef as any}
       value={suggestion.id}
       keywords={suggestion.keywords}
       onSelect={handleSelect}
