@@ -109,6 +109,15 @@ export async function focusOrGoToUrl(url: string): Promise<void> {
 
 export async function getBookmarkTree(): Promise<any[]> {
   try {
+    // Check if we have bookmarks permission before attempting to access the API
+    const { checkPermissions } = await import("./permissions")
+    const { hasAllPermissions } = await checkPermissions(["bookmarks"])
+
+    if (!hasAllPermissions) {
+      // Return empty array silently when permission is missing
+      return []
+    }
+
     if (isFirefox) {
       // Firefox uses browser.bookmarks which returns Promise directly
       return await (browser as any).bookmarks.getTree()
@@ -124,6 +133,15 @@ export async function getBookmarkTree(): Promise<any[]> {
 
 export async function getBookmarkChildren(id: string): Promise<any[]> {
   try {
+    // Check if we have bookmarks permission before attempting to access the API
+    const { checkPermissions } = await import("./permissions")
+    const { hasAllPermissions } = await checkPermissions(["bookmarks"])
+
+    if (!hasAllPermissions) {
+      // Return empty array silently when permission is missing
+      return []
+    }
+
     if (isFirefox) {
       // Firefox uses browser.bookmarks which returns Promise directly
       return await (browser as any).bookmarks.getChildren(id)
@@ -258,6 +276,15 @@ export async function clearAllBrowserData(
 // Downloads API functions
 export async function getRecentDownloads(limit: number = 20): Promise<any[]> {
   try {
+    // Check if we have downloads permission before attempting to access the API
+    const { checkPermissions } = await import("./permissions")
+    const { hasAllPermissions } = await checkPermissions(["downloads"])
+
+    if (!hasAllPermissions) {
+      // Return empty array silently when permission is missing
+      return []
+    }
+
     return await callBrowserAPI("downloads", "search", {
       orderBy: ["-startTime"],
       limit,
@@ -291,6 +318,15 @@ export async function getHistoryItems(
   query?: chrome.history.HistoryQuery,
 ): Promise<chrome.history.HistoryItem[]> {
   try {
+    // Check if we have history permission before attempting to access the API
+    const { checkPermissions } = await import("./permissions")
+    const { hasAllPermissions } = await checkPermissions(["history"])
+
+    if (!hasAllPermissions) {
+      // Return empty array silently when permission is missing
+      return []
+    }
+
     return await callBrowserAPI(
       "history",
       "search",
@@ -308,6 +344,15 @@ export async function getHistoryItems(
 // Sessions API functions
 export async function getRecentlyClosed(): Promise<chrome.sessions.Session[]> {
   try {
+    // Check if we have sessions permission before attempting to access the API
+    const { checkPermissions } = await import("./permissions")
+    const { hasAllPermissions } = await checkPermissions(["sessions"])
+
+    if (!hasAllPermissions) {
+      // Return empty array silently when permission is missing
+      return []
+    }
+
     return await callBrowserAPI("sessions", "getRecentlyClosed", {
       maxResults: 25,
     })

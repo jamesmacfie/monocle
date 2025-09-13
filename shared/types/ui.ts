@@ -73,6 +73,18 @@ export interface ActionSuggestion extends SuggestionBase {
   actions?: Suggestion[]
 }
 
+export interface SubmitSuggestion extends SuggestionBase {
+  type: "submit"
+  actionLabel: string
+  modifierActionLabel?: {
+    [modifierKey in Browser.ModifierKey]?: string
+  }
+  confirmAction?: boolean
+  remainOpenOnSelect?: boolean
+  executionContext?: ActionExecutionContext
+  actions?: Suggestion[]
+}
+
 export interface GroupSuggestion extends SuggestionBase {
   type: "group"
   actionLabel: string
@@ -92,6 +104,7 @@ export interface DisplaySuggestion extends SuggestionBase {
 
 export type Suggestion =
   | ActionSuggestion
+  | SubmitSuggestion
   | GroupSuggestion
   | InputSuggestion
   | DisplaySuggestion

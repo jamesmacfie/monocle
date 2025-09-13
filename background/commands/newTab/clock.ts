@@ -19,7 +19,6 @@ const toggleClockVisibility: CommandNode = {
   icon: { type: "lucide", name: "Clock" },
   color: "blue",
   execute: async () => {
-    console.debug("[ClockCommand] Toggling clock visibility")
     const currentSettings = await getNewTabClockSettings()
     const isCurrentlyVisible = currentSettings.show ?? true // Default to true if undefined
     await updateNewTabClockSettings({
@@ -37,13 +36,8 @@ export const clockCommand: CommandNode = {
   icon: { type: "lucide", name: "Clock" },
   color: "blue",
   keywords: ["clock", "time", "new tab"],
-  children: async (context) => {
-    console.debug("[ClockCommand] Getting children, context:", context)
+  children: async () => {
     const children = [toggleClockVisibility]
-    console.debug(
-      "[ClockCommand] Returning children:",
-      children.map((c) => c.id),
-    )
     return children
   },
   supportedBrowsers: ["chrome", "firefox"],

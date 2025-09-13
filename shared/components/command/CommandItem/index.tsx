@@ -13,6 +13,7 @@ export interface CommandItemProps {
   suggestion: Suggestion
   onSelect: (id: string) => void
   currentPage: Page
+  onInputSubmit?: () => void // Called when input needs to submit form
 }
 
 interface Props extends CommandItemProps {
@@ -23,6 +24,7 @@ export function CommandItem({
   suggestion,
   onSelect,
   currentPage,
+  onInputSubmit,
   children,
 }: Props) {
   const toast = useToast()
@@ -36,10 +38,12 @@ export function CommandItem({
   const type = suggestion.type
   const isInlineInput = type === "input"
   const isDisplayOnly = type === "display"
+  const _isSubmitButton = type === "submit"
 
   // Check if this command requires confirmation
   const requiresConfirmation =
-    type === "action" && suggestion.confirmAction === true
+    (type === "action" || type === "submit") &&
+    suggestion.confirmAction === true
 
   // Reset confirmation state when suggestion changes (navigation)
   useEffect(() => {
@@ -109,6 +113,13 @@ export function CommandItem({
     }
   }
 
+  const _handleInputSubmit = () => {
+    // Call parent callback to handle form submission
+    if (onInputSubmit) {
+      onInputSubmit()
+    }
+  }
+
   return (
     <Command.Item
       value={suggestion.id}
@@ -123,7 +134,15 @@ export function CommandItem({
             field={inputField}
             inputRef={inputRef}
             onKeyDown={onInlineInputKeyDown}
+            onSubmit={_handleInputSubmit}
           />
+        ) : _isSubmitButton ? (
+          <button
+            className="command-item-submit-button"
+            onClick={() => onSelect(suggestion.id)}
+          >
+            {displayName}
+          </button>
         ) : (
           <CommandName
             permissions={suggestion.permissions}
@@ -142,7 +161,9 @@ export function CommandItem({
             ? "Display"
             : type === "group"
               ? "Group"
-              : "Command"}
+              : type === "submit"
+                ? "Submit"
+                : "Command"}
       </span>
       {children}
     </Command.Item>

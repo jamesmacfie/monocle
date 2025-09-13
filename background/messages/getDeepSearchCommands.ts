@@ -27,6 +27,19 @@ export async function flattenDeepSearchCommands(
 
     if (shouldDeepSearch) {
       try {
+        // Check if command requires permissions before calling children()
+        if (command.permissions && command.permissions.length > 0) {
+          const { checkPermissions } = await import("../utils/permissions")
+          const { hasAllPermissions } = await checkPermissions(
+            command.permissions,
+          )
+
+          if (!hasAllPermissions) {
+            // Skip this command if permissions are missing - don't call children()
+            continue
+          }
+        }
+
         const children = await command.children(context)
         const commandName = await resolveAsyncProperty(command.name, context)
         const parentNameString = Array.isArray(commandName)

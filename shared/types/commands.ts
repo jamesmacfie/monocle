@@ -85,6 +85,18 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
   keybinding?: string
 }
 
+// Submit action for forms; renders as a button and collects all form values
+export interface SubmitCommandNode extends CommandNodeBase, ActionLabel {
+  type: "submit"
+  execute: CommandExecutor
+  // Submit-specific metadata
+  doNotAddToRecents?: boolean
+  confirmAction?: boolean
+  remainOpenOnSelect?: boolean
+  allowCustomKeybinding?: boolean
+  keybinding?: string
+}
+
 // A single inline input rendered as a list item
 // Each previous FormField becomes one of these
 export interface InputCommandNode extends CommandNodeBase {
@@ -100,5 +112,6 @@ export interface DisplayCommandNode extends CommandNodeBase {
 export type CommandNode =
   | GroupCommandNode
   | ActionCommandNode
+  | SubmitCommandNode
   | InputCommandNode
   | DisplayCommandNode

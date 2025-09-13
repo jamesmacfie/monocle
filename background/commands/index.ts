@@ -256,23 +256,11 @@ export const findCommand = async (
   commandId: string,
   context: Browser.Context,
 ): Promise<CommandNode | undefined> => {
-  console.debug("[FindCommand] Searching for command:", commandId)
-  console.debug(
-    "[FindCommand] In commands:",
-    commands.map((c) => c.id),
-  )
-  console.debug("[FindCommand] Context:", context)
-
   // First try to find the command directly in the current level
   const directCommand = commands.find((cmd) => cmd.id === commandId)
   if (directCommand) {
-    console.debug("[FindCommand] Found direct command:", directCommand.id)
     return directCommand
   }
-
-  console.debug(
-    "[FindCommand] Command not found directly, searching children...",
-  )
 
   // If not found, recursively search children of commands that have children
   for (const command of commands) {
@@ -308,7 +296,9 @@ const findCommandSuggestion = (
 
     // Search in actions if they exist
     if (
-      (suggestion.type === "action" || suggestion.type === "group") &&
+      (suggestion.type === "action" ||
+        suggestion.type === "submit" ||
+        suggestion.type === "group") &&
       suggestion.actions &&
       Array.isArray(suggestion.actions)
     ) {
@@ -348,7 +338,8 @@ export const executeCommand = async (
   const actionSuggestion = findCommandSuggestion(allSuggestions, id)
 
   if (
-    actionSuggestion?.type === "action" &&
+    (actionSuggestion?.type === "action" ||
+      actionSuggestion?.type === "submit") &&
     actionSuggestion.executionContext
   ) {
     const executionCtx = actionSuggestion.executionContext
@@ -375,9 +366,6 @@ export const executeCommand = async (
         const { refreshKeybindingRegistry } = require("../keybindings/registry")
         await refreshKeybindingRegistry()
 
-        console.log(
-          `[DEBUG] Reset keybinding for command: ${ctx.targetCommandId}`,
-        )
         return Promise.resolve()
       })
       .with({ type: "primary" }, async (ctx) => {
@@ -389,9 +377,6 @@ export const executeCommand = async (
 
         // If this is a group, we shouldn't execute it - the UI should navigate instead
         if (targetCommand && targetCommand.type === "group") {
-          console.warn(
-            `[ExecuteCommand] Attempted to execute group ${ctx.targetCommandId}. UI should navigate to children instead.`,
-          )
           return Promise.resolve()
         }
 
@@ -417,7 +402,7 @@ export const executeCommand = async (
   const commandToRun = await findCommand(allCommands as any, id, context)
 
   if (commandToRun) {
-    if (commandToRun.type === "action") {
+    if (commandToRun.type === "action" || commandToRun.type === "submit") {
       // Check permissions before executing the command
       if (commandToRun.permissions) {
         const { checkPermissions } = require("../utils/permissions")
@@ -443,14 +428,15 @@ export const executeCommand = async (
 
       try {
         await commandToRun.execute(context, formValues)
-        await recordCommandUsage(id, parentNames)
+        if (commandToRun.type === "action") {
+          await recordCommandUsage(id, parentNames)
+        }
         return
       } catch (error) {
         console.error(`[ExecuteCommand] Error executing action ${id}:`, error)
         throw error
       }
     } else {
-      console.error(`[ExecuteCommand] Command found but not executable: ${id}`)
       throw new Error(`Command ${id} is not executable`)
     }
   } else {
@@ -463,23 +449,18 @@ export const executeCommand = async (
 const _createSetKeybindingAction = async (
   command: CommandNode,
 ): Promise<Suggestion | null> => {
-  console.log(`[DEBUG] Creating keybinding action for command: ${command.id}`)
-
   // Don't create action for groups
   if (command.type === "group") {
-    console.log(`[DEBUG] Skipping group: ${command.id}`)
     return null
   }
 
   // Don't create action if command explicitly opts out
-  if (command.type === "action" && command.allowCustomKeybinding === false) {
-    console.log(
-      `[DEBUG] Command ${command.id} has allowCustomKeybinding: false`,
-    )
+  if (
+    (command.type === "action" || command.type === "submit") &&
+    command.allowCustomKeybinding === false
+  ) {
     return null
   }
-
-  console.log(`[DEBUG] Creating keybinding action for: ${command.id}`)
 
   return {
     id: `set-keybinding-${command.id}`,
@@ -510,7 +491,10 @@ const _createResetKeybindingAction = async (
   }
 
   // Don't create action if command explicitly opts out
-  if (command.type === "action" && command.allowCustomKeybinding === false) {
+  if (
+    (command.type === "action" || command.type === "submit") &&
+    command.allowCustomKeybinding === false
+  ) {
     return null
   }
 
@@ -525,7 +509,8 @@ const _createResetKeybindingAction = async (
     id: `reset-keybinding-${command.id}`,
     name: "Reset Custom Keybinding",
     description:
-      command.type === "action" && command.keybinding
+      (command.type === "action" || command.type === "submit") &&
+      command.keybinding
         ? `Reset to default keybinding: ${command.keybinding}`
         : "Reset to default keybinding",
     icon: { type: "lucide", name: "RotateCcw" },
@@ -611,6 +596,17 @@ export const commandsToSuggestions = async (
           executionContext: undefined,
           actions: undefined,
         }
+      } else if (node.type === "submit") {
+        suggestion = {
+          ...baseProps,
+          type: "submit",
+          actionLabel: await resolveActionLabel(node, context),
+          modifierActionLabel: await resolveModifierActionLabels(node, context),
+          confirmAction: node.confirmAction,
+          remainOpenOnSelect: node.remainOpenOnSelect,
+          executionContext: undefined,
+          actions: undefined,
+        }
       } else if (node.type === "group") {
         suggestion = {
           ...baseProps,
@@ -634,7 +630,11 @@ export const commandsToSuggestions = async (
       }
 
       const actions: Suggestion[] = []
-      if (node.type === "group" || node.type === "action") {
+      if (
+        node.type === "group" ||
+        node.type === "action" ||
+        node.type === "submit"
+      ) {
         const primaryLabel =
           node.type === "group"
             ? "Open"
@@ -654,11 +654,13 @@ export const commandsToSuggestions = async (
           actions: undefined,
           keybinding: "↵",
           confirmAction:
-            node.type === "action" ? node.confirmAction : undefined,
+            node.type === "action" || node.type === "submit"
+              ? node.confirmAction
+              : undefined,
           executionContext: { type: "primary", targetCommandId: node.id },
         })
       }
-      if (node.type === "action") {
+      if (node.type === "action" || node.type === "submit") {
         const modifierLabels = await resolveModifierActionLabels(node, context)
         const defs = [
           {
@@ -719,7 +721,11 @@ export const commandsToSuggestions = async (
       const resetKB = await _createResetKeybindingAction(node)
       if (setKB) actions.push(setKB)
       if (resetKB) actions.push(resetKB)
-      if (suggestion.type === "action" || suggestion.type === "group") {
+      if (
+        suggestion.type === "action" ||
+        suggestion.type === "submit" ||
+        suggestion.type === "group"
+      ) {
         suggestion.actions = actions
       }
       return suggestion

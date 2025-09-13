@@ -81,20 +81,28 @@ export const calculator: CommandNode = {
         },
       },
       {
-        type: "action",
+        type: "submit",
         id: "calculator-execute",
         name: "Calculate",
         actionLabel: "Calculate",
         async execute(context, values) {
+          console.log("execute", context, values)
           const activeTab = await getActiveTab()
+          console.log("activeTab", activeTab)
           if (activeTab) {
-            const result = stringMath(values?.calculation || "")
+            const expression = values?.calculation || ""
+
+            if (!expression) {
+              return
+            }
+
             try {
+              const result = stringMath(expression)
+              console.log("result", result)
               sendTabMessage(activeTab.id, {
-                type: "monocle-alert",
+                type: "monocle-toast",
                 level: "success",
                 message: result.toString(),
-                copyText: result.toString(),
               })
 
               if (context?.modifierKey === "cmd") {
@@ -104,7 +112,12 @@ export const calculator: CommandNode = {
                 })
               }
             } catch (error) {
-              console.error("Error sending message:", error)
+              sendTabMessage(activeTab.id, {
+                type: "monocle-toast",
+                level: "error",
+                message: "Invalid calculation",
+              })
+              console.error("Calculation error:", error)
             }
           }
         },

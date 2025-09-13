@@ -1,5 +1,6 @@
 import { Command, useCommandState } from "cmdk"
 import { Loader2 } from "lucide-react"
+import { useCallback } from "react"
 import type { Suggestion } from "../../../shared/types"
 import type { Page } from "../../store/slices/navigation.slice"
 import { CommandItem } from "./CommandItem"
@@ -22,6 +23,16 @@ export function CommandList({
   deepSearchItems?: Suggestion[]
 }) {
   const cmdkSearch = useCommandState((state) => state.search)
+
+  const handleInputSubmit = useCallback(() => {
+    // Find the first submit command and execute it
+    const firstSubmitCommand = currentPage.commands.suggestions?.find(
+      (cmd) => cmd.type === "submit",
+    )
+    if (firstSubmitCommand) {
+      onSelect(firstSubmitCommand.id)
+    }
+  }, [currentPage.commands.suggestions, onSelect])
 
   return (
     <Command.List className="cmdk-command-list">
@@ -65,6 +76,7 @@ export function CommandList({
             suggestion={item}
             onSelect={onSelect}
             currentPage={currentPage}
+            onInputSubmit={handleInputSubmit}
           />
         ))}
       </Command.Group>

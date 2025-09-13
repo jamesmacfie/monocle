@@ -17,6 +17,7 @@ export type Page = {
   searchValue: string
   parent?: Suggestion
   parentPath: string[] // Track the path of parent command IDs
+  formValues?: Record<string, string> // For inline input values
 }
 
 // State shape
@@ -107,6 +108,7 @@ export const navigateToCommand = createAsyncThunk<
           searchValue: "", // Always start with empty search to show all children
           parent: parentCommand,
           parentPath: newParentPath,
+          formValues: {}, // Initialize empty form values
         }
 
         return { success: true, newPage }
@@ -191,6 +193,7 @@ export const navigationSlice = createSlice({
             commands: initialCommands,
             searchValue: "",
             parentPath: [],
+            formValues: {},
           },
         ]
       : [
@@ -203,6 +206,7 @@ export const navigationSlice = createSlice({
             },
             searchValue: "",
             parentPath: [],
+            formValues: {},
           },
         ],
     initialCommands: initialCommands || {
@@ -231,6 +235,7 @@ export const navigationSlice = createSlice({
             commands: action.payload,
             searchValue: "",
             parentPath: [],
+            formValues: {},
           },
         ]
       }
@@ -259,6 +264,29 @@ export const navigationSlice = createSlice({
     // Clear error state
     clearError: (state) => {
       state.error = null
+    },
+
+    // Set form value for current page
+    setFormValue: (
+      state,
+      action: PayloadAction<{ fieldId: string; value: string }>,
+    ) => {
+      if (state.pages.length > 0) {
+        const currentPageIndex = state.pages.length - 1
+        if (!state.pages[currentPageIndex].formValues) {
+          state.pages[currentPageIndex].formValues = {}
+        }
+        state.pages[currentPageIndex].formValues![action.payload.fieldId] =
+          action.payload.value
+      }
+    },
+
+    // Clear all form values for current page
+    clearFormValues: (state) => {
+      if (state.pages.length > 0) {
+        const currentPageIndex = state.pages.length - 1
+        state.pages[currentPageIndex].formValues = {}
+      }
     },
 
     // Add new page to navigation stack (used by successful navigateToCommand)
@@ -341,6 +369,8 @@ export const {
   updateSearchValue,
   navigateBack,
   clearError,
+  setFormValue,
+  clearFormValues,
   addPage,
   updateCurrentPageCommands,
 } = navigationSlice.actions
@@ -364,6 +394,7 @@ export const getInitialStateWithCommands = (
       commands: initialCommands,
       searchValue: "",
       parentPath: [],
+      formValues: {},
     },
   ],
   initialCommands,

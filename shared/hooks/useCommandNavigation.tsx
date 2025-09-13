@@ -278,7 +278,7 @@ export function useCommandNavigation(
 
       await executeCommand(
         selectedCommand.id,
-        {},
+        currentPage.formValues || {},
         shouldNavigateBack,
         parentNames,
       )

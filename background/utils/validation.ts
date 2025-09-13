@@ -199,7 +199,7 @@ function validateBusinessLogic(message: ValidatedMessage): {
 
     case "execute-keybinding":
       // Keybindings should follow expected format
-      if (!/^[⌘⌃⌥⇧\s]*[a-zA-Z0-9]$/.test(message.keybinding)) {
+      if (!/^[⌘⌃⌥⇧\s]*[a-zA-Z0-9↵]$/.test(message.keybinding)) {
         return { valid: false, error: "Invalid keybinding format" }
       }
       break
