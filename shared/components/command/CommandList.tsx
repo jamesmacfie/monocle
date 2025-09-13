@@ -1,9 +1,15 @@
 import { Command, useCommandState } from "cmdk"
 import { Loader2 } from "lucide-react"
 import type { CommandSuggestion } from "../../../types/"
-import type { CommandListProps } from "../../types/command"
+import type { Page } from "../../types/command"
 import { CommandItem } from "./CommandItem"
 import { DeepSearchItems } from "./DeepSearchItems"
+
+export interface CommandListProps {
+  currentPage: Page
+  onSelect: (id: string) => void
+  isLoading?: boolean
+}
 
 export function CommandList({
   currentPage,

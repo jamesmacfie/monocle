@@ -1,7 +1,16 @@
 import { Command } from "cmdk"
 import { ChevronLeft } from "lucide-react"
-import type { CommandHeaderProps } from "../../types/command"
+import type { RefObject } from "react"
+import type { Page } from "../../types/command"
 import { getDisplayName } from "./CommandName"
+
+export interface CommandHeaderProps {
+  pages: Page[]
+  currentPage: Page
+  inputRef: RefObject<HTMLInputElement | null>
+  onNavigateBack: () => void
+  onSearchChange: (search: string) => void
+}
 
 export function CommandHeader({
   pages,

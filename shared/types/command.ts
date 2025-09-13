@@ -1,4 +1,3 @@
-import type { RefObject } from "react"
 import type { CommandSuggestion } from "../../types/"
 
 // Re-export main types for convenience
@@ -27,43 +26,4 @@ export type CommandData = {
   deepSearchItems: CommandSuggestion[]
 }
 
-// Common prop interfaces for command components
-export interface CommandItemProps {
-  suggestion: CommandSuggestion
-  onSelect: (id: string) => void
-  currentPage: Page
-}
-
-export interface CommandListProps {
-  currentPage: Page
-  onSelect: (id: string) => void
-  isLoading?: boolean
-}
-
-export interface CommandHeaderProps {
-  pages: Page[]
-  currentPage: Page
-  inputRef: RefObject<HTMLInputElement | null>
-  onNavigateBack: () => void
-  onSearchChange: (search: string) => void
-}
-
-export interface CommandFooterProps {
-  currentPage: Page
-  focusedSuggestion: CommandSuggestion | undefined
-  actionLabel: string
-  inputRef: RefObject<HTMLInputElement | null>
-  onActionSelect?: (id: string) => void
-  onOpenActions?: (suggestion: CommandSuggestion) => void
-  actionsButtonRef?: RefObject<HTMLButtonElement>
-}
-
-export interface CommandActionsProps {
-  open: boolean
-  selectedValue: string
-  inputRef: RefObject<HTMLInputElement | null>
-  suggestion: CommandSuggestion
-  onActionSelect?: (id: string) => void
-  onClose: (force?: boolean) => void
-  onRefresh?: () => void
-}
+// Component prop interfaces have been moved to their respective component files

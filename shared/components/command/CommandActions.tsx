@@ -1,10 +1,20 @@
 import { Command } from "cmdk"
-import { useEffect, useRef } from "react"
+import { type RefObject, useEffect, useRef } from "react"
 import { useOnClickOutside } from "usehooks-ts"
 import { usePermissionsGranted } from "../../hooks/usePermissionsGranted"
-import type { CommandActionsProps } from "../../types/command"
+import type { CommandSuggestion } from "../../types/command"
 import { CommandActionsList } from "./CommandActionsList"
 import { PermissionActions } from "./PermissionActions"
+
+export interface CommandActionsProps {
+  open: boolean
+  selectedValue: string
+  inputRef: RefObject<HTMLInputElement | null>
+  suggestion: CommandSuggestion
+  onActionSelect?: (id: string) => void
+  onClose: (force?: boolean) => void
+  onRefresh?: () => void
+}
 
 export function CommandActions({
   open,

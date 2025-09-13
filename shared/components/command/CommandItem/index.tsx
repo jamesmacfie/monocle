@@ -2,11 +2,17 @@ import { Command, useCommandState } from "cmdk"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
-import type { CommandItemProps } from "../../../types/command"
+import type { CommandSuggestion, Page } from "../../../types/command"
 import { Icon } from "../../Icon"
 import { KeybindingDisplay } from "../../KeybindingDisplay"
 import { CommandName } from "../CommandName"
 import { CommandItemInput } from "./CommandItemInput"
+
+export interface CommandItemProps {
+  suggestion: CommandSuggestion
+  onSelect: (id: string) => void
+  currentPage: Page
+}
 
 interface Props extends CommandItemProps {
   children?: ReactNode

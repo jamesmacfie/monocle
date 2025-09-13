@@ -1,6 +1,17 @@
-import type { CommandFooterProps } from "../../types/command"
+import type { RefObject } from "react"
+import type { CommandSuggestion, Page } from "../../types/command"
 import { Icon } from "../Icon"
 import { CommandName } from "./CommandName"
+
+export interface CommandFooterProps {
+  currentPage: Page
+  focusedSuggestion: CommandSuggestion | undefined
+  actionLabel: string
+  inputRef: RefObject<HTMLInputElement | null>
+  onActionSelect?: (id: string) => void
+  onOpenActions?: (suggestion: CommandSuggestion) => void
+  actionsButtonRef?: RefObject<HTMLButtonElement>
+}
 
 export function CommandFooter({
   currentPage,
