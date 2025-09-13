@@ -1,5 +1,5 @@
+import type { BrowserPermission } from "../../shared/types"
 import { isFirefox } from "../../shared/utils/browser"
-import type { BrowserPermission } from "../../types/"
 
 /**
  * Cross-browser compatible permission checking utility

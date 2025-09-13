@@ -1,12 +1,13 @@
 /**
  * Utility functions for working with commands
  */
-import type { Browser, CommandNode } from "../../types/"
 import type {
   ActionCommandNode,
   AsyncValue,
+  Browser,
   CommandIcon,
-} from "../../types/commands"
+  CommandNode,
+} from "../../shared/types"
 
 // Helper type for properties that can be static or async
 type AsyncProperty<T> = T | ((context: Browser.Context) => Promise<T>)

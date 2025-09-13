@@ -1,4 +1,4 @@
-import type { UpdateCommandSettingMessage } from "../../types/"
+import type { UpdateCommandSettingMessage } from "../../shared/types"
 import { updateCommandSettings } from "../commands/settings"
 import { showToast } from "./showToast"
 

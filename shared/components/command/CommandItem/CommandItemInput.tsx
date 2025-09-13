@@ -1,5 +1,5 @@
 import type { RefObject } from "react"
-import type { FormField } from "../../../../types/ui"
+import type { FormField } from "../../../../shared/types"
 
 interface CommandItemInputProps {
   field: FormField

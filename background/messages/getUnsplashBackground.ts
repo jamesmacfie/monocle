@@ -2,7 +2,7 @@ import type {
   GetUnsplashBackgroundMessage,
   UnsplashBackgroundResponse,
   UnsplashPhoto,
-} from "../../types/"
+} from "../../shared/types"
 
 export async function getUnsplashBackground(
   _message: GetUnsplashBackgroundMessage,

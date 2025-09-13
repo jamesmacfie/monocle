@@ -1,4 +1,4 @@
-import type { ActionCommandNode, Browser } from "../../types/"
+import type { ActionCommandNode, Browser } from "../../shared/types"
 import { getActiveTab } from "../utils/browser"
 
 const STORAGE_KEY = "monocle-favoriteCommandIds"

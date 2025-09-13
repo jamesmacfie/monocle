@@ -1,4 +1,4 @@
-import type { CommandNode } from "../../../../types/"
+import type { CommandNode } from "../../../../shared/types"
 import { createTab, queryTabs, removeTab } from "../../../utils/browser"
 import { queryContainers } from "../../../utils/firefox"
 

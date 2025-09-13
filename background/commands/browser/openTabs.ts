@@ -1,5 +1,5 @@
 import { match } from "ts-pattern"
-import type { CommandNode } from "../../../types/"
+import type { CommandNode } from "../../../shared/types"
 import {
   createTab,
   getTab,

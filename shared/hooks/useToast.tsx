@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { RequestToastMessage } from "../../types/"
+import type { RequestToastMessage } from "../../shared/types"
 import { useSendMessage } from "./useSendMessage"
 
 export function useToast() {

@@ -1,6 +1,6 @@
 import { Command } from "cmdk"
 import { useEffect, useRef, useState } from "react"
-import type { Suggestion } from "../../../types/"
+import type { Suggestion } from "../../../shared/types"
 import { useSendMessage } from "../../hooks/useSendMessage"
 import { useAppDispatch, useAppSelector } from "../../store/hooks"
 import {

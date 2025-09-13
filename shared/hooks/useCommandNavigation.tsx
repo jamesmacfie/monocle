@@ -1,6 +1,6 @@
 import type { RefObject } from "react"
 import { useEffect, useRef } from "react"
-import type { Suggestion } from "../../types/"
+import type { Suggestion } from "../../shared/types"
 import { getDisplayName } from "../components/Command/CommandName"
 import { useAppDispatch, useAppSelector } from "../store/hooks"
 import { startCapture } from "../store/slices/keybinding.slice"

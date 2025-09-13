@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid"
-import type { ActionCommandNode } from "../../../types/"
+import type { ActionCommandNode } from "../../../shared/types"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
 
 export const copyUuidV4: ActionCommandNode = {

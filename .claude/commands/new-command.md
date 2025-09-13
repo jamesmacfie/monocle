@@ -60,7 +60,7 @@ interface ActionCommandNode extends CommandNodeBase {
 
 ```typescript
 // background/commands/browser/closeCurrentTab.ts
-import type { ActionCommandNode } from "../../../types/"
+import type { ActionCommandNode }from "../../../shared/types"
 import { queryTabs, removeTab, sendTabMessage } from "../../utils/browser"
 
 export const closeCurrentTab: ActionCommandNode = {
@@ -158,7 +158,7 @@ interface GroupCommandNode extends CommandNodeBase {
 
 ```typescript
 // background/commands/browser/recentBookmarks.ts
-import type { GroupCommandNode, ActionCommandNode } from "../../../types/"
+import type { GroupCommandNode, ActionCommandNode }from "../../../shared/types"
 import { getBookmarkTree, createTab, sendTabMessage } from "../../utils/browser" 
 import { createNoOpCommand } from "../../utils/commands"
 
@@ -263,7 +263,7 @@ Groups can contain input nodes for user interaction:
 
 ```typescript
 // background/commands/tools/calculator.ts
-import type { GroupCommandNode, InputCommandNode, ActionCommandNode } from "../../../types/"
+import type { GroupCommandNode, InputCommandNode, ActionCommandNode }from "../../../shared/types"
 
 export const calculator: GroupCommandNode = {
   type: "group",
@@ -468,7 +468,7 @@ await sendTabMessage(activeTab.id, {
 ### 1. Create Command File
 ```typescript
 // background/commands/category/myCommand.ts
-import type { ActionCommandNode } from "../../../types/"
+import type { ActionCommandNode }from "../../../shared/types"
 
 export const myCommand: ActionCommandNode = {
   type: "action",  // Always specify type

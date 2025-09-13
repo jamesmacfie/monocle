@@ -1,4 +1,4 @@
-import type { CommandNode } from "../../../types/"
+import type { CommandNode } from "../../../shared/types"
 import { getTab, queryTabs, updateTab, updateWindow } from "../../utils/browser"
 import { getFaviconIcon } from "../../utils/favicon"
 

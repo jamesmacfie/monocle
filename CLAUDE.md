@@ -371,7 +371,7 @@ dispatch(updateClockVisibility(!showClock))
 1. Create command file: `background/commands/category/myCommand.ts`
 2. Import and use the appropriate node type:
    ```typescript
-   import type { ActionCommandNode, GroupCommandNode } from "../../../types/"
+   import type { ActionCommandNode, GroupCommandNode }from "../../../shared/types"
    
    export const myCommand: ActionCommandNode = {
      type: "action",

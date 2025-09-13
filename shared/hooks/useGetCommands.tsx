@@ -2,7 +2,7 @@ import * as React from "react"
 
 const { useState, useCallback } = React
 
-import type { Browser } from "../../types"
+import type { Browser } from "../../shared/types"
 import type { CommandData } from "../types/command"
 import { useSendMessage } from "./useSendMessage"
 

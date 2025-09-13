@@ -1,5 +1,8 @@
-import type { CommandNode, GetChildrenMessage } from "../../types/"
-import type { GroupCommandNode } from "../../types/commands"
+import type {
+  CommandNode,
+  GetChildrenMessage,
+  GroupCommandNode,
+} from "../../shared/types"
 import {
   commandsToSuggestions,
   findCommand,

@@ -5,7 +5,7 @@ import {
   type ValidatedMessage,
   type ValidationResult,
   validateMessage,
-} from "../../types/validation"
+} from "../../shared/types"
 import { createMessageHandler } from "./messages"
 
 // Rate limiting for message validation (prevent spam/abuse)

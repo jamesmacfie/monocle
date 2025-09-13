@@ -1,4 +1,4 @@
-import type { CommandNode } from "../../../types"
+import type { CommandNode } from "../../../shared/types"
 import { getNewTabClockSettings, updateNewTabClockSettings } from "../settings"
 
 const toggleClockVisibility: CommandNode = {

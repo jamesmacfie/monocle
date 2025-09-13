@@ -1,4 +1,4 @@
-import type { CheckKeybindingConflictMessage } from "../../types/messaging"
+import type { CheckKeybindingConflictMessage } from "../../shared/types"
 import { allCommands } from "../commands"
 import { getAllCommandSettings } from "../commands/settings"
 

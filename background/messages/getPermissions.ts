@@ -1,5 +1,5 @@
+import type { GetPermissionsMessage } from "../../shared/types"
 import { isFirefox } from "../../shared/utils/browser"
-import type { GetPermissionsMessage } from "../../types/"
 
 export const getPermissions = async (_message: GetPermissionsMessage) => {
   try {

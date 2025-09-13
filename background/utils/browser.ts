@@ -1,15 +1,6 @@
+import type { Event } from "../../shared/types/"
 import { isFirefox } from "../../shared/utils/browser"
-import type { Event } from "../../types/"
-
-type BrowserAPIObject =
-  | "tabs"
-  | "windows"
-  | "runtime"
-  | "bookmarks"
-  | "history"
-  | "browsingData"
-  | "downloads"
-  | "sessions"
+import type { BrowserAPIObject } from "../types/"
 
 // Generic wrapper to handle API methods that exist in both browsers but with different signatures
 export function callBrowserAPI(

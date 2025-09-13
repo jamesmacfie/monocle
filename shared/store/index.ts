@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit"
-import type { Suggestion } from "../../types"
+import type { Suggestion } from "../../shared/types"
 import { commandPaletteStateSlice } from "./slices/commandPaletteState.slice"
 import keybindingSlice from "./slices/keybinding.slice"
 import {

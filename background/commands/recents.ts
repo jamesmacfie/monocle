@@ -1,4 +1,4 @@
-import type { ActionCommandNode } from "../../types/"
+import type { ActionCommandNode } from "../../shared/types"
 import { getActiveTab } from "../utils/browser"
 
 export const clearRecentsCommand: ActionCommandNode = {

@@ -10,7 +10,7 @@ import type {
   RequestPermissionMessage,
   RequestToastMessage,
   UpdateCommandSettingMessage,
-} from "../../types/"
+} from "../../shared/types"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
 
 // Messages without context for easier usage

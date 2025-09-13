@@ -3,7 +3,7 @@ import {
   createSlice,
   type PayloadAction,
 } from "@reduxjs/toolkit"
-import type { Suggestion } from "../../../types"
+import type { Suggestion } from "../../../shared/types"
 import type { ThunkApi } from "../index"
 
 // Types from original hook

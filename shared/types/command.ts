@@ -1,7 +1,7 @@
-import type { Suggestion } from "../../types/"
+import type { Suggestion } from "./ui"
 
 // Re-export main types for convenience
-export type { Suggestion } from "../../types/"
+export type { Suggestion } from "./ui"
 
 // Command data structure
 export type CommandData = {

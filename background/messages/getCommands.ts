@@ -1,4 +1,4 @@
-import type { GetCommandsMessage } from "../../types/"
+import type { GetCommandsMessage } from "../../shared/types"
 import {
   commandsToSuggestions,
   getCommands as getCommandsFromBackground,

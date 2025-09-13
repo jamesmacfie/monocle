@@ -1,5 +1,10 @@
-import type { Browser, CommandNode, Suggestion } from "../../types/"
-import type { ActionCommandNode, GroupCommandNode } from "../../types/commands"
+import type {
+  ActionCommandNode,
+  Browser,
+  CommandNode,
+  GroupCommandNode,
+  Suggestion,
+} from "../../shared/types"
 import { commandsToSuggestions, getCommands } from "../commands"
 import { resolveAsyncProperty } from "../utils/commands"
 

@@ -4,7 +4,7 @@ import type {
   NewTabSettings,
   Settings,
   ThemeSettings,
-} from "../../types/"
+} from "../../shared/types"
 
 // Cross-browser compatibility layer
 const browserAPI = typeof browser !== "undefined" ? browser : chrome

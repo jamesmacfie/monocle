@@ -1,5 +1,5 @@
+import type { CommandIcon } from "../../shared/types"
 import { isFirefox } from "../../shared/utils/browser"
-import type { CommandIcon } from "../../types"
 
 /**
  * Get local favicon URL using Chrome's built-in favicon service

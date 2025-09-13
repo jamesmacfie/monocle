@@ -1,4 +1,4 @@
-import type { ActionCommandNode } from "../../../types/"
+import type { ActionCommandNode } from "../../../shared/types"
 import { queryTabs, removeTab } from "../../utils/browser"
 
 export const closeCurrentTab: ActionCommandNode = {

@@ -1,4 +1,4 @@
-import type { RequestToastMessage } from "../../types/"
+import type { RequestToastMessage } from "../../shared/types"
 import { showToast } from "./showToast"
 
 export const requestToast = async (message: RequestToastMessage) => {

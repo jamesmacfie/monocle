@@ -1,6 +1,6 @@
 import { match } from "ts-pattern"
+import type { CommandNode } from "../../shared/types"
 import { isFirefox } from "../../shared/utils/browser"
-import type { CommandNode } from "../../types/"
 import { browserCommands } from "../commands/browser"
 import { firefoxCommands } from "../commands/browser/firefox"
 import { getAllCommandSettings } from "../commands/settings"

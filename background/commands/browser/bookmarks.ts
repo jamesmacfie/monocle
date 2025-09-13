@@ -1,5 +1,5 @@
+import type { CommandNode } from "../../../shared/types/"
 import { isValidUrl } from "../../../shared/utils"
-import type { CommandNode } from "../../../types/"
 import {
   getActiveTab,
   getBookmarkTree,

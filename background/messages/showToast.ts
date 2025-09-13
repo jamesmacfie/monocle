@@ -1,4 +1,4 @@
-import type { ShowToastMessage } from "../../types/"
+import type { ShowToastMessage } from "../../shared/types"
 import { getActiveTab } from "../utils/browser"
 
 // Rate limiting state
