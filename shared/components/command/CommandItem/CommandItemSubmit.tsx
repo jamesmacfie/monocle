@@ -15,7 +15,8 @@ export function CommandItemSubmit({
   onSubmit,
   disabled = false,
 }: CommandItemSubmitProps) {
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent the click from bubbling up to Command.Item
     if (!disabled) {
       onSubmit()
     }
@@ -24,7 +25,10 @@ export function CommandItemSubmit({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault()
-      handleClick()
+      e.stopPropagation() // Also prevent keyboard events from bubbling
+      if (!disabled) {
+        onSubmit()
+      }
     }
   }
 

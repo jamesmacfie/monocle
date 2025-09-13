@@ -79,6 +79,11 @@ export const calculator: CommandNode = {
           label: "Expression",
           type: "text",
           placeholder: "1 + 2",
+          validation: {
+            type: "string",
+            // Allow numbers, operators, brakets, other notation, and spaces
+            pattern: "[0-9+\\-*/\\s\\(\\)\\^\\%\\|]+",
+          },
         },
       },
       {

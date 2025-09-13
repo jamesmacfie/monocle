@@ -6,12 +6,12 @@ export type FormField = {
   id: string
   label: string
   required?: boolean
+  validation?: JSONSchema // JSON Schema from z.toJSONSchema()
 } & (
   | {
       type: "text"
       placeholder?: string
       defaultValue?: string
-      validation?: { pattern?: string; minLength?: number; maxLength?: number }
     }
   | {
       type: "select"
@@ -23,6 +23,21 @@ export type FormField = {
       defaultChecked?: boolean
     }
 )
+
+// JSON Schema type for validation
+export interface JSONSchema {
+  type?: string
+  pattern?: string
+  minLength?: number
+  maxLength?: number
+  minimum?: number
+  maximum?: number
+  enum?: unknown[]
+  properties?: Record<string, JSONSchema>
+  required?: string[]
+  additionalProperties?: boolean
+  [key: string]: unknown
+}
 
 // The Suggestion types that the UI actually uses
 export type ActionExecutionContext =

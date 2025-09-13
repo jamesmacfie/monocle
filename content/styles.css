@@ -325,7 +325,7 @@
       flex: 1;
       min-width: 0;
       overflow: hidden;
-      justify-content: end
+      justify-content: end;
     }
 
     .command-item-submit-button {
@@ -1093,6 +1093,7 @@
   border: 1px solid var(--gray5);
   border-radius: 8px;
   width: 450px;
+  position: relative;
 }
 
 .command-item-inline-input:focus-within {
@@ -1134,4 +1135,37 @@
 .dark .command-item-inline-input:focus-within {
   background: var(--gray2);
   border-color: var(--blue8);
+}
+
+/* Validation indicator styles */
+.validation-indicator {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+}
+
+.validation-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.validation-dot.valid {
+  background-color: #43a047;
+}
+
+.validation-dot.invalid {
+  background-color: #f44336;
+}
+
+.dark .validation-dot.valid {
+  background-color: #81c784;
+}
+
+.dark .validation-dot.invalid {
+  background-color: #ef9a9a;
 }

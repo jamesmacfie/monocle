@@ -1,10 +1,12 @@
 import type { RefObject } from "react"
+import { useMemo } from "react"
 import type { FormField } from "../../../../shared/types"
 import { useAppDispatch, useAppSelector } from "../../../store/hooks"
 import {
   selectCurrentPage,
   setFormValue,
 } from "../../../store/slices/navigation.slice"
+import { validateWithJsonSchema } from "../../../utils/validation"
 
 interface CommandItemInputProps {
   field: FormField
@@ -35,6 +37,11 @@ export function CommandItemInput({
 
   const _currentValue = currentPage.formValues?.[field.id] || getDefaultValue()
 
+  // Validate current value
+  const validationResult = useMemo(() => {
+    return validateWithJsonSchema(_currentValue, field.validation)
+  }, [_currentValue, field.validation])
+
   const _handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     dispatch(setFormValue({ fieldId: field.id, value: e.target.value }))
   }
@@ -45,6 +52,14 @@ export function CommandItemInput({
       onSubmit()
       return
     }
+
+    // Prevent backspace from navigating backwards
+    if (e.key === "Backspace") {
+      e.stopPropagation()
+      // Don't prevent default - let the input handle the backspace normally
+      return
+    }
+
     onKeyDown(e)
   }
 
@@ -65,6 +80,15 @@ export function CommandItemInput({
               onChange={_handleChange}
               onKeyDown={_handleKeyDown}
             />
+            {/* Validation indicator */}
+            <div className="validation-indicator">
+              <span
+                className={`validation-dot ${
+                  validationResult.isValid ? "valid" : "invalid"
+                }`}
+                title={validationResult.error || "Valid"}
+              />
+            </div>
           </div>
           <span cmdk-raycast-meta="">{field.label}</span>
         </div>
