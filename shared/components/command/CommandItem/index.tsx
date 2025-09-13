@@ -113,7 +113,7 @@ export function CommandItem({
     }
   }
 
-  const _handleInputSubmit = () => {
+  const handleInputSubmit = () => {
     // Call parent callback to handle form submission
     if (onInputSubmit) {
       onInputSubmit()
@@ -126,34 +126,40 @@ export function CommandItem({
       keywords={suggestion.keywords}
       onSelect={handleSelect}
     >
-      <Icon icon={suggestion.icon} color={suggestion.color} />
-      <div className="command-item-content">
-        {suggestion.isFavorite && <Icon name="Star" color="#fbbf24" />}
-        {isInlineInput && inputField ? (
+      {isInlineInput && inputField ? (
+        <div className="command-item-content">
           <CommandItemInput
             field={inputField}
             inputRef={inputRef}
             onKeyDown={onInlineInputKeyDown}
-            onSubmit={_handleInputSubmit}
+            onSubmit={handleInputSubmit}
           />
-        ) : _isSubmitButton ? (
+        </div>
+      ) : _isSubmitButton ? (
+        <div className="command-item-content">
           <button
             className="command-item-submit-button"
             onClick={() => onSelect(suggestion.id)}
           >
             {displayName}
           </button>
-        ) : (
+        </div>
+      ) : (
+        <div className="command-item-content">
+          <Icon icon={suggestion.icon} color={suggestion.color} />
+          {suggestion.isFavorite && <Icon name="Star" color="#fbbf24" />}
           <CommandName
             permissions={suggestion.permissions}
             name={displayName}
             className="command-item-name"
           />
-        )}
-      </div>
+        </div>
+      )}
+
       {suggestion.keybinding && (
         <KeybindingDisplay keybinding={suggestion.keybinding} />
       )}
+
       <span cmdk-raycast-meta="">
         {type === "input"
           ? "Input"
