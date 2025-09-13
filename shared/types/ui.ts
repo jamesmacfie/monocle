@@ -4,7 +4,7 @@ import type { BrowserPermission, CommandIcon } from "./commands"
 
 export type FormField = {
   id: string
-  label?: string
+  label: string
   required?: boolean
 } & (
   | {

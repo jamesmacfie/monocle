@@ -53,22 +53,22 @@ export function CommandItemInput({
 
   if (field.type === "text") {
     return (
-      <div className="command-item-inline-input">
-        {field.label && (
-          <label className="command-item-label" htmlFor={field.id}>
-            {field.label}
-          </label>
-        )}
-        <input
-          id={field.id}
-          ref={inputRef}
-          type="text"
-          placeholder={field.placeholder}
-          value={_currentValue}
-          onChange={_handleChange}
-          onKeyDown={_handleKeyDown}
-        />
-      </div>
+      <>
+        <div className="command-item-content">
+          <div className="command-item-inline-input">
+            <input
+              id={field.id}
+              ref={inputRef}
+              type="text"
+              placeholder={field.placeholder}
+              value={_currentValue}
+              onChange={_handleChange}
+              onKeyDown={_handleKeyDown}
+            />
+          </div>
+          <span cmdk-raycast-meta="">{field.label}</span>
+        </div>
+      </>
     )
   }
 

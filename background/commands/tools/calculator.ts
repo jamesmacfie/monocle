@@ -76,6 +76,7 @@ export const calculator: CommandNode = {
         name: "Expression",
         field: {
           id: "calculation",
+          label: "Expression",
           type: "text",
           placeholder: "1 + 2",
         },
@@ -86,9 +87,7 @@ export const calculator: CommandNode = {
         name: "Calculate",
         actionLabel: "Calculate",
         async execute(context, values) {
-          console.log("execute", context, values)
           const activeTab = await getActiveTab()
-          console.log("activeTab", activeTab)
           if (activeTab) {
             const expression = values?.calculation || ""
 

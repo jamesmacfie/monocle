@@ -16,6 +16,7 @@ export const googleSearch: CommandNode = {
         field: {
           id: "search",
           type: "text",
+          label: "Query",
           placeholder: "Your search query",
         },
       },

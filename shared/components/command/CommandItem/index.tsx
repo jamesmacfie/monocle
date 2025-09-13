@@ -4,10 +4,10 @@ import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
 import type { Page } from "../../../store/slices/navigation.slice"
 import type { Suggestion } from "../../../types/command"
-import { Icon } from "../../Icon"
-import { KeybindingDisplay } from "../../KeybindingDisplay"
-import { CommandName } from "../CommandName"
+import { CommandItemAction } from "./CommandItemAction"
+import { CommandItemDisplay } from "./CommandItemDisplay"
 import { CommandItemInput } from "./CommandItemInput"
+import { CommandItemSubmit } from "./CommandItemSubmit"
 
 export interface CommandItemProps {
   suggestion: Suggestion
@@ -34,6 +34,7 @@ export function CommandItem({
     suggestion.permissions || [],
   )
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const submitRef = useRef<HTMLButtonElement | null>(null)
 
   const type = suggestion.type
   const isInlineInput = type === "input"
@@ -127,50 +128,30 @@ export function CommandItem({
       onSelect={handleSelect}
     >
       {isInlineInput && inputField ? (
-        <div className="command-item-content">
-          <CommandItemInput
-            field={inputField}
-            inputRef={inputRef}
-            onKeyDown={onInlineInputKeyDown}
-            onSubmit={handleInputSubmit}
-          />
-        </div>
+        <CommandItemInput
+          field={inputField}
+          inputRef={inputRef}
+          onKeyDown={onInlineInputKeyDown}
+          onSubmit={handleInputSubmit}
+        />
       ) : _isSubmitButton ? (
-        <div className="command-item-content">
-          <button
-            className="command-item-submit-button"
-            onClick={() => onSelect(suggestion.id)}
-          >
-            {displayName}
-          </button>
-        </div>
+        <CommandItemSubmit
+          label={
+            typeof displayName === "string"
+              ? displayName
+              : displayName.join(" > ")
+          }
+          actionLabel={
+            suggestion.type === "submit" ? suggestion.actionLabel : "Submit"
+          }
+          inputRef={submitRef}
+          onSubmit={() => onSelect(suggestion.id)}
+        />
+      ) : isDisplayOnly ? (
+        <CommandItemDisplay suggestion={suggestion} displayName={displayName} />
       ) : (
-        <div className="command-item-content">
-          <Icon icon={suggestion.icon} color={suggestion.color} />
-          {suggestion.isFavorite && <Icon name="Star" color="#fbbf24" />}
-          <CommandName
-            permissions={suggestion.permissions}
-            name={displayName}
-            className="command-item-name"
-          />
-        </div>
+        <CommandItemAction suggestion={suggestion} displayName={displayName} />
       )}
-
-      {suggestion.keybinding && (
-        <KeybindingDisplay keybinding={suggestion.keybinding} />
-      )}
-
-      <span cmdk-raycast-meta="">
-        {type === "input"
-          ? "Input"
-          : type === "display"
-            ? "Display"
-            : type === "group"
-              ? "Group"
-              : type === "submit"
-                ? "Submit"
-                : "Command"}
-      </span>
       {children}
     </Command.Item>
   )
