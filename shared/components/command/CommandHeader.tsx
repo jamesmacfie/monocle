@@ -1,7 +1,7 @@
 import { Command } from "cmdk"
 import { ChevronLeft } from "lucide-react"
 import type { RefObject } from "react"
-import type { Page } from "../../types/command"
+import type { Page } from "../../store/slices/navigation.slice"
 import { getDisplayName } from "./CommandName"
 
 export interface CommandHeaderProps {

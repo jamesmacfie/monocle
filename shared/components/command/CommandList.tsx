@@ -1,7 +1,7 @@
 import { Command, useCommandState } from "cmdk"
 import { Loader2 } from "lucide-react"
 import type { Suggestion } from "../../../types/"
-import type { Page } from "../../types/command"
+import type { Page } from "../../store/slices/navigation.slice"
 import { CommandItem } from "./CommandItem"
 import { DeepSearchItems } from "./DeepSearchItems"
 

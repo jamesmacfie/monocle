@@ -1,33 +1,8 @@
-import type { GetUnsplashBackgroundMessage } from "../../types/"
-
-export interface UnsplashPhoto {
-  id: string
-  urls: {
-    raw: string
-    full: string
-    regular: string
-    small: string
-    thumb: string
-  }
-  user: {
-    name: string
-    username: string
-    links: {
-      html: string
-    }
-  }
-  links: {
-    html: string
-  }
-}
-
-export interface UnsplashBackgroundResponse {
-  imageUrl: string
-  photographerName: string
-  photographerUrl: string
-  photoUrl: string
-  error?: string
-}
+import type {
+  GetUnsplashBackgroundMessage,
+  UnsplashBackgroundResponse,
+  UnsplashPhoto,
+} from "../../types/"
 
 export async function getUnsplashBackground(
   _message: GetUnsplashBackgroundMessage,

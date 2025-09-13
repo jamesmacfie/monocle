@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { UnsplashBackgroundResponse } from "../../background/messages/getUnsplashBackground"
+import type { UnsplashBackgroundResponse } from "../../types/"
 
 interface BackgroundImageProps {
   className?: string

@@ -98,3 +98,33 @@ export type Suggestion =
 
 // Backward compatibility alias
 export type CommandSuggestion = Suggestion
+
+// Unsplash background image types
+export interface UnsplashPhoto {
+  id: string
+  urls: {
+    raw: string
+    full: string
+    regular: string
+    small: string
+    thumb: string
+  }
+  user: {
+    name: string
+    username: string
+    links: {
+      html: string
+    }
+  }
+  links: {
+    html: string
+  }
+}
+
+export interface UnsplashBackgroundResponse {
+  imageUrl: string
+  photographerName: string
+  photographerUrl: string
+  photoUrl: string
+  error?: string
+}

@@ -1,5 +1,6 @@
 import type { RefObject } from "react"
-import type { Page, Suggestion } from "../../types/command"
+import type { Page } from "../../store/slices/navigation.slice"
+import type { Suggestion } from "../../types/command"
 import { Icon } from "../Icon"
 import { CommandName } from "./CommandName"
 
