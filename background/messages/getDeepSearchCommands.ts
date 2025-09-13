@@ -1,4 +1,4 @@
-import type { Browser, CommandNode, CommandSuggestion } from "../../types/"
+import type { Browser, CommandNode, Suggestion } from "../../types/"
 import type { ActionCommandNode, GroupCommandNode } from "../../types/commands"
 import { commandsToSuggestions, getCommands } from "../commands"
 import { resolveAsyncProperty } from "../utils/commands"
@@ -9,8 +9,8 @@ export async function flattenDeepSearchCommands(
   context: Browser.Context,
   parentPath: string[] = [],
   inheritedDeepSearch: boolean = false,
-): Promise<CommandSuggestion[]> {
-  const flattenedCommands: CommandSuggestion[] = []
+): Promise<Suggestion[]> {
+  const flattenedCommands: Suggestion[] = []
 
   for (const command of commands) {
     // Check if this is a group command with deep search enabled
@@ -90,7 +90,7 @@ export async function flattenDeepSearchCommands(
 }
 
 export async function getDeepSearchCommands(): Promise<{
-  deepSearchItems: CommandSuggestion[]
+  deepSearchItems: Suggestion[]
 }> {
   // Create a basic execution context
   const context: Browser.Context = {

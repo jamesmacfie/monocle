@@ -2,7 +2,7 @@ import { Command } from "cmdk"
 import { type RefObject, useEffect, useRef } from "react"
 import { useOnClickOutside } from "usehooks-ts"
 import { usePermissionsGranted } from "../../hooks/usePermissionsGranted"
-import type { CommandSuggestion } from "../../types/command"
+import type { Suggestion } from "../../types/command"
 import { CommandActionsList } from "./CommandActionsList"
 import { PermissionActions } from "./PermissionActions"
 
@@ -10,7 +10,7 @@ export interface CommandActionsProps {
   open: boolean
   selectedValue: string
   inputRef: RefObject<HTMLInputElement | null>
-  suggestion: CommandSuggestion
+  suggestion: Suggestion
   onActionSelect?: (id: string) => void
   onClose: (force?: boolean) => void
   onRefresh?: () => void
@@ -29,7 +29,10 @@ export function CommandActions({
   const overlayRef = useRef<HTMLDivElement>(null)
 
   const commandPermissions = suggestion.permissions || []
-  const actions = suggestion.actions || []
+  const actions =
+    suggestion.type === "action" || suggestion.type === "group"
+      ? suggestion.actions || []
+      : []
 
   const { isGrantedAllPermissions, missingPermissions } =
     usePermissionsGranted(commandPermissions)

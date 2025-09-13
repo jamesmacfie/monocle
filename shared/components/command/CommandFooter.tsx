@@ -1,15 +1,15 @@
 import type { RefObject } from "react"
-import type { CommandSuggestion, Page } from "../../types/command"
+import type { Page, Suggestion } from "../../types/command"
 import { Icon } from "../Icon"
 import { CommandName } from "./CommandName"
 
 export interface CommandFooterProps {
   currentPage: Page
-  focusedSuggestion: CommandSuggestion | undefined
+  focusedSuggestion: Suggestion | undefined
   actionLabel: string
   inputRef: RefObject<HTMLInputElement | null>
   onActionSelect?: (id: string) => void
-  onOpenActions?: (suggestion: CommandSuggestion) => void
+  onOpenActions?: (suggestion: Suggestion) => void
   actionsButtonRef?: RefObject<HTMLButtonElement>
 }
 
@@ -49,19 +49,21 @@ export function CommandFooter({
                 <kbd>↵</kbd>
               </button>
             )}
-            {focusedSuggestion.actions?.length && (
-              <>
-                <hr />
-                <button
-                  ref={actionsButtonRef}
-                  cmdk-raycast-subcommand-trigger=""
-                  onClick={handleActionsClick}
-                >
-                  Actions
-                  <kbd>Alt</kbd>
-                </button>
-              </>
-            )}
+            {(focusedSuggestion.type === "action" ||
+              focusedSuggestion.type === "group") &&
+              focusedSuggestion.actions?.length && (
+                <>
+                  <hr />
+                  <button
+                    ref={actionsButtonRef}
+                    cmdk-raycast-subcommand-trigger=""
+                    onClick={handleActionsClick}
+                  >
+                    Actions
+                    <kbd>Alt</kbd>
+                  </button>
+                </>
+              )}
           </>
         )}
       </div>

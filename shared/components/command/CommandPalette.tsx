@@ -1,6 +1,6 @@
 import { Command, useCommandState } from "cmdk"
 import { useEffect, useRef, useState } from "react"
-import type { CommandSuggestion } from "../../../types/"
+import type { Suggestion } from "../../../types/"
 import { useActionLabel } from "../../hooks/useActionLabel"
 import { useCommandNavigation } from "../../hooks/useCommandNavigation"
 import { useAppSelector } from "../../store/hooks"
@@ -50,30 +50,30 @@ function CommandContent({
     formValues: Record<string, string>,
     navigateBack?: boolean,
   ) => Promise<void>
-  onOpenActions: (suggestion: CommandSuggestion) => void
+  onOpenActions: (suggestion: Suggestion) => void
   onCloseActions: (force?: boolean) => void
   onRefreshCommands: () => void
   onRefreshCurrentPage: () => void
-  deepSearchItems?: CommandSuggestion[]
-  onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
+  deepSearchItems?: Suggestion[]
+  onDeepSearchItemsChange?: (items: Suggestion[]) => void
   isLoading?: boolean
   isActionsOpen?: boolean
-  actionsOpenForSuggestion?: CommandSuggestion | null
+  actionsOpenForSuggestion?: Suggestion | null
 }) {
   const focusedValue = useCommandState((state) => state.value)
 
   // Find the focused suggestion based on its value
   const focusedSuggestion =
     (currentPage.commands.favorites || []).find(
-      (item: CommandSuggestion) => item.id === focusedValue,
+      (item: Suggestion) => item.id === focusedValue,
     ) ||
     (currentPage.commands.recents || []).find(
-      (item: CommandSuggestion) => item.id === focusedValue,
+      (item: Suggestion) => item.id === focusedValue,
     ) ||
     (currentPage.commands.suggestions || []).find(
-      (item: CommandSuggestion) => item.id === focusedValue,
+      (item: Suggestion) => item.id === focusedValue,
     ) ||
-    deepSearchItems.find((item: CommandSuggestion) => item.id === focusedValue)
+    deepSearchItems.find((item: Suggestion) => item.id === focusedValue)
 
   // Close action menu when focused command changes and is different from the one with actions open
   useEffect(() => {
@@ -112,7 +112,13 @@ function CommandContent({
     }
 
     // Alt key opens actions if there's a focused suggestion with actions
-    if (e.key === "Alt" && focusedSuggestion?.actions?.length) {
+    if (
+      e.key === "Alt" &&
+      focusedSuggestion &&
+      (focusedSuggestion.type === "action" ||
+        focusedSuggestion.type === "group") &&
+      focusedSuggestion.actions?.length
+    ) {
       e.preventDefault()
       onOpenActions(focusedSuggestion)
       return
@@ -194,7 +200,7 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [actionsState, setActionsState] = useState<{
     open: boolean
-    suggestion: CommandSuggestion | null
+    suggestion: Suggestion | null
   }>({
     open: false,
     suggestion: null,
@@ -202,9 +208,7 @@ export function CommandPalette({
 
   const _isCapturing = useAppSelector(selectIsCapturing)
 
-  const [_deepSearchItems, _setDeepSearchItems] = useState<CommandSuggestion[]>(
-    [],
-  )
+  const [_deepSearchItems, _setDeepSearchItems] = useState<Suggestion[]>([])
 
   const {
     pages,
@@ -230,7 +234,7 @@ export function CommandPalette({
     }
   }, [autoFocus])
 
-  const handleOpenActions = (suggestion: CommandSuggestion) => {
+  const handleOpenActions = (suggestion: Suggestion) => {
     setActionsState({
       open: true,
       suggestion,

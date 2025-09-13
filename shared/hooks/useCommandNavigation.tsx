@@ -1,6 +1,6 @@
 import type { RefObject } from "react"
 import { useEffect, useRef } from "react"
-import type { CommandSuggestion } from "../../types/"
+import type { Suggestion } from "../../types/"
 import { getDisplayName } from "../components/Command/CommandName"
 import { useAppDispatch, useAppSelector } from "../store/hooks"
 import { startCapture } from "../store/slices/keybinding.slice"
@@ -23,8 +23,8 @@ import {
 function _findCommandInPage(
   page: Page,
   commandId: string,
-  deepSearchItems: CommandSuggestion[] = [],
-): CommandSuggestion | undefined {
+  deepSearchItems: Suggestion[] = [],
+): Suggestion | undefined {
   return (
     (page.commands.favorites || []).find(
       (command) => command.id === commandId,
@@ -66,7 +66,7 @@ export type { Page } from "../store/slices/navigation.slice"
  * Helper function to extract parent names for breadcrumb display in recent commands
  */
 function extractParentNames(
-  selectedCommand: CommandSuggestion,
+  selectedCommand: Suggestion,
   currentPage: Page,
 ): string[] | undefined {
   // For commands on child pages, use the immediate parent name
@@ -98,10 +98,10 @@ function extractParentNames(
  */
 export function useCommandNavigation(
   initialCommands: {
-    favorites: CommandSuggestion[]
-    recents: CommandSuggestion[]
-    suggestions: CommandSuggestion[]
-    deepSearchItems: CommandSuggestion[]
+    favorites: Suggestion[]
+    recents: Suggestion[]
+    suggestions: Suggestion[]
+    deepSearchItems: Suggestion[]
   },
   inputRef: RefObject<HTMLInputElement | null>,
   executeCommand: (
@@ -257,7 +257,10 @@ export function useCommandNavigation(
     }
 
     // Check for set keybinding action
-    if (selectedCommand.executionContext?.type === "setKeybinding") {
+    if (
+      selectedCommand.type === "action" &&
+      selectedCommand.executionContext?.type === "setKeybinding"
+    ) {
       dispatch(startCapture(selectedCommand.executionContext.targetCommandId))
       return // Don't execute normal command flow
     }

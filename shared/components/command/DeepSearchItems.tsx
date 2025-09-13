@@ -1,23 +1,23 @@
 import { useCommandState } from "cmdk"
 import { useEffect } from "react"
-import type { CommandSuggestion } from "../../types/command"
+import type { Suggestion } from "../../types/command"
 import { CommandItem } from "./CommandItem"
 
 interface DeepSearchItemsProps {
   currentPage: {
     id: string
     commands: {
-      favorites: CommandSuggestion[]
-      recents: CommandSuggestion[]
-      suggestions: CommandSuggestion[]
+      favorites: Suggestion[]
+      recents: Suggestion[]
+      suggestions: Suggestion[]
     }
     searchValue: string
-    parent?: CommandSuggestion
+    parent?: Suggestion
     parentPath: string[]
   }
   onSelect: (commandId: string) => void
-  onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
-  deepSearchItems: CommandSuggestion[]
+  onDeepSearchItemsChange?: (items: Suggestion[]) => void
+  deepSearchItems: Suggestion[]
 }
 
 export function DeepSearchItems({

@@ -24,7 +24,7 @@ export type FormField = {
     }
 )
 
-// The CommandSuggestion type that the UI actually uses
+// The Suggestion types that the UI actually uses
 export type ActionExecutionContext =
   | {
       type: "primary"
@@ -48,24 +48,53 @@ export type ActionExecutionContext =
       targetCommandId: string
     }
 
-export type CommandSuggestion = {
+// Base properties shared by all suggestion types
+interface SuggestionBase {
   id: string
   name: string | string[]
   description?: string
   color?: string
   keywords?: string[]
   icon?: CommandIcon
-  type: "group" | "action" | "input" | "display"
-  inputField?: FormField // when type === 'input'
+  keybinding?: string
+  isFavorite?: boolean
+  permissions?: BrowserPermission[]
+}
+
+export interface ActionSuggestion extends SuggestionBase {
+  type: "action"
   actionLabel: string
   modifierActionLabel?: {
     [modifierKey in Browser.ModifierKey]?: string
   }
-  actions?: CommandSuggestion[]
-  keybinding?: string
-  isFavorite?: boolean
+  confirmAction?: boolean
   remainOpenOnSelect?: boolean
-  confirmAction?: boolean // Add confirmAction property
-  executionContext?: ActionExecutionContext // Context for action execution
-  permissions?: BrowserPermission[]
+  executionContext?: ActionExecutionContext
+  actions?: Suggestion[]
 }
+
+export interface GroupSuggestion extends SuggestionBase {
+  type: "group"
+  actionLabel: string
+  actions?: Suggestion[]
+}
+
+export interface InputSuggestion extends SuggestionBase {
+  type: "input"
+  inputField: FormField
+  actionLabel?: string
+}
+
+export interface DisplaySuggestion extends SuggestionBase {
+  type: "display"
+  actionLabel?: string
+}
+
+export type Suggestion =
+  | ActionSuggestion
+  | GroupSuggestion
+  | InputSuggestion
+  | DisplaySuggestion
+
+// Backward compatibility alias
+export type CommandSuggestion = Suggestion

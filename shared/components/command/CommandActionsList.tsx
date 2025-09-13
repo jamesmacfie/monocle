@@ -1,6 +1,6 @@
 import { Command } from "cmdk"
 import { useEffect, useRef, useState } from "react"
-import type { CommandSuggestion } from "../../../types/"
+import type { Suggestion } from "../../../types/"
 import { useSendMessage } from "../../hooks/useSendMessage"
 import { useAppDispatch, useAppSelector } from "../../store/hooks"
 import {
@@ -231,7 +231,7 @@ function ActionItem({
   onClose,
   inputRef,
 }: {
-  action: CommandSuggestion
+  action: Suggestion
   onSelect: (id: string) => void
   onRefresh?: () => void
   onClose?: (force?: boolean) => void
@@ -246,14 +246,17 @@ function ActionItem({
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
 
   // Check if this action requires confirmation
-  const requiresConfirmation = action.confirmAction === true
+  const requiresConfirmation =
+    action.type === "action" && action.confirmAction === true
 
   // Check if this is a setKeybinding action that's currently being captured
   const isSetKeybindingAction =
+    action.type === "action" &&
     action.executionContext?.type === "setKeybinding"
   const isThisActionBeingCaptured =
     isCapturing &&
     isSetKeybindingAction &&
+    action.type === "action" &&
     targetCommandId === action.executionContext?.targetCommandId
 
   // Reset confirmation state when action changes (similar to CommandItem pattern)
@@ -284,7 +287,10 @@ function ActionItem({
 
   const handleSelect = () => {
     // If this is a setKeybinding action, start the capture flow instead of executing the command
-    if (action.executionContext?.type === "setKeybinding") {
+    if (
+      action.type === "action" &&
+      action.executionContext?.type === "setKeybinding"
+    ) {
       dispatch(startCapture(action.executionContext.targetCommandId))
       return
     }
@@ -293,7 +299,8 @@ function ActionItem({
     if (
       requiresConfirmation &&
       !awaitingConfirmation &&
-      action.executionContext?.type !== "resetKeybinding"
+      (action.type !== "action" ||
+        action.executionContext?.type !== "resetKeybinding")
     ) {
       // First press - show confirmation
       setAwaitingConfirmation(true)
@@ -301,7 +308,10 @@ function ActionItem({
     }
 
     // Handle reset keybinding action
-    if (action.executionContext?.type === "resetKeybinding") {
+    if (
+      action.type === "action" &&
+      action.executionContext?.type === "resetKeybinding"
+    ) {
       // This will be handled by the background script's executeCommand function
       setAwaitingConfirmation(false)
       onSelect(action.id)
@@ -361,7 +371,7 @@ function ActionItem({
         <KeybindingCapture
           onComplete={handleKeybindingComplete}
           onCancel={handleKeybindingCancel}
-          commandId={targetCommandId}
+          commandId={targetCommandId ?? undefined}
         />
       </Command.Item>
     )
@@ -389,7 +399,7 @@ function ActionItem({
 }
 
 interface CommandActionsListProps {
-  actions: CommandSuggestion[]
+  actions: Suggestion[]
   onActionSelect: (id: string) => void
   onRefresh?: () => void
   onClose?: (force?: boolean) => void

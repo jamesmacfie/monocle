@@ -1,6 +1,6 @@
 import { match } from "ts-pattern"
 import { isFirefox } from "../../shared/utils/browser"
-import type { Browser, CommandNode, CommandSuggestion } from "../../types/"
+import type { Browser, CommandNode, Suggestion } from "../../types/"
 import {
   resolveActionLabel,
   resolveAsyncProperty,
@@ -295,11 +295,11 @@ export const findCommand = async (
   return undefined
 }
 
-// Helper function to find a CommandSuggestion (with execution context) from suggestions list
+// Helper function to find a Suggestion (with execution context) from suggestions list
 const findCommandSuggestion = (
-  suggestions: CommandSuggestion[],
+  suggestions: Suggestion[],
   commandId: string,
-): CommandSuggestion | undefined => {
+): Suggestion | undefined => {
   // Search in suggestions and their actions recursively
   for (const suggestion of suggestions) {
     if (suggestion.id === commandId) {
@@ -307,7 +307,11 @@ const findCommandSuggestion = (
     }
 
     // Search in actions if they exist
-    if (suggestion.actions && Array.isArray(suggestion.actions)) {
+    if (
+      (suggestion.type === "action" || suggestion.type === "group") &&
+      suggestion.actions &&
+      Array.isArray(suggestion.actions)
+    ) {
       const foundInActions = findCommandSuggestion(
         suggestion.actions,
         commandId,
@@ -340,10 +344,13 @@ export const executeCommand = async (
     context,
   )
 
-  // First, try to find the action in our CommandSuggestions (which have execution context)
+  // First, try to find the action in our Suggestions (which have execution context)
   const actionSuggestion = findCommandSuggestion(allSuggestions, id)
 
-  if (actionSuggestion?.executionContext) {
+  if (
+    actionSuggestion?.type === "action" &&
+    actionSuggestion.executionContext
+  ) {
     const executionCtx = actionSuggestion.executionContext
 
     // Handle different action types using pattern matching
@@ -455,7 +462,7 @@ export const executeCommand = async (
 // Helper to create set keybinding action
 const _createSetKeybindingAction = async (
   command: CommandNode,
-): Promise<CommandSuggestion | null> => {
+): Promise<Suggestion | null> => {
   console.log(`[DEBUG] Creating keybinding action for command: ${command.id}`)
 
   // Don't create action for groups
@@ -496,7 +503,7 @@ const _createSetKeybindingAction = async (
 // Helper to create reset keybinding action
 const _createResetKeybindingAction = async (
   command: CommandNode,
-): Promise<CommandSuggestion | null> => {
+): Promise<Suggestion | null> => {
   // Don't create action for groups
   if (command.type === "group") {
     return null
@@ -540,7 +547,7 @@ const _createResetKeybindingAction = async (
 const createFavoriteToggleAction = async (
   command: CommandNode,
   favoriteCommandIds: string[],
-): Promise<CommandSuggestion> => {
+): Promise<Suggestion> => {
   const isFavorite = favoriteCommandIds.includes(command.id)
   return {
     id: `toggle-favorite-${command.id}`,
@@ -567,7 +574,7 @@ export const commandsToSuggestions = async (
   commands: Array<CommandNode>,
   context: Browser.Context,
   _parentName?: string,
-): Promise<CommandSuggestion[]> => {
+): Promise<Suggestion[]> => {
   const favoriteCommandIds = await getFavoriteCommandIds()
   const commandSettings = await getAllCommandSettings()
 
@@ -577,39 +584,56 @@ export const commandsToSuggestions = async (
       const baseName = await resolveAsyncProperty(node.name, context)
       const displayName = (baseName ?? "Unnamed Command") as string
 
-      const suggestion: CommandSuggestion = {
+      const baseProps = {
         id: node.id,
         name: displayName,
         description: await resolveAsyncProperty(node.description, context),
         icon: await resolveAsyncProperty(node.icon, context),
         keywords: await resolveAsyncProperty(node.keywords, context),
         color: (await resolveAsyncProperty(node.color, context)) as any,
-        type: node.type,
-        actionLabel:
-          node.type === "group"
-            ? "Open"
-            : node.type === "action"
-              ? await resolveActionLabel(node, context)
-              : "",
-        modifierActionLabel:
-          node.type === "action"
-            ? await resolveModifierActionLabels(node, context)
-            : undefined,
-        actions: undefined,
         keybinding:
           commandSettings[node.id]?.keybinding ||
           (node.type === "action" ? node.keybinding : undefined),
         isFavorite: favoriteCommandIds.includes(node.id),
-        confirmAction: node.type === "action" ? node.confirmAction : undefined,
         permissions: node.permissions,
       }
 
-      // Input nodes carry additional field metadata
-      if (node.type === "input") {
-        suggestion.inputField = node.field
+      let suggestion: Suggestion
+
+      if (node.type === "action") {
+        suggestion = {
+          ...baseProps,
+          type: "action",
+          actionLabel: await resolveActionLabel(node, context),
+          modifierActionLabel: await resolveModifierActionLabels(node, context),
+          confirmAction: node.confirmAction,
+          remainOpenOnSelect: node.remainOpenOnSelect,
+          executionContext: undefined,
+          actions: undefined,
+        }
+      } else if (node.type === "group") {
+        suggestion = {
+          ...baseProps,
+          type: "group",
+          actionLabel: "Open",
+          actions: undefined,
+        }
+      } else if (node.type === "input") {
+        suggestion = {
+          ...baseProps,
+          type: "input",
+          inputField: node.field,
+          actionLabel: undefined,
+        }
+      } else {
+        suggestion = {
+          ...baseProps,
+          type: "display",
+          actionLabel: undefined,
+        }
       }
 
-      const actions: CommandSuggestion[] = []
+      const actions: Suggestion[] = []
       if (node.type === "group" || node.type === "action") {
         const primaryLabel =
           node.type === "group"
@@ -674,9 +698,13 @@ export const commandsToSuggestions = async (
               actionLabel: label,
               keywords: [],
               isFavorite: false,
-              actions: undefined,
               keybinding: `${symbol} ↵`,
               confirmAction: node.confirmAction,
+              modifierActionLabel: undefined,
+              remainOpenOnSelect: undefined,
+              actions: undefined,
+              permissions: undefined,
+              color: undefined,
               executionContext: {
                 type: "modifier",
                 targetCommandId: node.id,
@@ -691,7 +719,9 @@ export const commandsToSuggestions = async (
       const resetKB = await _createResetKeybindingAction(node)
       if (setKB) actions.push(setKB)
       if (resetKB) actions.push(resetKB)
-      suggestion.actions = actions
+      if (suggestion.type === "action" || suggestion.type === "group") {
+        suggestion.actions = actions
+      }
       return suggestion
     }),
   )

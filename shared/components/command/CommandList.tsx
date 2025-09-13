@@ -1,6 +1,6 @@
 import { Command, useCommandState } from "cmdk"
 import { Loader2 } from "lucide-react"
-import type { CommandSuggestion } from "../../../types/"
+import type { Suggestion } from "../../../types/"
 import type { Page } from "../../types/command"
 import { CommandItem } from "./CommandItem"
 import { DeepSearchItems } from "./DeepSearchItems"
@@ -18,8 +18,8 @@ export function CommandList({
   deepSearchItems = [],
   isLoading = false,
 }: CommandListProps & {
-  onDeepSearchItemsChange?: (items: CommandSuggestion[]) => void
-  deepSearchItems?: CommandSuggestion[]
+  onDeepSearchItemsChange?: (items: Suggestion[]) => void
+  deepSearchItems?: Suggestion[]
 }) {
   const cmdkSearch = useCommandState((state) => state.search)
 

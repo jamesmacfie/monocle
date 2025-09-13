@@ -32,7 +32,10 @@ export function useActionLabel(
     return focusedSuggestion.actionLabel || defaultLabel
   }
 
-  if (focusedSuggestion.modifierActionLabel?.[modifier]) {
+  if (
+    focusedSuggestion.type === "action" &&
+    focusedSuggestion.modifierActionLabel?.[modifier]
+  ) {
     return focusedSuggestion.modifierActionLabel[modifier] || defaultLabel
   }
 

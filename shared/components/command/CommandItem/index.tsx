@@ -2,14 +2,14 @@ import { Command, useCommandState } from "cmdk"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
-import type { CommandSuggestion, Page } from "../../../types/command"
+import type { Page, Suggestion } from "../../../types/command"
 import { Icon } from "../../Icon"
 import { KeybindingDisplay } from "../../KeybindingDisplay"
 import { CommandName } from "../CommandName"
 import { CommandItemInput } from "./CommandItemInput"
 
 export interface CommandItemProps {
-  suggestion: CommandSuggestion
+  suggestion: Suggestion
   onSelect: (id: string) => void
   currentPage: Page
 }
@@ -38,7 +38,7 @@ export function CommandItem({
 
   // Check if this command requires confirmation
   const requiresConfirmation =
-    type !== "group" && !isInlineInput && suggestion.confirmAction === true
+    type === "action" && suggestion.confirmAction === true
 
   // Reset confirmation state when suggestion changes (navigation)
   useEffect(() => {
@@ -96,7 +96,8 @@ export function CommandItem({
     ? "Are you sure?"
     : getContextualDisplayName(suggestion.name)
 
-  const inputField = suggestion.inputField
+  const inputField =
+    suggestion.type === "input" ? suggestion.inputField : undefined
   const onInlineInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       e.preventDefault()

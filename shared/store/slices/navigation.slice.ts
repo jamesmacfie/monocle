@@ -3,19 +3,19 @@ import {
   createSlice,
   type PayloadAction,
 } from "@reduxjs/toolkit"
-import type { CommandSuggestion } from "../../../types"
+import type { Suggestion } from "../../../types"
 import type { ThunkApi } from "../index"
 
 // Types from original hook
 export type Page = {
   id: string
   commands: {
-    favorites: CommandSuggestion[]
-    recents: CommandSuggestion[]
-    suggestions: CommandSuggestion[]
+    favorites: Suggestion[]
+    recents: Suggestion[]
+    suggestions: Suggestion[]
   }
   searchValue: string
-  parent?: CommandSuggestion
+  parent?: Suggestion
   parentPath: string[] // Track the path of parent command IDs
 }
 
@@ -24,10 +24,10 @@ interface NavigationState {
   pages: Page[]
   // Keep initial commands for root page updates and deep search
   initialCommands: {
-    favorites: CommandSuggestion[]
-    recents: CommandSuggestion[]
-    suggestions: CommandSuggestion[]
-    deepSearchItems: CommandSuggestion[]
+    favorites: Suggestion[]
+    recents: Suggestion[]
+    suggestions: Suggestion[]
+    deepSearchItems: Suggestion[]
   }
   loading: boolean
   error: string | null
@@ -37,8 +37,8 @@ interface NavigationState {
 function findCommandInPage(
   page: Page,
   commandId: string,
-  deepSearchItems: CommandSuggestion[] = [],
-): CommandSuggestion | undefined {
+  deepSearchItems: Suggestion[] = [],
+): Suggestion | undefined {
   return (
     (page.commands.favorites || []).find(
       (command) => command.id === commandId,
@@ -126,9 +126,9 @@ export const refreshCurrentPage = createAsyncThunk<
   {
     success: boolean
     newCommands?: {
-      favorites: CommandSuggestion[]
-      recents: CommandSuggestion[]
-      suggestions: CommandSuggestion[]
+      favorites: Suggestion[]
+      recents: Suggestion[]
+      suggestions: Suggestion[]
     }
   },
   { currentPage: Page },
@@ -270,9 +270,9 @@ export const navigationSlice = createSlice({
     updateCurrentPageCommands: (
       state,
       action: PayloadAction<{
-        favorites: CommandSuggestion[]
-        recents: CommandSuggestion[]
-        suggestions: CommandSuggestion[]
+        favorites: Suggestion[]
+        recents: Suggestion[]
+        suggestions: Suggestion[]
       }>,
     ) => {
       if (state.pages.length > 0) {

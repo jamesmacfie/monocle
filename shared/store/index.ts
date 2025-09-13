@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit"
-import type { CommandSuggestion } from "../../types"
+import type { Suggestion } from "../../types"
 import { commandPaletteStateSlice } from "./slices/commandPaletteState.slice"
 import keybindingSlice from "./slices/keybinding.slice"
 import {
@@ -69,10 +69,10 @@ export const createAppStore = (
 // Original store factory for command palette (still needed for existing usage)
 export const createNavigationStore = (
   initialCommands: {
-    favorites: CommandSuggestion[]
-    recents: CommandSuggestion[]
-    suggestions: CommandSuggestion[]
-    deepSearchItems: CommandSuggestion[]
+    favorites: Suggestion[]
+    recents: Suggestion[]
+    suggestions: Suggestion[]
+    deepSearchItems: Suggestion[]
   },
   sendMessage: (message: any) => Promise<any>,
 ) => {

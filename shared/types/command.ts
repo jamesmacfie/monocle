@@ -1,18 +1,18 @@
-import type { CommandSuggestion } from "../../types/"
+import type { Suggestion } from "../../types/"
 
 // Re-export main types for convenience
-export type { CommandSuggestion } from "../../types/"
+export type { Suggestion } from "../../types/"
 
 // Command navigation types
 export type Page = {
   id: string
   commands: {
-    favorites: CommandSuggestion[]
-    recents: CommandSuggestion[]
-    suggestions: CommandSuggestion[]
+    favorites: Suggestion[]
+    recents: Suggestion[]
+    suggestions: Suggestion[]
   }
   searchValue: string
-  parent?: CommandSuggestion
+  parent?: Suggestion
   parentPath: string[] // Track the path of parent command IDs
 }
 
@@ -20,10 +20,10 @@ export type Page = {
 
 // Command data structure
 export type CommandData = {
-  favorites: CommandSuggestion[]
-  recents: CommandSuggestion[]
-  suggestions: CommandSuggestion[]
-  deepSearchItems: CommandSuggestion[]
+  favorites: Suggestion[]
+  recents: Suggestion[]
+  suggestions: Suggestion[]
+  deepSearchItems: Suggestion[]
 }
 
 // Component prop interfaces have been moved to their respective component files

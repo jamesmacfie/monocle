@@ -131,10 +131,10 @@ Key state shape:
 interface NavigationState {
   pages: Page[]                    // Navigation stack (command hierarchy)
   initialCommands: {              // Root commands + deep search
-    favorites: CommandSuggestion[]
-    recents: CommandSuggestion[]
-    suggestions: CommandSuggestion[]
-    deepSearchItems: CommandSuggestion[]
+    favorites: Suggestion[]
+    recents: Suggestion[]
+    suggestions: Suggestion[]
+    deepSearchItems: Suggestion[]
   }
 }
 
@@ -142,7 +142,7 @@ type Page = {
   id: string                      // Command ID or "root"
   commands: { favorites, recents, suggestions }
   searchValue: string
-  parent?: CommandSuggestion
+  parent?: Suggestion
   parentPath: string[]           // For efficient lookups
   formValues?: Record<string, string>  // Inline input values
 }
@@ -160,24 +160,74 @@ Primary interface: `useCommandNavigation` hook maintains consistent API.
 
 ## Command Suggestions
 
-The UI receives `CommandSuggestion` objects with metadata:
+The UI uses discriminated union `Suggestion` types with type-specific properties:
+
+### Base Suggestion Properties
 ```typescript
-interface CommandSuggestion {
+interface SuggestionBase {
   id: string
   name: string | string[]
   description?: string
+  color?: string
+  keywords?: string[]
   icon?: CommandIcon
-  type: "group" | "action" | "input" | "display"
-  actionLabel?: string
-  modifierActionLabel?: { [key in ModifierKey]?: string }
   keybinding?: string
-  isFavorite: boolean
-  confirmAction?: boolean
+  isFavorite?: boolean
   permissions?: BrowserPermission[]
-  inputField?: FormField  // For input nodes
-  actions?: CommandSuggestion[]  // Available actions
-  executionContext?: ExecutionContext
 }
+```
+
+### Suggestion Types
+
+**ActionSuggestion** (type: "action"):
+```typescript
+interface ActionSuggestion extends SuggestionBase {
+  type: "action"
+  actionLabel: string
+  modifierActionLabel?: { [key in ModifierKey]?: string }
+  confirmAction?: boolean
+  remainOpenOnSelect?: boolean
+  executionContext?: ActionExecutionContext
+  actions?: Suggestion[]
+}
+```
+
+**GroupSuggestion** (type: "group"):
+```typescript
+interface GroupSuggestion extends SuggestionBase {
+  type: "group"
+  actionLabel: string
+  actions?: Suggestion[]
+}
+```
+
+**InputSuggestion** (type: "input"):
+```typescript
+interface InputSuggestion extends SuggestionBase {
+  type: "input"
+  inputField: FormField
+  actionLabel?: string
+}
+```
+
+**DisplaySuggestion** (type: "display"):
+```typescript
+interface DisplaySuggestion extends SuggestionBase {
+  type: "display"
+  actionLabel?: string
+}
+```
+
+### Discriminated Union
+```typescript
+type Suggestion = 
+  | ActionSuggestion
+  | GroupSuggestion  
+  | InputSuggestion
+  | DisplaySuggestion
+
+// Backward compatibility alias
+type CommandSuggestion = Suggestion
 ```
 
 ## Messaging System
