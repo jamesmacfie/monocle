@@ -1,4 +1,4 @@
-import { Command, useCommandState } from "cmdk"
+import { Command, useCommandState, defaultFilter } from "cmdk"
 import { useEffect, useRef, useState } from "react"
 import type { Suggestion } from "../../../shared/types"
 import { useActionLabel } from "../../hooks/useActionLabel"
@@ -314,7 +314,41 @@ export function CommandPalette({
         <CommandNavigationError error={error} onClearError={clearError} />
       )}
       <>
-        <Command>
+        <Command
+          // Custom filter: weight the primary name higher than other tokens and id
+          filter={(value, search, keywords) => {
+            // Guard: no search means everything visible
+            if (!search) return 1
+
+            const tokens = keywords ?? []
+            const primary = tokens[0] ?? value
+            const rest = tokens.slice(1)
+
+            // Score primary display name
+            const nameScore = defaultFilter(primary, search)
+            // Score all other keyword tokens together
+            const restScore = rest.length
+              ? defaultFilter(rest.join(" "), search)
+              : 0
+            // Score the stable id (value)
+            const idScore = defaultFilter(value, search)
+
+            // Small boost for prefix matches on the display name
+            const prefixBoost = primary
+              .toLowerCase()
+              .startsWith(search.toLowerCase())
+              ? 0.05
+              : 0
+
+            // Combine with weights (cap at 1)
+            const combined = Math.min(
+              1,
+              nameScore * 0.75 + restScore * 0.2 + idScore * 0.05 + prefixBoost,
+            )
+
+            return combined
+          }}
+        >
           <CommandContent
             pages={pages}
             currentPage={currentPage}

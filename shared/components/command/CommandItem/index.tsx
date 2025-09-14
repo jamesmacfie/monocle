@@ -119,6 +119,31 @@ export function CommandItem({
     ? "Are you sure?"
     : getContextualDisplayName(suggestion.name)
 
+  // Build rich keywords to improve fuzzy search ranking without changing stable value (id)
+  const primaryNameToken = Array.isArray(suggestion.name)
+    ? suggestion.name[0]
+    : suggestion.name
+  const ancestorNameTokens = Array.isArray(suggestion.name)
+    ? suggestion.name.slice(1)
+    : []
+  const descriptionToken =
+    typeof suggestion.description === "string" ? suggestion.description : undefined
+  const keybindingToken =
+    typeof suggestion.keybinding === "string" ? suggestion.keybinding : undefined
+  const mergedKeywords = [
+    // Put primary name first to give it highest weight in custom filter
+    primaryNameToken,
+    // Include any ancestor/breadcrumb names for deep search context
+    ...ancestorNameTokens,
+    // Existing explicit keywords from the command definition
+    ...(suggestion.keywords || []),
+    // Description can help match URLs or extra context (e.g., bookmarks)
+    descriptionToken,
+    // Keybinding text, and the stable id as a last‑resort match target
+    keybindingToken,
+    suggestion.id,
+  ].filter(Boolean) as string[]
+
   const inputField =
     suggestion.type === "input" ? suggestion.inputField : undefined
   const onInlineInputKeyDown = (e: React.KeyboardEvent<any>) => {
@@ -160,8 +185,10 @@ export function CommandItem({
   return (
     <Command.Item
       ref={itemRef as any}
+      // Keep value as the stable id so focus/selection logic based on ids continues to work
       value={suggestion.id}
-      keywords={suggestion.keywords}
+      // Provide a richer set of keywords for the fuzzy filter to score against
+      keywords={mergedKeywords}
       onSelect={handleSelect}
     >
       {match(suggestion.type)
