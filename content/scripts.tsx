@@ -64,6 +64,35 @@ async function initial() {
       })
     }
 
+    // Get theme settings and apply class to the shadow root
+    chrome.storage.local.get("monocle-settings", (result) => {
+      const settings = result["monocle-settings"] || {}
+      const themeMode = settings.theme?.mode || "system"
+
+      // Apply theme class using :host selector support
+      if (themeMode === "dark") {
+        shadowRoot.host.classList.add("dark")
+      } else if (themeMode === "system") {
+        shadowRoot.host.classList.add("system")
+      }
+    })
+
+    // Listen for theme changes
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === "local" && changes["monocle-settings"]) {
+        const newSettings = changes["monocle-settings"].newValue || {}
+        const themeMode = newSettings.theme?.mode || "system"
+
+        // Update theme class
+        shadowRoot.host.classList.remove("dark", "system")
+        if (themeMode === "dark") {
+          shadowRoot.host.classList.add("dark")
+        } else if (themeMode === "system") {
+          shadowRoot.host.classList.add("system")
+        }
+      }
+    })
+
     const mountingPoint = ReactDOM.createRoot(shadowRoot)
 
     mountingPoint.render(

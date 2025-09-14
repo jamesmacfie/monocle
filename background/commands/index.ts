@@ -15,6 +15,7 @@ import {
 import { newTabCommands } from "./newTab"
 import { getAllCommandSettings } from "./settings"
 import { toolCommands } from "./tools"
+import { uiCommands } from "./ui"
 import { getRankedCommandIds } from "./usage"
 
 // Helper function to load and filter all commands
@@ -23,6 +24,7 @@ const loadAllCommands = (context?: Browser.Context): Array<CommandNode> => {
   const allCommandsUnfiltered = [
     ...browserCommands,
     ...toolCommands,
+    ...uiCommands,
     clearFavoritesCommand,
   ]
 
