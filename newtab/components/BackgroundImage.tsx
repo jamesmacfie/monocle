@@ -84,7 +84,6 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
           // Preload the image in browser cache
           try {
             await preloadImage(response.imageUrl)
-            console.debug("Preloaded next background image")
           } catch (preloadError) {
             console.warn("Failed to preload image:", preloadError)
           }

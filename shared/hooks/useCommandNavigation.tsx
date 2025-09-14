@@ -106,7 +106,7 @@ export function useCommandNavigation(
   inputRef: RefObject<HTMLInputElement | null>,
   executeCommand: (
     id: string,
-    formValues: Record<string, string>,
+    formValues: Record<string, string | string[]>,
     navigateBack?: boolean,
     parentNames?: string[],
   ) => Promise<void>,
@@ -123,7 +123,6 @@ export function useCommandNavigation(
   // Ref flags to prevent various race conditions and loops:
   const ignoreSearchUpdate = useRef(false) // Prevents search updates from being saved during navigation
   const prevPageRef = useRef<string | null>(null) // Tracks page changes for search restoration
-  // Note: _isNavigatingRef removed - now using Redux loading state
 
   // Update Redux store when initialCommands change (e.g., favorites update)
   useEffect(() => {
@@ -135,14 +134,12 @@ export function useCommandNavigation(
     if (currentPage && prevPageRef.current !== currentPage.id) {
       prevPageRef.current = currentPage.id
 
-      // When returning to a page, restore its previous search value
       const inputElement = inputRef.current
       if (inputElement && inputElement.value !== currentPage.searchValue) {
         ignoreSearchUpdate.current = true
 
         // Direct DOM manipulation needed because we're syncing with CMDK's internal state
         inputElement.value = currentPage.searchValue
-        // Trigger CMDK's internal search update
         const event = new Event("input", { bubbles: true })
         inputElement.dispatchEvent(event)
       }

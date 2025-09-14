@@ -67,9 +67,6 @@ function KeybindingCapture({
     if (e.key === "Enter" && (strokes.length > 0 || currentKeys.length > 0)) {
       // Don't save if there's a conflict
       if (hasConflict) {
-        console.log(
-          "[KeybindingCapture] Cannot save - keybinding conflict exists",
-        )
         return
       }
 
@@ -85,7 +82,6 @@ function KeybindingCapture({
 
       // Save the sequence (strokes separated by comma)
       const keybinding = finalStrokes.join(", ")
-      console.log("[KeybindingCapture] Saving keybinding:", keybinding)
       onComplete(keybinding)
       return
     }
