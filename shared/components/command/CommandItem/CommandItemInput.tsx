@@ -1,13 +1,18 @@
 import type { RefObject } from "react"
 import { useMemo } from "react"
 import type { FormField } from "../../../../shared/types"
+import { useInlineInputKeys } from "../../../hooks/useInlineInputKeys"
 import { useAppDispatch, useAppSelector } from "../../../store/hooks"
 import {
   selectCurrentPage,
   setFormValue,
 } from "../../../store/slices/navigation.slice"
+import { getDefaultValue } from "../../../utils/forms"
 import { validateWithJsonSchema } from "../../../utils/validation"
+import { CommandItemColor } from "./CommandItemColor"
+import { CommandItemMulti } from "./CommandItemMulti"
 import { CommandItemSelect } from "./CommandItemSelect"
+import { CommandItemSwitch } from "./CommandItemSwitch"
 
 interface CommandItemInputProps {
   field: FormField
@@ -24,19 +29,10 @@ export function CommandItemInput({
 }: CommandItemInputProps) {
   const dispatch = useAppDispatch()
   const currentPage = useAppSelector(selectCurrentPage)
+  const { handleCommonKeys } = useInlineInputKeys()
 
-  // Get default value based on field type
-  const getDefaultValue = () => {
-    if (field.type === "text") {
-      return field.defaultValue || ""
-    }
-    if (field.type === "select") {
-      return field.defaultValue || ""
-    }
-    return ""
-  }
-
-  const _currentValue = currentPage.formValues?.[field.id] || getDefaultValue()
+  const _currentValue =
+    currentPage.formValues?.[field.id] || getDefaultValue(field)
 
   // Validate current value
   const validationResult = useMemo(() => {
@@ -48,36 +44,12 @@ export function CommandItemInput({
   }
 
   const _handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // eslint-disable-next-line no-console
-    console.log("[CMDK][Input] KeyDown", e.key, { id: field.id })
     if (e.key === "Enter" && onSubmit) {
       e.preventDefault()
-      // eslint-disable-next-line no-console
-      console.log("[CMDK][Input] Submit via Enter", { id: field.id })
       onSubmit()
       return
     }
-
-    // Prevent backspace from navigating backwards
-    if (e.key === "Backspace") {
-      e.stopPropagation()
-      // Don't prevent default - let the input handle the backspace normally
-      return
-    }
-
-    // Escape should refocus the main cmdk search input rather than navigating back
-    if (e.key === "Escape") {
-      e.preventDefault()
-      e.stopPropagation()
-      // eslint-disable-next-line no-console
-      console.log("[CMDK][Input] Escape -> focus search", { id: field.id })
-      const searchInput = document.querySelector(
-        "input[cmdk-input]",
-      ) as HTMLInputElement | null
-      searchInput?.focus()
-      return
-    }
-
+    if (handleCommonKeys(e as any)) return
     onKeyDown(e)
   }
 
@@ -101,9 +73,8 @@ export function CommandItemInput({
             {/* Validation indicator */}
             <div className="validation-indicator">
               <span
-                className={`validation-dot ${
-                  validationResult.isValid ? "valid" : "invalid"
-                }`}
+                className={`validation-dot ${validationResult.isValid ? "valid" : "invalid"
+                  }`}
                 title={validationResult.error || "Valid"}
               />
             </div>
@@ -119,12 +90,41 @@ export function CommandItemInput({
       <CommandItemSelect
         field={field}
         inputRef={inputRef as any}
-        onKeyDown={onKeyDown as any}
         onSubmit={onSubmit}
       />
     )
   }
 
-  // TODO: Add support for checkbox types
+  if (field.type === "checkbox" || field.type === "switch") {
+    return (
+      <CommandItemSwitch
+        field={field as any}
+        inputRef={inputRef as any}
+        onKeyDown={onKeyDown}
+      />
+    )
+  }
+
+  if (field.type === "multi") {
+    return (
+      <CommandItemMulti
+        field={field as any}
+        inputRef={inputRef as any}
+        onKeyDown={onKeyDown}
+      />
+    )
+  }
+
+  if (field.type === "color") {
+    return (
+      <CommandItemColor
+        field={field as any}
+        inputRef={inputRef as any}
+        onKeyDown={onKeyDown}
+      />
+    )
+  }
+
+  // TODO: Add support for multiselect types
   return null
 }

@@ -4,6 +4,7 @@ import {
   type PayloadAction,
 } from "@reduxjs/toolkit"
 import type { Suggestion } from "../../../shared/types"
+import { computeDefaultFormValues } from "../../utils/forms"
 import type { ThunkApi } from "../index"
 
 // Types from original hook
@@ -17,7 +18,7 @@ export type Page = {
   searchValue: string
   parent?: Suggestion
   parentPath: string[] // Track the path of parent command IDs
-  formValues?: Record<string, string> // For inline input values
+  formValues?: Record<string, string | string[]> // For inline input values
 }
 
 // State shape
@@ -98,6 +99,9 @@ export const navigateToCommand = createAsyncThunk<
             : [...currentPage.parentPath, id] // Nested: append to existing path
 
         // Create new page
+        const defaults = computeDefaultFormValues(
+          (response.children || []) as Suggestion[],
+        )
         const newPage: Page = {
           id,
           commands: {
@@ -108,7 +112,7 @@ export const navigateToCommand = createAsyncThunk<
           searchValue: "", // Always start with empty search to show all children
           parent: parentCommand,
           parentPath: newParentPath,
-          formValues: {}, // Initialize empty form values
+          formValues: defaults, // Initialize with defaults from input fields
         }
 
         return { success: true, newPage }
@@ -132,12 +136,13 @@ export const refreshCurrentPage = createAsyncThunk<
       recents: Suggestion[]
       suggestions: Suggestion[]
     }
+    newFormValues?: Record<string, string>
   },
   { currentPage: Page },
   { extra: ThunkApi }
 >(
   "navigation/refreshCurrentPage",
-  async ({ currentPage }, { extra, rejectWithValue }) => {
+  async ({ currentPage }, { extra, rejectWithValue, getState }) => {
     // Only refresh if we're on a child page (not root)
     if (currentPage.id === "root") {
       return { success: false } // Root page is refreshed via setInitialCommands
@@ -158,6 +163,14 @@ export const refreshCurrentPage = createAsyncThunk<
       })
 
       if (response.children) {
+        // Merge defaults for any new inputs into existing formValues
+        const newSuggestions = response.children as Suggestion[]
+        const defaults = computeDefaultFormValues(newSuggestions)
+        const root: any = getState()
+        const currentValues =
+          root?.navigation?.pages?.[root.navigation.pages.length - 1]
+            ?.formValues || {}
+        const mergedValues = { ...defaults, ...currentValues }
         return {
           success: true,
           newCommands: {
@@ -165,6 +178,7 @@ export const refreshCurrentPage = createAsyncThunk<
             recents: [],
             suggestions: response.children,
           },
+          newFormValues: mergedValues,
         }
       }
 
@@ -269,7 +283,7 @@ export const navigationSlice = createSlice({
     // Set form value for current page
     setFormValue: (
       state,
-      action: PayloadAction<{ fieldId: string; value: string }>,
+      action: PayloadAction<{ fieldId: string; value: string | string[] }>,
     ) => {
       if (state.pages.length > 0) {
         const currentPageIndex = state.pages.length - 1
@@ -345,6 +359,9 @@ export const navigationSlice = createSlice({
           state.pages[currentPageIndex] = {
             ...state.pages[currentPageIndex],
             commands: action.payload.newCommands,
+            formValues:
+              (action.payload as any).newFormValues ||
+              state.pages[currentPageIndex].formValues,
           }
         }
       })

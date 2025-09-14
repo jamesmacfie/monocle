@@ -2,7 +2,12 @@ import { Command, useCommandState } from "cmdk"
 import { Loader2 } from "lucide-react"
 import { useCallback } from "react"
 import type { Suggestion } from "../../../shared/types"
+import { useToast } from "../../hooks/useToast"
 import type { Page } from "../../store/slices/navigation.slice"
+import {
+  collectInputFieldsFromSuggestions,
+  validateFormValues,
+} from "../../utils/forms"
 import { CommandItem } from "./CommandItem"
 import { DeepSearchItems } from "./DeepSearchItems"
 
@@ -23,16 +28,30 @@ export function CommandList({
   deepSearchItems?: Suggestion[]
 }) {
   const cmdkSearch = useCommandState((state) => state.search)
+  const toast = useToast()
 
   const handleInputSubmit = useCallback(() => {
-    // Find the first submit command and execute it
+    // Validate form inputs before triggering first submit
+    const fields = collectInputFieldsFromSuggestions(
+      currentPage.commands.suggestions || [],
+    )
+    const result = validateFormValues(currentPage.formValues || {}, fields)
+    if (!result.isValid) {
+      toast("error", "Form is invalid. Check inputs.")
+      return
+    }
     const firstSubmitCommand = currentPage.commands.suggestions?.find(
       (cmd) => cmd.type === "submit",
     )
     if (firstSubmitCommand) {
       onSelect(firstSubmitCommand.id)
     }
-  }, [currentPage.commands.suggestions, onSelect])
+  }, [
+    currentPage.commands.suggestions,
+    currentPage.formValues,
+    onSelect,
+    toast,
+  ])
 
   return (
     <Command.List className="cmdk-command-list">

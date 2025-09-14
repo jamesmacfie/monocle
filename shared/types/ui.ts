@@ -20,8 +20,23 @@ export type FormField = {
       placeholder?: string
     }
   | {
-      type: "checkbox"
+      type: "checkbox" | "switch"
       defaultChecked?: boolean
+    }
+  | {
+      type: "radio"
+      options: Array<{ value: string; label: string }>
+      defaultValue?: string
+    }
+  | {
+      type: "multi"
+      options: Array<{ value: string; label: string }>
+      defaultValue?: string[]
+    }
+  | {
+      type: "color"
+      defaultValue?: string // Hex color like #RRGGBB
+      placeholder?: string
     }
 )
 

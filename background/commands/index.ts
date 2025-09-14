@@ -192,14 +192,7 @@ export const getCommands = async (
   recents: Array<CommandNode>
   suggestions: Array<CommandNode>
 }> => {
-  console.debug("[Commands] Starting getCommands()")
-
   const allCommands = loadAllCommands(context)
-  console.debug(
-    "[Commands] All commands loaded:",
-    allCommands.length,
-    allCommands.map((c) => c.id),
-  )
 
   const favoriteResult: Array<CommandNode> = []
   const recentResult: Array<CommandNode> = []
@@ -318,7 +311,7 @@ const findCommandSuggestion = (
 export const executeCommand = async (
   id: string,
   context: Browser.Context,
-  formValues: Record<string, string>,
+  formValues: Record<string, string | string[]>,
   parentNames?: string[],
 ): Promise<void> => {
   // Handle toggle favorite actions directly for nested commands
@@ -427,7 +420,13 @@ export const executeCommand = async (
       }
 
       try {
-        await commandToRun.execute(context, formValues)
+        const normalized: Record<string, string> = Object.fromEntries(
+          Object.entries(formValues || {}).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v.join(",") : (v ?? ""),
+          ]),
+        )
+        await commandToRun.execute(context, normalized)
         if (commandToRun.type === "action") {
           await recordCommandUsage(id, parentNames)
         }

@@ -4,6 +4,10 @@ import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
 import type { Page } from "../../../store/slices/navigation.slice"
 import type { Suggestion } from "../../../types/command"
+import {
+  collectInputFieldsFromSuggestions,
+  validateFormValues,
+} from "../../../utils/forms"
 import { CommandItemAction } from "./CommandItemAction"
 import { CommandItemDisplay } from "./CommandItemDisplay"
 import { CommandItemInput } from "./CommandItemInput"
@@ -63,8 +67,6 @@ export function CommandItem({
   useEffect(() => {
     if (isInlineInput && focusedValue === suggestion.id) {
       inputRef.current?.focus()
-      // eslint-disable-next-line no-console
-      console.log("[CMDK][Input] Focused", { id: suggestion.id })
     }
   }, [focusedValue, suggestion.id, isInlineInput])
 
@@ -72,8 +74,6 @@ export function CommandItem({
   useEffect(() => {
     if (_isSubmitButton && focusedValue === suggestion.id) {
       submitRef.current?.focus()
-      // eslint-disable-next-line no-console
-      console.log("[CMDK][Submit] Focused", { id: suggestion.id })
     }
   }, [focusedValue, suggestion.id, _isSubmitButton])
 
@@ -133,8 +133,6 @@ export function CommandItem({
           '[cmdk-item]:not([data-disabled="true"])',
         ) as HTMLElement | null
         if (firstItem === itemRef.current) {
-          // eslint-disable-next-line no-console
-          console.log("[CMDK][Input] ArrowUp on first item -> focus search")
           searchInput?.focus()
           return
         }
@@ -148,7 +146,7 @@ export function CommandItem({
   }
 
   const handleInputSubmit = () => {
-    // Call parent callback to handle form submission
+    // Call parent callback to handle form submission (CommandList will validate)
     if (onInputSubmit) {
       onInputSubmit()
     }
@@ -170,16 +168,25 @@ export function CommandItem({
         />
       ) : _isSubmitButton ? (
         <CommandItemSubmit
-          label={
-            typeof displayName === "string"
-              ? displayName
-              : displayName.join(" > ")
-          }
           actionLabel={
             suggestion.type === "submit" ? suggestion.actionLabel : "Submit"
           }
           inputRef={submitRef}
-          onSubmit={() => onSelect(suggestion.id)}
+          onSubmit={() => {
+            // Validate all inline inputs on the current page before submitting
+            const fields = collectInputFieldsFromSuggestions(
+              currentPage.commands.suggestions || [],
+            )
+            const result = validateFormValues(
+              currentPage.formValues || {},
+              fields,
+            )
+            if (!result.isValid) {
+              toast("error", "Form is invalid. Check inputs.")
+              return
+            }
+            onSelect(suggestion.id)
+          }}
         />
       ) : isDisplayOnly ? (
         <CommandItemDisplay suggestion={suggestion} displayName={displayName} />

@@ -14,7 +14,9 @@ export const ExecuteCommandMessageSchema = z.object({
   type: z.literal("execute-command"),
   id: z.string().min(1, "Command ID cannot be empty"),
   context: BrowserContextSchema,
-  formValues: z.record(z.string(), z.string()).optional(),
+  formValues: z
+    .record(z.string(), z.union([z.string(), z.array(z.string())]))
+    .optional(),
   parentNames: z.array(z.string()).optional(),
 })
 

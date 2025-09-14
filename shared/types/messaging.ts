@@ -5,7 +5,7 @@ export type ExecuteCommandMessage = {
   type: "execute-command"
   id: string
   context: Browser.Context
-  formValues?: Record<string, string>
+  formValues?: Record<string, string | string[]>
   parentNames?: string[] // Optional parent context for nested commands
 }
 

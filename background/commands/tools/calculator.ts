@@ -88,6 +88,26 @@ export const calculator: CommandNode = {
       },
       {
         type: "input",
+        id: "calculator-theme",
+        name: "Theme",
+        field: {
+          id: "theme",
+          label: "Theme",
+          type: "multi",
+          options: [
+            { value: "system", label: "System" },
+            { value: "light", label: "Light" },
+            { value: "dark", label: "Dark" },
+          ],
+          defaultValue: ["system"],
+          validation: {
+            type: "string",
+            enum: ["system", "light", "dark"],
+          },
+        },
+      },
+      {
+        type: "input",
         id: "calculator-precision",
         name: "Precision",
         field: {
@@ -108,6 +128,21 @@ export const calculator: CommandNode = {
         },
       },
       {
+        type: "input",
+        id: "calculator-copy",
+        name: "Copy Result",
+        field: {
+          id: "copy",
+          label: "Copy result to clipboard",
+          type: "switch",
+          defaultChecked: false,
+          validation: {
+            type: "string",
+            enum: ["true", "false"],
+          },
+        },
+      },
+      {
         type: "submit",
         id: "calculator-execute",
         name: "Calculate",
@@ -117,6 +152,8 @@ export const calculator: CommandNode = {
           if (activeTab) {
             const expression = values?.calculation || ""
             const precision = parseInt(values?.precision || "2", 10)
+            const format = (values?.format as string) || "fixed"
+            const copyRequested = values?.copy === "true"
 
             if (!expression) {
               return
@@ -124,19 +161,24 @@ export const calculator: CommandNode = {
 
             try {
               const result = stringMath(expression)
-              const formattedResult =
-                precision === 0
-                  ? Math.round(result).toString()
-                  : result.toFixed(precision)
+              let formattedResult: string
+              if (format === "scientific") {
+                // Use JS scientific notation; precision equals fraction digits
+                formattedResult = result.toExponential(precision)
+              } else {
+                formattedResult =
+                  precision === 0
+                    ? Math.round(result).toString()
+                    : result.toFixed(precision)
+              }
 
-              console.log("result", formattedResult)
               sendTabMessage(activeTab.id, {
                 type: "monocle-toast",
                 level: "success",
                 message: formattedResult,
               })
 
-              if (context?.modifierKey === "cmd") {
+              if (copyRequested || context?.modifierKey === "cmd") {
                 sendTabMessage(activeTab.id, {
                   type: "monocle-copyToClipboard",
                   message: formattedResult,

@@ -41,7 +41,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
   const executeCommand = useCallback(
     async (
       id: string,
-      formValues: Record<string, string>,
+      formValues: Record<string, string | string[]>,
       navigateBack: boolean = true,
       parentNames?: string[],
     ) => {

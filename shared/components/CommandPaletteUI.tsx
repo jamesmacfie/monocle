@@ -32,7 +32,7 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
   const executeCommand = useCallback(
     async (
       id: string,
-      formValues: Record<string, string>,
+      formValues: Record<string, string | string[]>,
       navigateBack: boolean = true,
       parentNames?: string[],
     ) => {

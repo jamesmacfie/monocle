@@ -39,7 +39,6 @@ function initializeExtension() {
 }
 
 async function initial() {
-  console.debug("[Content] Initializing")
   // Create a new div element and append it to the document's body
   const rootDiv = document.createElement("div")
   rootDiv.id = "extension-root"

@@ -1,5 +1,3 @@
-console.log("[Background] Loading background script...")
-
 import { initializeKeybindingRegistry } from "./keybindings/registry"
 import { handleMessage } from "./messages"
 import { getActiveTab } from "./utils/browser"
@@ -23,14 +21,12 @@ addRuntimeListener(
 // Handle toolbar icon clicks
 if (browserAPI.action) {
   browserAPI.action.onClicked.addListener((tab) => {
-    console.log("[Background] Toolbar icon clicked")
-
     // Send toggle message to active tab
     if (tab?.id) {
       browserAPI.tabs
         .sendMessage(tab.id, { type: "toggle-ui" })
         .catch((error) => {
-          console.debug(
+          console.error(
             "[Background] Could not send toggle message to tab:",
             error,
           )
@@ -42,8 +38,6 @@ if (browserAPI.action) {
 // Handle browser-level keyboard shortcuts
 if (browserAPI.commands) {
   browserAPI.commands.onCommand.addListener((command) => {
-    console.log("[Background] Browser command triggered:", command)
-
     if (command === "toggle-command-palette") {
       // Send toggle message to active tab
       getActiveTab().then((activeTab) => {
@@ -51,7 +45,7 @@ if (browserAPI.commands) {
           browserAPI.tabs
             .sendMessage(activeTab.id, { type: "toggle-ui" })
             .catch((error) => {
-              console.debug(
+              console.error(
                 "[Background] Could not send toggle message to tab:",
                 error,
               )

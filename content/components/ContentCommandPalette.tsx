@@ -45,7 +45,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
   const executeCommand = useCallback(
     async (
       id: string,
-      formValues: Record<string, string>,
+      formValues: Record<string, string | string[]>,
       navigateBack: boolean = true,
       parentNames?: string[],
     ) => {

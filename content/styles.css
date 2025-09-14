@@ -339,6 +339,48 @@
       cursor: pointer;
     }
 
+    /* Inline control states */
+    .command-item-select [role="radio"],
+    .command-item-select [role="switch"],
+    .command-item-select label {
+      margin-right: 6px;
+    }
+
+    /* Focus ring for inline options */
+    .command-item-select [role="radio"]:focus,
+    .command-item-select [role="switch"]:focus {
+      border-color: var(--blue8);
+      box-shadow: 0 0 0 1px var(--blue8);
+      outline: none;
+    }
+    .command-item-select input[type="checkbox"]:focus + .command-item-submit-button {
+      border-color: var(--blue8);
+      box-shadow: 0 0 0 1px var(--blue8);
+      outline: none;
+    }
+    /* When native input receives focus, style the visible control */
+    .command-item-select label:focus-within .command-item-submit-button {
+      border-color: var(--blue8);
+      box-shadow: 0 0 0 1px var(--blue8);
+      outline: none;
+    }
+
+    /* Selected/checked visual state */
+    .command-item-select [role="radio"][aria-checked="true"],
+    .command-item-select [role="switch"][aria-checked="true"],
+    .command-item-select
+      input[type="radio"]:checked
+      + .command-item-submit-button,
+    /* Multi-select (checkbox) visual state */
+    .command-item-select
+      input[type="checkbox"]:checked
+      + .command-item-submit-button,
+    /* Fallback when React adds a .selected class */
+    .command-item-submit-button.selected {
+      background: var(--gray3);
+      border-color: var(--blue8);
+    }
+
     .command-item-name {
       display: flex;
       align-items: center;

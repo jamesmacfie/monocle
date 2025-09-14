@@ -6,15 +6,12 @@ const toastRateLimit = new Map<string, number>()
 const RATE_LIMIT_WINDOW = 500 // 500ms between duplicate toasts
 
 export const showToast = async (message: ShowToastMessage) => {
-  console.debug("[ShowToast] Sending toast:", message.level, message.message)
-
   // Rate limiting - prevent duplicate toasts within rate limit window
   const toastKey = `${message.level}:${message.message}`
   const now = Date.now()
   const lastToast = toastRateLimit.get(toastKey)
 
   if (lastToast && now - lastToast < RATE_LIMIT_WINDOW) {
-    console.debug("[ShowToast] Rate limited toast:", toastKey)
     return { success: true, rateLimited: true }
   }
 
@@ -40,7 +37,7 @@ export const showToast = async (message: ShowToastMessage) => {
       })
     } catch (error) {
       // Ignore errors for tabs that can't receive messages (e.g., chrome:// pages)
-      console.debug(
+      console.error(
         "[ShowToast] Failed to send toast to active tab",
         activeTab.id,
         error,

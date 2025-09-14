@@ -1,6 +1,6 @@
 import type { RefObject } from "react"
 import { useMemo } from "react"
-import { useSearchInput } from "../../../hooks/useSearchInput"
+import { useInlineInputKeys } from "../../../hooks/useInlineInputKeys"
 import { useAppDispatch, useAppSelector } from "../../../store/hooks"
 import {
   selectCurrentPage,
@@ -12,19 +12,22 @@ import { validateWithJsonSchema } from "../../../utils/validation"
 interface CommandItemSelectProps {
   field: FormField & { type: "select" }
   inputRef: RefObject<HTMLSelectElement | null>
-  onKeyDown: (e: React.KeyboardEvent<HTMLSelectElement>) => void
   onSubmit?: () => void // Called when Enter is pressed
 }
 
 export function CommandItemSelect({
   field,
   inputRef,
-  onKeyDown,
   onSubmit,
 }: CommandItemSelectProps) {
   const dispatch = useAppDispatch()
   const currentPage = useAppSelector(selectCurrentPage)
-  const { focusSearchInput, getSearchInput } = useSearchInput()
+  const {
+    focusSearchInput,
+    isFirstSelectableItem,
+    forwardArrowToCmdk,
+    handleCommonKeys,
+  } = useInlineInputKeys()
 
   // Get default value
   const defaultValue = field.defaultValue || ""
@@ -41,37 +44,15 @@ export function CommandItemSelect({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLSelectElement>) => {
-    // eslint-disable-next-line no-console
-    console.log("[CMDK][Select] KeyDown", e.key, { id: field.id })
-    // Override Up/Down arrows to navigate between command items instead of changing options
+    // Up/Down should navigate CMDK items, not change option
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      // Stop native select changing options
       e.preventDefault()
       e.stopPropagation()
-
-      // If this is the first selectable item in the list and ArrowUp, focus search input
-      const itemEl = (e.currentTarget as HTMLElement).closest(
-        "[cmdk-item]",
-      ) as HTMLElement | null
-      const list = itemEl?.closest("[cmdk-list]")
-      const firstItem = list?.querySelector(
-        '[cmdk-item]:not([data-disabled="true"])',
-      ) as HTMLElement | null
-      if (e.key === "ArrowUp" && itemEl && firstItem === itemEl) {
+      if (e.key === "ArrowUp" && isFirstSelectableItem(e.currentTarget)) {
         focusSearchInput()
         return
       }
-
-      // Otherwise forward the arrow to CMDK search to change selection
-      const searchInput = getSearchInput()
-      if (searchInput) {
-        const ev = new KeyboardEvent("keydown", { key: e.key, bubbles: true })
-        searchInput.dispatchEvent(ev)
-      }
-      // eslint-disable-next-line no-console
-      console.log("[CMDK][Select] Forwarding navigation", e.key, {
-        id: field.id,
-      })
+      forwardArrowToCmdk(e.key)
       return
     }
 
@@ -95,36 +76,14 @@ export function CommandItemSelect({
 
       const newValue = field.options[newIndex].value
       dispatch(setFormValue({ fieldId: field.id, value: newValue }))
-      // eslint-disable-next-line no-console
-      console.log("[CMDK][Select] Change value", {
-        id: field.id,
-        to: newValue,
-        via: e.key,
-      })
       return
     }
 
-    // Prevent backspace from navigating backwards
-    if (e.key === "Backspace") {
-      e.stopPropagation()
-      return
-    }
-
-    // Escape should refocus the main cmdk search input rather than navigating back
-    if (e.key === "Escape") {
-      e.preventDefault()
-      e.stopPropagation()
-      // eslint-disable-next-line no-console
-      console.log("[CMDK][Select] Escape -> focus search", { id: field.id })
-      focusSearchInput()
-      return
-    }
+    if (handleCommonKeys(e as any)) return
 
     // Handle Enter to submit
     if (e.key === "Enter" && onSubmit) {
       e.preventDefault()
-      // eslint-disable-next-line no-console
-      console.log("[CMDK][Select] Submit via Enter", { id: field.id })
       onSubmit()
       return
     }

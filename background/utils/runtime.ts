@@ -14,7 +14,6 @@ export function addRuntimeListener(
     sendResponse: any,
   ) => boolean | Promise<any>,
 ): void {
-  console.debug("[Background] Adding runtime listener")
   if (isFirefox) {
     browser.runtime.onMessage.addListener(callback)
   } else {
