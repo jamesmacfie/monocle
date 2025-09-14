@@ -396,7 +396,11 @@ export const executeCommand = async (
   const commandToRun = await findCommand(allCommands as any, id, context)
 
   if (commandToRun) {
-    if (commandToRun.type === "action" || commandToRun.type === "submit") {
+    if (
+      commandToRun.type === "action" ||
+      commandToRun.type === "submit" ||
+      (commandToRun as any).type === "search"
+    ) {
       // Check permissions before executing the command
       if (commandToRun.permissions) {
         const { checkPermissions } = require("../utils/permissions")
@@ -427,8 +431,11 @@ export const executeCommand = async (
             Array.isArray(v) ? v.join(",") : (v ?? ""),
           ]),
         )
-        await commandToRun.execute(context, normalized)
-        if (commandToRun.type === "action") {
+        await (commandToRun as any).execute?.(context, normalized)
+        if (
+          commandToRun.type === "action" ||
+          (commandToRun as any).type === "search"
+        ) {
           await recordCommandUsage(id, parentNames)
         }
         return
@@ -510,7 +517,7 @@ const _createResetKeybindingAction = async (
     name: "Reset Custom Keybinding",
     description:
       (command.type === "action" || command.type === "submit") &&
-        command.keybinding
+      command.keybinding
         ? `Reset to default keybinding: ${command.keybinding}`
         : "Reset to default keybinding",
     icon: { type: "lucide", name: "RotateCcw" },
@@ -650,8 +657,7 @@ export const commandsToSuggestions = async (
         actions.push({
           id: `${node.id}-enter-action`,
           name: primaryLabel,
-          description:
-            node.type === "group" ? "Open this group" : primaryLabel,
+          description: node.type === "group" ? "Open this group" : primaryLabel,
           icon: {
             type: "lucide",
             name: node.type === "group" ? "FolderOpen" : "Play",

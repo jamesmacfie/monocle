@@ -290,7 +290,8 @@ export function useCommandNavigation(
 
       // Extract parent context for breadcrumb display in recent commands
       const parentNames = extractParentNames(selectedCommand, currentPage)
-      const isDynamicPage = currentPage.id !== "root" && currentPage.dynamicChildren
+      const isDynamicPage =
+        currentPage.id !== "root" && currentPage.dynamicChildren
       let execId = selectedCommand.id
       let formValues: Record<string, string | string[]> =
         currentPage.formValues || {}

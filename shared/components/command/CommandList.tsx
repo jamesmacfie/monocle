@@ -1,6 +1,6 @@
 import { Command, useCommandState } from "cmdk"
-import { Loader2 } from "lucide-react"
-import { useCallback } from "react"
+import { Loader2, SearchX } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
 import type { Suggestion } from "../../../shared/types"
 import { useToast } from "../../hooks/useToast"
 import type { Page } from "../../store/slices/navigation.slice"
@@ -30,6 +30,22 @@ export function CommandList({
   const cmdkSearch = useCommandState((state) => state.search)
   const toast = useToast()
 
+  // Track when user is actively typing to show loader during debounce period
+  const [isTyping, setIsTyping] = useState(false)
+
+  // Debounce typing state to prevent flash of "No results" during search
+  useEffect(() => {
+    if (cmdkSearch) {
+      setIsTyping(true)
+      const timer = setTimeout(() => {
+        setIsTyping(false)
+      }, 250) // Standard debounce timing for search responsiveness
+      return () => clearTimeout(timer)
+    } else {
+      setIsTyping(false)
+    }
+  }, [cmdkSearch])
+
   const handleInputSubmit = useCallback(() => {
     // Validate form inputs before triggering first submit
     const fields = collectInputFieldsFromSuggestions(
@@ -55,14 +71,21 @@ export function CommandList({
 
   return (
     <Command.List className="cmdk-command-list">
-      {isLoading ? (
+      {isLoading || isTyping ? (
         <Command.Empty>
           <div className="flex items-center justify-center gap-2 py-4">
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         </Command.Empty>
       ) : (
-        <Command.Empty>No results found for "{cmdkSearch}"</Command.Empty>
+        cmdkSearch && (
+          <Command.Empty>
+            <div className="flex flex-col items-center justify-center gap-2 py-4">
+              <SearchX className="h-8 w-8 text-gray-400" />
+              <span className="text-sm text-gray-500">No results</span>
+            </div>
+          </Command.Empty>
+        )
       )}
       {(currentPage.commands.favorites || []).length > 0 && (
         <Command.Group heading="Favorites">
@@ -88,17 +111,19 @@ export function CommandList({
           ))}
         </Command.Group>
       )}
-      <Command.Group heading="Suggestions">
-        {(currentPage.commands.suggestions || []).map((item) => (
-          <CommandItem
-            key={item.id}
-            suggestion={item}
-            onSelect={onSelect}
-            currentPage={currentPage}
-            onInputSubmit={handleInputSubmit}
-          />
-        ))}
-      </Command.Group>
+      {(currentPage.commands.suggestions || []).length > 0 && (
+        <Command.Group heading="Suggestions">
+          {(currentPage.commands.suggestions || []).map((item) => (
+            <CommandItem
+              key={item.id}
+              suggestion={item}
+              onSelect={onSelect}
+              currentPage={currentPage}
+              onInputSubmit={handleInputSubmit}
+            />
+          ))}
+        </Command.Group>
+      )}
       <DeepSearchItems
         currentPage={currentPage}
         onSelect={onSelect}

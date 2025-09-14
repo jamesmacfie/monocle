@@ -1,4 +1,8 @@
-import type { ActionCommandNode, CommandNode, SearchCommandNode } from "../../../shared/types"
+import type {
+  ActionCommandNode,
+  CommandNode,
+  SearchCommandNode,
+} from "../../../shared/types"
 import { createTab, getActiveTab, updateTab } from "../../utils/browser"
 
 function isProbablyUrl(input: string): boolean {
@@ -65,14 +69,14 @@ function createSearchQueryAction(id: string, query: string): ActionCommandNode {
   return {
     type: "action",
     id,
-    name: `Search Google for "${query}"`,
+    name: query,
     description: url,
     icon: { type: "lucide", name: "Search" },
     color: "teal",
-    keywords: [query, "google", "search"],
     actionLabel: "Search",
     modifierActionLabel: { cmd: "Open in New Tab" },
     allowCustomKeybinding: false,
+    doNotAddToRecents: true,
     async execute(context) {
       try {
         if (context?.modifierKey === "cmd") {
@@ -158,7 +162,9 @@ export const googleSearch: SearchCommandNode = {
     }
 
     // Base query as explicit search action
-    nodes.push(createSearchQueryAction(`google-search-q-${safeIdSegment(query)}`, query))
+    nodes.push(
+      createSearchQueryAction(`google-search-q-${safeIdSegment(query)}`, query),
+    )
 
     // Remote autosuggestions
     const suggestions = await fetchGoogleSuggestions(query)
