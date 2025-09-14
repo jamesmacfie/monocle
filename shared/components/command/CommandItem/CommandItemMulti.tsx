@@ -42,14 +42,14 @@ export function CommandItemMulti({
 
   const [focusIndex, setFocusIndex] = useState<number>(0)
 
+  // Focus the currently selected option when focusIndex changes
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [inputRef])
-
-  // Move DOM focus to the currently focused chip when focusIndex changes
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [inputRef.current?.focus])
+    // Find the checkbox input for the current focusIndex and focus it
+    const currentInput = document.querySelector(
+      `input[name="${field.id}-${field.options[focusIndex]?.value}"]`,
+    ) as HTMLInputElement | null
+    currentInput?.focus()
+  }, [focusIndex, field.id, field.options])
 
   const toggleValue = (value: string) => {
     const next = selected.includes(value)
@@ -67,6 +67,7 @@ export function CommandItemMulti({
 
     if (e.key === "ArrowLeft") {
       e.preventDefault()
+      e.stopPropagation()
       const next =
         (focusIndex - 1 + field.options.length) % field.options.length
       setFocusIndex(next)
@@ -74,6 +75,7 @@ export function CommandItemMulti({
     }
     if (e.key === "ArrowRight") {
       e.preventDefault()
+      e.stopPropagation()
       const next = (focusIndex + 1) % field.options.length
       setFocusIndex(next)
       return
@@ -81,7 +83,44 @@ export function CommandItemMulti({
 
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault()
+      e.stopPropagation()
       const value = field.options[focusIndex]?.value
+      if (value) toggleValue(value)
+      return
+    }
+    if (handleCommonKeys(e as any)) return
+  }
+
+  const handleInputKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    idx: number,
+  ) => {
+    // Mirror the fieldset handler but bound at input level for robustness
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      if (handleCommonKeys(e as any)) return
+      onKeyDown(e as any)
+      return
+    }
+
+    if (e.key === "ArrowLeft") {
+      e.preventDefault()
+      e.stopPropagation()
+      const next = (idx - 1 + field.options.length) % field.options.length
+      setFocusIndex(next)
+      return
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault()
+      e.stopPropagation()
+      const next = (idx + 1) % field.options.length
+      setFocusIndex(next)
+      return
+    }
+
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault()
+      e.stopPropagation()
+      const value = field.options[idx]?.value
       if (value) toggleValue(value)
       return
     }
@@ -111,6 +150,7 @@ export function CommandItemMulti({
                 setFocusIndex(idx)
                 toggleValue(opt.value)
               }}
+              onKeyDown={(e) => handleInputKeyDown(e, idx)}
               tabIndex={idx === focusIndex ? 0 : -1}
               style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
             />
