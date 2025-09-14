@@ -291,7 +291,8 @@ const findCommandSuggestion = (
     if (
       (suggestion.type === "action" ||
         suggestion.type === "submit" ||
-        suggestion.type === "group") &&
+        suggestion.type === "group" ||
+        suggestion.type === "search") &&
       suggestion.actions &&
       Array.isArray(suggestion.actions)
     ) {
@@ -509,7 +510,7 @@ const _createResetKeybindingAction = async (
     name: "Reset Custom Keybinding",
     description:
       (command.type === "action" || command.type === "submit") &&
-      command.keybinding
+        command.keybinding
         ? `Reset to default keybinding: ${command.keybinding}`
         : "Reset to default keybinding",
     icon: { type: "lucide", name: "RotateCcw" },
@@ -585,28 +586,15 @@ export const commandsToSuggestions = async (
       let suggestion: Suggestion
 
       if (node.type === "action") {
-        // Actions that opt into dynamic children should open as a group page
-        if ((node as any).dynamicChildren) {
-          suggestion = {
-            ...baseProps,
-            type: "group",
-            actionLabel: "Open",
-            actions: undefined,
-          }
-        } else {
-          suggestion = {
-            ...baseProps,
-            type: "action",
-            actionLabel: await resolveActionLabel(node, context),
-            modifierActionLabel: await resolveModifierActionLabels(
-              node,
-              context,
-            ),
-            confirmAction: node.confirmAction,
-            remainOpenOnSelect: node.remainOpenOnSelect,
-            executionContext: undefined,
-            actions: undefined,
-          }
+        suggestion = {
+          ...baseProps,
+          type: "action",
+          actionLabel: await resolveActionLabel(node, context),
+          modifierActionLabel: await resolveModifierActionLabels(node, context),
+          confirmAction: node.confirmAction,
+          remainOpenOnSelect: node.remainOpenOnSelect,
+          executionContext: undefined,
+          actions: undefined,
         }
       } else if (node.type === "submit") {
         suggestion = {
@@ -619,6 +607,13 @@ export const commandsToSuggestions = async (
           executionContext: undefined,
           actions: undefined,
         }
+      } else if (node.type === "search") {
+        suggestion = {
+          ...baseProps,
+          type: "search",
+          actionLabel: await resolveActionLabel(node, context),
+          actions: undefined,
+        } as any
       } else if (node.type === "group") {
         suggestion = {
           ...baseProps,
@@ -644,18 +639,19 @@ export const commandsToSuggestions = async (
       const actions: Suggestion[] = []
       if (
         node.type === "group" ||
+        node.type === "search" ||
         node.type === "action" ||
         node.type === "submit"
       ) {
         const primaryLabel =
           node.type === "group"
             ? "Open"
-            : await resolveActionLabel(node, context)
+            : await resolveActionLabel(node as any, context)
         actions.push({
           id: `${node.id}-enter-action`,
           name: primaryLabel,
           description:
-            node.type === "group" ? "Open this group" : "Execute this command",
+            node.type === "group" ? "Open this group" : primaryLabel,
           icon: {
             type: "lucide",
             name: node.type === "group" ? "FolderOpen" : "Play",

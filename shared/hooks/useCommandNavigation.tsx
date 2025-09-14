@@ -280,7 +280,7 @@ export function useCommandNavigation(
       return // Don't execute normal command flow
     }
 
-    if (selectedCommand.type === "group") {
+    if (selectedCommand.type === "group" || selectedCommand.type === "search") {
       // Parent command: navigate to its children
       await navigateTo(id)
     } else {

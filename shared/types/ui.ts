@@ -122,6 +122,12 @@ export interface GroupSuggestion extends SuggestionBase {
   actions?: Suggestion[]
 }
 
+export interface SearchSuggestion extends SuggestionBase {
+  type: "search"
+  actionLabel: string
+  actions?: Suggestion[]
+}
+
 export interface InputSuggestion extends SuggestionBase {
   type: "input"
   inputField: FormField
@@ -137,6 +143,7 @@ export type Suggestion =
   | ActionSuggestion
   | SubmitSuggestion
   | GroupSuggestion
+  | SearchSuggestion
   | InputSuggestion
   | DisplaySuggestion
 

@@ -1,4 +1,4 @@
-import type { ActionCommandNode, CommandNode } from "../../../shared/types"
+import type { ActionCommandNode, CommandNode, SearchCommandNode } from "../../../shared/types"
 import { createTab, getActiveTab, updateTab } from "../../utils/browser"
 
 function isProbablyUrl(input: string): boolean {
@@ -113,16 +113,13 @@ async function fetchGoogleSuggestions(query: string): Promise<string[]> {
   }
 }
 
-export const googleSearch: CommandNode = {
-  type: "action",
+export const googleSearch: SearchCommandNode = {
+  type: "search",
   id: "google-search",
   name: "Google Search",
   icon: { type: "lucide", name: "Search" },
   color: "teal",
   actionLabel: "Search",
-  // Enable dynamic children: selecting this command opens a page
-  // where results will appear as the user types in the search bar
-  dynamicChildren: true,
   async execute(_context, values) {
     // Execute using a URL payload if provided by the UI (dynamic children selection)
     const url = (values as any)?.dynamicUrl
@@ -143,7 +140,7 @@ export const googleSearch: CommandNode = {
       }
     }
   },
-  async getDynamicChildren(_context, search) {
+  async getResults(_context, search) {
     const query = (search || "").trim()
     if (!query) return []
 
