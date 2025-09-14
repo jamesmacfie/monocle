@@ -7,7 +7,12 @@ import {
   loadPermissions,
   loadSettings,
   selectClockVisibility,
+  selectThemeMode,
 } from "../shared/store/slices/settings.slice"
+import {
+  applyThemeToDocument,
+  setupSystemThemeListener,
+} from "../shared/utils/theme"
 import { BackgroundImage } from "./components/BackgroundImage"
 import { Clock } from "./components/Clock"
 import { NewTabCommandPalette } from "./components/NewTabCommandPalette"
@@ -17,6 +22,7 @@ const browserAPI = typeof browser !== "undefined" ? browser : chrome
 
 function NewTabAppContent() {
   const showClock = useAppSelector(selectClockVisibility)
+  const themeMode = useAppSelector(selectThemeMode)
   const dispatch = useAppDispatch()
 
   // Load initial settings and permissions on mount
@@ -24,6 +30,21 @@ function NewTabAppContent() {
     dispatch(loadSettings())
     dispatch(loadPermissions())
   }, [dispatch])
+
+  // Apply theme to document root
+  useEffect(() => {
+    applyThemeToDocument(themeMode)
+  }, [themeMode])
+
+  // Setup system theme listener
+  useEffect(() => {
+    if (themeMode === "system") {
+      return setupSystemThemeListener(() => {
+        // Re-apply theme when system preference changes
+        applyThemeToDocument(themeMode)
+      })
+    }
+  }, [themeMode])
 
   // Listen for storage changes and reload settings
   useEffect(() => {

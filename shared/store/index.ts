@@ -33,6 +33,9 @@ export const createAppStore = (
       }),
     preloadedState: {
       settings: {
+        theme: {
+          mode: "system" as "light" | "dark" | "system",
+        },
         newTab: {
           clock: {
             show: true,
@@ -98,6 +101,9 @@ export const createNavigationStore = (
         capturedKeybinding: null,
       },
       settings: {
+        theme: {
+          mode: "system" as "light" | "dark" | "system",
+        },
         newTab: {
           clock: {
             show: true,

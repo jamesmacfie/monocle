@@ -8,8 +8,16 @@ import { useCommandPaletteStateRedux } from "../../shared/hooks/useCommandPalett
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
-import { useAppDispatch } from "../../shared/store/hooks"
-import { loadPermissions } from "../../shared/store/slices/settings.slice"
+import { useAppDispatch, useAppSelector } from "../../shared/store/hooks"
+import {
+  loadPermissions,
+  loadSettings,
+  selectThemeMode,
+} from "../../shared/store/slices/settings.slice"
+import {
+  applyThemeClass,
+  setupSystemThemeListener,
+} from "../../shared/utils/theme"
 
 // Store is provided by ContentCommandPaletteWithState at the root
 
@@ -24,15 +32,39 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
   const { isOpen, hideUI } = useCommandPaletteStateRedux()
   const sendMessage = useSendMessage()
   const dispatch = useAppDispatch()
+  const themeMode = useAppSelector(selectThemeMode)
 
   // Enable global keybindings for content script
   useGlobalKeybindings()
 
-  // Load permissions and fetch commands on initial render
+  // Load permissions, settings and fetch commands on initial render
   useEffect(() => {
     dispatch(loadPermissions())
+    dispatch(loadSettings())
     fetchCommands()
   }, [])
+
+  // Apply theme to shadow DOM host
+  useEffect(() => {
+    // Find the shadow root's host element
+    const shadowHost = document.getElementById("extension-root")
+    if (shadowHost?.shadowRoot) {
+      applyThemeClass(shadowHost.shadowRoot, themeMode)
+    }
+  }, [themeMode])
+
+  // Setup system theme listener
+  useEffect(() => {
+    if (themeMode === "system") {
+      return setupSystemThemeListener(() => {
+        // Re-apply theme when system preference changes
+        const shadowHost = document.getElementById("extension-root")
+        if (shadowHost?.shadowRoot) {
+          applyThemeClass(shadowHost.shadowRoot, themeMode)
+        }
+      })
+    }
+  }, [themeMode])
 
   // Fetch commands when UI is hidden to keep them up to date
   useEffect(() => {

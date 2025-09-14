@@ -7,6 +7,7 @@ import type {
   NewTabSettings,
   PermissionSettings,
   Settings,
+  ThemeSettings,
 } from "../../../shared/types"
 
 // Cross-browser compatibility layer
@@ -14,6 +15,7 @@ const browserAPI = typeof browser !== "undefined" ? browser : chrome
 
 // Settings state structure
 interface SettingsState {
+  theme: ThemeSettings
   newTab: NewTabSettings
   permissions: PermissionSettings
   loading: boolean
@@ -21,6 +23,9 @@ interface SettingsState {
 }
 
 const initialState: SettingsState = {
+  theme: {
+    mode: "system", // Default to system theme
+  },
   newTab: {
     clock: {
       show: true, // Default to showing clock
@@ -55,6 +60,7 @@ export const loadSettings = createAsyncThunk(
       const settings = result[STORAGE_KEY] || {}
 
       return {
+        theme: settings.theme || {},
         newTab: settings.newTab || {},
       }
     } catch (error) {
@@ -121,6 +127,40 @@ export const refreshPermissions = createAsyncThunk(
   },
 )
 
+// Async thunk to update theme preference and sync to storage
+export const updateThemeMode = createAsyncThunk(
+  "settings/updateThemeMode",
+  async (mode: "light" | "dark" | "system", { rejectWithValue }) => {
+    try {
+      const STORAGE_KEY = "monocle-settings"
+
+      // Get current settings from storage
+      const result = await browserAPI.storage.local.get(STORAGE_KEY)
+      const currentSettings: Settings = result[STORAGE_KEY] || {}
+
+      // Update the theme setting
+      const updatedSettings: Settings = {
+        ...currentSettings,
+        theme: {
+          ...currentSettings.theme,
+          mode,
+        },
+      }
+
+      // Save to storage
+      await browserAPI.storage.local.set({
+        [STORAGE_KEY]: updatedSettings,
+      })
+
+      return mode
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to update theme mode",
+      )
+    }
+  },
+)
+
 // Async thunk to update clock visibility and sync to storage
 export const updateClockVisibility = createAsyncThunk(
   "settings/updateClockVisibility",
@@ -175,6 +215,16 @@ export const settingsSlice = createSlice({
         show: action.payload,
       }
     },
+    // Synchronous theme update for immediate UI feedback
+    setThemeMode: (
+      state,
+      action: PayloadAction<"light" | "dark" | "system">,
+    ) => {
+      state.theme = {
+        ...state.theme,
+        mode: action.payload,
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -186,6 +236,10 @@ export const settingsSlice = createSlice({
       .addCase(loadSettings.fulfilled, (state, action) => {
         state.loading = false
         state.error = null
+        state.theme = {
+          mode: "system", // Default fallback
+          ...action.payload.theme,
+        }
         state.newTab = {
           ...state.newTab,
           ...action.payload.newTab,
@@ -196,6 +250,24 @@ export const settingsSlice = createSlice({
         }
       })
       .addCase(loadSettings.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+
+      // Update theme mode
+      .addCase(updateThemeMode.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(updateThemeMode.fulfilled, (state, action) => {
+        state.loading = false
+        state.error = null
+        state.theme = {
+          ...state.theme,
+          mode: action.payload,
+        }
+      })
+      .addCase(updateThemeMode.rejected, (state, action) => {
         state.loading = false
         state.error = action.payload as string
       })
@@ -251,9 +323,13 @@ export const settingsSlice = createSlice({
   },
 })
 
-export const { clearError, setClockVisibility } = settingsSlice.actions
+export const { clearError, setClockVisibility, setThemeMode } =
+  settingsSlice.actions
 
 // Selectors
+export const selectThemeMode = (state: { settings: SettingsState }) =>
+  state.settings.theme.mode ?? "system"
+
 export const selectNewTabSettings = (state: { settings: SettingsState }) =>
   state.settings.newTab
 
