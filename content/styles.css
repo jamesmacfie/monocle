@@ -405,7 +405,7 @@
   }
 
   [cmdk-raycast-loader] {
-    --loader-color: var(--color-fg-muted);
+    --loader-color: var(--color-accent);
     border: 0;
     width: 100%;
     left: 0;
@@ -1011,6 +1011,12 @@
   border-radius: 4px;
   padding: 2px;
   flex-shrink: 0;
+  /* Default icon background uses accent tokens; inline styles may override */
+  background: linear-gradient(
+    135deg,
+    var(--color-icon-accent-start),
+    var(--color-icon-accent-end)
+  );
 }
 
 /* Favicon-specific wrapper - no background */

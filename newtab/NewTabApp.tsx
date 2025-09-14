@@ -74,9 +74,9 @@ function NewTabAppContent() {
           </div>
 
           <div className="mt-8 text-center">
-            <p className="text-white text-sm drop-shadow-lg">
+            <p className="text-[var(--color-fg-inverse)] text-sm drop-shadow-lg">
               Press{" "}
-              <kbd className="px-2 py-1 bg-black/20 border border-white/30 text-white rounded text-xs">
+              <kbd className="px-2 py-1 bg-[var(--color-hero-overlay)] border border-[var(--color-hero-kbd-border)] text-[var(--color-fg-inverse)] rounded text-xs">
                 Cmd+Shift+K
               </kbd>{" "}
               on any webpage to open the command palette

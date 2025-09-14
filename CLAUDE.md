@@ -489,6 +489,51 @@ export const preferences: GroupCommandNode = {
 }
 ```
 
+## CSS variables
+
+### Backgrounds
+- `--color-bg-page`: Page/background canvas (document/page chrome).
+- `--color-surface`: Primary surface (palette, cards, submenus).
+- `--color-surface-elevated`: Slightly raised elements (chips, kbd, subtle containers).
+- `--color-bg-hover`: List hover/active background.
+- `--color-bg-selected`: Selected row/button background.
+- `--color-bg-overlay`: Scrim/overlay behind modal palette.
+- `--color-bg-input`: Input backgrounds (inline inputs, select control).
+- `--color-bg-menu`: Popover/menus (Select menu, submenus).
+
+### Text
+- `--color-fg`: Primary text.
+- `--color-fg-muted`: Secondary/muted text and metadata.
+- `--color-fg-inverse`: Text on dark/colored surfaces (e.g., toasts/hero).
+- `--color-fg-placeholder`: Placeholder text.
+- `--color-link`: Link text.
+- `--color-link-hover`: Link hover.
+
+### Border & Divider
+- `--color-border`: Default border/divider.
+- `--color-border-strong`: Emphasized/active border.
+- `--color-divider`: Very subtle separators.
+
+### Accent & Focus
+- `--color-accent`: Primary brand/accent.
+- `--color-accent-contrast`: Text/icon on accent surfaces.
+- `--color-accent-hover`: Hover tint for accent actions.
+- `--color-focus-ring`: Keyboard focus ring/outline.
+- `--color-favorite`: Favorite/star accent.
+- `--color-icon-accent-start`: Icon background gradient start.
+- `--color-icon-accent-end`: Icon background gradient end.
+
+### Status
+For each status, provide background (soft), border (mid), and foreground (text/icon):
+- `--color-info-bg`, `--color-info-border`, `--color-info-fg`
+- `--color-success-bg`, `--color-success-border`, `--color-success-fg`
+- `--color-warning-bg`, `--color-warning-border`, `--color-warning-fg`
+- `--color-error-bg`, `--color-error-border`, `--color-error-fg`
+
+### Hero (New Tab)
+- `--color-hero-start`, `--color-hero-end`: Gradient background stops.
+- `--color-hero-overlay`: Foreground scrim over hero/bg images.
+
 ## Development
 
 **Commands**: `npm run dev` (Chrome), `npm run dev:firefox`, `npm run build`, `npm run build:firefox`
@@ -500,6 +545,7 @@ export const preferences: GroupCommandNode = {
 - Shadow DOM isolation in content mode prevents page reflow  
 - Commands resolved on-demand, deep search pre-processed for instant results
 - Debounced search, cached command data
+
 
 ## Debugging
 

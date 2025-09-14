@@ -209,7 +209,9 @@ function KeybindingCapture({
       <div
         {...divProps}
         className={`w-full p-2 px-3 border-2 rounded-md bg-[var(--background)] outline-none text-sm font-mono min-h-[32px] flex items-center cursor-text focus:outline-none ${
-          hasConflict ? "border-red-500" : "border-blue-500"
+          hasConflict
+            ? "border-[var(--color-error-border)]"
+            : "border-[var(--color-focus-ring)]"
         }`}
       >
         {strokes.length === 0 && currentKeys.length === 0 ? (
@@ -225,7 +227,7 @@ function KeybindingCapture({
                     key={`${idx}-${kIdx}`}
                     className={`px-1.5 py-0.5 rounded text-xs ${
                       hasConflict
-                        ? "bg-red-100 border border-red-300 text-red-700"
+                        ? "bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error-fg)]"
                         : "bg-[var(--cmdk-list-item-background-active)]"
                     }`}
                   >
@@ -246,7 +248,7 @@ function KeybindingCapture({
                     key={`current-${kIdx}`}
                     className={`px-1.5 py-0.5 rounded text-xs ${
                       hasConflict
-                        ? "bg-red-100 border border-red-300 text-red-700"
+                        ? "bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error-fg)]"
                         : "bg-[var(--cmdk-list-item-background-active)]"
                     }`}
                   >

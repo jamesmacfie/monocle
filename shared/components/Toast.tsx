@@ -41,12 +41,39 @@ export const Toast = ({
   }, [id, duration, onRemove])
 
   const getIcon = () => {
-    return match(level)
+    const chipClass = match(level)
+      .with(
+        "info",
+        () => "bg-[var(--color-info-bg)] text-[var(--color-info-border)]",
+      )
+      .with(
+        "warning",
+        () => "bg-[var(--color-warning-bg)] text-[var(--color-warning-border)]",
+      )
+      .with(
+        "success",
+        () => "bg-[var(--color-success-bg)] text-[var(--color-success-border)]",
+      )
+      .with(
+        "error",
+        () => "bg-[var(--color-error-bg)] text-[var(--color-error-border)]",
+      )
+      .exhaustive()
+
+    const icon = match(level)
       .with("info", () => <Icon name="Info" noBackground size={16} />)
       .with("warning", () => <Icon name="AlertCircle" noBackground size={16} />)
       .with("success", () => <Icon name="CheckCircle" noBackground size={16} />)
       .with("error", () => <Icon name="XCircle" noBackground size={16} />)
       .exhaustive()
+
+    return (
+      <div
+        className={`w-6 h-6 rounded-md flex items-center justify-center ${chipClass}`}
+      >
+        {icon}
+      </div>
+    )
   }
 
   const getToastClasses = () => {
@@ -57,11 +84,28 @@ export const Toast = ({
       : "translate-x-full opacity-0"
     const exitingClasses = isExiting ? "translate-x-full opacity-0" : ""
 
+    // Use status tokens and inverse foreground for strong toasts
     const levelClasses = match(level)
-      .with("info", () => "bg-blue-600 text-white border-blue-700")
-      .with("warning", () => "bg-amber-600 text-white border-amber-700")
-      .with("success", () => "bg-emerald-600 text-white border-emerald-700")
-      .with("error", () => "bg-red-600 text-white border-red-700")
+      .with(
+        "info",
+        () =>
+          "bg-[var(--color-info-border)] text-[var(--color-fg-inverse)] border-[var(--color-info-border)]",
+      )
+      .with(
+        "warning",
+        () =>
+          "bg-[var(--color-warning-border)] text-[var(--color-fg-inverse)] border-[var(--color-warning-border)]",
+      )
+      .with(
+        "success",
+        () =>
+          "bg-[var(--color-success-border)] text-[var(--color-fg-inverse)] border-[var(--color-success-border)]",
+      )
+      .with(
+        "error",
+        () =>
+          "bg-[var(--color-error-border)] text-[var(--color-fg-inverse)] border-[var(--color-error-border)]",
+      )
       .exhaustive()
 
     return `${baseClasses} ${visibilityClasses} ${exitingClasses} ${levelClasses}`

@@ -27,7 +27,9 @@ export function CommandItemAction({
     <>
       <div className="command-item-content">
         <Icon icon={suggestion.icon} color={suggestion.color} />
-        {suggestion.isFavorite && <Icon name="Star" color="#fbbf24" />}
+        {suggestion.isFavorite && (
+          <Icon name="Star" color="var(--color-favorite)" />
+        )}
         <CommandName
           permissions={suggestion.permissions}
           name={displayName}

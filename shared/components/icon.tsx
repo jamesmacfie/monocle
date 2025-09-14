@@ -37,6 +37,7 @@ export const Icon = ({
   ...props
 }: IconProps) => {
   // Resolve color to hex value
+  const isCssVar = typeof color === "string" && color.trim().startsWith("var(")
   const resolvedColor =
     typeof color === "string" && color in COLOR_MAP
       ? COLOR_MAP[color as ColorName]
@@ -46,12 +47,16 @@ export const Icon = ({
 
   // Generate background gradient style
   const backgroundStyle = !noBackground
-    ? {
-        background: `linear-gradient(135deg, ${lightenColor(
-          resolvedColor,
-          15,
-        )}, ${darkenColor(resolvedColor, 15)})`,
-      }
+    ? isCssVar
+      ? {
+          background: `linear-gradient(135deg, ${resolvedColor}, ${resolvedColor})`,
+        }
+      : {
+          background: `linear-gradient(135deg, ${lightenColor(
+            resolvedColor,
+            15,
+          )}, ${darkenColor(resolvedColor, 15)})`,
+        }
     : undefined
 
   // Handle new CommandIcon type first

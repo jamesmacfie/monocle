@@ -122,9 +122,9 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
   if (isLoading) {
     return (
       <div
-        className={`fixed inset-0 bg-gradient-to-br from-blue-400 to-purple-500 ${className}`}
+        className={`fixed inset-0 bg-gradient-to-br from-[var(--color-hero-start)] to-[var(--color-hero-end)] ${className}`}
       >
-        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-[var(--color-hero-overlay)]" />
       </div>
     )
   }
@@ -132,9 +132,9 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
   if (error || !backgroundData?.imageUrl) {
     return (
       <div
-        className={`fixed inset-0 bg-gradient-to-br from-gray-500 to-gray-700 ${className}`}
+        className={`fixed inset-0 bg-gradient-to-br from-[var(--color-hero-start)] to-[var(--color-hero-end)] ${className}`}
       >
-        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-[var(--color-hero-overlay)]" />
       </div>
     )
   }
@@ -145,15 +145,15 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
         className={`fixed inset-0 bg-cover bg-center bg-no-repeat ${className}`}
         style={{ backgroundImage: `url(${backgroundData.imageUrl})` }}
       />
-      <div className="absolute inset-0 bg-black/20" />
+      <div className="absolute inset-0 bg-[var(--color-hero-overlay)]" />
       {backgroundData.photographerName && (
-        <div className="fixed bottom-4 right-4 text-white text-sm opacity-75 hover:opacity-100 transition-opacity">
+        <div className="fixed bottom-4 right-4 text-[var(--color-fg-inverse)] text-sm opacity-75 hover:opacity-100 transition-opacity">
           Photo by{" "}
           <a
             href={backgroundData.photographerUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-blue-300"
+            className="underline text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
           >
             {backgroundData.photographerName}
           </a>{" "}
@@ -162,7 +162,7 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
             href={backgroundData.photoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-blue-300"
+            className="underline text-[var(--color-link)] hover:text-[var(--color-link-hover)]"
           >
             Unsplash
           </a>
