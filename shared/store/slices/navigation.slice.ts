@@ -12,7 +12,6 @@ export type Page = {
   id: string
   commands: {
     favorites: Suggestion[]
-    recents: Suggestion[]
     suggestions: Suggestion[]
   }
   searchValue: string
@@ -29,7 +28,6 @@ interface NavigationState {
   // Keep initial commands for root page updates and deep search
   initialCommands: {
     favorites: Suggestion[]
-    recents: Suggestion[]
     suggestions: Suggestion[]
     deepSearchItems: Suggestion[]
   }
@@ -47,7 +45,6 @@ function findCommandInPage(
     (page.commands.favorites || []).find(
       (command) => command.id === commandId,
     ) ||
-    (page.commands.recents || []).find((command) => command.id === commandId) ||
     (page.commands.suggestions || []).find(
       (command) => command.id === commandId,
     ) ||
@@ -112,8 +109,7 @@ export const navigateToCommand = createAsyncThunk<
         const newPage: Page = {
           id,
           commands: {
-            favorites: [], // Child pages don't inherit favorites/recents
-            recents: [],
+            favorites: [], // Child pages don't inherit favorites
             suggestions: response.children, // All children go to suggestions
           },
           searchValue: "", // Always start with empty search to show all children
@@ -141,7 +137,6 @@ export const refreshCurrentPage = createAsyncThunk<
     success: boolean
     newCommands?: {
       favorites: Suggestion[]
-      recents: Suggestion[]
       suggestions: Suggestion[]
     }
     newFormValues?: Record<string, string>
@@ -184,7 +179,6 @@ export const refreshCurrentPage = createAsyncThunk<
           success: true,
           newCommands: {
             favorites: [],
-            recents: [],
             suggestions: response.children,
           },
           newFormValues: mergedValues,
@@ -225,7 +219,6 @@ export const navigationSlice = createSlice({
             id: "root",
             commands: {
               favorites: [],
-              recents: [],
               suggestions: [],
             },
             searchValue: "",
@@ -236,7 +229,6 @@ export const navigationSlice = createSlice({
         ],
     initialCommands: initialCommands || {
       favorites: [],
-      recents: [],
       suggestions: [],
       deepSearchItems: [],
     },
@@ -324,7 +316,6 @@ export const navigationSlice = createSlice({
       state,
       action: PayloadAction<{
         favorites: Suggestion[]
-        recents: Suggestion[]
         suggestions: Suggestion[]
       }>,
     ) => {

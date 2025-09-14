@@ -7,14 +7,10 @@ import { createMessageHandler } from "../utils/messages"
 import { flattenDeepSearchCommands } from "./getDeepSearchCommands"
 
 const handleGetCommands = async (message: GetCommandsMessage) => {
-  const {
-    favorites: cmdFavorites,
-    recents: cmdRecents,
-    suggestions: cmdSuggestions,
-  } = await getCommandsFromBackground(message.context)
+  const { favorites: cmdFavorites, suggestions: cmdSuggestions } =
+    await getCommandsFromBackground(message.context)
 
   const favorites = await commandsToSuggestions(cmdFavorites, message.context)
-  const recents = await commandsToSuggestions(cmdRecents, message.context)
   const suggestions = await commandsToSuggestions(
     cmdSuggestions,
     message.context,
@@ -25,7 +21,7 @@ const handleGetCommands = async (message: GetCommandsMessage) => {
     message.context,
   )
 
-  const result = { favorites, recents, suggestions, deepSearchItems }
+  const result = { favorites, suggestions, deepSearchItems }
 
   return result
 }

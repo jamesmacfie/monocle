@@ -99,18 +99,6 @@ export function CommandList({
           ))}
         </Command.Group>
       )}
-      {(currentPage.commands.recents || []).length > 0 && (
-        <Command.Group heading="Recents">
-          {(currentPage.commands.recents || []).map((item) => (
-            <CommandItem
-              key={item.id}
-              suggestion={item}
-              onSelect={onSelect}
-              currentPage={currentPage}
-            />
-          ))}
-        </Command.Group>
-      )}
       {(currentPage.commands.suggestions || []).length > 0 && (
         <Command.Group heading="Suggestions">
           {(currentPage.commands.suggestions || []).map((item) => (

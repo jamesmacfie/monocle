@@ -6,7 +6,6 @@ export type { Suggestion } from "./ui"
 // Command data structure
 export type CommandData = {
   favorites: Suggestion[]
-  recents: Suggestion[]
   suggestions: Suggestion[]
   deepSearchItems: Suggestion[]
 }

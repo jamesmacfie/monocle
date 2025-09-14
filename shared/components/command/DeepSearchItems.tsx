@@ -8,7 +8,6 @@ interface DeepSearchItemsProps {
     id: string
     commands: {
       favorites: Suggestion[]
-      recents: Suggestion[]
       suggestions: Suggestion[]
     }
     searchValue: string

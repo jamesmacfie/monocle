@@ -71,9 +71,6 @@ function CommandContent({
     (currentPage.commands.favorites || []).find(
       (item: Suggestion) => item.id === focusedValue,
     ) ||
-    (currentPage.commands.recents || []).find(
-      (item: Suggestion) => item.id === focusedValue,
-    ) ||
     (currentPage.commands.suggestions || []).find(
       (item: Suggestion) => item.id === focusedValue,
     ) ||

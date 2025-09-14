@@ -10,7 +10,6 @@ export function useGetCommands(context?: Partial<Browser.Context>) {
   const [data, setData] = useState<CommandData>({
     favorites: [],
     suggestions: [],
-    recents: [],
     deepSearchItems: [],
   })
   const [isLoading, setIsLoading] = useState(false)
@@ -31,14 +30,12 @@ export function useGetCommands(context?: Partial<Browser.Context>) {
         setData({
           favorites: [],
           suggestions: [],
-          recents: [],
           deepSearchItems: [],
         })
       } else {
         const newData = {
           favorites: response.favorites || [],
           suggestions: response.suggestions || [],
-          recents: response.recents || [],
           deepSearchItems: response.deepSearchItems || [],
         }
         setData(newData)
@@ -48,7 +45,6 @@ export function useGetCommands(context?: Partial<Browser.Context>) {
       setData({
         favorites: [],
         suggestions: [],
-        recents: [],
         deepSearchItems: [],
       })
     } finally {

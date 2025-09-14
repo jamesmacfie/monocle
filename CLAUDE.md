@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 Monocle is a browser extension built with Extension.js that provides a VS Code-style command palette for browser operations. It operates in two modes: overlay command palette on any webpage (Cmd+Shift+K) and dedicated new tab page.
 
-**Key Features**: Fuzzy search (CMDK), categorized commands (favorites/recents/suggestions), deep search for nested commands, cross-browser compatibility (Chrome/Firefox), Shadow DOM isolation, shared component architecture.
+**Key Features**: Fuzzy search (CMDK), categorized commands (favorites/suggestions), deep search for nested commands, cross-browser compatibility (Chrome/Firefox), Shadow DOM isolation, shared component architecture.
 
 ## Architecture
 
@@ -42,7 +42,6 @@ keybinding?: string
 confirmAction?: boolean
 remainOpenOnSelect?: boolean
 allowCustomKeybinding?: boolean
-doNotAddToRecents?: boolean
 ```
 
 **GroupCommandNode**: Container for child commands (replaces ParentCommand)
@@ -107,8 +106,7 @@ Implementation note: shared key handling is centralized so all input types behav
 ### Command Organization
 
 - **Favorites**: Starred commands with recursive discovery through group hierarchies
-- **Recents**: Auto-tracked recent executions  
-- **Suggestions**: All other commands, usage-ranked
+- **Suggestions**: All commands, usage-ranked
 - **Deep Search Items**: Pre-flattened nested commands from groups with `enableDeepSearch: true`
 
 ### Deep Search Feature
@@ -143,7 +141,6 @@ interface NavigationState {
   pages: Page[]                    // Navigation stack (command hierarchy)
   initialCommands: {              // Root commands + deep search
     favorites: Suggestion[]
-    recents: Suggestion[]
     suggestions: Suggestion[]
     deepSearchItems: Suggestion[]
   }
@@ -151,7 +148,7 @@ interface NavigationState {
 
 type Page = {
   id: string                      // Command ID or "root"
-  commands: { favorites, recents, suggestions }
+  commands: { favorites, suggestions }
   searchValue: string
   parent?: Suggestion
   parentPath: string[]           // For efficient lookups
@@ -161,7 +158,7 @@ type Page = {
 
 ### Key Navigation Actions
 - `navigateToCommand`: Create new page for group children
-- `setInitialCommands`: Update root commands (favorites/recents changes)
+- `setInitialCommands`: Update root commands (favorites changes)
 - `updateSearchValue`: Update search input
 - `navigateBack`: Pop page
 - `setFormValue`: Update inline input value

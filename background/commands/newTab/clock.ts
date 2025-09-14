@@ -25,7 +25,6 @@ const toggleClockVisibility: CommandNode = {
       show: !isCurrentlyVisible,
     })
   },
-  doNotAddToRecents: false,
 }
 
 export const clockCommand: CommandNode = {

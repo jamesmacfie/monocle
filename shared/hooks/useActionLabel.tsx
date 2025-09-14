@@ -12,9 +12,6 @@ export function useActionLabel(
     (currentPage.commands.favorites || []).find(
       (item) => item.id === focusedValue,
     ) ||
-    (currentPage.commands.recents || []).find(
-      (item) => item.id === focusedValue,
-    ) ||
     (currentPage.commands.suggestions || []).find(
       (item) => item.id === focusedValue,
     )

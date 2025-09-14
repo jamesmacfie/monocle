@@ -29,7 +29,6 @@ function _findCommandInPage(
     (page.commands.favorites || []).find(
       (command) => command.id === commandId,
     ) ||
-    (page.commands.recents || []).find((command) => command.id === commandId) ||
     (page.commands.suggestions || []).find(
       (command) => command.id === commandId,
     ) ||
@@ -99,7 +98,6 @@ function extractParentNames(
 export function useCommandNavigation(
   initialCommands: {
     favorites: Suggestion[]
-    recents: Suggestion[]
     suggestions: Suggestion[]
     deepSearchItems: Suggestion[]
   },

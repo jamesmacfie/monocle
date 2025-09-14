@@ -76,7 +76,6 @@ function createSearchQueryAction(id: string, query: string): ActionCommandNode {
     actionLabel: "Search",
     modifierActionLabel: { cmd: "Open in New Tab" },
     allowCustomKeybinding: false,
-    doNotAddToRecents: true,
     async execute(context) {
       try {
         if (context?.modifierKey === "cmd") {

@@ -89,7 +89,6 @@ export const toggleFavoriteCommand: ActionCommandNode = {
   description: "Toggle favorite status for a command",
   icon: { type: "lucide", name: "Star" },
   color: "amber",
-  doNotAddToRecents: true,
   execute: async (
     _context?: Browser.Context,
     values?: Record<string, string>,
@@ -108,7 +107,6 @@ export const clearFavoritesCommand: ActionCommandNode = {
   name: "Clear favorites",
   description: "Clear all favorite commands",
   icon: { type: "lucide", name: "Trash2" },
-  doNotAddToRecents: true,
   execute: async () => {
     try {
       await browser.storage.local.remove(STORAGE_KEY)

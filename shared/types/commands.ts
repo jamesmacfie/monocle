@@ -78,7 +78,6 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
   type: "action"
   execute: CommandExecutor
   // Action-only metadata (moved off the base)
-  doNotAddToRecents?: boolean
   confirmAction?: boolean
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean

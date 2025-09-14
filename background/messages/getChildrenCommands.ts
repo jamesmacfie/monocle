@@ -13,12 +13,9 @@ import { resolveCommandName } from "../utils/commands"
 import { createMessageHandler } from "../utils/messages"
 
 const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
-  const {
-    favorites: cmdFavorites,
-    suggestions: cmdSuggestions,
-    recents: cmdRecents,
-  } = await getCommandsFromBackground(message.context)
-  const allCommands = [...cmdFavorites, ...cmdRecents, ...cmdSuggestions]
+  const { favorites: cmdFavorites, suggestions: cmdSuggestions } =
+    await getCommandsFromBackground(message.context)
+  const allCommands = [...cmdFavorites, ...cmdSuggestions]
 
   let commandToSearch = allCommands
   let parentCommand: any = null
