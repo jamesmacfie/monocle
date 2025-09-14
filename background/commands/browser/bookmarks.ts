@@ -73,7 +73,6 @@ function processBookmarkNode(
       modifierActionLabel: {
         cmd: "Open in New Tab",
       },
-      allowCustomKeybinding: false, // Dynamic bookmark commands shouldn't have custom keybindings
       execute: async (context) => {
         const activeTab = await getActiveTab()
 

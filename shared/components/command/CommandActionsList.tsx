@@ -201,7 +201,8 @@ function KeybindingCapture({
     ref: captureRef,
     className: "keybinding-capture",
     tabIndex: 0,
-    onKeyDown: handleKeyDown,
+    // Use capture phase to intercept before CMDK routes input to its search field
+    onKeyDownCapture: handleKeyDown as any,
   }
 
   return (

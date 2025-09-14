@@ -1,5 +1,7 @@
 import { useEffect } from "react"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
+import { useAppSelector } from "../store/hooks"
+import { selectIsCapturing } from "../store/slices/keybinding.slice"
 
 // Cross-browser compatibility layer
 const _browserAPI = typeof browser !== "undefined" ? browser : chrome
@@ -57,11 +59,29 @@ function shouldSkipKeybinding(
 
 export function useGlobalKeybindings() {
   const sendMessage = useSendMessage()
+  const isCapturing = useAppSelector(selectIsCapturing)
 
   useEffect(() => {
+    // Track whether a multi‑stroke sequence is in progress so we keep
+    // capturing subsequent strokes even without modifiers (e.g., "⌘ k, g").
+    let sequenceActive = false
+    let clearSequenceTimer: ReturnType<typeof setTimeout> | null = null
+    const resetSequenceFlag = () => {
+      sequenceActive = false
+      if (clearSequenceTimer) {
+        clearTimeout(clearSequenceTimer)
+        clearSequenceTimer = null
+      }
+    }
+
     const handleKeyDown = async (event: KeyboardEvent) => {
-      // Check if we should skip this keybinding based on focus and modifiers
-      if (shouldSkipKeybinding(document.activeElement, event)) {
+      // Disable global keybindings while capturing a custom keybinding
+      if (isCapturing) {
+        return
+      }
+      // Check if we should skip this keybinding based on focus and modifiers,
+      // unless we're mid-sequence (then we must capture the next stroke).
+      if (!sequenceActive && shouldSkipKeybinding(document.activeElement, event)) {
         return
       }
 
@@ -91,21 +111,40 @@ export function useGlobalKeybindings() {
         return
       }
 
-      // Try to execute the keybinding
+      // Try to execute (or continue) the keybinding sequence
       try {
         const response = await sendMessage({
           type: "execute-keybinding",
           keybinding,
         })
 
-        // If a command was executed, prevent default and stop propagation
+        // If background handled this stroke (executed or pending),
+        // prevent default and stop propagation.
         if (response?.success) {
           event.preventDefault()
           event.stopPropagation()
           event.stopImmediatePropagation()
         }
+
+        // Manage local sequence state based on background response
+        if (response?.pending) {
+          sequenceActive = true
+          if (clearSequenceTimer) clearTimeout(clearSequenceTimer)
+          // Match background chord timeout (slightly longer to be safe)
+          clearSequenceTimer = setTimeout(() => {
+            sequenceActive = false
+            clearSequenceTimer = null
+          }, 900)
+        } else if (response?.executed) {
+          // Command executed — clear local sequence state
+          resetSequenceFlag()
+        } else if (response && response.success === false) {
+          // Unhandled — clear local sequence state so page regains control
+          resetSequenceFlag()
+        }
       } catch (_error) {
         // Silently ignore - this just means no command is bound to this key
+        resetSequenceFlag()
       }
     }
 
@@ -118,6 +157,7 @@ export function useGlobalKeybindings() {
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown, { capture: true })
+      resetSequenceFlag()
     }
-  }, [sendMessage])
+  }, [sendMessage, isCapturing])
 }
