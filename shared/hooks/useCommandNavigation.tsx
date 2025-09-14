@@ -146,6 +146,24 @@ export function useCommandNavigation(
     }
   }, [currentPage?.id, currentPage?.searchValue, inputRef, currentPage])
 
+  // Debounced refresh for pages that opt into dynamic children
+  useEffect(() => {
+    if (!currentPage || !currentPage.dynamicChildren) return
+    if (!currentPage.searchValue || currentPage.searchValue.trim().length === 0)
+      return
+    const handle = setTimeout(() => {
+      // Only refresh if we're not already loading; the thunk guards root pages
+      dispatch(refreshCurrentPageThunk({ currentPage }))
+    }, 250)
+    return () => clearTimeout(handle)
+  }, [
+    currentPage?.id,
+    currentPage?.searchValue,
+    currentPage?.dynamicChildren,
+    dispatch,
+    currentPage,
+  ])
+
   /**
    * Updates the search value for the current page
    * Called by CMDK when user types in search input
@@ -272,13 +290,21 @@ export function useCommandNavigation(
 
       // Extract parent context for breadcrumb display in recent commands
       const parentNames = extractParentNames(selectedCommand, currentPage)
+      const isDynamicPage = currentPage.id !== "root" && currentPage.dynamicChildren
+      let execId = selectedCommand.id
+      let formValues: Record<string, string | string[]> =
+        currentPage.formValues || {}
 
-      await executeCommand(
-        selectedCommand.id,
-        currentPage.formValues || {},
-        shouldNavigateBack,
-        parentNames,
-      )
+      if (isDynamicPage) {
+        // Execute the parent command and pass a URL payload from the selected suggestion
+        execId = currentPage.id
+        const desc = (selectedCommand as any).description
+        if (typeof desc === "string" && /^https?:\/\//i.test(desc)) {
+          formValues = { ...formValues, dynamicUrl: desc }
+        }
+      }
+
+      await executeCommand(execId, formValues, shouldNavigateBack, parentNames)
     }
   }
 

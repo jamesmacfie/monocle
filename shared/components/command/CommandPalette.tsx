@@ -50,6 +50,7 @@ function CommandContent({
     id: string,
     formValues: Record<string, string | string[]>,
     navigateBack?: boolean,
+    parentNames?: string[],
   ) => Promise<void>
   onOpenActions: (suggestion: Suggestion) => void
   onCloseActions: (force?: boolean) => void
@@ -197,6 +198,7 @@ interface Props {
     id: string,
     formValues: Record<string, string | string[]>,
     navigateBack?: boolean,
+    parentNames?: string[],
   ) => Promise<void>
   close: () => void
   onRefreshCommands: () => void

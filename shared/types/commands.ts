@@ -66,6 +66,14 @@ export interface GroupCommandNode extends CommandNodeBase {
   type: "group"
   children: (context: Browser.Context) => Promise<CommandNode[]>
   enableDeepSearch?: boolean
+  // When true, this group can react to page-level search updates
+  // The background can use the current search value to compute children
+  dynamicChildren?: boolean
+  // Optional resolver for dynamic children when search text changes
+  getDynamicChildren?: (
+    context: Browser.Context,
+    search: string,
+  ) => Promise<CommandNode[]>
 }
 
 // Executable action; contains execution behavior and labels
@@ -83,6 +91,14 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
   keybinding?: string
+  // If true, selecting this action opens a child page and
+  // children are populated dynamically from page-level search
+  dynamicChildren?: boolean
+  // Optional resolver for dynamic children when search text changes
+  getDynamicChildren?: (
+    context: Browser.Context,
+    search: string,
+  ) => Promise<CommandNode[]>
 }
 
 // Submit action for forms; renders as a button and collects all form values

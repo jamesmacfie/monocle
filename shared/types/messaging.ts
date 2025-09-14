@@ -20,6 +20,8 @@ export type GetChildrenMessage = {
   id: string
   context: Browser.Context
   parentPath?: string[]
+  // Optional page-level search value used to compute dynamic children
+  searchValue?: string
 }
 
 export type GetCommandsMessage = {

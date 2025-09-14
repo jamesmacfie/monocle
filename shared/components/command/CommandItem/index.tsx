@@ -1,5 +1,6 @@
 import { Command, useCommandState } from "cmdk"
 import { type ReactNode, useEffect, useRef, useState } from "react"
+import { match } from "ts-pattern"
 import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
 import type { Page } from "../../../store/slices/navigation.slice"
@@ -9,9 +10,13 @@ import {
   validateFormValues,
 } from "../../../utils/forms"
 import { CommandItemAction } from "./CommandItemAction"
+import { CommandItemColor } from "./CommandItemColor"
 import { CommandItemDisplay } from "./CommandItemDisplay"
 import { CommandItemInput } from "./CommandItemInput"
+import { CommandItemMulti } from "./CommandItemMulti"
+import { CommandItemSelect } from "./CommandItemSelect"
 import { CommandItemSubmit } from "./CommandItemSubmit"
+import { CommandItemSwitch } from "./CommandItemSwitch"
 
 export interface CommandItemProps {
   suggestion: Suggestion
@@ -159,40 +164,84 @@ export function CommandItem({
       keywords={suggestion.keywords}
       onSelect={handleSelect}
     >
-      {isInlineInput && inputField ? (
-        <CommandItemInput
-          field={inputField}
-          inputRef={inputRef}
-          onKeyDown={onInlineInputKeyDown}
-          onSubmit={handleInputSubmit}
-        />
-      ) : _isSubmitButton ? (
-        <CommandItemSubmit
-          actionLabel={
-            suggestion.type === "submit" ? suggestion.actionLabel : "Submit"
-          }
-          inputRef={submitRef}
-          onSubmit={() => {
-            // Validate all inline inputs on the current page before submitting
-            const fields = collectInputFieldsFromSuggestions(
-              currentPage.commands.suggestions || [],
+      {match(suggestion.type)
+        .with("input", () =>
+          match(inputField?.type)
+            .with("text", () =>
+              inputField && inputField.type === "text" ? (
+                <CommandItemInput
+                  field={inputField}
+                  inputRef={inputRef}
+                  onKeyDown={onInlineInputKeyDown}
+                  onSubmit={handleInputSubmit}
+                />
+              ) : null,
             )
-            const result = validateFormValues(
-              currentPage.formValues || {},
-              fields,
-            )
-            if (!result.isValid) {
-              toast("error", "Form is invalid. Check inputs.")
-              return
+            .with("select", () => (
+              <CommandItemSelect
+                field={inputField as any}
+                inputRef={inputRef as any}
+                onSubmit={handleInputSubmit}
+              />
+            ))
+            .with("checkbox", "switch", () => (
+              <CommandItemSwitch
+                field={inputField as any}
+                inputRef={inputRef as any}
+                onKeyDown={onInlineInputKeyDown}
+              />
+            ))
+            .with("multi", () => (
+              <CommandItemMulti
+                field={inputField as any}
+                inputRef={inputRef as any}
+                onKeyDown={onInlineInputKeyDown}
+              />
+            ))
+            .with("color", () => (
+              <CommandItemColor
+                field={inputField as any}
+                inputRef={inputRef as any}
+                onKeyDown={onInlineInputKeyDown}
+              />
+            ))
+            .otherwise(() => null),
+        )
+        .with("submit", () => (
+          <CommandItemSubmit
+            actionLabel={
+              suggestion.type === "submit" ? suggestion.actionLabel : "Submit"
             }
-            onSelect(suggestion.id)
-          }}
-        />
-      ) : isDisplayOnly ? (
-        <CommandItemDisplay suggestion={suggestion} displayName={displayName} />
-      ) : (
-        <CommandItemAction suggestion={suggestion} displayName={displayName} />
-      )}
+            inputRef={submitRef}
+            onSubmit={() => {
+              // Validate all inline inputs on the current page before submitting
+              const fields = collectInputFieldsFromSuggestions(
+                currentPage.commands.suggestions || [],
+              )
+              const result = validateFormValues(
+                currentPage.formValues || {},
+                fields,
+              )
+              if (!result.isValid) {
+                toast("error", "Form is invalid. Check inputs.")
+                return
+              }
+              onSelect(suggestion.id)
+            }}
+          />
+        ))
+        .with("display", () => (
+          <CommandItemDisplay
+            suggestion={suggestion}
+            displayName={displayName}
+          />
+        ))
+        .otherwise(() => (
+          <CommandItemAction
+            suggestion={suggestion}
+            displayName={displayName}
+          />
+        ))}
       {children}
     </Command.Item>
   )

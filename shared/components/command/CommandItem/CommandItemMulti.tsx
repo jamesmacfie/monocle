@@ -49,7 +49,7 @@ export function CommandItemMulti({
   // Move DOM focus to the currently focused chip when focusIndex changes
   useEffect(() => {
     inputRef.current?.focus()
-  }, [focusIndex])
+  }, [inputRef.current?.focus])
 
   const toggleValue = (value: string) => {
     const next = selected.includes(value)

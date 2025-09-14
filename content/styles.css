@@ -353,7 +353,9 @@
       box-shadow: 0 0 0 1px var(--blue8);
       outline: none;
     }
-    .command-item-select input[type="checkbox"]:focus + .command-item-submit-button {
+    .command-item-select
+      input[type="checkbox"]:focus
+      + .command-item-submit-button {
       border-color: var(--blue8);
       box-shadow: 0 0 0 1px var(--blue8);
       outline: none;
@@ -372,11 +374,10 @@
       input[type="radio"]:checked
       + .command-item-submit-button,
     /* Multi-select (checkbox) visual state */
-    .command-item-select
-      input[type="checkbox"]:checked
+      .command-item-select input[type="checkbox"]:checked
       + .command-item-submit-button,
     /* Fallback when React adds a .selected class */
-    .command-item-submit-button.selected {
+      .command-item-submit-button.selected {
       background: var(--gray3);
       border-color: var(--blue8);
     }

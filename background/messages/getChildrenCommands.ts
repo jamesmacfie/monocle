@@ -1,4 +1,5 @@
 import type {
+  ActionCommandNode,
   CommandNode,
   GetChildrenMessage,
   GroupCommandNode,
@@ -71,7 +72,53 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
       parentNameString,
     )
 
-    return { children: childSuggestions }
+    return {
+      children: childSuggestions,
+      openPage: true,
+      dynamicChildren: false,
+    }
+  }
+
+  // Support dynamic children for action nodes opting in
+  const isDynamicAction = !!(
+    targetCommand &&
+    (targetCommand as CommandNode).type === "action" &&
+    (targetCommand as ActionCommandNode).dynamicChildren === true
+  )
+
+  if (targetCommand && isDynamicAction) {
+    const actionNode = targetCommand as ActionCommandNode
+    let children: CommandNode[] = []
+
+    // Only attempt to resolve children if we have a search value and a resolver
+    const search = (message.searchValue || "").trim()
+    if (search && typeof actionNode.getDynamicChildren === "function") {
+      try {
+        children = await actionNode.getDynamicChildren(message.context, search)
+      } catch (error) {
+        console.error(
+          `[DynamicChildren] Error resolving children for ${actionNode.id}:`,
+          error,
+        )
+      }
+    }
+
+    const parentNameString = await resolveCommandName(
+      actionNode.name,
+      message.context,
+    )
+    const childSuggestions = await commandsToSuggestions(
+      children,
+      message.context,
+      parentNameString,
+    )
+
+    // Always signal to open a page even if we have no children yet
+    return {
+      children: childSuggestions,
+      openPage: true,
+      dynamicChildren: true,
+    }
   }
 
   return { children: [] }

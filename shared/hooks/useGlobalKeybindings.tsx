@@ -85,6 +85,12 @@ export function useGlobalKeybindings() {
         return
       }
 
+      // Only allow single-char keys and Enter; ignore other special keys to avoid validation noise
+      const isAllowedKey = key === "↵" || /^[a-z0-9]$/.test(key)
+      if (!isAllowedKey) {
+        return
+      }
+
       // Try to execute the keybinding
       try {
         const response = await sendMessage({

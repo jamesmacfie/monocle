@@ -19,6 +19,8 @@ export type Page = {
   parent?: Suggestion
   parentPath: string[] // Track the path of parent command IDs
   formValues?: Record<string, string | string[]> // For inline input values
+  // When true, this page's children are driven by search input
+  dynamicChildren?: boolean
 }
 
 // State shape
@@ -84,7 +86,12 @@ export const navigateToCommand = createAsyncThunk<
         parentPath,
       })
 
-      if (response.children && response.children.length > 0) {
+      // Decide whether to open a new page: open when children exist or explicitly requested by backend
+      const shouldOpenPage =
+        (response && response.openPage === true) ||
+        (response?.children && response.children.length > 0)
+
+      if (shouldOpenPage) {
         // Store reference to parent command for breadcrumb navigation
         const parentCommand = findCommandInPage(
           currentPage,
@@ -113,6 +120,7 @@ export const navigateToCommand = createAsyncThunk<
           parent: parentCommand,
           parentPath: newParentPath,
           formValues: defaults, // Initialize with defaults from input fields
+          dynamicChildren: response?.dynamicChildren === true,
         }
 
         return { success: true, newPage }
@@ -160,6 +168,7 @@ export const refreshCurrentPage = createAsyncThunk<
         type: "get-children-commands",
         id: currentPage.id,
         parentPath,
+        searchValue: currentPage.searchValue,
       })
 
       if (response.children) {
@@ -208,6 +217,7 @@ export const navigationSlice = createSlice({
             searchValue: "",
             parentPath: [],
             formValues: {},
+            dynamicChildren: false,
           },
         ]
       : [
@@ -221,6 +231,7 @@ export const navigationSlice = createSlice({
             searchValue: "",
             parentPath: [],
             formValues: {},
+            dynamicChildren: false,
           },
         ],
     initialCommands: initialCommands || {
@@ -412,6 +423,7 @@ export const getInitialStateWithCommands = (
       searchValue: "",
       parentPath: [],
       formValues: {},
+      dynamicChildren: false,
     },
   ],
   initialCommands,

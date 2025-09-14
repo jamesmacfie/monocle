@@ -31,6 +31,7 @@ export const GetChildrenMessageSchema = z.object({
   id: z.string().min(1, "Command ID cannot be empty"),
   context: BrowserContextSchema,
   parentPath: z.array(z.string()).optional(),
+  searchValue: z.string().optional(),
 })
 
 export const GetCommandsMessageSchema = z.object({

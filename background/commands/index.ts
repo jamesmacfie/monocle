@@ -585,15 +585,28 @@ export const commandsToSuggestions = async (
       let suggestion: Suggestion
 
       if (node.type === "action") {
-        suggestion = {
-          ...baseProps,
-          type: "action",
-          actionLabel: await resolveActionLabel(node, context),
-          modifierActionLabel: await resolveModifierActionLabels(node, context),
-          confirmAction: node.confirmAction,
-          remainOpenOnSelect: node.remainOpenOnSelect,
-          executionContext: undefined,
-          actions: undefined,
+        // Actions that opt into dynamic children should open as a group page
+        if ((node as any).dynamicChildren) {
+          suggestion = {
+            ...baseProps,
+            type: "group",
+            actionLabel: "Open",
+            actions: undefined,
+          }
+        } else {
+          suggestion = {
+            ...baseProps,
+            type: "action",
+            actionLabel: await resolveActionLabel(node, context),
+            modifierActionLabel: await resolveModifierActionLabels(
+              node,
+              context,
+            ),
+            confirmAction: node.confirmAction,
+            remainOpenOnSelect: node.remainOpenOnSelect,
+            executionContext: undefined,
+            actions: undefined,
+          }
         }
       } else if (node.type === "submit") {
         suggestion = {

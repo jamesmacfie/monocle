@@ -55,7 +55,7 @@ enableDeepSearch?: boolean  // Makes nested commands searchable at top level
 **InputCommandNode**: Inline input field rendered as a list item
 ```typescript
 type: "input"
-field: FormField  // Text, select, or checkbox input configuration
+field: FormField  // Text, select, checkbox/switch, radio, color, or multi configuration
 ```
 
 **DisplayCommandNode**: Static display row (headings, help text)
@@ -92,6 +92,17 @@ Instead of separate UI overlays, input fields are rendered inline as command ite
 - Input values are captured in form state within the navigation slice
 - When executing actions, form values are passed to the `execute()` function
 - Example: Calculator command has input nodes for the expression and action nodes for calculate/copy
+
+Keyboard interactions for inline inputs are consistent:
+- Up/Down: move between command items (delegated to CMDK)
+- Escape: focuses the main search input (does not navigate back)
+- Backspace: does not bubble (prevents accidental navigate back)
+- Left/Right: type-specific behavior
+  - Select: cycles previous/next option
+  - Radio: moves focus across options; Enter/Space selects (always one selected)
+  - Multi: moves focus across options; Enter/Space toggles selection in/out
+
+Implementation note: shared key handling is centralized so all input types behave consistently.
 
 ### Command Organization
 
@@ -144,7 +155,7 @@ type Page = {
   searchValue: string
   parent?: Suggestion
   parentPath: string[]           // For efficient lookups
-  formValues?: Record<string, string>  // Inline input values
+  formValues?: Record<string, string | string[]>  // Inline input values (multi stores string[])
 }
 ```
 
@@ -237,6 +248,8 @@ type CommandSuggestion = Suggestion
 **Browser.Context**: Every command execution includes current page URL, title, and active modifier key.
 
 **Permission Messages**: `request-permission` messages are used in Chrome to route permission requests through the background script for security compliance.
+
+Execution payloads: `execute-command` messages can include array values (from multiselect inputs). The background normalizes any array values to comma-separated strings before invoking a command’s `execute()` so existing commands that expect `Record<string, string>` continue to work. Command authors can split values back into arrays if needed.
 
 ## Keybinding System
 
@@ -393,6 +406,9 @@ dispatch(updateClockVisibility(!showClock))
    - Enable `enableDeepSearch` for complex hierarchies
    - Use `background/utils/browser.ts` for API calls
    - Test both Chrome and Firefox
+   - Use `FormField` types appropriately:
+     - `text`, `select`, `radio`, `color` store strings; `checkbox`/`switch` store "true"/"false" strings
+     - `multi` stores `string[]` (background normalizes arrays to comma-separated strings for `execute()`)
 
 ## Key Patterns
 
@@ -432,6 +448,47 @@ export const calculator: GroupCommandNode = {
       }
     }
   ]
+}
+```
+
+**Multiselect Input Pattern**: Multiple options with chip-style toggles and array values
+```typescript
+export const preferences: GroupCommandNode = {
+  type: "group",
+  id: "preferences",
+  name: "Preferences",
+  children: async () => [
+    {
+      type: "input",
+      id: "pref-langs",
+      name: "Languages",
+      field: {
+        id: "languages",
+        label: "Languages",
+        type: "multi",
+        options: [
+          { value: "js", label: "JavaScript" },
+          { value: "ts", label: "TypeScript" },
+          { value: "py", label: "Python" },
+        ],
+        defaultValue: ["js", "ts"],
+      },
+    },
+    {
+      type: "submit",
+      id: "save-preferences",
+      name: "Save",
+      actionLabel: "Save",
+      async execute(context, values) {
+        // Background normalizes arrays to comma-separated strings for execute()
+        // Convert back to an array if needed
+        const langs = String(values?.languages || "")
+          .split(",")
+          .filter(Boolean)
+        await saveLanguages(langs)
+      },
+    },
+  ],
 }
 ```
 
