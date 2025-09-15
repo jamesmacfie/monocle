@@ -9,8 +9,10 @@ import {
   findCommand,
   getCommands as getCommandsFromBackground,
 } from "../commands"
+import { getAllCommandSettings } from "../commands/settings"
 import { resolveCommandName } from "../utils/commands"
 import { createMessageHandler } from "../utils/messages"
+import { filterCommandsByUrl } from "../utils/urlFilter"
 
 const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
   const { favorites: cmdFavorites, suggestions: cmdSuggestions } =
@@ -59,12 +61,22 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
       message.context,
     )
 
+    // Get all command settings for URL filtering
+    const commandSettings = await getAllCommandSettings()
+
+    // Filter children based on URL rules
+    const filteredChildren = await filterCommandsByUrl(
+      children,
+      message.context.url || "",
+      commandSettings,
+    )
+
     const parentNameString = await resolveCommandName(
       targetCommand.name,
       message.context,
     )
     const childSuggestions = await commandsToSuggestions(
-      children,
+      filteredChildren,
       message.context,
       parentNameString,
     )
@@ -92,12 +104,24 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
       }
     }
 
+    // Get all command settings for URL filtering
+    const { getAllCommandSettings } = require("../commands")
+    const commandSettings = await getAllCommandSettings()
+
+    // Filter children based on URL rules
+    const { filterCommandsByUrl } = require("../utils/urlFilter")
+    const filteredChildren = await filterCommandsByUrl(
+      children,
+      message.context.url || "",
+      commandSettings,
+    )
+
     const parentNameString = await resolveCommandName(
       searchNode.name,
       message.context,
     )
     const childSuggestions = await commandsToSuggestions(
-      children,
+      filteredChildren,
       message.context,
       parentNameString,
     )

@@ -1,8 +1,10 @@
 // Settings and user preferences types
+import type { UrlRules } from "./commands"
 
 // Individual command settings
 export interface CommandSettings {
   keybinding?: string
+  urlRules?: UrlRules
 }
 
 // Theme settings

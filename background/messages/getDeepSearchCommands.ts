@@ -6,7 +6,9 @@ import type {
   Suggestion,
 } from "../../shared/types"
 import { commandsToSuggestions, getCommands } from "../commands"
+import { getAllCommandSettings } from "../commands/settings"
 import { resolveAsyncProperty } from "../utils/commands"
+import { filterCommandsByUrl } from "../utils/urlFilter"
 
 // Helper function to recursively flatten commands with enableDeepSearch: true
 export async function flattenDeepSearchCommands(
@@ -41,6 +43,15 @@ export async function flattenDeepSearchCommands(
         }
 
         const children = await command.children(context)
+        const commandSettings = await getAllCommandSettings()
+
+        // Filter children based on URL rules
+        const filteredChildren = await filterCommandsByUrl(
+          children,
+          context.url || "",
+          commandSettings,
+        )
+
         const commandName = await resolveAsyncProperty(command.name, context)
         const parentNameString = Array.isArray(commandName)
           ? commandName[0]
@@ -50,7 +61,7 @@ export async function flattenDeepSearchCommands(
         const newPath = [...parentPath, parentNameString]
 
         // Process action nodes
-        for (const child of children) {
+        for (const child of filteredChildren) {
           if (child.type === "action") {
             // Enhance the action command with breadcrumb name and keywords
             const childName = await resolveAsyncProperty(child.name, context)
@@ -85,7 +96,7 @@ export async function flattenDeepSearchCommands(
         }
 
         // Recursively process child groups
-        const childGroups = children.filter(
+        const childGroups = filteredChildren.filter(
           (child): child is GroupCommandNode => child.type === "group",
         )
         const childFlattenedCommands = await flattenDeepSearchCommands(

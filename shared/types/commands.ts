@@ -44,9 +44,10 @@ export type ActionLabel = {
   }
 }
 
-// ===========
-// Node-based Command Model (inline UI as commands)
-// ===========
+export interface UrlRules {
+  allowUrls?: string[]
+  denyUrls?: string[]
+}
 
 // Common base for all node-based command nodes (minimal surface)
 export interface CommandNodeBase {
@@ -59,6 +60,8 @@ export interface CommandNodeBase {
   keywords?: AsyncValue<string[]>
   // Keep permissions at base so groups/inputs can participate if needed
   permissions?: BrowserPermission[]
+  // URL rules for filtering commands based on current page
+  urlRules?: UrlRules
 }
 
 // Group of children; replaces UI forms composed of multiple fields

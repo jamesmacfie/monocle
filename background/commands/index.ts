@@ -6,6 +6,7 @@ import {
   resolveAsyncProperty,
   resolveModifierActionLabels,
 } from "../utils/commands"
+import { filterCommandsByUrl } from "../utils/urlFilter"
 import { browserCommands, firefoxCommands } from "./browser"
 import {
   clearFavoritesCommand,
@@ -150,6 +151,16 @@ export const getCommands = async (
 }> => {
   const allCommands = loadAllCommands(context)
 
+  // Get all command settings for URL filtering
+  const commandSettings = await getAllCommandSettings()
+
+  // Filter commands based on URL rules
+  const filteredCommands = await filterCommandsByUrl(
+    allCommands,
+    context?.url || "",
+    commandSettings,
+  )
+
   const favoriteResult: Array<CommandNode> = []
   const suggestionsResult: Array<CommandNode> = []
   const addedCommandIds = new Set<string>()
@@ -168,7 +179,7 @@ export const getCommands = async (
 
   // Find all favorited commands including sub-commands
   const favoritedCommands = await findFavoritedCommands(
-    allCommands,
+    filteredCommands,
     favoriteCommandIds,
     basicContext,
   )
@@ -180,7 +191,10 @@ export const getCommands = async (
   }
 
   // Process remaining commands as suggestions
-  const suggestions = await _processSuggestions(allCommands, addedCommandIds)
+  const suggestions = await _processSuggestions(
+    filteredCommands,
+    addedCommandIds,
+  )
   suggestionsResult.push(...suggestions)
 
   return {
