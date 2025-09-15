@@ -13,6 +13,8 @@ import { gotoTab } from "./gotoTab"
 import { browsingHistory } from "./history"
 import { moveCurrentTabToANewWindow } from "./moveCurrentTabToANewWindow"
 import { moveCurrentTabToPopupWindow } from "./moveCurrentTabToPopupWindow"
+import { moveTabLeft } from "./moveTabLeft"
+import { moveTabRight } from "./moveTabRight"
 import { muteCurrentTab } from "./muteCurrentTab"
 import { openNewPrivateWindow } from "./openNewPrivateWindow"
 import { openNewTab } from "./openNewTab"
@@ -43,6 +45,8 @@ export const browserCommands = [
   browsingHistory,
   moveCurrentTabToANewWindow,
   moveCurrentTabToPopupWindow,
+  moveTabLeft,
+  moveTabRight,
   muteCurrentTab,
   openNewPrivateWindow,
   openNewTab,
