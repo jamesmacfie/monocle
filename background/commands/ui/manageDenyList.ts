@@ -1,0 +1,111 @@
+import type {
+  CommandNode,
+  GroupCommandNode,
+  InputCommandNode,
+  SubmitCommandNode,
+} from "../../../shared/types"
+import { validateUrlPattern } from "../../utils/urlFilter"
+import { allCommands } from "../index"
+import { getCommandSettings, updateCommandSettings } from "../settings"
+
+export const manageDenyList: GroupCommandNode = {
+  type: "group",
+  id: "manage-deny-list",
+  name: "Manage Command Deny List",
+  description: "Configure which domains commands are blocked from appearing on",
+  icon: { type: "lucide", name: "ShieldX" },
+  keywords: [
+    "deny",
+    "blacklist",
+    "block",
+    "hide",
+    "domain",
+    "filter",
+    "manage",
+  ],
+  children: async () => {
+    const commands: CommandNode[] = []
+
+    // Add each command as a group with inputs for its deny rules
+    for (const command of allCommands) {
+      // Get current settings for this command
+      const settings = await getCommandSettings(command.id)
+      const currentDenyUrls = settings?.urlRules?.denyUrls || []
+
+      const children: CommandNode[] = []
+
+      const input: InputCommandNode = {
+        type: "input",
+        id: `${command.id}-deny-patterns`,
+        name: "Deny URLs",
+        field: {
+          id: "deny-patterns",
+          label: "Deny URLs (patterns like *://*.github.com/*)",
+          type: "text-list",
+          placeholder: "e.g. *://*.github.com/* or *://localhost:3000/*",
+          defaultValue: currentDenyUrls,
+        },
+      }
+
+      children.push(input)
+
+      // Add submit button to save settings
+      const submit: SubmitCommandNode = {
+        type: "submit",
+        id: `${command.id}-save-deny`,
+        name: "Save Deny List",
+        actionLabel: "Save",
+        icon: { type: "lucide", name: "Save" },
+        remainOpenOnSelect: true, // Keep open to trigger automatic refresh
+        execute: async (_context, values) => {
+          const raw = String(values?.["deny-patterns"] || "")
+          const patterns = raw
+            .split(",")
+            .map((pattern) => pattern.trim())
+            .filter((pattern) => pattern.length > 0)
+
+          for (const pattern of patterns) {
+            const validation = validateUrlPattern(pattern)
+            if (validation !== true) {
+              throw new Error(`Invalid pattern "${pattern}": ${validation}`)
+            }
+          }
+
+          // Update settings
+          const currentSettings = (await getCommandSettings(command.id)) || {}
+          await updateCommandSettings(command.id, {
+            urlRules: {
+              ...currentSettings.urlRules,
+              denyUrls: patterns.length > 0 ? patterns : undefined,
+            },
+          })
+
+          const { showToast } = require("../../messages/showToast")
+          await showToast({
+            type: "show-toast",
+            level: "success",
+            message: "Deny list updated",
+          })
+
+          // UI will automatically refresh commands when remainOpenOnSelect is true
+        },
+      }
+
+      children.push(submit)
+
+      // Create group for this command
+      const commandGroup: GroupCommandNode = {
+        type: "group",
+        id: `${command.id}-deny-group`,
+        name: command.name,
+        description: `Manage deny list for ${typeof command.name === "string" ? command.name : "this command"}`,
+        icon: command.icon,
+        children: async () => children,
+      }
+
+      commands.push(commandGroup)
+    }
+
+    return commands
+  },
+}

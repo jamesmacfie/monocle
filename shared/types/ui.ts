@@ -34,6 +34,12 @@ export type FormField = {
       defaultValue?: string[]
     }
   | {
+      type: "text-list"
+      placeholder?: string
+      defaultValue?: string[]
+      maxItems?: number
+    }
+  | {
       type: "color"
       defaultValue?: string // Hex color like #RRGGBB
       placeholder?: string
@@ -77,6 +83,11 @@ export type ActionExecutionContext =
   | {
       type: "resetKeybinding"
       targetCommandId: string
+    }
+  | {
+      type: "hideDomain"
+      targetCommandId: string
+      domain: string
     }
 
 // Base properties shared by all suggestion types

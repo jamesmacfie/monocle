@@ -1317,6 +1317,12 @@
   position: relative;
 }
 
+.command-item-text-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .command-item-inline-input:focus-within {
   border-color: var(--color-focus-ring);
   box-shadow: 0 0 0 1px var(--color-focus-ring);

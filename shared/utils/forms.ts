@@ -14,6 +14,8 @@ export function getDefaultValue(field: FormField): string | string[] {
       return field.defaultValue || field.options?.[0]?.value || ""
     case "multi":
       return field.defaultValue || []
+    case "text-list":
+      return field.defaultValue || []
     case "color":
       return field.defaultValue || "#000000"
     default:
@@ -51,6 +53,21 @@ export function validateFormValues(
         continue
       }
       const res = validateWithJsonSchema(arr.join(","), field.validation)
+      if (!res.isValid) invalid.push(field.id)
+    } else if (field.type === "text-list") {
+      const arr = Array.isArray(v)
+        ? v
+        : v
+          ? String(v)
+              .split(",")
+              .map((entry) => entry.trim())
+          : []
+      const filtered = arr.filter((entry) => entry.trim().length > 0)
+      if (field.required && filtered.length === 0) {
+        invalid.push(field.id)
+        continue
+      }
+      const res = validateWithJsonSchema(filtered.join(","), field.validation)
       if (!res.isValid) invalid.push(field.id)
     } else {
       const scalar = typeof v === "string" ? v : v ? String(v) : ""

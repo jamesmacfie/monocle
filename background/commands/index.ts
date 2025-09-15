@@ -6,7 +6,11 @@ import {
   resolveAsyncProperty,
   resolveModifierActionLabels,
 } from "../utils/commands"
-import { filterCommandsByUrl } from "../utils/urlFilter"
+import {
+  createUrlPatternForDomain,
+  extractDomain,
+  filterCommandsByUrl,
+} from "../utils/urlFilter"
 import { browserCommands, firefoxCommands } from "./browser"
 import {
   clearFavoritesCommand,
@@ -14,7 +18,11 @@ import {
   toggleFavoriteCommandId,
 } from "./favorites"
 import { newTabCommands } from "./newTab"
-import { getAllCommandSettings } from "./settings"
+import {
+  getAllCommandSettings,
+  getCommandSettings,
+  updateCommandSettings,
+} from "./settings"
 import { toolCommands } from "./tools"
 import { uiCommands } from "./ui"
 import { getRankedCommandIds } from "./usage"
@@ -322,6 +330,29 @@ export const executeCommand = async (
 
         return Promise.resolve()
       })
+      .with({ type: "hideDomain" }, async (ctx) => {
+        // Add domain pattern to user's deny list for this command
+        const pattern = createUrlPatternForDomain(ctx.domain)
+
+        // Get current settings for this command
+        const currentSettings =
+          (await getCommandSettings(ctx.targetCommandId)) || {}
+
+        // Add to deny list (create if doesn't exist)
+        const currentDenyUrls = currentSettings.urlRules?.denyUrls || []
+
+        // Don't add if already exists
+        if (!currentDenyUrls.includes(pattern)) {
+          await updateCommandSettings(ctx.targetCommandId, {
+            urlRules: {
+              ...currentSettings.urlRules,
+              denyUrls: [...currentDenyUrls, pattern],
+            },
+          })
+        }
+
+        return Promise.resolve()
+      })
       .with({ type: "primary" }, async (ctx) => {
         const targetCommand = await findCommand(
           [...favorites, ...suggestions],
@@ -516,6 +547,43 @@ const createFavoriteToggleAction = async (
   }
 }
 
+// Helper to create hide from domain action
+const _createHideFromDomainAction = async (
+  command: CommandNode,
+  context: Browser.Context,
+): Promise<Suggestion | null> => {
+  // Only show if we have a valid URL (not new tab page)
+  if (!context.url || context.url === "" || context.isNewTab) {
+    return null
+  }
+
+  // Extract domain from current URL
+  const domain = extractDomain(context.url)
+
+  if (!domain) {
+    return null
+  }
+
+  return {
+    id: `hide-from-domain-${command.id}`,
+    name: `Hide from ${domain}`,
+    description: `Hide this command from all pages on ${domain}`,
+    icon: { type: "lucide", name: "EyeOff" },
+    color: "red",
+    type: "action",
+    actionLabel: "Hide",
+    keywords: ["hide", "block", "domain", "filter"],
+    isFavorite: false,
+    actions: undefined,
+    remainOpenOnSelect: true,
+    executionContext: {
+      type: "hideDomain",
+      targetCommandId: command.id,
+      domain: domain,
+    },
+  }
+}
+
 export const commandsToSuggestions = async (
   commands: Array<CommandNode>,
   context: Browser.Context,
@@ -685,6 +753,8 @@ export const commandsToSuggestions = async (
         }
       }
       actions.push(await createFavoriteToggleAction(node, favoriteCommandIds))
+      const hideFromDomain = await _createHideFromDomainAction(node, context)
+      if (hideFromDomain) actions.push(hideFromDomain)
       const setKB = await _createSetKeybindingAction(node)
       const resetKB = await _createResetKeybindingAction(node)
       if (setKB) actions.push(setKB)

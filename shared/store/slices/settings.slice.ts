@@ -59,6 +59,8 @@ export const loadSettings = createAsyncThunk(
       const result = await browserAPI.storage.local.get(STORAGE_KEY)
       const settings = result[STORAGE_KEY] || {}
 
+      console.log("load settings", settings)
+
       return {
         theme: settings.theme || {},
         newTab: settings.newTab || {},

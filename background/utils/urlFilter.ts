@@ -1,6 +1,72 @@
 import type { CommandNode, CommandSettings } from "../../shared/types"
 
 /**
+ * Extracts the domain from a full URL
+ * Examples:
+ * - https://github.com/user/repo -> github.com
+ * - http://localhost:3000/path -> localhost:3000
+ * - https://app.example.com/page -> app.example.com
+ */
+export function extractDomain(url: string): string {
+  try {
+    const urlObj = new URL(url)
+    return urlObj.hostname + (urlObj.port ? `:${urlObj.port}` : "")
+  } catch {
+    // If URL parsing fails, try to extract domain manually
+    const match = url.match(/^(?:https?:\/\/)?([^/]+)/)
+    return match ? match[1] : url
+  }
+}
+
+/**
+ * Creates a URL pattern for a domain that matches all paths and subdomains
+ * Examples:
+ * - github.com -> *://*.github.com/*
+ * - localhost:3000 -> *://localhost:3000/*
+ */
+export function createUrlPatternForDomain(domain: string): string {
+  // List of local addresses that shouldn't have wildcard subdomains
+  const LOCAL_ADDRESSES = ["localhost", "127.0.0.1", "::1", "0.0.0.0", "[::1]"]
+
+  // Check if it's a local address
+  const isLocalAddress = LOCAL_ADDRESSES.some((addr) => domain.startsWith(addr))
+
+  // Check if it's an IP address (IPv4 or IPv6)
+  const isIPAddress =
+    /^\d+\.\d+\.\d+\.\d+/.test(domain) || /^\[?[0-9a-fA-F:]+\]?/.test(domain)
+
+  // For localhost, IP addresses, don't add wildcard subdomain
+  if (isLocalAddress || isIPAddress) {
+    return `*://${domain}/*`
+  }
+  // For regular domains, allow subdomains
+  return `*://*.${domain}/*`
+}
+
+/**
+ * Validates a URL pattern
+ * Returns true if valid, or an error message if invalid
+ */
+export function validateUrlPattern(pattern: string): true | string {
+  if (!pattern || pattern.trim() === "") {
+    return "Pattern cannot be empty"
+  }
+
+  // Check for some common invalid patterns
+  if (pattern.includes(" ") && !pattern.includes("*")) {
+    return "Pattern contains spaces - did you mean to use wildcards?"
+  }
+
+  // Try to convert to regex to check validity
+  try {
+    patternToRegex(pattern)
+    return true
+  } catch {
+    return "Invalid pattern format"
+  }
+}
+
+/**
  * Converts a URL pattern with wildcards to a regular expression
  * Supports patterns like:
  * - *.github.com/* (matches any subdomain of github.com)
@@ -10,9 +76,13 @@ import type { CommandNode, CommandSettings } from "../../shared/types"
  */
 function patternToRegex(pattern: string): RegExp {
   // Escape special regex characters except *
-  let regexStr = pattern
-    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\*/g, ".*")
+  let regexStr = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+
+  // Treat '*.domain' segments as an optional subdomain so the base domain still matches
+  regexStr = regexStr.replace(/\*\\\./g, "(?:.*\\.)?")
+
+  // Convert remaining wildcards to greedy matches
+  regexStr = regexStr.replace(/\*/g, ".*")
 
   // If pattern doesn't start with a protocol or wildcard, make it match any protocol
   if (!regexStr.startsWith(".*") && !regexStr.includes("://")) {

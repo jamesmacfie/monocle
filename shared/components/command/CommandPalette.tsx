@@ -289,14 +289,12 @@ export function CommandPalette({
     // Refresh commands after any action to ensure UI is up to date
     onRefreshCommands()
 
-    // If this is a favorite toggle action, also refresh the current page
-    // to update the isFavorite flags of nested commands
-    if (actionId.startsWith("toggle-favorite-")) {
-      await refreshCurrentPage()
-    }
-
-    // If this is a reset keybinding action, refresh to show updated keybinding
-    if (actionId.startsWith("reset-keybinding-")) {
+    // Refresh child pages for actions that mutate command visibility/state locally
+    if (
+      actionId.startsWith("toggle-favorite-") ||
+      actionId.startsWith("reset-keybinding-") ||
+      actionId.startsWith("hide-from-domain-")
+    ) {
       await refreshCurrentPage()
     }
 

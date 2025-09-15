@@ -5,6 +5,7 @@ import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
 import type { Page } from "../../../store/slices/navigation.slice"
 import type { Suggestion } from "../../../types/command"
+import type { FormField, InputSuggestion } from "../../../types/ui"
 import {
   collectInputFieldsFromSuggestions,
   validateFormValues,
@@ -17,6 +18,10 @@ import { CommandItemMulti } from "./CommandItemMulti"
 import { CommandItemSelect } from "./CommandItemSelect"
 import { CommandItemSubmit } from "./CommandItemSubmit"
 import { CommandItemSwitch } from "./CommandItemSwitch"
+import { CommandItemTextList } from "./CommandItemTextList"
+
+type TextListField = Extract<FormField, { type: "text-list" }>
+type TextListSuggestion = InputSuggestion & { inputField: TextListField }
 
 export interface CommandItemProps {
   suggestion: Suggestion
@@ -36,13 +41,29 @@ export function CommandItem({
   onInputSubmit,
   children,
 }: Props) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  if (
+    suggestion.type === "input" &&
+    suggestion.inputField?.type === "text-list"
+  ) {
+    const textListSuggestion = suggestion as TextListSuggestion
+    return (
+      <CommandItemTextList
+        suggestion={textListSuggestion}
+        currentPage={currentPage}
+        inputRef={inputRef}
+        onInputSubmit={onInputSubmit}
+      />
+    )
+  }
+
   const toast = useToast()
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
   const focusedValue = useCommandState((state) => state.value)
   const { isGrantedAllPermissions } = usePermissionsGranted(
     suggestion.permissions || [],
   )
-  const inputRef = useRef<HTMLInputElement | null>(null)
   const submitRef = useRef<HTMLButtonElement | null>(null)
   const itemRef = useRef<HTMLDivElement | null>(null)
 

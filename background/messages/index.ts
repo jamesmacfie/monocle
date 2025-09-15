@@ -34,6 +34,8 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
 
   const message = validation.data
 
+  console.log("Received message", message)
+
   // Route validated message to appropriate handler
   return await match(message)
     .with({ type: "get-commands" }, async (msg) => {
