@@ -127,9 +127,13 @@ export function CommandItem({
     ? suggestion.name.slice(1)
     : []
   const descriptionToken =
-    typeof suggestion.description === "string" ? suggestion.description : undefined
+    typeof suggestion.description === "string"
+      ? suggestion.description
+      : undefined
   const keybindingToken =
-    typeof suggestion.keybinding === "string" ? suggestion.keybinding : undefined
+    typeof suggestion.keybinding === "string"
+      ? suggestion.keybinding
+      : undefined
   const mergedKeywords = [
     // Put primary name first to give it highest weight in custom filter
     primaryNameToken,

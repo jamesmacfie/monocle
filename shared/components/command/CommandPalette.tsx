@@ -1,4 +1,4 @@
-import { Command, useCommandState, defaultFilter } from "cmdk"
+import { Command, defaultFilter, useCommandState } from "cmdk"
 import { useEffect, useRef, useState } from "react"
 import type { Suggestion } from "../../../shared/types"
 import { useActionLabel } from "../../hooks/useActionLabel"

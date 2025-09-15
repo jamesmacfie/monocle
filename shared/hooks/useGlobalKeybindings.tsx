@@ -81,7 +81,10 @@ export function useGlobalKeybindings() {
       }
       // Check if we should skip this keybinding based on focus and modifiers,
       // unless we're mid-sequence (then we must capture the next stroke).
-      if (!sequenceActive && shouldSkipKeybinding(document.activeElement, event)) {
+      if (
+        !sequenceActive &&
+        shouldSkipKeybinding(document.activeElement, event)
+      ) {
         return
       }
 
