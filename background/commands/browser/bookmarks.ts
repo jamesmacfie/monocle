@@ -1,12 +1,12 @@
 import type { CommandNode } from "../../../shared/types/"
 import { isValidUrl } from "../../../shared/utils"
 import {
+  focusOrGoToUrl,
   getActiveTab,
   getBookmarkTree,
   sendErrorToastToActiveTab,
   sendSuccessToastToActiveTab,
   sendTabMessage,
-  updateTab,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
 import { getFaviconUrl } from "../../utils/favicon"
@@ -74,30 +74,31 @@ function processBookmarkNode(
         cmd: "Open in New Tab",
       },
       execute: async (context) => {
-        const activeTab = await getActiveTab()
-
-        if (activeTab && node.url) {
+        if (node.url) {
           try {
             if (context?.modifierKey === "cmd") {
-              // Open bookmark in new tab when cmd is pressed
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-newTab",
-                url: node.url,
-              })
+              // Always open in new tab when cmd is pressed
+              const activeTab = await getActiveTab()
+              if (activeTab) {
+                await sendTabMessage(activeTab.id, {
+                  type: "monocle-newTab",
+                  url: node.url,
+                })
 
-              // Show success notification
-              await sendSuccessToastToActiveTab(
-                `Opening ${node.title} in new tab`,
-                {
-                  icon: { name: "ExternalLink" },
-                },
-              )
+                // Show success notification
+                await sendSuccessToastToActiveTab(
+                  `Opening ${node.title} in new tab`,
+                  {
+                    icon: { name: "ExternalLink" },
+                  },
+                )
+              }
             } else {
-              // Default: Navigate current tab to bookmark URL
-              await updateTab(activeTab.id, { url: node.url })
+              // Smart navigation: switch to existing tab or navigate current tab
+              await focusOrGoToUrl(node.url)
 
               // Show success notification
-              await sendSuccessToastToActiveTab(`Opening ${node.title}`, {
+              await sendSuccessToastToActiveTab(`Navigating to ${node.title}`, {
                 icon: { name: "ExternalLink" },
               })
             }
