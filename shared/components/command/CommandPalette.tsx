@@ -313,35 +313,33 @@ export function CommandPalette({
       )}
       <>
         <Command
-          // Custom filter: weight the primary name higher than other tokens and id
-          filter={(value, search, keywords) => {
+          // Custom filter: weight the primary name higher than other tokens
+          filter={(_value, search, keywords) => {
             // Guard: no search means everything visible
             if (!search) return 1
 
             const tokens = keywords ?? []
-            const primary = tokens[0] ?? value
+            const primary = tokens[0] ?? ""
             const rest = tokens.slice(1)
 
             // Score primary display name
-            const nameScore = defaultFilter(primary, search)
+            const nameScore = primary ? defaultFilter(primary, search) : 0
             // Score all other keyword tokens together
             const restScore = rest.length
               ? defaultFilter(rest.join(" "), search)
               : 0
-            // Score the stable id (value)
-            const idScore = defaultFilter(value, search)
 
             // Small boost for prefix matches on the display name
             const prefixBoost = primary
               .toLowerCase()
               .startsWith(search.toLowerCase())
-              ? 0.05
+              ? 0.1
               : 0
 
             // Combine with weights (cap at 1)
             const combined = Math.min(
               1,
-              nameScore * 0.75 + restScore * 0.2 + idScore * 0.05 + prefixBoost,
+              nameScore * 0.8 + restScore * 0.2 + prefixBoost,
             )
 
             return combined

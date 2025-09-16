@@ -164,9 +164,8 @@ export function CommandItem({
     ...(suggestion.keywords || []),
     // Description can help match URLs or extra context (e.g., bookmarks)
     descriptionToken,
-    // Keybinding text, and the stable id as a last‑resort match target
+    // Keybinding text
     keybindingToken,
-    suggestion.id,
   ].filter(Boolean) as string[]
 
   const inputField =
