@@ -147,6 +147,28 @@ function registerCommand(
   // Actions should not be registered globally - they only work within action menus
 }
 
+// Register a single command with its keybinding
+export function registerSingleCommand(
+  commandId: string,
+  keybinding: string,
+): void {
+  if (keybinding) {
+    const normalized = normalizeKeybinding(keybinding)
+    keybindingRegistry.set(normalized, commandId)
+  }
+}
+
+// Register multiple commands from dynamic sources (like deep search)
+export function registerDynamicCommands(
+  commands: Array<{ id: string; keybinding?: string }>,
+): void {
+  for (const command of commands) {
+    if (command.keybinding) {
+      registerSingleCommand(command.id, command.keybinding)
+    }
+  }
+}
+
 // Initialize the registry with all commands
 export async function initializeKeybindingRegistry(): Promise<void> {
   keybindingRegistry.clear()
@@ -169,6 +191,39 @@ export async function initializeKeybindingRegistry(): Promise<void> {
     for (const command of firefoxCommands) {
       registerCommand(command, commandSettings)
     }
+  }
+
+  // Register deep search commands that have keybindings
+  await registerDeepSearchCommands(commandSettings)
+}
+
+// Register deep search commands with keybindings
+async function registerDeepSearchCommands(
+  commandSettings: Record<string, any>,
+): Promise<void> {
+  try {
+    // Import dynamically to avoid circular dependencies
+    const { getDeepSearchCommands } = await import(
+      "../messages/getDeepSearchCommands"
+    )
+    const { deepSearchItems } = await getDeepSearchCommands()
+
+    // Register keybindings for deep search items that have them
+    for (const item of deepSearchItems) {
+      // Check if the command has a keybinding (either from settings or default)
+      const settingsKeybinding = commandSettings[item.id]?.keybinding
+      const defaultKeybinding = item.keybinding
+      const keybinding = settingsKeybinding || defaultKeybinding
+
+      if (keybinding) {
+        registerSingleCommand(item.id, keybinding)
+      }
+    }
+  } catch (error) {
+    console.error(
+      "[KeybindingRegistry] Failed to register deep search commands:",
+      error,
+    )
   }
 }
 

@@ -3,6 +3,7 @@ import type {
   Browser,
   CommandNode,
   GroupCommandNode,
+  SubmitCommandNode,
   Suggestion,
 } from "../../shared/types"
 import { commandsToSuggestions, getCommands } from "../commands"
@@ -60,9 +61,9 @@ export async function flattenDeepSearchCommands(
         // Create new path by adding this command's name to the path
         const newPath = [...parentPath, parentNameString]
 
-        // Process action nodes
+        // Process action and submit nodes
         for (const child of filteredChildren) {
-          if (child.type === "action") {
+          if (child.type === "action" || child.type === "submit") {
             // Enhance the action command with breadcrumb name and keywords
             const childName = await resolveAsyncProperty(child.name, context)
             const childKeywords =
@@ -72,7 +73,11 @@ export async function flattenDeepSearchCommands(
               context,
             )
 
-            const enhancedChild: ActionCommandNode = {
+            // Preserve keybinding from settings or original command
+            const childKeybinding =
+              commandSettings[child.id]?.keybinding || child.keybinding
+
+            const enhancedChild: ActionCommandNode | SubmitCommandNode = {
               ...child,
               name:
                 newPath.length > 0
@@ -85,6 +90,7 @@ export async function flattenDeepSearchCommands(
                   ? [childDescription.toLowerCase()]
                   : []),
               ],
+              keybinding: childKeybinding, // Explicitly preserve keybinding
             }
 
             const [suggestion] = await commandsToSuggestions(

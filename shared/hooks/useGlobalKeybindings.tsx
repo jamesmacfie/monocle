@@ -29,12 +29,8 @@ function shouldSkipKeybinding(
   const tagName = element.tagName.toLowerCase()
   const inputTags = ["input", "textarea", "select"]
 
+  // Check for standard HTML input elements
   if (inputTags.includes(tagName)) {
-    // Allow keybindings in command palette inputs (they have cmdk-input attribute)
-    if (element.hasAttribute("cmdk-input")) {
-      return false
-    }
-
     // Check if modifier keys are pressed (excluding shift-only for capital letters)
     const hasNonShiftModifier = event.metaKey || event.ctrlKey || event.altKey
 
@@ -47,11 +43,36 @@ function shouldSkipKeybinding(
     return true
   }
 
-  // Also check for contenteditable elements
-  if (element.getAttribute("contenteditable") === "true") {
+  // Check for contenteditable elements (handle both "true" and empty string)
+  const contentEditable = element.getAttribute("contenteditable")
+  if (contentEditable === "true" || contentEditable === "") {
     // Same logic for contenteditable
     const hasNonShiftModifier = event.metaKey || event.ctrlKey || event.altKey
     return !hasNonShiftModifier
+  }
+
+  // Check for ARIA-based input elements (common in modern web apps)
+  const role = element.getAttribute("role")
+  const inputRoles = ["textbox", "combobox", "searchbox", "spinbutton"]
+  if (role && inputRoles.includes(role.toLowerCase())) {
+    // Same logic as for input elements
+    const hasNonShiftModifier = event.metaKey || event.ctrlKey || event.altKey
+    return !hasNonShiftModifier
+  }
+
+  // Check for elements that might be input-like based on ARIA attributes
+  if (
+    element.hasAttribute("aria-label") ||
+    element.hasAttribute("aria-placeholder")
+  ) {
+    // Only skip if the element appears to be interactive and focusable
+    const tabIndex = element.getAttribute("tabindex")
+    const isInteractive = tabIndex !== null && tabIndex !== "-1"
+
+    if (isInteractive) {
+      const hasNonShiftModifier = event.metaKey || event.ctrlKey || event.altKey
+      return !hasNonShiftModifier
+    }
   }
 
   return false
