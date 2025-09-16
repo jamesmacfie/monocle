@@ -1,9 +1,9 @@
 import type { CommandNode } from "../../../shared/types"
 import {
+  focusOrGoToUrl,
   getActiveTab,
   getHistoryItems,
   sendTabMessage,
-  updateTab,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
 import { getFaviconUrl } from "../../utils/favicon"
@@ -113,46 +113,53 @@ function createHistoryItemCommand(item: HistoryItem): CommandNode {
     },
     allowCustomKeybinding: false, // Dynamic history commands shouldn't have custom keybindings
     execute: async (context) => {
-      const activeTab = await getActiveTab()
-
-      if (activeTab && item.url) {
+      if (item.url) {
         try {
           if (context?.modifierKey === "cmd") {
-            // Open in new tab when cmd is pressed
-            await sendTabMessage(activeTab.id, {
-              type: "monocle-newTab",
-              url: item.url,
-            })
+            // Always open in new tab when cmd is pressed
+            const activeTab = await getActiveTab()
+            if (activeTab) {
+              await sendTabMessage(activeTab.id, {
+                type: "monocle-newTab",
+                url: item.url,
+              })
 
-            // Show success notification
-            await sendTabMessage(activeTab.id, {
-              type: "monocle-alert",
-              level: "success",
-              message: `Opening ${item.title || item.url} in new tab`,
-              icon: { name: "ExternalLink" },
-            })
+              // Show success notification
+              await sendTabMessage(activeTab.id, {
+                type: "monocle-alert",
+                level: "success",
+                message: `Opening ${item.title || item.url} in new tab`,
+                icon: { name: "ExternalLink" },
+              })
+            }
           } else {
-            // Default: Navigate current tab to URL
-            await updateTab(activeTab.id, { url: item.url })
+            // Smart navigation: switch to existing tab or navigate current tab
+            await focusOrGoToUrl(item.url)
 
             // Show success notification
-            await sendTabMessage(activeTab.id, {
-              type: "monocle-alert",
-              level: "success",
-              message: `Opening ${item.title || item.url}`,
-              icon: { name: "ExternalLink" },
-            })
+            const activeTab = await getActiveTab()
+            if (activeTab) {
+              await sendTabMessage(activeTab.id, {
+                type: "monocle-alert",
+                level: "success",
+                message: `Navigating to ${item.title || item.url}`,
+                icon: { name: "ExternalLink" },
+              })
+            }
           }
         } catch (error) {
           console.error(`Failed to open history item: ${item.title}`, error)
 
           // Show error notification
-          await sendTabMessage(activeTab.id, {
-            type: "monocle-alert",
-            level: "error",
-            message: "Failed to open history item",
-            icon: { name: "AlertTriangle" },
-          })
+          const activeTab = await getActiveTab()
+          if (activeTab) {
+            await sendTabMessage(activeTab.id, {
+              type: "monocle-alert",
+              level: "error",
+              message: "Failed to open history item",
+              icon: { name: "AlertTriangle" },
+            })
+          }
         }
       }
     },
