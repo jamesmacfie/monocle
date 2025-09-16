@@ -42,13 +42,17 @@ export function PermissionActions({
       let granted = false
       let errorMessage: string | undefined
 
-      if (isFirefox) {
-        // Firefox: Request permission directly from content script (current flow)
+      const canRequestDirectly =
+        // Some browsers expose the permissions API directly to the content script
+        typeof browserAPI?.permissions?.request === "function"
+
+      if (isFirefox && canRequestDirectly) {
+        // Firefox: Request permission directly from content script when available
         granted = await browserAPI.permissions.request({
           permissions: [permission],
         })
       } else {
-        // Chrome: Send request to background script
+        // Fallback: Request permission via background script (Chrome + Firefox sandboxed envs)
         const response: { granted: boolean; error?: string } =
           await sendMessage({
             type: "request-permission",
