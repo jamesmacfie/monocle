@@ -16,7 +16,7 @@ export const getPermissions = async (_message: GetPermissionsMessage) => {
       bookmarks: permissions.includes("bookmarks"),
       browsingData: permissions.includes("browsingData"),
       contextualIdentities: isFirefox
-        ? permissions.includes("contextualIdentities")
+        ? permissions.includes("contextualIdentities" as any)
         : false,
       cookies: permissions.includes("cookies"),
       downloads: permissions.includes("downloads"),

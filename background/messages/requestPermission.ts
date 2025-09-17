@@ -11,7 +11,7 @@ export async function requestPermission(
 ): Promise<RequestPermissionResponse> {
   try {
     const granted = await browserAPI.permissions.request({
-      permissions: [message.permission],
+      permissions: [message.permission as chrome.runtime.ManifestPermissions],
     })
 
     return { granted }

@@ -49,7 +49,7 @@ export function PermissionActions({
       if (isFirefox && canRequestDirectly) {
         // Firefox: Request permission directly from content script when available
         granted = await browserAPI.permissions.request({
-          permissions: [permission],
+          permissions: [permission as chrome.runtime.ManifestPermissions],
         })
       } else {
         // Fallback: Request permission via background script (Chrome + Firefox sandboxed envs)

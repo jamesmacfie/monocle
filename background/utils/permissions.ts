@@ -29,7 +29,7 @@ export async function checkPermissions(
       }
 
       const hasPermission = await browserAPI.permissions.contains({
-        permissions: [permission],
+        permissions: [permission as chrome.runtime.ManifestPermissions],
       })
 
       if (!hasPermission) {
