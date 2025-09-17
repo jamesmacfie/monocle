@@ -250,17 +250,172 @@ Execution payloads: `execute-command` messages can include array values (from mu
 
 ## Keybinding System
 
-**Format**: `⌘ K` (Cmd), `⌃ d` (Ctrl), `⌥ ⇧ n` (Alt+Shift)
+Monocle uses a robust keybinding system based on Vimium's approach, providing reliable cross-platform keyboard event capture with proper event passthrough.
 
-**Custom Keybindings**: Stored in `chrome.storage.local`, real-time conflict detection, visual feedback during capture.
+### Canonical Key Format
 
-**Modifier Actions**: Commands can have different behaviors per modifier key:
+**Internal Storage Format**: Commands and user settings use canonical format for consistency:
+- Single modifier: `<cmd-k>`, `<ctrl-d>`, `<alt-o>`
+- Multiple modifiers: `<cmd-shift-k>`, `<ctrl-alt-f>`, `<alt-shift-cmd-k>`
+- Plain keys: `g`, `escape`, `space`, `enter`
+- Multi-stroke sequences: `<cmd-k>, <cmd-s>` or `g, g`
+
+**Display Format**: UI converts canonical to user-friendly symbols with separate kbd elements:
+- `<cmd-k>` → `⌘ K` (rendered as `<kbd>⌘</kbd> <kbd>K</kbd>`)
+- `<cmd-shift-k>` → `⌘ ⇧ K` (rendered as `<kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>K</kbd>`)
+- `<ctrl-alt-f>` → `⌃ ⌥ F` (rendered as `<kbd>⌃</kbd> <kbd>⌥</kbd> <kbd>F</kbd>`)
+
+### Robust Event Capture Architecture
+
+**Multi-Level Capture**: Events are captured at multiple DOM levels for reliability:
+```typescript
+// Window level (highest priority) + Document level (backup)
+// Both use capture: true for early interception
+window.addEventListener('keydown', handler, { capture: true, passive: false })
+document.addEventListener('keydown', handler, { capture: true, passive: false })
+```
+
+**Event Filtering**: Smart filtering determines which events to process:
+- **Editable Elements**: Text editing shortcuts (Cmd+A, Cmd+C) pass through; extension shortcuts with modifiers are captured
+- **Modifier-Only Keys**: Ignored (only keys with actual characters are processed)
+- **Browser Shortcuts**: Platform-specific handling for system shortcuts
+
+**Selective Suppression**: Events are only suppressed when the extension handles them:
+```typescript
+// Handler returns boolean indicating if event was handled
+const handled = await keyHandler(keyString, event)
+if (handled) {
+  event.preventDefault()
+  event.stopImmediatePropagation() // Strong suppression
+}
+// If not handled, event flows normally to page handlers
+```
+
+### Key Normalization Pipeline
+
+**Event → Canonical Conversion**:
+1. `getKeyString(event)`: Converts KeyboardEvent to canonical format
+   - Handles platform differences (Mac alt key composition)
+   - Normalizes modifier order: `alt-cmd-ctrl-shift-key`
+   - Uses `event.code` for consistency when needed
+
+2. `normalizeKeybinding(string)`: Standardizes stored keybindings
+   - Preserves canonical format: `<cmd-k>` → `<cmd-k>`
+   - Converts legacy Unicode: `⌘ k` → `<cmd-k>`
+   - Handles multi-stroke sequences: `cmd k, cmd s` → `<cmd-k>, <cmd-s>`
+
+3. `toDisplayFormat(canonical)`: Converts for UI display
+   - `<cmd-shift-k>` → `⌘ ⇧ K` (space-separated for kbd elements)
+   - Special key symbols: `<escape>` → `⎋`, `<enter>` → `↵`
+
+### Multi-Modifier Support
+
+**Full Combination Support**: Any combination of the four main modifiers:
+- **Triple**: `<cmd-shift-alt-k>`, `<ctrl-shift-alt-k>`
+- **Double**: `<cmd-shift-k>`, `<ctrl-alt-f>`, `<alt-shift-n>`
+- **Single**: `<cmd-k>`, `<ctrl-d>`, `<alt-o>`, `<shift-f1>`
+
+**Cross-Platform Normalization**:
+- Mac: `cmd` (⌘), `ctrl` (⌃), `alt`/`option` (⌥), `shift` (⇧)
+- Windows/Linux: `ctrl`, `alt`, `shift`, `meta` (mapped appropriately)
+
+### Event Flow & Sequence Handling
+
+**Single Stroke Flow**:
+1. User presses `Cmd+K` → `getKeyString()` → `<cmd-k>`
+2. Registry lookup finds command → Execute immediately
+3. Event suppressed, page doesn't see it
+
+**Multi-Stroke Sequence Flow**:
+1. User presses `G` → No exact match, but `g, g` exists → Wait 800ms
+2. User presses `G` again → Complete sequence `g, g` → Execute command
+3. Or timeout → First `g` executes (if bound) or passes through
+
+**Passthrough Flow**:
+1. User presses `A` in text field → Not bound to extension command
+2. Event flows normally to page → Text input works as expected
+
+### Custom Keybinding Capture
+
+**Real-Time Feedback**: Visual capture interface shows keys as pressed:
+```typescript
+// Display during capture shows separate kbd elements
+Cmd+Shift+K → [⌘] [⇧] [K]
+```
+
+**Conflict Detection**: Checks against existing keybindings in real-time:
+- Visual error states for conflicts
+- Prevents saving conflicting keybindings
+- Shows which command conflicts
+
+**Canonical Storage**: Captured keybindings stored in canonical format:
+```typescript
+// User presses Cmd+Shift+K during capture
+currentKeys = ["⌘", "⇧", "K"] // Unicode symbols during capture
+convertToCanonicalFormat(currentKeys) // → "<cmd-shift-k>"
+// Stored as: { "my-command": { keybinding: "<cmd-shift-k>" } }
+```
+
+### Registry & Matching
+
+**Command Registration**: Commands registered with normalized canonical keybindings:
+```typescript
+// Command definition
+keybinding: "<cmd-k>" // or legacy "⌘ k" (gets normalized)
+
+// Registry storage
+registry.set("<cmd-k>", "command-id")
+```
+
+**Runtime Matching**: Event matching uses canonical format:
+```typescript
+// User presses Cmd+K
+eventKey = getKeyString(event) // → "<cmd-k>"
+commandId = registry.get("<cmd-k>") // → "open-command-palette"
+```
+
+### Developer Guidelines
+
+**Defining Keybindings**: Use canonical format in command definitions:
+```typescript
+export const myCommand: ActionCommandNode = {
+  type: "action",
+  id: "my-command",
+  name: "My Command",
+  keybinding: "<cmd-shift-k>", // Canonical format
+  execute: async () => { /* ... */ }
+}
+```
+
+**Best Practices**:
+- Use canonical format for consistency: `<cmd-k>` not `⌘ k`
+- Test across platforms (Mac/Windows/Linux)
+- Avoid conflicts with common browser shortcuts
+- Use logical modifier combinations (Cmd/Ctrl + letter for main actions)
+- Reserve Alt combinations for secondary actions
+- Use Shift for variations (e.g., `<cmd-k>` vs `<cmd-shift-k>`)
+
+**Modifier Actions**: Commands can have different behaviors per modifier:
 ```typescript
 modifierActionLabel: {
   shift: "Open in new window",
-  cmd: "Open in background"
+  cmd: "Open in background",
+  alt: "Open in private window"
 }
 ```
+
+### Implementation Files
+
+**Core System**:
+- `shared/utils/key-normalizer.ts`: Canonical format conversion and normalization
+- `shared/utils/robust-key-capture.ts`: Multi-level event capture with suppression
+- `shared/utils/event-filter.ts`: Smart event filtering for editable elements
+- `background/keybindings/registry.ts`: Keybinding storage and matching
+- `shared/hooks/useGlobalKeybindings.tsx`: React hook for global keybinding setup
+
+**UI Components**:
+- `shared/components/KeybindingDisplay.tsx`: Display canonical keybindings as symbols
+- `shared/components/Command/CommandActionsList.tsx`: Custom keybinding capture interface
 
 ## Permissions System
 

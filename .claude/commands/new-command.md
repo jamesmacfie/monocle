@@ -48,7 +48,7 @@ interface ActionCommandNode extends CommandNodeBase {
   execute: (context?: Browser.Context, values?: Record<string, string>) => void | Promise<void>
   actionLabel?: AsyncValue<string>                           // Default action label
   modifierActionLabel?: { [key in ModifierKey]?: string }   // Modifier key labels
-  keybinding?: string                                       // Keyboard shortcut ("⌘ K", "⌃ d")
+  keybinding?: string                                       // Keyboard shortcut ("<cmd-k>", "<ctrl-d>")
   confirmAction?: boolean                                   // Require confirmation
   remainOpenOnSelect?: boolean                             // Keep palette open after execution
   allowCustomKeybinding?: boolean                          // Allow user to customize keybinding
@@ -71,7 +71,7 @@ export const closeCurrentTab: ActionCommandNode = {
   icon: { type: "lucide", name: "X" },
   color: "red",
   keywords: ["close", "tab", "shut"],
-  keybinding: "⌘ w",
+  keybinding: "<cmd-w>",
   confirmAction: true,
   
   // Modifier key behavior labels
@@ -137,10 +137,113 @@ export const closeCurrentTab: ActionCommandNode = {
 - **Always specify `type: "action"`** for the discriminant
 - **Use `execute` not `run`** for the execution function
 - **Immediate execution** when selected
-- **Modifier key support** via `context?.modifierKey` 
+- **Modifier key support** via `context?.modifierKey`
 - **Auto-generated actions**: Execute, modifier variants, toggle favorite
 - **Cross-browser compatibility** using browser utils
 - **User feedback** via alert system
+
+## Keybinding System
+
+Monocle uses a robust canonical keybinding format for consistency and cross-platform compatibility.
+
+### Canonical Format
+
+**Always use canonical format** for keybinding definitions:
+```typescript
+// ✅ Correct - Canonical format
+keybinding: "<cmd-k>"           // Single modifier
+keybinding: "<cmd-shift-k>"     // Multiple modifiers
+keybinding: "<ctrl-alt-f>"      // Alt combinations
+keybinding: "<cmd-k>, <cmd-s>"  // Multi-stroke sequences
+keybinding: "g"                 // Plain keys (no modifiers)
+
+// ❌ Incorrect - Legacy Unicode format
+keybinding: "⌘ k"              // Don't use Unicode symbols
+keybinding: "⌘⇧k"              // Don't use Unicode symbols
+```
+
+### Modifier Keys
+
+**Supported modifiers** (in canonical order):
+- `cmd` - Command key (⌘) on Mac, Ctrl on Windows/Linux
+- `ctrl` - Control key (⌃)
+- `alt` - Alt/Option key (⌥)
+- `shift` - Shift key (⇧)
+
+**Multi-modifier examples**:
+```typescript
+keybinding: "<alt-shift-k>"         // Alt+Shift+K
+keybinding: "<cmd-shift-alt-k>"     // Cmd+Shift+Alt+K (all modifiers)
+keybinding: "<ctrl-shift-f>"        // Ctrl+Shift+F
+```
+
+### Cross-Platform Considerations
+
+The system automatically handles platform differences:
+- `<cmd-k>` becomes Cmd+K on Mac, Ctrl+K on Windows/Linux
+- `<ctrl-k>` stays Ctrl+K on all platforms
+- Use `<cmd-k>` for primary shortcuts (follows platform conventions)
+- Use `<ctrl-k>` when you specifically need Ctrl on all platforms
+
+### Best Practices
+
+**Keybinding Selection**:
+- **Primary actions**: Use `<cmd-letter>` (e.g., `<cmd-k>`, `<cmd-t>`)
+- **Secondary actions**: Use `<cmd-shift-letter>` (e.g., `<cmd-shift-k>`)
+- **Alternative actions**: Use `<alt-letter>` (e.g., `<alt-f>`)
+- **Avoid conflicts**: Don't override common browser shortcuts
+
+**Common Patterns**:
+```typescript
+// Navigation
+keybinding: "<cmd-k>"           // Open command palette
+keybinding: "<cmd-t>"           // New tab
+keybinding: "<cmd-w>"           // Close tab
+
+// Variations with Shift
+keybinding: "<cmd-shift-t>"     // Reopen closed tab
+keybinding: "<cmd-shift-w>"     // Close window
+
+// Power user shortcuts
+keybinding: "<alt-d>"           // Quick actions
+keybinding: "<ctrl-alt-r>"      // Advanced operations
+```
+
+**Multi-stroke sequences** for complex workflows:
+```typescript
+keybinding: "g, g"              // Vim-like: go to top
+keybinding: "<cmd-k>, <cmd-s>"  // VS Code-like: command then save
+keybinding: "w, q"              // Custom workflow shortcuts
+```
+
+### Display vs Storage
+
+**Internal storage** (canonical format):
+- Commands store: `keybinding: "<cmd-shift-k>"`
+- Registry stores: `registry.set("<cmd-shift-k>", "command-id")`
+
+**UI display** (symbols with separate kbd elements):
+- User sees: `⌘ ⇧ K` rendered as `<kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>K</kbd>`
+- Conversion handled automatically by `toDisplayFormat()`
+
+### Custom Keybinding Support
+
+Enable users to customize keybindings:
+```typescript
+export const myCommand: ActionCommandNode = {
+  type: "action",
+  id: "my-command",
+  keybinding: "<cmd-k>",
+  allowCustomKeybinding: true,  // Users can set custom keybinding
+  // ...
+}
+```
+
+When users set custom keybindings:
+1. They press keys in the capture interface
+2. Keys are converted to canonical format
+3. Stored as: `{ "my-command": { keybinding: "<alt-k>" } }`
+4. Registry updated with new canonical keybinding
 
 ## GroupCommandNode - Dynamic Children
 
@@ -473,7 +576,8 @@ import type { ActionCommandNode }from "../../../shared/types"
 export const myCommand: ActionCommandNode = {
   type: "action",  // Always specify type
   id: "my-command",
-  name: "My Command", 
+  name: "My Command",
+  keybinding: "<cmd-shift-m>",  // Use canonical format
   execute: async (context, values) => {
     // Implementation
   }
@@ -512,6 +616,13 @@ import { categoryCommands } from "./category"
 - **Names**: Clear action verbs (`"Close Current Tab"`)
 - **Keywords**: Include synonyms and common terms
 - **Colors**: Match action context (red for delete, green for create)
+
+### Keybindings:
+- **Use canonical format**: `"<cmd-k>"` not `"⌘ k"`
+- **Follow platform conventions**: `<cmd-k>` for primary actions (auto-maps to Ctrl on Windows/Linux)
+- **Avoid browser conflicts**: Don't override common shortcuts like `<cmd-r>`, `<cmd-l>`
+- **Logical progression**: `<cmd-k>` → `<cmd-shift-k>` → `<alt-k>` for related actions
+- **Test cross-platform**: Ensure keybindings work on Mac, Windows, and Linux
 
 ### Error Handling:
 - **ActionCommandNode errors**: Use alert system for immediate feedback
