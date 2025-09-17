@@ -14,7 +14,6 @@ export const reopenLastClosedTab: CommandNode = {
   icon: { type: "lucide", name: "RotateCcw" },
   color: "blue",
   keywords: ["reopen", "restore", "closed", "tab", "undo", "last", "recent"],
-  keybinding: "<cmd-shift-T>",
   actionLabel: "Reopen",
   permissions: ["sessions"],
   execute: async () => {
