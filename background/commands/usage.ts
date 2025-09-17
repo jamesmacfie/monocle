@@ -21,7 +21,8 @@ const TIME_BOOST_FACTOR = 0.5 // Maximum boost factor for time-of-day similarity
 // Load usage data from storage
 const loadUsageData = async (): Promise<StoredUsageData> => {
   try {
-    const result = await browser.storage.local.get(USAGE_STORAGE_KEY)
+    const b = typeof browser !== "undefined" ? browser : chrome
+    const result = await b.storage.local.get(USAGE_STORAGE_KEY)
     return (
       result[USAGE_STORAGE_KEY] || {
         commandStats: {},
@@ -40,7 +41,8 @@ const loadUsageData = async (): Promise<StoredUsageData> => {
 // Save usage data to storage
 const saveUsageData = async (data: StoredUsageData): Promise<void> => {
   try {
-    await browser.storage.local.set({
+    const b = typeof browser !== "undefined" ? browser : chrome
+    await b.storage.local.set({
       [USAGE_STORAGE_KEY]: data,
     })
   } catch (error) {

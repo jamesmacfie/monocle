@@ -32,5 +32,5 @@ export const devTools: ActionCommandNode = {
       }
     })
   },
-  keybinding: "⌘ ⌥ i",
+  keybinding: "<cmd-alt-i>",
 }

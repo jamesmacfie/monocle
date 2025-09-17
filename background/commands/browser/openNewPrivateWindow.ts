@@ -7,7 +7,7 @@ export const openNewPrivateWindow: CommandNode = {
   name: "Open new private window",
   icon: { type: "lucide", name: "EyeOff" },
   color: "orange",
-  keybinding: "⌘ ⇧ n",
+  keybinding: "<cmd-shift-n>",
   execute: () => {
     createWindow({ incognito: true })
   },

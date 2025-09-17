@@ -7,7 +7,7 @@ export const closeCurrentTab: ActionCommandNode = {
   icon: { type: "lucide", name: "X" },
   color: "red",
   type: "action",
-  keybinding: "⌘ w",
+  keybinding: "<cmd-w>",
   confirmAction: true,
   execute: async () => {
     const tabs = await queryTabs({

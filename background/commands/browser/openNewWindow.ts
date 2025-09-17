@@ -7,7 +7,7 @@ export const openNewWindow: CommandNode = {
   name: "Open new window",
   icon: { type: "lucide", name: "AppWindow" },
   color: "purple",
-  keybinding: "⌘ n",
+  keybinding: "<cmd-n>",
   execute: () => {
     createWindow({})
   },

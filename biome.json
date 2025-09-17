@@ -28,7 +28,8 @@
       "style": {
         "useEnumInitializers": "error",
         "useExponentiationOperator": "error",
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "noDescendingSpecificity": "off"
       },
       "correctness": {
         "noUnusedVariables": "error",

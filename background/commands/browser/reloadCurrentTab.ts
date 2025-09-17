@@ -7,7 +7,7 @@ export const reloadCurrentTab: CommandNode = {
   name: "Reload current tab",
   icon: { type: "lucide", name: "RotateCw" },
   color: "green",
-  keybinding: "⌘ r",
+  keybinding: "<cmd-r>",
   execute: async () => {
     await callBrowserAPI("tabs", "reload")
   },

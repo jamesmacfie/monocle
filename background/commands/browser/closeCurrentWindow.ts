@@ -7,7 +7,7 @@ export const closeCurrentWindow: CommandNode = {
   name: "Close current window",
   icon: { type: "lucide", name: "XOctagon" },
   color: "red",
-  keybinding: "⌘ ⇧ w",
+  keybinding: "<cmd-shift-w>",
   confirmAction: true,
   execute: async () => {
     const current_window = await getCurrentWindow()

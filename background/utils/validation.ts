@@ -197,12 +197,20 @@ function validateBusinessLogic(message: ValidatedMessage): {
       }
       break
 
-    case "execute-keybinding":
-      // Keybindings should follow expected format
-      if (!/^[⌘⌃⌥⇧\s]*[a-zA-Z0-9↵]$/.test(message.keybinding)) {
+    case "execute-keybinding": {
+      // Keybindings should follow expected format (both old Unicode and new canonical format)
+      const oldFormat = /^[⌘⌃⌥⇧\s]*[a-zA-Z0-9↵]$/.test(message.keybinding)
+      const canonicalFormat =
+        /^(<[a-zA-Z-]+>|[a-zA-Z0-9])(\s*,\s*(<[a-zA-Z-]+>|[a-zA-Z0-9]))*$/.test(
+          message.keybinding,
+        )
+      const singleChar = /^[a-zA-Z0-9]$/.test(message.keybinding)
+
+      if (!oldFormat && !canonicalFormat && !singleChar) {
         return { valid: false, error: "Invalid keybinding format" }
       }
       break
+    }
 
     case "update-command-setting":
       // Setting names should be safe strings

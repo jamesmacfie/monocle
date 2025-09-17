@@ -21,4 +21,5 @@ yarn-error.log*
 # extension.js
 extension-env.d.ts
 
-
+# where I dump random stuff for the LLM
+other_code

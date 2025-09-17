@@ -2,185 +2,83 @@ import { useEffect } from "react"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
 import { useAppSelector } from "../store/hooks"
 import { selectIsCapturing } from "../store/slices/keybinding.slice"
+import { RobustKeyCapture } from "../utils/robust-key-capture"
 
 // Cross-browser compatibility layer
 const _browserAPI = typeof browser !== "undefined" ? browser : chrome
-
-// Check if element is within the command palette
-function isWithinCommandPalette(element: Element | null): boolean {
-  if (!element) return false
-
-  // Use closest() to efficiently check if we're inside a CMDK component
-  return element.closest("[cmdk-root]") !== null
-}
-
-// Check if the active element is a context where we shouldn't capture keybindings
-function shouldSkipKeybinding(
-  element: Element | null,
-  event: KeyboardEvent,
-): boolean {
-  if (!element) return false
-
-  // Skip Enter key entirely when inside command palette to prevent conflicts
-  if (event.key === "Enter" && isWithinCommandPalette(element)) {
-    return true
-  }
-
-  const tagName = element.tagName.toLowerCase()
-  const inputTags = ["input", "textarea", "select"]
-
-  // Check for standard HTML input elements
-  if (inputTags.includes(tagName)) {
-    // Check if modifier keys are pressed (excluding shift-only for capital letters)
-    const hasNonShiftModifier = event.metaKey || event.ctrlKey || event.altKey
-
-    // If we have non-shift modifiers, allow the keybinding (it's likely a global shortcut)
-    if (hasNonShiftModifier) {
-      return false
-    }
-
-    // Otherwise, skip the keybinding (normal typing)
-    return true
-  }
-
-  // Check for contenteditable elements (handle both "true" and empty string)
-  const contentEditable = element.getAttribute("contenteditable")
-  if (contentEditable === "true" || contentEditable === "") {
-    // Same logic for contenteditable
-    const hasNonShiftModifier = event.metaKey || event.ctrlKey || event.altKey
-    return !hasNonShiftModifier
-  }
-
-  // Check for ARIA-based input elements (common in modern web apps)
-  const role = element.getAttribute("role")
-  const inputRoles = ["textbox", "combobox", "searchbox", "spinbutton"]
-  if (role && inputRoles.includes(role.toLowerCase())) {
-    // Same logic as for input elements
-    const hasNonShiftModifier = event.metaKey || event.ctrlKey || event.altKey
-    return !hasNonShiftModifier
-  }
-
-  // Check for elements that might be input-like based on ARIA attributes
-  if (
-    element.hasAttribute("aria-label") ||
-    element.hasAttribute("aria-placeholder")
-  ) {
-    // Only skip if the element appears to be interactive and focusable
-    const tabIndex = element.getAttribute("tabindex")
-    const isInteractive = tabIndex !== null && tabIndex !== "-1"
-
-    if (isInteractive) {
-      const hasNonShiftModifier = event.metaKey || event.ctrlKey || event.altKey
-      return !hasNonShiftModifier
-    }
-  }
-
-  return false
-}
 
 export function useGlobalKeybindings() {
   const sendMessage = useSendMessage()
   const isCapturing = useAppSelector(selectIsCapturing)
 
   useEffect(() => {
-    // Track whether a multi‑stroke sequence is in progress so we keep
-    // capturing subsequent strokes even without modifiers (e.g., "⌘ k, g").
-    let sequenceActive = false
+    // Track whether a multi-stroke sequence is in progress
+    let _sequenceActive = false
     let clearSequenceTimer: ReturnType<typeof setTimeout> | null = null
+
     const resetSequenceFlag = () => {
-      sequenceActive = false
+      _sequenceActive = false
       if (clearSequenceTimer) {
         clearTimeout(clearSequenceTimer)
         clearSequenceTimer = null
       }
     }
 
-    const handleKeyDown = async (event: KeyboardEvent) => {
-      // Disable global keybindings while capturing a custom keybinding
-      if (isCapturing) {
-        return
-      }
-      // Check if we should skip this keybinding based on focus and modifiers,
-      // unless we're mid-sequence (then we must capture the next stroke).
-      if (
-        !sequenceActive &&
-        shouldSkipKeybinding(document.activeElement, event)
-      ) {
-        return
-      }
-
-      // Build keybinding string from event
-      const parts = []
-      if (event.metaKey) parts.push("⌘")
-      if (event.ctrlKey) parts.push("⌃")
-      if (event.altKey) parts.push("⌥")
-      if (event.shiftKey) parts.push("⇧")
-
-      // Handle special keys and normalize case
-      let key = event.key
-      if (key === "Enter") key = "↵"
-      else if (key.length === 1) key = key.toLowerCase() // Changed to lowercase to match registry
-
-      parts.push(key)
-      const keybinding = parts.join(" ")
-
-      // Skip if it's just a modifier key
-      if (["Meta", "Control", "Alt", "Shift"].includes(event.key)) {
-        return
-      }
-
-      // Only allow single-char keys and Enter; ignore other special keys to avoid validation noise
-      const isAllowedKey = key === "↵" || /^[a-z0-9]$/.test(key)
-      if (!isAllowedKey) {
-        return
-      }
-
-      // Try to execute (or continue) the keybinding sequence
-      try {
-        const response = await sendMessage({
-          type: "execute-keybinding",
-          keybinding,
-        })
-
-        // If background handled this stroke (executed or pending),
-        // prevent default and stop propagation.
-        if (response?.success) {
-          event.preventDefault()
-          event.stopPropagation()
-          event.stopImmediatePropagation()
+    // Create robust key capture instance
+    const keyCapture = new RobustKeyCapture({
+      debug: false, // Set to true for debugging
+      onKeyPress: async (
+        keyString: string,
+        _event: KeyboardEvent,
+      ): Promise<boolean> => {
+        // Disable global keybindings while capturing a custom keybinding
+        if (isCapturing) {
+          return false
         }
 
-        // Manage local sequence state based on background response
-        if (response?.pending) {
-          sequenceActive = true
-          if (clearSequenceTimer) clearTimeout(clearSequenceTimer)
-          // Match background chord timeout (slightly longer to be safe)
-          clearSequenceTimer = setTimeout(() => {
-            sequenceActive = false
-            clearSequenceTimer = null
-          }, 900)
-        } else if (response?.executed) {
-          // Command executed — clear local sequence state
-          resetSequenceFlag()
-        } else if (response && response.success === false) {
-          // Unhandled — clear local sequence state so page regains control
-          resetSequenceFlag()
-        }
-      } catch (_error) {
-        // Silently ignore - this just means no command is bound to this key
-        resetSequenceFlag()
-      }
-    }
+        try {
+          // Try to execute (or continue) the keybinding sequence
+          const response = await sendMessage({
+            type: "execute-keybinding",
+            keybinding: keyString,
+          })
 
-    // Use capture: true to intercept before page handlers
-    // Add passive: false to ensure we can preventDefault
-    window.addEventListener("keydown", handleKeyDown, {
-      capture: true,
-      passive: false,
+          // If background handled this stroke, return true to suppress event
+          if (response?.success) {
+            // Manage local sequence state based on background response
+            if (response?.pending) {
+              _sequenceActive = true
+              if (clearSequenceTimer) clearTimeout(clearSequenceTimer)
+              // Match background chord timeout (slightly longer to be safe)
+              clearSequenceTimer = setTimeout(() => {
+                _sequenceActive = false
+                clearSequenceTimer = null
+              }, 900)
+            } else if (response?.executed) {
+              // Command executed — clear local sequence state
+              resetSequenceFlag()
+            } else if (response.success === false) {
+              // Unhandled — clear local sequence state so page regains control
+              resetSequenceFlag()
+            }
+
+            return true // Event was handled, suppress it
+          }
+
+          return false // Event not handled, let it through
+        } catch (_error) {
+          // Silently ignore - this just means no command is bound to this key
+          resetSequenceFlag()
+          return false
+        }
+      },
     })
 
+    // Install the robust capture system
+    keyCapture.install()
+
     return () => {
-      window.removeEventListener("keydown", handleKeyDown, { capture: true })
+      keyCapture.uninstall()
       resetSequenceFlag()
     }
   }, [sendMessage, isCapturing])

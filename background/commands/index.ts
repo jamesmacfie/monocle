@@ -688,7 +688,7 @@ export const commandsToSuggestions = async (
           actionLabel: primaryLabel,
           isFavorite: false,
           actions: undefined,
-          keybinding: "↵",
+          keybinding: "enter",
           confirmAction:
             node.type === "action" || node.type === "submit"
               ? node.confirmAction
@@ -724,7 +724,7 @@ export const commandsToSuggestions = async (
             description: "Ctrl",
           },
         ]
-        for (const { key, icon, symbol, description } of defs) {
+        for (const { key, icon, description } of defs) {
           const label = modifierLabels[key]
           if (label) {
             actions.push({
@@ -736,7 +736,7 @@ export const commandsToSuggestions = async (
               actionLabel: label,
               keywords: [],
               isFavorite: false,
-              keybinding: `${symbol} ↵`,
+              keybinding: `<${key}-enter>`,
               confirmAction: node.confirmAction,
               modifierActionLabel: undefined,
               remainOpenOnSelect: undefined,

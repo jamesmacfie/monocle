@@ -12,7 +12,7 @@ export const toggleReaderMode: CommandNode = {
   keywords: ["reader", "mode", "reading", "firefox", "simplify", "article"],
   supportedBrowsers: ["firefox"],
   actionLabel: "Toggle Reader Mode",
-  keybinding: "⌥ ⌘ R",
+  keybinding: "<alt-cmd-R>",
   execute: async () => {
     const activeTab = await getActiveTab()
 

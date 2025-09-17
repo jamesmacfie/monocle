@@ -1,6 +1,7 @@
 import { Command } from "cmdk"
 import { useEffect, useRef, useState } from "react"
 import type { Suggestion } from "../../../shared/types"
+import { toDisplayFormat } from "../../../shared/utils/key-normalizer"
 import { useSendMessage } from "../../hooks/useSendMessage"
 import { useAppDispatch, useAppSelector } from "../../store/hooks"
 import {
@@ -12,6 +13,42 @@ import {
 } from "../../store/slices/keybinding.slice"
 import { KeybindingDisplay } from "../KeybindingDisplay"
 import { CommandName } from "./CommandName"
+
+// Convert Unicode symbol keybinding to canonical format
+function convertToCanonicalFormat(keys: string[]): string {
+  const modifiers: string[] = []
+  let primaryKey = ""
+
+  // Extract modifiers and primary key
+  for (const key of keys) {
+    switch (key) {
+      case "⌘":
+        modifiers.push("cmd")
+        break
+      case "⌃":
+        modifiers.push("ctrl")
+        break
+      case "⌥":
+        modifiers.push("alt")
+        break
+      case "⇧":
+        modifiers.push("shift")
+        break
+      default:
+        primaryKey = key.toLowerCase()
+        break
+    }
+  }
+
+  // Build canonical format
+  if (modifiers.length === 0) {
+    return primaryKey
+  } else {
+    // Sort modifiers for consistency: alt, cmd, ctrl, shift
+    modifiers.sort()
+    return `<${[...modifiers, primaryKey].join("-")}>`
+  }
+}
 
 // Keybinding capture component
 function KeybindingCapture({
@@ -77,7 +114,11 @@ function KeybindingCapture({
           (k) => k !== "⌘" && k !== "⌃" && k !== "⌥" && k !== "⇧",
         )
       ) {
-        finalStrokes = [...finalStrokes, currentKeys.join(" ")]
+        // Convert to canonical format instead of Unicode symbols with spaces
+
+        const canonicalStroke = convertToCanonicalFormat(currentKeys)
+
+        finalStrokes = [...finalStrokes, canonicalStroke]
       }
 
       // Save the sequence (strokes separated by comma)
@@ -186,7 +227,9 @@ function KeybindingCapture({
       // If a non-modifier key is present, finalize this stroke
       const hasPrimary = current.some((k) => !["⌘", "⌃", "⌥", "⇧"].includes(k))
       if (hasPrimary) {
-        const newStrokes = [...strokes, current.join(" ")]
+        // Convert to canonical format for stroke completion
+        const canonicalStroke = convertToCanonicalFormat(current)
+        const newStrokes = [...strokes, canonicalStroke]
         setStrokes(newStrokes)
         setCurrentKeys([])
 
@@ -221,41 +264,56 @@ function KeybindingCapture({
           </span>
         ) : (
           <div className="flex items-center gap-1">
-            {strokes.map((stroke, idx) => (
-              <div key={`stroke-${idx}`} className="flex items-center gap-1">
-                {stroke.split(" ").map((k, kIdx) => (
-                  <kbd
-                    key={`${idx}-${kIdx}`}
-                    className={`px-1.5 py-0.5 rounded text-xs ${
-                      hasConflict
-                        ? "bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error-fg)]"
-                        : "bg-[var(--cmdk-list-item-background-active)]"
-                    }`}
-                  >
-                    {k}
-                  </kbd>
-                ))}
-                {idx < strokes.length - 1 && (
-                  <span className="px-1 text-xs text-[var(--cmdk-muted-foreground)]">
-                    →
-                  </span>
-                )}
-              </div>
-            ))}
+            {strokes.map((stroke, idx) => {
+              // Convert canonical format to display format for proper kbd rendering
+              const displayStroke = toDisplayFormat(stroke)
+              const parts = displayStroke.split(" ").filter(Boolean)
+
+              return (
+                <div key={`stroke-${idx}`} className="flex items-center gap-1">
+                  {parts.map((k: string, kIdx: number) => (
+                    <kbd
+                      key={`${idx}-${kIdx}`}
+                      className={`px-1.5 py-0.5 rounded text-xs ${
+                        hasConflict
+                          ? "bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error-fg)]"
+                          : "bg-[var(--cmdk-list-item-background-active)]"
+                      }`}
+                    >
+                      {k}
+                    </kbd>
+                  ))}
+                  {idx < strokes.length - 1 && (
+                    <span className="px-1 text-xs text-[var(--cmdk-muted-foreground)]">
+                      →
+                    </span>
+                  )}
+                </div>
+              )
+            })}
             {currentKeys.length > 0 && (
               <div className="flex items-center gap-1">
-                {currentKeys.map((k, kIdx) => (
-                  <kbd
-                    key={`current-${kIdx}`}
-                    className={`px-1.5 py-0.5 rounded text-xs ${
-                      hasConflict
-                        ? "bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error-fg)]"
-                        : "bg-[var(--cmdk-list-item-background-active)]"
-                    }`}
-                  >
-                    {k}
-                  </kbd>
-                ))}
+                {currentKeys.map((k, kIdx) => {
+                  // Convert Unicode symbols to display format for consistency
+                  let displayKey = k
+                  if (k === "⌘") displayKey = "⌘"
+                  else if (k === "⌃") displayKey = "⌃"
+                  else if (k === "⌥") displayKey = "⌥"
+                  else if (k === "⇧") displayKey = "⇧"
+
+                  return (
+                    <kbd
+                      key={`current-${kIdx}`}
+                      className={`px-1.5 py-0.5 rounded text-xs ${
+                        hasConflict
+                          ? "bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error-fg)]"
+                          : "bg-[var(--cmdk-list-item-background-active)]"
+                      }`}
+                    >
+                      {displayKey}
+                    </kbd>
+                  )
+                })}
               </div>
             )}
           </div>

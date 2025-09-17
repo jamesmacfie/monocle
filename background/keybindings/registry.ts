@@ -1,93 +1,29 @@
-import { match } from "ts-pattern"
 import type { CommandNode } from "../../shared/types"
 import { isFirefox } from "../../shared/utils/browser"
+import {
+  getKeyString,
+  normalizeKeybinding,
+} from "../../shared/utils/key-normalizer"
 import { browserCommands } from "../commands/browser"
 import { firefoxCommands } from "../commands/browser/firefox"
 import { getAllCommandSettings } from "../commands/settings"
 import { toolCommands } from "../commands/tools"
 
+// Re-export for compatibility
+export { normalizeKeybinding }
+
 // Map of keybinding string to command ID
 const keybindingRegistry = new Map<string, string>()
 
-// Convert keybinding string to normalized format
-export function normalizeKeybinding(keybinding: string): string {
-  const lowered = keybinding
-    .toLowerCase()
-    .replace(/⌘/g, "cmd")
-    .replace(/⌥/g, "alt")
-    .replace(/⇧/g, "shift")
-    .replace(/⌃/g, "ctrl")
-    .replace(/↵/g, "enter")
-
-  return lowered
-    .replace(/\s+/g, " ") // collapse whitespace
-    .replace(/\s*,\s*/g, ", ") // normalize comma spacing
-    .trim()
-}
-
-// Parse keybinding string into key components
-export function parseKeybinding(keybinding: string): {
-  key: string
-  cmd: boolean
-  ctrl: boolean
-  alt: boolean
-  shift: boolean
-} {
-  const normalized = normalizeKeybinding(keybinding)
-  const parts = normalized.split(/[\s+]+/)
-
-  const result = {
-    key: "",
-    cmd: false,
-    ctrl: false,
-    alt: false,
-    shift: false,
-  }
-
-  for (const part of parts) {
-    match(part)
-      .with("cmd", () => {
-        result.cmd = true
-      })
-      .with("ctrl", () => {
-        result.ctrl = true
-      })
-      .with("alt", () => {
-        result.alt = true
-      })
-      .with("shift", () => {
-        result.shift = true
-      })
-      .otherwise(() => {
-        result.key = part
-      })
-  }
-
-  return result
-}
-
-// Check if keyboard event matches keybinding
+// Check if keyboard event matches keybinding (using canonical format)
 export function matchesKeybinding(
-  event: {
-    key: string
-    metaKey: boolean
-    ctrlKey: boolean
-    altKey: boolean
-    shiftKey: boolean
-  },
+  event: KeyboardEvent,
   keybinding: string,
 ): boolean {
-  const parsed = parseKeybinding(keybinding)
-  const eventKey = event.key.toLowerCase()
+  const eventKeyString = getKeyString(event)
+  const normalizedKeybinding = normalizeKeybinding(keybinding)
 
-  const matches =
-    eventKey === parsed.key &&
-    event.metaKey === parsed.cmd &&
-    event.ctrlKey === parsed.ctrl &&
-    event.altKey === parsed.alt &&
-    event.shiftKey === parsed.shift
-
-  return matches
+  return eventKeyString === normalizedKeybinding
 }
 
 // --- Sequence helpers ---
@@ -97,6 +33,7 @@ export function getCommandIdForKeybinding(
   keybinding: string,
 ): string | undefined {
   const normalized = normalizeKeybinding(keybinding)
+
   const commandId = keybindingRegistry.get(normalized)
   return commandId
 }

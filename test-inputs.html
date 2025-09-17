@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monocle Input Test Page</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    section {
+      margin: 30px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    h2 {
+      margin-top: 0;
+      color: #333;
+    }
+    input, textarea, select {
+      display: block;
+      margin: 10px 0;
+      padding: 8px;
+      width: 100%;
+      max-width: 400px;
+    }
+    [contenteditable] {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 100px;
+      margin: 10px 0;
+    }
+    .monaco-editor-stub {
+      border: 2px solid #007ACC;
+      padding: 10px;
+      min-height: 150px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Courier New', monospace;
+    }
+    .CodeMirror-stub {
+      border: 2px solid #4CAF50;
+      padding: 10px;
+      min-height: 150px;
+      background: #f5f5f5;
+      font-family: monospace;
+    }
+    .test-status {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f0f8ff;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Monocle Input Field Test Page</h1>
+  <div class="test-status">
+    <strong>Instructions:</strong> Try typing in each field below. The Monocle extension should NOT interfere with any typing or text editing shortcuts.
+  </div>
+
+  <section>
+    <h2>Standard HTML Inputs</h2>
+    <input type="text" placeholder="Regular text input">
+    <input type="email" placeholder="Email input">
+    <input type="password" placeholder="Password input">
+    <input type="number" placeholder="Number input">
+    <input type="search" placeholder="Search input">
+    <textarea placeholder="Textarea - try multi-line text"></textarea>
+    <select>
+      <option>Select option 1</option>
+      <option>Select option 2</option>
+    </select>
+  </section>
+
+  <section>
+    <h2>ContentEditable Elements</h2>
+    <div contenteditable="true">
+      This is a contenteditable="true" div. Try typing and using text editing shortcuts like Cmd+B for bold.
+    </div>
+    <div contenteditable="">
+      This is a contenteditable="" div (empty string value).
+    </div>
+    <div contenteditable="plaintext-only">
+      This is a contenteditable="plaintext-only" div.
+    </div>
+  </section>
+
+  <section>
+    <h2>ARIA-based Inputs</h2>
+    <div role="textbox" tabindex="0" aria-label="ARIA textbox">
+      Click here and type - this has role="textbox"
+    </div>
+    <div role="combobox" tabindex="0" aria-label="ARIA combobox">
+      This has role="combobox"
+    </div>
+    <div role="searchbox" tabindex="0" aria-placeholder="Search...">
+      This has role="searchbox"
+    </div>
+  </section>
+
+  <section>
+    <h2>Code Editor Simulations</h2>
+    <div class="monaco-editor monaco-editor-stub" contenteditable="true">
+      <div class="view-line">// Monaco Editor simulation (VS Code style)</div>
+      <div class="view-line">function test() { return true; }</div>
+    </div>
+
+    <div class="CodeMirror CodeMirror-stub" contenteditable="true">
+      <div class="CodeMirror-line">// CodeMirror simulation</div>
+      <div class="CodeMirror-line">const value = "test";</div>
+    </div>
+
+    <div class="ace_editor ace_editor-stub" contenteditable="true">
+      <div class="ace_text-input" tabindex="0">// Ace Editor simulation</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Modern Framework Inputs</h2>
+    <div data-lexical-editor="true" contenteditable="true">
+      Lexical editor (Facebook's rich text editor)
+    </div>
+
+    <div class="ProseMirror" contenteditable="true">
+      ProseMirror editor simulation
+    </div>
+
+    <div data-slate-node="element" contenteditable="true">
+      Slate editor simulation
+    </div>
+
+    <div data-content-editable-leaf="true" contenteditable="true">
+      Notion-style editor simulation
+    </div>
+  </section>
+
+  <section>
+    <h2>Special Attributes</h2>
+    <input type="text" inputmode="text" placeholder="Has inputmode attribute">
+    <div aria-label="Custom input" aria-placeholder="Type here..." tabindex="0" data-gramm="true">
+      Grammarly-enhanced field simulation
+    </div>
+  </section>
+
+  <script>
+    // Add event listeners to show what's being typed
+    document.addEventListener('keydown', function(e) {
+      const target = e.target;
+      const isInput = target.tagName === 'INPUT' ||
+                     target.tagName === 'TEXTAREA' ||
+                     target.contentEditable === 'true' ||
+                     target.getAttribute('role') === 'textbox';
+
+      if (isInput) {
+        console.log('Typing in input field:', e.key, 'Target:', target);
+      }
+    });
+
+    // Make ARIA elements actually editable
+    document.querySelectorAll('[role="textbox"], [role="combobox"], [role="searchbox"]').forEach(el => {
+      el.addEventListener('keypress', function(e) {
+        if (e.key !== 'Enter') {
+          this.textContent += e.key;
+        }
+      });
+      el.addEventListener('keydown', function(e) {
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          this.textContent = this.textContent.slice(0, -1);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

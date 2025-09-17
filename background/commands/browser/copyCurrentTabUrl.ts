@@ -14,7 +14,7 @@ export const copyCurrentTabUrl: CommandNode = {
         id: "copyCurrentTabUrl-copy-url",
         name: "Copy URL",
         icon: { type: "lucide", name: "Copy" },
-        keybinding: "↵",
+        keybinding: "enter",
         async execute() {
           const activeTab = await getActiveTab()
           if (activeTab?.url) {
@@ -35,7 +35,7 @@ export const copyCurrentTabUrl: CommandNode = {
         id: "copyCurrentTabUrl-copy-url-no-params",
         name: "Copy URL without parameters",
         icon: { type: "lucide", name: "Copy" },
-        keybinding: "⌘ ↵",
+        keybinding: "<cmd-enter>",
         async execute() {
           const activeTab = await getActiveTab()
           if (activeTab?.url) {
@@ -71,7 +71,7 @@ export const copyCurrentTabUrl: CommandNode = {
         id: "copyCurrentTabUrl-copy-domain",
         name: "Copy domain only",
         icon: { type: "lucide", name: "Globe" },
-        keybinding: "⌘ ⇧ ↵",
+        keybinding: "<cmd-shift-enter>",
         async execute() {
           const activeTab = await getActiveTab()
           if (activeTab?.url) {

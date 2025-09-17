@@ -6,7 +6,8 @@ const STORAGE_KEY = "monocle-favoriteCommandIds"
 // Load favorite command IDs from storage
 const loadFavoriteCommandIds = async (): Promise<string[]> => {
   try {
-    const result = await browser.storage.local.get(STORAGE_KEY)
+    const b = typeof browser !== "undefined" ? browser : chrome
+    const result = await b.storage.local.get(STORAGE_KEY)
     const favoriteIds = result[STORAGE_KEY] || []
 
     return favoriteIds
@@ -19,7 +20,8 @@ const loadFavoriteCommandIds = async (): Promise<string[]> => {
 // Save favorite command IDs to storage
 const saveFavoriteCommandIds = async (commandIds: string[]): Promise<void> => {
   try {
-    await browser.storage.local.set({
+    const b = typeof browser !== "undefined" ? browser : chrome
+    await b.storage.local.set({
       [STORAGE_KEY]: commandIds,
     })
   } catch (error) {
@@ -108,14 +110,15 @@ export const clearFavoritesCommand: ActionCommandNode = {
   description: "Clear all favorite commands",
   icon: { type: "lucide", name: "Trash2" },
   execute: async () => {
+    const b = typeof browser !== "undefined" ? browser : chrome
     try {
-      await browser.storage.local.remove(STORAGE_KEY)
+      await b.storage.local.remove(STORAGE_KEY)
 
       // Send success notification
       const activeTab = await getActiveTab()
 
       if (activeTab) {
-        browser.tabs.sendMessage(activeTab.id, {
+        b.tabs.sendMessage(activeTab.id, {
           type: "monocle-alert",
           level: "success",
           message: "Favorite commands cleared successfully",
@@ -127,7 +130,7 @@ export const clearFavoritesCommand: ActionCommandNode = {
       // Send error notification
       const activeTab = await getActiveTab()
       if (activeTab?.id) {
-        browser.tabs.sendMessage(activeTab.id, {
+        b.tabs.sendMessage(activeTab.id, {
           type: "monocle-alert",
           level: "error",
           message: "Failed to clear favorite commands",

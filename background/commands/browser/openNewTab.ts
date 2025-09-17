@@ -7,7 +7,7 @@ export const openNewTab: CommandNode = {
   name: "Open new tab",
   icon: { type: "lucide", name: "PlusSquare" },
   color: "purple",
-  keybinding: "⌘ t",
+  keybinding: "<cmd-t>",
   actionLabel: "New tab →",
   modifierActionLabel: {
     shift: "New tab ←",

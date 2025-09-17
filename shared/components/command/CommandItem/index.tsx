@@ -41,23 +41,8 @@ export function CommandItem({
   onInputSubmit,
   children,
 }: Props) {
+  // All hooks must be called at the top level before any conditional returns
   const inputRef = useRef<HTMLInputElement | null>(null)
-
-  if (
-    suggestion.type === "input" &&
-    suggestion.inputField?.type === "text-list"
-  ) {
-    const textListSuggestion = suggestion as TextListSuggestion
-    return (
-      <CommandItemTextList
-        suggestion={textListSuggestion}
-        currentPage={currentPage}
-        inputRef={inputRef}
-        onInputSubmit={onInputSubmit}
-      />
-    )
-  }
-
   const toast = useToast()
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
   const focusedValue = useCommandState((state) => state.value)
@@ -67,15 +52,10 @@ export function CommandItem({
   const submitRef = useRef<HTMLButtonElement | null>(null)
   const itemRef = useRef<HTMLDivElement | null>(null)
 
+  // Computed values for effects (need these before effects)
   const type = suggestion.type
   const isInlineInput = type === "input"
-  const isDisplayOnly = type === "display"
   const _isSubmitButton = type === "submit"
-
-  // Check if this command requires confirmation
-  const requiresConfirmation =
-    (type === "action" || type === "submit") &&
-    suggestion.confirmAction === true
 
   // Reset confirmation state when suggestion changes (navigation)
   useEffect(() => {
@@ -102,6 +82,29 @@ export function CommandItem({
       submitRef.current?.focus()
     }
   }, [focusedValue, suggestion.id, _isSubmitButton])
+
+  // Early return for special text-list input type
+  if (
+    suggestion.type === "input" &&
+    suggestion.inputField?.type === "text-list"
+  ) {
+    const textListSuggestion = suggestion as TextListSuggestion
+    return (
+      <CommandItemTextList
+        suggestion={textListSuggestion}
+        currentPage={currentPage}
+        inputRef={inputRef}
+        onInputSubmit={onInputSubmit}
+      />
+    )
+  }
+
+  const isDisplayOnly = type === "display"
+
+  // Check if this command requires confirmation
+  const requiresConfirmation =
+    (type === "action" || type === "submit") &&
+    suggestion.confirmAction === true
 
   const handleSelect = () => {
     // Do nothing for inline input or display rows
