@@ -3,6 +3,7 @@ import { validateIncomingMessage } from "../utils/validation"
 import { checkKeybindingConflict } from "./checkKeybindingConflict"
 import { executeCommand } from "./executeCommand"
 import { executeKeybinding } from "./executeKeybinding"
+import { executeWorkflow } from "./executeWorkflow"
 import { getChildrenCommands } from "./getChildrenCommands"
 import { getCommands } from "./getCommands"
 import { getPermissions } from "./getPermissions"
@@ -70,6 +71,9 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "request-permission" }, async (msg) => {
       return await requestPermission(msg)
+    })
+    .with({ type: "execute-workflow" }, async (msg) => {
+      return await executeWorkflow(msg)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${message.type}`)

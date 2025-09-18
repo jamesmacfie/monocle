@@ -1,5 +1,6 @@
 // Background/content script communication types
 import type { Browser } from "./browser"
+import type { Workflow, WorkflowResult } from "./workflow"
 
 export type ExecuteCommandMessage = {
   type: "execute-command"
@@ -73,6 +74,16 @@ export interface RequestPermissionResponse {
   error?: string
 }
 
+export type ExecuteWorkflowMessage = {
+  type: "execute-workflow"
+  workflow: Workflow
+  context: Browser.Context
+}
+
+export interface ExecuteWorkflowResponse {
+  result: WorkflowResult
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
@@ -85,6 +96,7 @@ export type Message =
   | GetUnsplashBackgroundMessage
   | GetPermissionsMessage
   | RequestPermissionMessage
+  | ExecuteWorkflowMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

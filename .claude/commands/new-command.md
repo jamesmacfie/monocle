@@ -303,8 +303,7 @@ export const recentBookmarks: GroupCommandNode = {
           description: `Navigate to ${bookmark.url}`,
           icon: { type: "lucide", name: "Globe" },
           color: "blue",
-          keywords: ["bookmark", bookmark.title.toLowerCase()],
-          
+          keywords: [bookmark.ur],
           execute: async () => {
             try {
               await createTab({ url: bookmark.url })

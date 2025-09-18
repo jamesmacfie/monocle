@@ -39,6 +39,18 @@ export function shouldCapture(event: KeyboardEvent): boolean {
     return false
   }
 
+  // Always allow common copy/paste commands to pass through unless in editable elements
+  // These should work normally on any page
+  if (isCommonBrowserShortcut(event)) {
+    return false
+  }
+
+  // Don't capture basic navigation keys without modifiers
+  // These should work normally for page navigation
+  if (isBasicNavigationKey(event)) {
+    return false
+  }
+
   // Don't block browser shortcuts here - let the keybinding system decide
   // The keybinding system will check if user has overridden these
   // Only block critical browser shortcuts that should never be overridden
@@ -292,6 +304,79 @@ export function isTextEditingShortcut(event: KeyboardEvent): boolean {
 
   // Escape to potentially exit edit mode
   if (key === "escape") {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Check if event represents common browser shortcuts that should pass through
+ * These are everyday commands users expect to work normally
+ */
+export function isCommonBrowserShortcut(event: KeyboardEvent): boolean {
+  const key = event.key.toLowerCase()
+  const hasCmd = event.metaKey || event.ctrlKey
+
+  if (hasCmd && !event.altKey && !event.shiftKey) {
+    // Common copy/paste/cut commands
+    const commonEditKeys = ["c", "v", "x", "a", "z"]
+    if (commonEditKeys.includes(key)) {
+      return true
+    }
+
+    // Common browser navigation
+    const commonNavKeys = ["r", "t", "w", "n", "l", "d", "f", "g", "h"]
+    if (commonNavKeys.includes(key)) {
+      return true
+    }
+  }
+
+  // Cmd/Ctrl + Shift combinations
+  if (hasCmd && event.shiftKey && !event.altKey) {
+    const commonShiftKeys = ["t", "n", "w", "r", "z", "delete"]
+    if (commonShiftKeys.includes(key)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
+ * Check if event represents basic navigation keys without modifiers
+ * These should work normally for page scrolling and navigation
+ */
+export function isBasicNavigationKey(event: KeyboardEvent): boolean {
+  // Only handle keys without modifiers (except shift for some cases)
+  if (event.metaKey || event.ctrlKey || event.altKey) {
+    return false
+  }
+
+  const key = event.key.toLowerCase()
+
+  // Arrow keys for navigation
+  const navigationKeys = [
+    "arrowup",
+    "arrowdown",
+    "arrowleft",
+    "arrowright",
+    "up",
+    "down",
+    "left",
+    "right",
+    "pageup",
+    "pagedown",
+    "home",
+    "end",
+  ]
+
+  if (navigationKeys.includes(key)) {
+    return true
+  }
+
+  // Space for scrolling (unless shift is held for shift+space)
+  if (key === " " || key === "space") {
     return true
   }
 

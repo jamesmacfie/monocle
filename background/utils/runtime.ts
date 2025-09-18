@@ -140,3 +140,19 @@ export function createCrossBrowserMessageHandler(
     return responsePromise
   }
 }
+
+/**
+ * Sends a message to the active tab
+ * @param message - The message to send
+ * @returns Promise resolving to the response
+ */
+export async function sendMessageToActiveTab(message: any): Promise<any> {
+  const { getActiveTab, sendTabMessage } = await import("./browser")
+  const activeTab = await getActiveTab()
+
+  if (!activeTab) {
+    throw new Error("No active tab found")
+  }
+
+  return sendTabMessage(activeTab.id, message)
+}

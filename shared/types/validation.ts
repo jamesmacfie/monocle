@@ -78,6 +78,47 @@ export const RequestPermissionMessageSchema = z.object({
   permission: z.string().min(1, "Permission name cannot be empty"),
 })
 
+// Workflow schemas
+export const WorkflowStepSchema = z
+  .object({
+    op: z.string(),
+    id: z.string().optional(),
+    description: z.string().optional(),
+    timeoutMs: z.number().optional(),
+    retry: z
+      .object({
+        retries: z.number(),
+        delayMs: z.number().optional(),
+        backoff: z.enum(["none", "exponential"]).optional(),
+      })
+      .optional(),
+    targeting: z
+      .object({
+        scrollIntoView: z.boolean().optional(),
+        ensureVisible: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .passthrough() // Allow additional properties for specific step types
+
+export const WorkflowSchema = z.object({
+  version: z.literal("1.0"),
+  name: z.string().optional(),
+  vars: z
+    .record(
+      z.string(),
+      z.union([z.string(), z.number(), z.boolean(), z.null()]),
+    )
+    .optional(),
+  steps: z.array(WorkflowStepSchema),
+})
+
+export const ExecuteWorkflowMessageSchema = z.object({
+  type: z.literal("execute-workflow"),
+  workflow: WorkflowSchema,
+  context: BrowserContextSchema,
+})
+
 // Union schema for all message types
 export const MessageSchema = z.discriminatedUnion("type", [
   ExecuteCommandMessageSchema,
@@ -91,6 +132,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
   GetUnsplashBackgroundMessageSchema,
   GetPermissionsMessageSchema,
   RequestPermissionMessageSchema,
+  ExecuteWorkflowMessageSchema,
 ])
 
 // Validation result types

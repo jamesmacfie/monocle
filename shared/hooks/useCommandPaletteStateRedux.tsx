@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from "react"
+import { workflowExecutor } from "../../content/workflowExecutor"
 import { useAppDispatch, useAppSelector } from "../store/hooks"
 import {
   hideUI,
@@ -6,6 +7,7 @@ import {
   showUI,
   toggleUI,
 } from "../store/slices/commandPaletteState.slice"
+import type { Workflow } from "../types/workflow"
 
 // Cross-browser compatibility layer
 const browserAPI = typeof browser !== "undefined" ? browser : chrome
@@ -54,15 +56,48 @@ export const useCommandPaletteStateRedux = () => {
 
   // Handle background messages
   useEffect(() => {
-    const handleBackgroundMessage = (
+    const handleBackgroundMessage = async (
       message: any,
       _sender: browser.runtime.MessageSender | chrome.runtime.MessageSender,
-      _sendResponse: (response?: any) => void,
+      sendResponse: (response?: any) => void,
     ) => {
       if (message.type === "toggle-ui") {
         toggle()
       } else if (message.type === "show-ui") {
         show()
+      } else if (message.type === "execute-workflow-content") {
+        // Handle workflow execution in content script
+        console.log("[Content] Received workflow execution request:", message)
+
+        try {
+          const result = await workflowExecutor.executeWorkflow(
+            message.workflow as Workflow,
+          )
+
+          console.log("[Content] Workflow execution completed:", {
+            success: result.success,
+            error: result.error,
+            stepCount: result.stepResults?.length || 0,
+            fullResult: result,
+          })
+
+          sendResponse({ result })
+        } catch (error) {
+          console.error("[Content] Workflow execution failed:", {
+            error,
+            message: error instanceof Error ? error.message : "Unknown error",
+            stack: error instanceof Error ? error.stack : undefined,
+            workflow: message.workflow?.name,
+          })
+
+          sendResponse({
+            result: {
+              success: false,
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+          })
+        }
+        return true // Keep message channel open for async response
       }
     }
 

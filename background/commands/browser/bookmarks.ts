@@ -68,7 +68,7 @@ function processBookmarkNode(
         ? { type: "url", url: faviconUrl }
         : { type: "lucide", name: "Globe" },
       color: "blue",
-      keywords: [node.title.toLowerCase(), node.url.toLowerCase()],
+      keywords: [node.url.toLowerCase()],
       actionLabel: "Open",
       modifierActionLabel: {
         cmd: "Open in New Tab",
