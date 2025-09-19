@@ -1,6 +1,6 @@
 import { useCommandState } from "cmdk"
 import { useEffect } from "react"
-import type { Suggestion } from "../../types/command"
+import type { Suggestion } from "../../types"
 import { CommandItem } from "./CommandItem"
 
 interface DeepSearchItemsProps {

@@ -1,6 +1,6 @@
 // Core command definitions and execution types
 import type { Browser } from "./browser"
-import type { FormField } from "./ui"
+import type { FormField, Suggestion } from "./ui"
 
 export type AsyncValue<T> = T | ((context: Browser.Context) => Promise<T>)
 
@@ -130,3 +130,10 @@ export type CommandNode =
   | InputCommandNode
   | DisplayCommandNode
   | SearchCommandNode
+
+// Command data structure for UI state
+export type CommandData = {
+  favorites: Suggestion[]
+  suggestions: Suggestion[]
+  deepSearchItems: Suggestion[]
+}

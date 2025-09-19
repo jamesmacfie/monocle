@@ -4,8 +4,7 @@ import { match } from "ts-pattern"
 import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
 import type { Page } from "../../../store/slices/navigation.slice"
-import type { Suggestion } from "../../../types/command"
-import type { FormField, InputSuggestion } from "../../../types/ui"
+import type { FormField, InputSuggestion, Suggestion } from "../../../types"
 import {
   collectInputFieldsFromSuggestions,
   validateFormValues,

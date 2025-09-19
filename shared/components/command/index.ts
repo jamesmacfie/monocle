@@ -2,7 +2,7 @@
 
 export type { Page } from "../../store/slices/navigation.slice"
 // Re-export shared types for convenience
-export type { CommandData } from "../../types/command"
+export type { CommandData } from "../../types"
 export { CommandActions } from "./CommandActions"
 export { CommandActionsList } from "./CommandActionsList"
 export { CommandFooter } from "./CommandFooter"

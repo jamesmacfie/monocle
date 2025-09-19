@@ -1,5 +1,5 @@
 import { z } from "zod"
-import type { JSONSchema } from "../types/ui"
+import type { JSONSchema } from "../types"
 
 /**
  * Converts a JSON Schema to a Zod schema for validation

@@ -3,7 +3,7 @@ import * as React from "react"
 const { useState, useCallback } = React
 
 import type { Browser } from "../../shared/types"
-import type { CommandData } from "../types/command"
+import type { CommandData } from "../types"
 import { useSendMessage } from "./useSendMessage"
 
 export function useGetCommands(context?: Partial<Browser.Context>) {

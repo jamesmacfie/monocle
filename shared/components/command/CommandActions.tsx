@@ -2,7 +2,7 @@ import { Command } from "cmdk"
 import { type RefObject, useEffect, useRef } from "react"
 import { useOnClickOutside } from "usehooks-ts"
 import { usePermissionsGranted } from "../../hooks/usePermissionsGranted"
-import type { Suggestion } from "../../types/command"
+import type { Suggestion } from "../../types"
 import { CommandActionsList } from "./CommandActionsList"
 import { PermissionActions } from "./PermissionActions"
 
