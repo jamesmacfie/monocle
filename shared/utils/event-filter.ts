@@ -2,10 +2,12 @@
  * Determines when keyboard events should be captured vs passed through
  */
 
-import { getKeyChar, isModifier } from "./key-normalizer"
+import { isModifier } from "./key-normalizer"
 
 /**
  * Determine if a keyboard event should be captured by the extension
+ * NOTE: This is now primarily for filtering out events we NEVER want to handle.
+ * The actual decision to prevent default happens in the keybinding handler.
  */
 export function shouldCapture(event: KeyboardEvent): boolean {
   // Skip modifier-only keys
@@ -22,7 +24,7 @@ export function shouldCapture(event: KeyboardEvent): boolean {
     return false
   }
 
-  // In editable elements, be more selective
+  // In editable elements, only block pure text editing
   if (isEditableElement(actualTarget)) {
     // If it's a text editing shortcut, don't capture it
     if (isTextEditingShortcut(event)) {
@@ -39,25 +41,13 @@ export function shouldCapture(event: KeyboardEvent): boolean {
     return false
   }
 
-  // Always allow common copy/paste commands to pass through unless in editable elements
-  // These should work normally on any page
-  if (isCommonBrowserShortcut(event)) {
-    return false
-  }
-
-  // Don't capture basic navigation keys without modifiers
-  // These should work normally for page navigation
-  if (isBasicNavigationKey(event)) {
-    return false
-  }
-
-  // Don't block browser shortcuts here - let the keybinding system decide
-  // The keybinding system will check if user has overridden these
-  // Only block critical browser shortcuts that should never be overridden
+  // Only block critical system-level shortcuts that should NEVER be overridden
   if (isCriticalBrowserShortcut(event)) {
     return false
   }
 
+  // Everything else goes through to be checked against keybindings
+  // If not bound, the browser will handle it normally
   return true
 }
 
@@ -311,39 +301,6 @@ export function isTextEditingShortcut(event: KeyboardEvent): boolean {
 }
 
 /**
- * Check if event represents common browser shortcuts that should pass through
- * These are everyday commands users expect to work normally
- */
-export function isCommonBrowserShortcut(event: KeyboardEvent): boolean {
-  const key = event.key.toLowerCase()
-  const hasCmd = event.metaKey || event.ctrlKey
-
-  if (hasCmd && !event.altKey && !event.shiftKey) {
-    // Common copy/paste/cut commands
-    const commonEditKeys = ["c", "v", "x", "a", "z"]
-    if (commonEditKeys.includes(key)) {
-      return true
-    }
-
-    // Common browser navigation
-    const commonNavKeys = ["r", "t", "w", "n", "l", "d", "f", "g", "h"]
-    if (commonNavKeys.includes(key)) {
-      return true
-    }
-  }
-
-  // Cmd/Ctrl + Shift combinations
-  if (hasCmd && event.shiftKey && !event.altKey) {
-    const commonShiftKeys = ["t", "n", "w", "r", "z", "delete"]
-    if (commonShiftKeys.includes(key)) {
-      return true
-    }
-  }
-
-  return false
-}
-
-/**
  * Check if event represents basic navigation keys without modifiers
  * These should work normally for page scrolling and navigation
  */
@@ -475,60 +432,4 @@ export function shouldSkipEnterInPalette(
 ): boolean {
   if (event.key !== "Enter") return false
   return isWithinCommandPalette(element)
-}
-
-/**
- * Check if key is allowed for processing
- * Only allow single characters, Enter, and some special keys
- */
-export function isAllowedKey(key: string): boolean {
-  // Allow Enter (represented as ↵ in some places)
-  if (key === "enter" || key === "↵") {
-    return true
-  }
-
-  // Allow single characters and numbers
-  if (/^[a-z0-9]$/i.test(key)) {
-    return true
-  }
-
-  // Allow some special navigation keys
-  const allowedSpecialKeys = [
-    "space",
-    "esc",
-    "escape",
-    "tab",
-    "backspace",
-    "delete",
-    "left",
-    "right",
-    "up",
-    "down",
-  ]
-
-  return allowedSpecialKeys.includes(key.toLowerCase())
-}
-
-/**
- * Comprehensive check combining all filtering logic
- */
-export function shouldProcessKeybinding(event: KeyboardEvent): boolean {
-  // Basic capture filtering (includes all our smart logic)
-  if (!shouldCapture(event)) {
-    return false
-  }
-
-  // For keys with modifiers, we're more permissive
-  // since they're likely intentional shortcuts
-  if (hasNonShiftModifier(event)) {
-    return true
-  }
-
-  // For keys without modifiers, check if it's in our allowed set
-  const keyChar = getKeyChar(event)
-  if (!isAllowedKey(keyChar)) {
-    return false
-  }
-
-  return true
 }

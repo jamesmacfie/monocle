@@ -5,7 +5,7 @@
 import {
   getActualEventTarget,
   isEditableElement,
-  shouldProcessKeybinding,
+  shouldCapture,
 } from "./event-filter"
 import { getKeyString } from "./key-normalizer"
 
@@ -102,7 +102,7 @@ export class RobustKeyCapture {
   /**
    * Main keydown handler with robust processing
    */
-  private handleKeydown = (event: Event): void => {
+  private handleKeydown = async (event: Event): Promise<void> => {
     const keyboardEvent = event as KeyboardEvent
     try {
       // Get the actual target for better debugging
@@ -126,13 +126,12 @@ export class RobustKeyCapture {
         actualTarget ? isEditableElement(actualTarget) : false,
       )
 
-      // Early filtering - should we process this event?
-      if (!shouldProcessKeybinding(keyboardEvent)) {
-        this.log("Event filtered out by shouldProcessKeybinding")
+      if (!shouldCapture(keyboardEvent)) {
+        this.log("Skipping key due to event filter")
         return
       }
 
-      // Convert to canonical key string
+      // Convert to canonical key string first
       const keyString = getKeyString(keyboardEvent)
       if (!keyString) {
         this.log("No key string generated")
@@ -141,15 +140,20 @@ export class RobustKeyCapture {
 
       this.log("Generated key string:", keyString)
 
-      // Call the handler if available
+      // Now check if we have a handler for this specific key combination
+      // The handler will return true if it actually processed the key
       if (this.options.onKeyPress) {
-        const handled = this.options.onKeyPress(keyString, keyboardEvent)
+        const handled = await this.options.onKeyPress(keyString, keyboardEvent)
 
         if (handled) {
-          this.log("Key handled, suppressing event")
+          // Only suppress the event if we actually handled it
+          this.log("Key handled by extension, suppressing browser default")
           this.suppressEvent(keyboardEvent)
         } else {
-          this.log("Key not handled, allowing event")
+          // No handler for this key - let browser handle it normally
+          this.log(
+            "No extension handler for this key, passing through to browser",
+          )
         }
       }
     } catch (error) {
