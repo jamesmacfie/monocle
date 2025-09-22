@@ -1,6 +1,6 @@
 import { Command, useCommandState } from "cmdk"
 import { Loader2, SearchX } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type { Suggestion } from "../../../shared/types"
 import { useToast } from "../../hooks/useToast"
 import type { Page } from "../../store/slices/navigation.slice"
@@ -29,6 +29,8 @@ export function CommandList({
 }) {
   const cmdkSearch = useCommandState((state) => state.search)
   const toast = useToast()
+  const listRef = useRef<HTMLDivElement>(null)
+  const prevSearchRef = useRef<string>("")
 
   // Track when user is actively typing to show loader during debounce period
   const [isTyping, setIsTyping] = useState(false)
@@ -45,6 +47,18 @@ export function CommandList({
       setIsTyping(false)
     }
   }, [cmdkSearch])
+
+  // Scroll to top when search value changes
+  useEffect(() => {
+    // Only scroll if the search value actually changed
+    if (cmdkSearch !== prevSearchRef.current && listRef.current) {
+      prevSearchRef.current = cmdkSearch
+      // Use requestAnimationFrame to ensure DOM updates are complete before scrolling
+      requestAnimationFrame(() => {
+        listRef.current?.scrollTo({ top: 0, behavior: "instant" })
+      })
+    }
+  })
 
   const handleInputSubmit = useCallback(() => {
     // Validate form inputs before triggering first submit
@@ -70,7 +84,7 @@ export function CommandList({
   ])
 
   return (
-    <Command.List className="cmdk-command-list">
+    <Command.List ref={listRef} className="cmdk-command-list">
       {isLoading || isTyping ? (
         <Command.Empty>
           <div className="flex items-center justify-center gap-2 py-4">
