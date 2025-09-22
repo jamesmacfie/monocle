@@ -246,7 +246,57 @@ type CommandSuggestion = Suggestion
 
 **Permission Messages**: `request-permission` messages are used in Chrome to route permission requests through the background script for security compliance.
 
-Execution payloads: `execute-command` messages can include array values (from multiselect inputs). The background normalizes any array values to comma-separated strings before invoking a command’s `execute()` so existing commands that expect `Record<string, string>` continue to work. Command authors can split values back into arrays if needed.
+Execution payloads: `execute-command` messages can include array values (from multiselect inputs). The background normalizes any array values to comma-separated strings before invoking a command's `execute()` so existing commands that expect `Record<string, string>` continue to work. Command authors can split values back into arrays if needed.
+
+## Web Workflow Automation System
+
+Monocle includes a browser automation system that executes structured workflows on web pages. This system implements the Web Workflow Spec defined in `dom-interactions.md` for content script-based DOM interactions.
+
+### Type Definitions
+
+**Core Types**: Located in `shared/types/workflow.ts`
+- `Workflow`: Root workflow with version, variables, and steps array
+- `Step`: Discriminated union of all step types (Navigate, Wait, Click, etc.)
+- `Selector`: CSS or text-based element targeting strategies
+- `BaseStep`: Common properties (id, description, timeout, retry, targeting options)
+
+**Message Validation**: `shared/types/validation.ts` provides Zod schemas for secure workflow message handling.
+
+### Implementation Status
+
+**✅ Implemented Features:**
+- Click steps with full event sequences (pointerover→mouseover→mousedown→click)
+- CSS selector resolution with `document.querySelectorAll()` and index support
+- Text selector resolution using TreeWalker with exact/substring matching and scoped search
+- Element visibility validation (connected, non-zero rect, not display:none/hidden)
+- Auto-scroll into view with smooth behavior
+- Modifier key support (Alt, Control, Meta, Shift) for click actions
+
+**⚠️ Partially Implemented:**
+- Wait steps (basic structure exists but conditions not implemented)
+
+**❌ Not Implemented:**
+- Navigate, Hover, Focus, Blur, Fill, Type, KeyCombo, Select, Check, Uncheck, Submit, Scroll, Copy, ClipboardWrite steps
+- Background message handlers for `tabs.navigate` and `clipboard.write`
+- Variable interpolation (`{{var}}` template expansion)
+- Retry policies and advanced timeout handling
+
+### Workflow Execution Flow
+
+1. **Command Trigger**: Debug workflow command executed in background script
+2. **Message Forwarding**: Background sends `execute-workflow-content` message to active tab
+3. **Content Script Handling**: `useCommandPaletteStateRedux` hook receives and routes message
+4. **Workflow Processing**: `WorkflowExecutor` class validates and executes steps sequentially
+5. **Result Reporting**: Success/failure results bubbled back through message chain
+
+### Key Implementation Files
+
+- `content/workflowExecutor.ts`: Main workflow executor with step processing logic
+- `background/messages/executeWorkflow.ts`: Background message handler and forwarding
+- `background/commands/tools/debugWorkflow.ts`: Debug command for testing workflows
+- `shared/hooks/useCommandPaletteStateRedux.tsx`: Content script message listener setup
+
+The system provides a robust foundation for browser automation but requires significant additional development to support the full workflow specification.
 
 ## Keybinding System
 
