@@ -1,5 +1,32 @@
 # Palette UI And Navigation Fix Plan
 
+Status: implemented for the shared palette/navigation contract fixes. Manual
+content-overlay and new-tab browser validation is still required.
+
+## Implemented Fixes
+
+- Encoded the supported action-menu matrix for action, submit, search, and
+  group rows through shared palette helpers.
+- Search and group generated primary actions now route back through navigation
+  instead of background no-op execution.
+- Dynamic search results now carry typed `Suggestion.executionPayload` data,
+  and dynamic child execution uses page execution scope instead of parsing URLs
+  from descriptions.
+- Dynamic search pages clear stale children on empty search, and refresh
+  responses are guarded by request id plus page search value.
+- Browser context validation allows untitled pages while still requiring a
+  string URL.
+- Dead closed-shadow `shadowRoot` theme access was removed from
+  `ContentCommandPalette.tsx`; theme application stays on the content host in
+  `entrypoints/content.tsx`.
+
+## Remaining Gaps
+
+- CMDK search restoration and content/new-tab visual behavior still need manual
+  browser smoke checks.
+- DOM component tests are still not present; the added coverage is focused on
+  pure palette helpers, Redux navigation, message validation, and form helpers.
+
 ## Current Data Flow
 
 Content mode mounts a closed-shadow overlay from `entrypoints/content.tsx` and

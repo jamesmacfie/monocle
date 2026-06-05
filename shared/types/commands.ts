@@ -1,6 +1,6 @@
 // Core command definitions and execution types
 import type { Browser } from "./browser"
-import type { FormField, Suggestion } from "./ui"
+import type { FormField, Suggestion, SuggestionExecutionPayload } from "./ui"
 
 export type AsyncValue<T> = T | ((context: Browser.Context) => Promise<T>)
 
@@ -55,6 +55,7 @@ export interface CommandNodeBase {
   supportedBrowsers?: Browser.Platform[]
   name: AsyncValue<string | string[]>
   description?: AsyncValue<string>
+  executionPayload?: AsyncValue<SuggestionExecutionPayload>
   icon?: AsyncValue<CommandIcon>
   color?: AsyncValue<CommandColor | string>
   keywords?: AsyncValue<string[]>

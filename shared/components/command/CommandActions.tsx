@@ -2,6 +2,7 @@ import { Command } from "cmdk"
 import { type RefObject, useEffect, useRef } from "react"
 import { usePermissionsGranted } from "../../hooks/usePermissionsGranted"
 import type { Suggestion } from "../../types"
+import { getSuggestionActions } from "./actionMenu"
 import { CommandActionsList } from "./CommandActionsList"
 import { PermissionActions } from "./PermissionActions"
 
@@ -28,10 +29,7 @@ export function CommandActions({
   const overlayRef = useRef<HTMLDivElement>(null)
 
   const commandPermissions = suggestion.permissions || []
-  const actions =
-    suggestion.type === "action" || suggestion.type === "group"
-      ? suggestion.actions || []
-      : []
+  const actions = getSuggestionActions(suggestion)
 
   const { isGrantedAllPermissions, missingPermissions } =
     usePermissionsGranted(commandPermissions)

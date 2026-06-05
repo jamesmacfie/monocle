@@ -30,7 +30,8 @@ export function useActionLabel(
   }
 
   if (
-    focusedSuggestion.type === "action" &&
+    (focusedSuggestion.type === "action" ||
+      focusedSuggestion.type === "submit") &&
     focusedSuggestion.modifierActionLabel?.[modifier]
   ) {
     return focusedSuggestion.modifierActionLabel[modifier] || defaultLabel

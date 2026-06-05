@@ -440,6 +440,10 @@ export const commandsToSuggestions = async (
         id: node.id,
         name: displayName,
         description: await resolveAsyncProperty(node.description, context),
+        executionPayload: await resolveAsyncProperty(
+          node.executionPayload,
+          context,
+        ),
         icon: await resolveAsyncProperty(node.icon, context),
         keywords: await resolveAsyncProperty(node.keywords, context),
         color: (await resolveAsyncProperty(node.color, context)) as any,
@@ -604,7 +608,8 @@ export const commandsToSuggestions = async (
       if (
         suggestion.type === "action" ||
         suggestion.type === "submit" ||
-        suggestion.type === "group"
+        suggestion.type === "group" ||
+        suggestion.type === "search"
       ) {
         suggestion.actions = actions
       }

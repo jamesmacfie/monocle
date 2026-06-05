@@ -4,7 +4,7 @@ import { z } from "zod"
 // Browser context validation schema
 export const BrowserContextSchema = z.object({
   url: z.string().min(1, "URL cannot be empty"),
-  title: z.string().min(1, "Title cannot be empty"),
+  title: z.string(),
   modifierKey: z.enum(["shift", "cmd", "alt", "ctrl"]).nullable(),
   isNewTab: z.boolean().optional(),
 })

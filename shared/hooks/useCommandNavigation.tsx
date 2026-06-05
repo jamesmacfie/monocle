@@ -1,7 +1,6 @@
 import type { RefObject } from "react"
 import { useEffect, useRef } from "react"
 import type { CommandExecutionScope, Suggestion } from "../../shared/types"
-import { getDisplayName } from "../components/Command/CommandName"
 import { useAppDispatch, useAppSelector } from "../store/hooks"
 import { startCapture } from "../store/slices/keybinding.slice"
 import {
@@ -18,6 +17,7 @@ import {
   setInitialCommands,
   updateSearchValue as updateSearchValueAction,
 } from "../store/slices/navigation.slice"
+import { buildCommandExecutionRequest } from "./commandExecution"
 
 // Helper function to find a command in the current page's commands or deep search items
 function _findCommandInPage(
@@ -62,28 +62,6 @@ function _clearAndResetSearch(
 export type { Page } from "../store/slices/navigation.slice"
 
 /**
- * Helper function to extract parent names for breadcrumb display in recent commands
- */
-function extractParentNames(
-  selectedCommand: Suggestion,
-  currentPage: Page,
-): string[] | undefined {
-  // For commands on child pages, use the immediate parent name
-  if (currentPage.id !== "root" && currentPage.parent) {
-    const parentName = getDisplayName(currentPage.parent.name)
-    return [parentName]
-  }
-
-  // For deep search commands with array names, extract full parent hierarchy
-  if (Array.isArray(selectedCommand.name) && selectedCommand.name.length > 1) {
-    // Deep search names are: [childName, immediateParent, grandparent, ...]
-    return selectedCommand.name.slice(1) // Remove child name, keep all parents
-  }
-
-  return undefined
-}
-
-/**
  * Redux-based hook that manages navigation through nested command pages with search state
  *
  * This is a replacement for useCommandNavigation that uses Redux Toolkit for state management
@@ -122,6 +100,10 @@ export function useCommandNavigation(
   // Ref flags to prevent various race conditions and loops:
   const ignoreSearchUpdate = useRef(false) // Prevents search updates from being saved during navigation
   const prevPageRef = useRef<string | null>(null) // Tracks page changes for search restoration
+  const currentPageId = currentPage?.id
+  const currentPageSearchValue = currentPage?.searchValue ?? ""
+  const currentPageParentPathKey = currentPage?.parentPath.join("\u0000") ?? ""
+  const currentPageHasDynamicChildren = currentPage?.dynamicChildren === true
 
   // Update Redux store when initialCommands change (e.g., favorites update)
   useEffect(() => {
@@ -147,20 +129,31 @@ export function useCommandNavigation(
 
   // Debounced refresh for pages that opt into dynamic children
   useEffect(() => {
-    if (!currentPage || !currentPage.dynamicChildren) return
-    if (!currentPage.searchValue || currentPage.searchValue.trim().length === 0)
-      return
+    if (!currentPageId || !currentPageHasDynamicChildren) return
     const handle = setTimeout(() => {
       // Only refresh if we're not already loading; the thunk guards root pages
-      dispatch(refreshCurrentPageThunk({ currentPage }))
+      dispatch(
+        refreshCurrentPageThunk({
+          currentPage: {
+            id: currentPageId,
+            commands: { favorites: [], suggestions: [] },
+            searchValue: currentPageSearchValue,
+            parentPath: currentPageParentPathKey
+              ? currentPageParentPathKey.split("\u0000")
+              : [],
+            formValues: {},
+            dynamicChildren: currentPageHasDynamicChildren,
+          },
+        }),
+      )
     }, 250)
     return () => clearTimeout(handle)
   }, [
-    currentPage?.id,
-    currentPage?.searchValue,
-    currentPage?.dynamicChildren,
+    currentPageId,
+    currentPageSearchValue,
+    currentPageParentPathKey,
+    currentPageHasDynamicChildren,
     dispatch,
-    currentPage,
   ])
 
   /**
@@ -284,27 +277,15 @@ export function useCommandNavigation(
       await navigateTo(id)
     } else {
       // Leaf command: execute immediately
-      // Pass remainOpenOnSelect flag (defaults to false if not set)
-      const shouldNavigateBack = !selectedCommand.remainOpenOnSelect
+      const request = buildCommandExecutionRequest(selectedCommand, currentPage)
 
-      // Extract parent context for breadcrumb display in recent commands
-      const parentNames = extractParentNames(selectedCommand, currentPage)
-      const isDynamicPage =
-        currentPage.id !== "root" && currentPage.dynamicChildren
-      let execId = selectedCommand.id
-      let formValues: Record<string, string | string[]> =
-        currentPage.formValues || {}
-
-      if (isDynamicPage) {
-        // Execute the parent command and pass a URL payload from the selected suggestion
-        execId = currentPage.id
-        const desc = (selectedCommand as any).description
-        if (typeof desc === "string" && /^https?:\/\//i.test(desc)) {
-          formValues = { ...formValues, dynamicUrl: desc }
-        }
-      }
-
-      await executeCommand(execId, formValues, shouldNavigateBack, parentNames)
+      await executeCommand(
+        request.id,
+        request.formValues,
+        request.shouldNavigateBack,
+        request.parentNames,
+        request.executionScope,
+      )
     }
   }
 

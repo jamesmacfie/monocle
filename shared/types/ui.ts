@@ -90,11 +90,14 @@ export type ActionExecutionContext =
       domain: string
     }
 
+export type SuggestionExecutionPayload = Record<string, string | string[]>
+
 // Base properties shared by all suggestion types
 interface SuggestionBase {
   id: string
   name: string | string[]
   description?: string
+  executionPayload?: SuggestionExecutionPayload
   color?: string
   keywords?: string[]
   icon?: CommandIcon

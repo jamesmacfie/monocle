@@ -38,11 +38,18 @@ Redux-backed navigation model.
 - `shared/components/Command/CommandPalette.tsx` is the main shared shell. It
   owns action-menu state and delegates page navigation to
   `useCommandNavigation`.
+- `shared/components/Command/actionMenu.ts` defines which suggestion types can
+  expose secondary actions and treats generated primary actions for group and
+  search rows as navigation requests.
+- `shared/components/Command/paletteKeyboard.ts` centralizes Escape,
+  Backspace, and Alt keyboard decisions for the palette shell.
 - `shared/store/slices/navigation.slice.ts` owns the page stack, current search
   values, loading/errors, dynamic child pages, and inline form values.
 - `shared/hooks/useCommandNavigation.tsx` wraps the Redux slice with the
   imperative API the palette needs: navigate, back, select, refresh, and update
   search.
+- `shared/hooks/commandExecution.ts` builds the UI-to-background execution
+  request, including nested page execution scope and typed suggestion payloads.
 - `shared/components/Command/CommandList.tsx` renders favorites, suggestions,
   and deep-search items using CMDK.
 - `shared/components/Command/CommandItem/*` renders each suggestion type,
@@ -55,24 +62,47 @@ The main UI data flow is:
 2. The navigation slice stores root commands as page `root`.
 3. Selecting a group/search command requests children from the background.
 4. A new page is pushed with child suggestions and default form values.
-5. Selecting an action/submit command sends the id and form values for
-   execution.
+5. Selecting an action/submit command sends the id, form values, and child-page
+   execution scope when needed. Dynamic search result payloads come from
+   `Suggestion.executionPayload`, not display descriptions.
 6. Generated actions open in a secondary action menu and route through the same
-   execution path or through keybinding capture.
+   execution path, through keybinding capture, or back into navigation for
+   generated group/search primary actions.
+
+The supported action-menu matrix is:
+
+- Action rows: primary, modifier, favorite, hide-domain, and custom-keybinding
+  actions where the command allows them.
+- Submit rows: primary, modifier, favorite, hide-domain, and custom-keybinding
+  actions where the command allows them.
+- Search rows: generated actions are exposed consistently; primary actions
+  navigate into the search page, and favorite/hide-domain actions apply to the
+  search command.
+- Group rows: generated primary actions navigate into the group, and
+  favorite/hide-domain actions apply to the group command.
+
+Dynamic search pages clear stale child suggestions as soon as search becomes
+empty. Refresh requests are ordered by Redux thunk request id and page search
+value so slower responses cannot overwrite newer search results.
 
 ## Test Coverage
 
-Automated test coverage: missing.
+Automated test coverage: focused coverage exists for the shared navigation and
+action-menu contracts.
 
 Build checks that currently touch this feature:
 
 - `pnpm run tsc` validates React, Redux, and type contracts.
 - `pnpm run fmt:check` checks formatting/lint.
 - `pnpm run build` validates that content and new-tab bundles compile.
+- `pnpm test` covers navigation page pushes/back behavior, inline defaults and
+  value updates, dynamic search clearing, dynamic search request races, action
+  menu eligibility, palette keyboard decisions, execution payload/scope
+  construction, and untitled context validation.
 
-There are no component tests for navigation stack behavior, inline inputs,
-action menus, search restoration, deep search rendering, or content/new-tab
-differences.
+There are still no DOM component tests for CMDK search restoration, deep search
+rendering, or content/new-tab visual differences. Use the manual checklist for
+those integration behaviors.
 
 ## Manual Test Checklist
 
@@ -84,8 +114,8 @@ differences.
   restored when navigating back.
 - Open a group with inline inputs, edit values, and execute a submit command.
 - Confirm Backspace on an empty nested search navigates back.
-- Open the action menu with Alt on a focused action and confirm it closes when
-  focus changes.
+- Open the action menu with Alt on focused action, submit, search, and group
+  rows and confirm it closes when focus changes.
 - Open the new-tab page and confirm the palette is visible/focused without
   using the overlay.
 - Confirm content mode closes after normal command execution while new-tab mode
@@ -108,8 +138,9 @@ differences.
   individual input components. The existing pattern works, but any new input
   type should follow the same interaction rules.
 - The content script uses a closed shadow root. This is good for page isolation
-  but makes debugging harder and means theme application must go through the
-  host element carefully.
+  but makes debugging harder. Theme application goes through the host element in
+  `entrypoints/content.tsx`; React content components cannot rely on
+  `shadowHost.shadowRoot`.
 - `ContentCommandPaletteWithState` creates context with `modifierKey: null`,
   while `useSendMessage` tracks the actual modifier. Navigation thunks that use
   the store-provided sender may not receive the same modifier context as direct

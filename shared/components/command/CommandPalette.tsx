@@ -10,10 +10,15 @@ import type { CommandData } from "../../types"
 import { CommandNavigationError } from "../CommandNavigationError"
 import CopyToClipboardListener from "../Listeners/CopyToClipboardListener"
 import NewTabListener from "../Listeners/NewTabListener"
+import {
+  getPrimaryNavigationActionTarget,
+  getSuggestionActions,
+} from "./actionMenu"
 import { CommandActions } from "./CommandActions"
 import { CommandFooter } from "./CommandFooter"
 import { CommandHeader } from "./CommandHeader"
 import { CommandList } from "./CommandList"
+import { getPaletteKeyboardCommand } from "./paletteKeyboard"
 
 // Temporary inline function to avoid import issues
 const getDisplayName = (name: string | string[]): string => {
@@ -132,45 +137,32 @@ function CommandContent({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     _lastKeyRef.current = e.key
-    // Don't handle keyboard shortcuts if action menu is open
-    if (isActionsOpen) {
-      return
-    }
+    const inputElement = e.currentTarget.querySelector(
+      "input[cmdk-input]",
+    ) as HTMLInputElement
+    const search = inputElement?.value || ""
+    const keyboardCommand = getPaletteKeyboardCommand({
+      key: e.key,
+      searchValue: search,
+      pageCount: pages.length,
+      isActionsOpen,
+      focusedSuggestion,
+    })
 
-    // Alt key opens actions if there's a focused suggestion with actions
-    if (
-      e.key === "Alt" &&
-      focusedSuggestion &&
-      (focusedSuggestion.type === "action" ||
-        focusedSuggestion.type === "group") &&
-      focusedSuggestion.actions?.length
-    ) {
+    if (keyboardCommand === "open-actions" && focusedSuggestion) {
       e.preventDefault()
       onOpenActions(focusedSuggestion)
       return
     }
 
-    // Escape goes to previous page
-    if (e.key === "Escape" && pages.length > 1) {
+    if (keyboardCommand === "navigate-back") {
       e.preventDefault()
       navigateBack()
       return
     }
 
-    // If on root and Escape, close
-    if (e.key === "Escape" && pages.length === 1) {
+    if (keyboardCommand === "close") {
       close()
-      return
-    }
-
-    // Backspace goes to previous page when search is empty
-    const inputElement = e.currentTarget.querySelector(
-      "input[cmdk-input]",
-    ) as HTMLInputElement
-    const search = inputElement?.value || ""
-    if (e.key === "Backspace" && !search && pages.length > 1) {
-      e.preventDefault()
-      navigateBack()
     }
   }
 
@@ -297,6 +289,20 @@ export function CommandPalette({
   }
 
   const handleActionSelect = async (actionId: string) => {
+    const selectedAction = getSuggestionActions(actionsState.suggestion).find(
+      (action) => action.id === actionId,
+    )
+    const navigationTarget = getPrimaryNavigationActionTarget(
+      actionsState.suggestion,
+      selectedAction,
+    )
+
+    if (navigationTarget) {
+      handleCloseActions(true)
+      await selectCommand(navigationTarget)
+      return
+    }
+
     // Execute the action using the same flow as regular commands
     await executeCommand(
       actionId,

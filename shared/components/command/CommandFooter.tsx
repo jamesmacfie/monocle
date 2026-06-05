@@ -2,6 +2,7 @@ import type { RefObject } from "react"
 import type { Page } from "../../store/slices/navigation.slice"
 import type { Suggestion } from "../../types"
 import { Icon } from "../Icon"
+import { canOpenActionMenu } from "./actionMenu"
 import { CommandName } from "./CommandName"
 
 export interface CommandFooterProps {
@@ -50,21 +51,19 @@ export function CommandFooter({
                 <kbd>↵</kbd>
               </button>
             )}
-            {(focusedSuggestion.type === "action" ||
-              focusedSuggestion.type === "group") &&
-              focusedSuggestion.actions?.length && (
-                <>
-                  <hr />
-                  <button
-                    ref={actionsButtonRef}
-                    cmdk-raycast-subcommand-trigger=""
-                    onClick={handleActionsClick}
-                  >
-                    Actions
-                    <kbd>Alt</kbd>
-                  </button>
-                </>
-              )}
+            {canOpenActionMenu(focusedSuggestion) && (
+              <>
+                <hr />
+                <button
+                  ref={actionsButtonRef}
+                  cmdk-raycast-subcommand-trigger=""
+                  onClick={handleActionsClick}
+                >
+                  Actions
+                  <kbd>Alt</kbd>
+                </button>
+              </>
+            )}
           </>
         )}
       </div>

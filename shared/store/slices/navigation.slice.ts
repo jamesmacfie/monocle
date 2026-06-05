@@ -33,6 +33,11 @@ interface NavigationState {
   }
   loading: boolean
   error: string | null
+  refreshRequest: {
+    requestId: string
+    pageId: string
+    searchValue: string
+  } | null
 }
 
 // Helper function to find a command in the current page's commands or deep search items
@@ -139,7 +144,7 @@ export const refreshCurrentPage = createAsyncThunk<
       favorites: Suggestion[]
       suggestions: Suggestion[]
     }
-    newFormValues?: Record<string, string>
+    newFormValues?: Record<string, string | string[]>
   },
   { currentPage: Page },
   { extra: ThunkApi }
@@ -157,6 +162,26 @@ export const refreshCurrentPage = createAsyncThunk<
           "Messaging unavailable: sendMessage not provided",
         )
       }
+
+      if (
+        currentPage.dynamicChildren &&
+        currentPage.searchValue.trim().length === 0
+      ) {
+        const root: any = getState()
+        const currentValues =
+          root?.navigation?.pages?.[root.navigation.pages.length - 1]
+            ?.formValues || {}
+
+        return {
+          success: true,
+          newCommands: {
+            favorites: [],
+            suggestions: [],
+          },
+          newFormValues: currentValues,
+        }
+      }
+
       // Re-fetch children for the current parent command
       const parentPath = currentPage.parentPath.slice(0, -1) // Remove current page ID to get parent path
       const response = await extra.sendMessage({
@@ -234,6 +259,7 @@ export const navigationSlice = createSlice({
     },
     loading: false,
     error: null,
+    refreshRequest: null,
   }),
   reducers: {
     // Update root page commands when initialCommands change (e.g., favorites update)
@@ -262,9 +288,14 @@ export const navigationSlice = createSlice({
     updateSearchValue: (state, action: PayloadAction<string>) => {
       if (state.pages.length > 0) {
         const currentPageIndex = state.pages.length - 1
+        const currentPage = state.pages[currentPageIndex]
         state.pages[currentPageIndex] = {
-          ...state.pages[currentPageIndex],
+          ...currentPage,
           searchValue: action.payload,
+          commands:
+            currentPage.dynamicChildren && action.payload.trim().length === 0
+              ? { favorites: [], suggestions: [] }
+              : currentPage.commands,
         }
       }
     },
@@ -346,29 +377,52 @@ export const navigationSlice = createSlice({
         state.error = action.payload as string
       })
       // refreshCurrentPage cases
-      .addCase(refreshCurrentPage.pending, (state) => {
+      .addCase(refreshCurrentPage.pending, (state, action) => {
         state.loading = true
         state.error = null
+        state.refreshRequest = {
+          requestId: action.meta.requestId,
+          pageId: action.meta.arg.currentPage.id,
+          searchValue: action.meta.arg.currentPage.searchValue,
+        }
       })
       .addCase(refreshCurrentPage.fulfilled, (state, action) => {
-        state.loading = false
+        const pendingRequest = state.refreshRequest
+
         if (
-          action.payload.success &&
-          action.payload.newCommands &&
-          state.pages.length > 0
+          !pendingRequest ||
+          pendingRequest.requestId !== action.meta.requestId ||
+          state.pages.length === 0
         ) {
-          const currentPageIndex = state.pages.length - 1
+          return
+        }
+
+        state.loading = false
+        state.refreshRequest = null
+
+        const currentPageIndex = state.pages.length - 1
+        const currentPage = state.pages[currentPageIndex]
+        if (
+          currentPage.id !== pendingRequest.pageId ||
+          currentPage.searchValue !== pendingRequest.searchValue
+        ) {
+          return
+        }
+
+        if (action.payload.success && action.payload.newCommands) {
           state.pages[currentPageIndex] = {
             ...state.pages[currentPageIndex],
             commands: action.payload.newCommands,
             formValues:
-              (action.payload as any).newFormValues ||
+              action.payload.newFormValues ||
               state.pages[currentPageIndex].formValues,
           }
         }
       })
       .addCase(refreshCurrentPage.rejected, (state, action) => {
+        if (state.refreshRequest?.requestId !== action.meta.requestId) return
         state.loading = false
+        state.refreshRequest = null
         state.error = action.payload as string
       })
   },
@@ -420,6 +474,7 @@ export const getInitialStateWithCommands = (
   initialCommands,
   loading: false,
   error: null,
+  refreshRequest: null,
 })
 
 export default navigationSlice.reducer

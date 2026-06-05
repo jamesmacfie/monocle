@@ -5,7 +5,7 @@ import { initializeKeybindingRegistry } from "../keybindings/registry"
 import { executeKeybinding } from "../messages/executeKeybinding"
 import { getCommands as getCommandMessage } from "../messages/getCommands"
 import { toggleFavoriteCommandId } from "./favorites"
-import { executeCommand, getCommands } from "./index"
+import { commandsToSuggestions, executeCommand, getCommands } from "./index"
 import { updateCommandSettings } from "./settings"
 import { loadAllCommands } from "./source"
 import { calculator } from "./tools/calculator"
@@ -242,6 +242,61 @@ describe("usage ranking", () => {
 })
 
 describe("generated actions", () => {
+  it("attaches generated action menus to action, submit, search, and group suggestions", async () => {
+    const suggestions = await commandsToSuggestions(
+      [
+        {
+          type: "action",
+          id: "test-action",
+          name: "Test Action",
+          actionLabel: "Run",
+          execute: vi.fn(),
+        },
+        {
+          type: "submit",
+          id: "test-submit",
+          name: "Test Submit",
+          actionLabel: "Submit",
+          execute: vi.fn(),
+        },
+        {
+          type: "search",
+          id: "test-search",
+          name: "Test Search",
+          actionLabel: "Search",
+          getResults: async () => [],
+        },
+        {
+          type: "group",
+          id: "test-group",
+          name: "Test Group",
+          children: async () => [],
+        },
+      ],
+      normalContext,
+    )
+
+    for (const suggestion of suggestions) {
+      const actions =
+        suggestion.type === "action" ||
+        suggestion.type === "submit" ||
+        suggestion.type === "search" ||
+        suggestion.type === "group"
+          ? suggestion.actions || []
+          : []
+
+      expect(actions.map((action) => action.id)).toContain(
+        `${suggestion.id}-enter-action`,
+      )
+      expect(actions.map((action) => action.id)).toContain(
+        `toggle-favorite-${suggestion.id}`,
+      )
+      expect(actions.map((action) => action.id)).toContain(
+        `hide-from-domain-${suggestion.id}`,
+      )
+    }
+  })
+
   it("executes generated actions from root, child, dynamic search, and deep-search scopes", async () => {
     await executeCommand("uuidv4-enter-action", normalContext, {})
     expect((await getCommandUsageStats("uuidv4")).totalUsage).toBe(1)
