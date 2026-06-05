@@ -18,7 +18,8 @@ Chrome/Firefox verification is still required.
   additions.
 - `background/commands/source.ts` adds common browser commands for all contexts
   and Firefox commands when `isFirefox` is true.
-- `background/utils/browser.ts` wraps browser APIs such as tabs, windows,
+- `background/utils/browser.ts` is the stable browser API helper barrel. The
+  implementation is split into feature-specific helpers for tabs, windows,
   bookmarks, browsing data, downloads, history, and sessions.
 - Optional-permission commands declare `permissions` on their command nodes.
   The command query/execution path carries inherited parent permissions into
@@ -49,11 +50,11 @@ Automated test coverage: narrow but present.
 
 Build checks that currently touch this feature:
 
-- `pnpm exec vitest run background/commands/browser-commands.test.ts` covers
-  inherited permissions for generated bookmark, tab, history, download, and
-  session rows; missing-permission child pages; stale permission revocation
-  during execution; high-risk keybinding blocking; browsing-data confirmation
-  metadata; and representative tab API behavior.
+- The focused browser-command Vitest suites cover inherited permissions for
+  generated bookmark, tab, history, download, and session rows;
+  missing-permission child pages; stale permission revocation during execution;
+  high-risk keybinding blocking; browsing-data confirmation metadata; and
+  representative tab/window API behavior.
 - `pnpm run tsc` validates command definitions and browser utility types.
 - `pnpm run fmt:check` validates formatting/lint.
 - `pnpm run build` validates bundling.
@@ -86,11 +87,9 @@ commands.
 
 ## Code Review Notes
 
-- The browser utility wrapper is a useful boundary, but it is broad. It mixes
-  API compatibility helpers with domain-specific commands for bookmarks,
-  browsing data, downloads, history, and sessions. Future work should avoid
-  continuing to grow this file without extracting feature-specific browser API
-  helpers.
+- The browser utility wrapper remains the public boundary, but its
+  implementation is split by feature area. Add new privileged browser helpers
+  to the relevant feature-specific module rather than growing the barrel file.
 - Permission handling is enforced in the command query/execution layer before
   protected child loaders run. Low-level browser readers no longer silently
   turn missing permissions into empty arrays.

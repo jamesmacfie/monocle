@@ -1,7 +1,8 @@
 # Browser Commands Fix Plan
 
-Status: implemented for the background/browser-command permission and
-keybinding issues. Manual Chrome/Firefox browser validation is still required.
+Status: implemented for the background/browser-command permission, keybinding,
+utility-boundary, and mocked tab/window behavior issues. Manual Chrome/Firefox
+browser validation is still required.
 
 ## Current Data Flow
 
@@ -11,8 +12,9 @@ Firefox-only commands are exported from `background/commands/browser/firefox/`.
 `background/commands/source.ts` loads the browser command set and appends Firefox
 commands when the runtime is Firefox.
 
-Dynamic browser groups call helpers in `background/utils/browser.ts` to read or
-mutate tabs, windows, bookmarks, history, downloads, sessions, and browsing
+Dynamic browser groups call the stable helper barrel in
+`background/utils/browser.ts`, which now re-exports feature-specific browser API
+helpers for tabs, windows, bookmarks, history, downloads, sessions, and browsing
 data. Optional permissions are declared on parent command nodes and checked in
 the UI and background before execution.
 
@@ -40,13 +42,15 @@ the UI and background before execution.
 - Confirmed commands are excluded from keybinding registration and do not expose
   custom keybinding actions. Palette confirmation metadata is preserved for
   destructive browser commands.
+- `background/utils/browser.ts` was split into feature-specific browser API
+  helper modules while preserving its existing public export surface.
+- Representative tab/window command behavior tests now cover open, close,
+  duplicate, move, pin, mute, reload, back, forward, and window-moving paths.
 
 ## Remaining Gaps
 
 - Firefox-specific commands compile, but container identities and reader mode
   still need manual browser validation.
-- `background/utils/browser.ts` is still broad and should be split into
-  feature-specific browser API helpers once more behavior is pinned by tests.
 - Real browser integration coverage is still missing for permission prompts and
   cross-browser API behavior.
 
@@ -70,7 +74,7 @@ the UI and background before execution.
   confirmation flow. Implemented by excluding confirmed commands from
   keybinding registration.
 - Split `background/utils/browser.ts` over time into feature-specific browser
-  API helpers once tests pin current behavior. Remaining follow-up.
+  API helpers once tests pin current behavior. Implemented.
 
 ## Added Tests
 
@@ -83,12 +87,13 @@ the UI and background before execution.
   loaded, then revoked in the browser before execution is attempted.
 - Tests cover confirmed-command keybinding exclusion and clearing-data
   confirmation metadata/start-time calculation.
-- Tests cover representative tab command behavior with mocked browser APIs.
+- `background/commands/browser-tab-window-commands.test.ts` covers
+  representative tab/window command behavior with mocked browser APIs: open,
+  close, duplicate, move, pin, mute, reload, back, forward, and moving the
+  current tab into regular/popup windows.
 
 ## Remaining Tests
 
-- Broader tab/window command behavior tests with mocked browser APIs:
-  duplicate, move, mute, reload, back, and forward.
 - Manual Chrome checks for tabs, windows, bookmarks, history, downloads,
   sessions, copy URL, and browsing-data commands.
 - Manual Firefox checks for container tab commands and reader mode.

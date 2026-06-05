@@ -10,15 +10,9 @@ import {
   initializeKeybindingRegistry,
 } from "../keybindings/registry"
 import { getChildrenCommands } from "../messages/getChildrenCommands"
-import {
-  getBookmarkTree,
-  getRecentDownloads,
-  queryTabs,
-} from "../utils/browser"
+import { getBookmarkTree, getRecentDownloads } from "../utils/browser"
 import { clearBrowserData } from "./browser/clearBrowserData"
 import { closeCurrentTab } from "./browser/closeCurrentTab"
-import { openNewTab } from "./browser/openNewTab"
-import { pinCurrentTab } from "./browser/pinCurrentTab"
 import { commandsToSuggestions, executeCommand } from "./index"
 import { updateCommandSettings } from "./settings"
 
@@ -529,30 +523,6 @@ describe("high-risk browser commands", () => {
     expect(chromeApi.browsingData.remove).toHaveBeenCalledWith(
       { since: Date.now() - 5 * 60 * 1000 },
       { cache: true },
-    )
-  })
-})
-
-describe("representative browser tab commands", () => {
-  it("uses browser APIs for open, pin, close, and query behaviors", async () => {
-    await executeCommand(openNewTab.id, normalContext, {})
-    expect(chromeApi.tabs.create).toHaveBeenCalledWith(
-      { index: undefined },
-      expect.any(Function),
-    )
-
-    await executeCommand(pinCurrentTab.id, normalContext, {})
-    expect(chromeApi.tabs.update).toHaveBeenCalledWith(
-      1,
-      { pinned: true },
-      expect.any(Function),
-    )
-
-    await executeCommand(closeCurrentTab.id, normalContext, {})
-    expect(chromeApi.tabs.remove).toHaveBeenCalledWith(1, expect.any(Function))
-
-    await expect(queryTabs({ currentWindow: true })).resolves.toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: 2 })]),
     )
   })
 })
