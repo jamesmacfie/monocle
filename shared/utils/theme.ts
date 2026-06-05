@@ -1,45 +1,101 @@
+import type { Settings, ThemeSettings } from "../types"
+
 /**
  * Theme management utilities
  * Handles applying theme classes based on user preferences
  */
 
+export type ThemeMode = NonNullable<ThemeSettings["mode"]>
+
+type ThemeClassTarget = {
+  classList: {
+    add: (...tokens: string[]) => void
+    remove: (...tokens: string[]) => void
+  }
+}
+
+type ThemeSettingsSource =
+  | {
+      theme?: Partial<ThemeSettings> | null
+    }
+  | Pick<Settings, "theme">
+  | null
+  | undefined
+
+const THEME_CLASSES: ThemeMode[] = ["light", "dark", "system"]
+const DEFAULT_THEME_MODE: ThemeMode = "system"
+
+const isThemeMode = (mode: unknown): mode is ThemeMode => {
+  return mode === "light" || mode === "dark" || mode === "system"
+}
+
+const getThemeClassTarget = (
+  element: ThemeClassTarget | ShadowRoot,
+): ThemeClassTarget => {
+  if (typeof ShadowRoot !== "undefined" && element instanceof ShadowRoot) {
+    return element.host as ThemeClassTarget
+  }
+
+  return element as ThemeClassTarget
+}
+
+export function normalizeThemeMode(mode: unknown): ThemeMode {
+  return isThemeMode(mode) ? mode : DEFAULT_THEME_MODE
+}
+
+export function getThemeModeFromSettings(
+  settings: ThemeSettingsSource,
+): ThemeMode {
+  return normalizeThemeMode(settings?.theme?.mode)
+}
+
 /**
  * Gets the effective theme based on mode and system preference
  */
-export function getEffectiveTheme(
-  mode: "light" | "dark" | "system",
-): "light" | "dark" {
-  if (mode === "system") {
-    // Check system preference
-    if (window?.matchMedia) {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light"
-    }
-    // Default to light if can't detect
-    return "light"
+export function getEffectiveTheme(mode: ThemeMode): "light" | "dark" {
+  if (mode !== "system") {
+    return mode
   }
-  return mode
+
+  const browserWindow =
+    typeof globalThis.window === "undefined" ? undefined : globalThis.window
+  const canReadSystemTheme = browserWindow?.matchMedia
+
+  if (canReadSystemTheme) {
+    return browserWindow.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light"
+  }
+
+  return "light"
 }
 
 /**
  * Applies theme class to an element (host for shadow DOM or root for regular DOM)
  */
 export function applyThemeClass(
-  element: HTMLElement | ShadowRoot,
-  mode: "light" | "dark" | "system",
+  element: ThemeClassTarget | ShadowRoot,
+  mode: ThemeMode,
 ): void {
-  const hostElement = element instanceof ShadowRoot ? element.host : element
+  const hostElement = getThemeClassTarget(element)
 
   // Remove existing theme classes
-  hostElement.classList.remove("light", "dark", "system")
+  hostElement.classList.remove(...THEME_CLASSES)
 
   // Add the appropriate class
-  if (mode === "system") {
-    hostElement.classList.add("system")
-  } else {
-    hostElement.classList.add(mode)
-  }
+  hostElement.classList.add(mode)
+}
+
+/**
+ * Applies stored theme settings to a content shadow host element.
+ */
+export function applyThemeToHost(
+  hostElement: ThemeClassTarget,
+  settings: ThemeSettingsSource,
+): ThemeMode {
+  const mode = getThemeModeFromSettings(settings)
+  applyThemeClass(hostElement, mode)
+  return mode
 }
 
 /**
@@ -85,15 +141,5 @@ export function setupSystemThemeListener(
  * Applies theme to document root for new tab page
  */
 export function applyThemeToDocument(mode: "light" | "dark" | "system"): void {
-  const root = document.documentElement
-
-  // Remove existing theme classes
-  root.classList.remove("light", "dark", "system")
-
-  // Add the appropriate class
-  if (mode === "system") {
-    root.classList.add("system")
-  } else {
-    root.classList.add(mode)
-  }
+  applyThemeClass(document.documentElement, mode)
 }

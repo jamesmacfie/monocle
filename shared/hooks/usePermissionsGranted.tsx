@@ -1,5 +1,9 @@
-import { useAppSelector } from "../store/hooks"
-import { selectPermissions } from "../store/slices/settings.slice"
+import { useEffect } from "react"
+import { useAppDispatch, useAppSelector } from "../store/hooks"
+import {
+  refreshPermissions,
+  selectPermissions,
+} from "../store/slices/settings.slice"
 
 export type PermissionKey =
   | "activeTab"
@@ -13,11 +17,30 @@ export type PermissionKey =
   | "storage"
   | "tabs"
 
+let lastPermissionRefreshAt = 0
+const PERMISSION_REFRESH_THROTTLE_MS = 1000
+
 export function usePermissionsGranted(requiredPermissions: PermissionKey[]): {
   isGrantedAllPermissions: boolean
   missingPermissions: PermissionKey[]
 } {
+  const dispatch = useAppDispatch()
   const permissions = useAppSelector(selectPermissions)
+  const permissionKey = requiredPermissions.join(",")
+
+  useEffect(() => {
+    if (!permissionKey) {
+      return
+    }
+
+    const now = Date.now()
+    if (now - lastPermissionRefreshAt < PERMISSION_REFRESH_THROTTLE_MS) {
+      return
+    }
+
+    lastPermissionRefreshAt = now
+    dispatch(refreshPermissions())
+  }, [dispatch, permissionKey])
 
   if (!permissions.isLoaded) {
     return {

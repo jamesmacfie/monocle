@@ -59,17 +59,18 @@ The docs baseline records the current system as follows:
 | Palette UI and navigation | Working with review notes | Content overlay and new-tab mode share command palette components and Redux navigation. |
 | Browser commands | Working with review notes | Permission inheritance and high-risk keybinding policy have focused tests; manual Chrome/Firefox validation is still needed. |
 | Keybindings | Working with review notes | Canonicalization, context-aware registry coverage, custom conflicts, and scoped sequence state have focused tests; manual browser smoke is still needed. |
-| Permissions and settings | Working with review notes | Optional permissions and persisted command settings exist; settings compatibility needs tests. |
+| Permissions and settings | Working with review notes | Optional permission requests, command-setting compatibility, update validation, and URL-rule management have focused tests; manual Chrome/Firefox permission prompts still need smoke checks. |
 | URL filtering and website plugins | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. |
 | Workflow automation | Partial | Click workflows work; `wait` is a no-op and most operations are unsupported. |
-| New tab and theme | Working with unknowns | New-tab and theme state are wired; visual/manual coverage is needed. |
+| New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
 
 Validation from the docs baseline:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
 - `pnpm test` passes with focused command-system, browser-command, keybinding,
-  URL-filtering, settings-management, and GitHub parsing coverage.
+  URL-filtering, settings-management, new-tab/theme/background, and GitHub
+  parsing coverage.
 - `pnpm run build` passes for the Chrome MV3 target.
 - `pnpm run build:firefox` passes for the Firefox MV3 target.
 

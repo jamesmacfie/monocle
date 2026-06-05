@@ -1,5 +1,6 @@
 // Background/content script communication types
 import type { Browser } from "./browser"
+import type { CommandUrlRulesSetting } from "./settings"
 import type { Workflow, WorkflowResult } from "./workflow"
 
 export type CommandExecutionScope = {
@@ -54,13 +55,25 @@ export type RequestToastMessage = {
   message: string
 }
 
-export type UpdateCommandSettingMessage = {
+type UpdateKeybindingSettingMessage = {
   type: "update-command-setting"
   commandId: string
-  setting: string
-  value: any
+  setting: "keybinding"
+  value?: string | null
   context?: Browser.Context
 }
+
+type UpdateUrlRulesSettingMessage = {
+  type: "update-command-setting"
+  commandId: string
+  setting: "urlRules"
+  value: CommandUrlRulesSetting
+  context?: Browser.Context
+}
+
+export type UpdateCommandSettingMessage =
+  | UpdateKeybindingSettingMessage
+  | UpdateUrlRulesSettingMessage
 
 export type CheckKeybindingConflictMessage = {
   type: "check-keybinding-conflict"
@@ -80,6 +93,11 @@ export type GetPermissionsMessage = {
 
 export type RequestPermissionMessage = {
   type: "request-permission"
+  permission: string
+}
+
+export type OpenPermissionGrantPageMessage = {
+  type: "open-permission-grant-page"
   permission: string
 }
 
@@ -111,6 +129,7 @@ export type Message =
   | GetUnsplashBackgroundMessage
   | GetPermissionsMessage
   | RequestPermissionMessage
+  | OpenPermissionGrantPageMessage
   | ExecuteWorkflowMessage
 
 // Alternative naming (for future migration)

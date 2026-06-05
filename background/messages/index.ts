@@ -9,6 +9,7 @@ import { getCommands } from "./getCommands"
 import { getKeybindingState } from "./getKeybindingState"
 import { getPermissions } from "./getPermissions"
 import { getUnsplashBackground } from "./getUnsplashBackground"
+import { openPermissionGrantPage } from "./openPermissionGrantPage"
 import { requestPermission } from "./requestPermission"
 import { requestToast } from "./requestToast"
 import { showToast } from "./showToast"
@@ -75,6 +76,9 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "request-permission" }, async (msg) => {
       return await requestPermission(msg)
+    })
+    .with({ type: "open-permission-grant-page" }, async (msg) => {
+      return await openPermissionGrantPage(msg)
     })
     .with({ type: "execute-workflow" }, async (msg) => {
       return await executeWorkflow(msg)

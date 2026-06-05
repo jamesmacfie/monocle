@@ -195,6 +195,39 @@ describe("keybinding registry", () => {
     })
   })
 
+  it("checks new-tab keybinding conflicts only in new-tab context", async () => {
+    await updateCommandSettings("toggle-clock-visibility", {
+      keybinding: "<cmd-alt-c>",
+    })
+
+    await expect(
+      checkKeybindingConflict({
+        type: "check-keybinding-conflict",
+        keybinding: "<alt-cmd-c>",
+        excludeCommandId: "toggle-theme",
+        context: normalContext,
+      }),
+    ).resolves.toEqual({
+      hasConflict: false,
+      conflictingCommand: null,
+    })
+
+    await expect(
+      checkKeybindingConflict({
+        type: "check-keybinding-conflict",
+        keybinding: "<alt-cmd-c>",
+        excludeCommandId: "toggle-theme",
+        context: newTabContext,
+      }),
+    ).resolves.toEqual({
+      hasConflict: true,
+      conflictingCommand: {
+        id: "toggle-clock-visibility",
+        name: "Hide Clock",
+      },
+    })
+  })
+
   it("does not register confirmation-required commands, even with custom settings", async () => {
     await updateCommandSettings("close-current-tab", {
       keybinding: "<cmd-shift-x>",

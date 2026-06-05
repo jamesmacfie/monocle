@@ -17,6 +17,10 @@ import {
 import { BackgroundImage } from "./components/BackgroundImage"
 import { Clock } from "./components/Clock"
 import { NewTabCommandPalette } from "./components/NewTabCommandPalette"
+import {
+  normalizeGrantPermission,
+  PermissionGrantPanel,
+} from "./components/PermissionGrantPanel"
 
 // Cross-browser compatibility layer
 const browserAPI = getBrowserAPI()
@@ -25,6 +29,9 @@ function NewTabAppContent() {
   const showClock = useAppSelector(selectClockVisibility)
   const themeMode = useAppSelector(selectThemeMode)
   const dispatch = useAppDispatch()
+  const grantPermission = normalizeGrantPermission(
+    new URLSearchParams(window.location.search).get("grantPermission"),
+  )
 
   // Load initial settings and permissions on mount
   useEffect(() => {
@@ -69,6 +76,10 @@ function NewTabAppContent() {
       <div className="relative z-10 p-6 flex items-center justify-center min-h-screen">
         <div className="max-w-2xl mx-auto">
           {showClock && <Clock className="mb-12" />}
+
+          {grantPermission && (
+            <PermissionGrantPanel permission={grantPermission} />
+          )}
 
           <div className="raycast new-tab-palette">
             <NewTabCommandPalette autoFocus={true} className="w-full" />

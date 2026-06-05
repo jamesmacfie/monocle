@@ -15,6 +15,7 @@ import { commandsToSuggestions, executeCommand, getCommands } from "./index"
 import {
   clearAllSettings,
   getCommandSettings,
+  getNewTabClockSettings,
   updateCommandSettings,
 } from "./settings"
 import { loadAllCommands } from "./source"
@@ -48,6 +49,13 @@ const githubContext: Browser.Context = {
   url: "https://github.com/acme/widgets/pull/42",
   title: "Pull Request",
   modifierKey: null,
+}
+
+const newTabContext: Browser.Context = {
+  url: "chrome-extension://monocle-test/newtab.html",
+  title: "",
+  modifierKey: null,
+  isNewTab: true,
 }
 
 const defaultTabs: TestTab[] = [
@@ -499,6 +507,31 @@ describe("URL-filtered execution", () => {
 
     expect(response).toMatchObject({ success: false })
     expect(createdTabs).toHaveLength(0)
+  })
+
+  it("executes new-tab-only command keybindings only with new-tab context", async () => {
+    await updateCommandSettings("toggle-clock-visibility", {
+      keybinding: "<cmd-alt-c>",
+    })
+
+    const normalResponse = await executeKeybinding({
+      type: "execute-keybinding",
+      keybinding: "<cmd-alt-c>",
+      context: normalContext,
+    })
+    expect(normalResponse).toMatchObject({ success: false })
+    await expect(getNewTabClockSettings()).resolves.toEqual({})
+
+    const newTabResponse = await executeKeybinding({
+      type: "execute-keybinding",
+      keybinding: "<cmd-alt-c>",
+      context: newTabContext,
+    })
+
+    expect(newTabResponse).toMatchObject({ success: true, executed: true })
+    await expect(getNewTabClockSettings()).resolves.toEqual({
+      show: false,
+    })
   })
 
   it("stores generated hide-from-domain deny patterns", async () => {

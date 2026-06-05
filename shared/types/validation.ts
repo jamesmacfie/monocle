@@ -63,13 +63,32 @@ export const RequestToastMessageSchema = z.object({
   message: z.string().min(1, "Toast message cannot be empty"),
 })
 
-export const UpdateCommandSettingMessageSchema = z.object({
+const CommandSettingBaseSchema = z.object({
   type: z.literal("update-command-setting"),
   commandId: z.string().min(1, "Command ID cannot be empty"),
-  setting: z.string().min(1, "Setting name cannot be empty"),
-  value: z.any(), // Allow any value type for settings
   context: BrowserContextSchema.optional(),
 })
+
+const UrlRulesSettingValueSchema = z
+  .object({
+    allowUrls: z.array(z.string()).optional(),
+    denyUrls: z.array(z.string()).optional(),
+  })
+  .strict()
+
+export const UpdateCommandSettingMessageSchema = z.discriminatedUnion(
+  "setting",
+  [
+    CommandSettingBaseSchema.extend({
+      setting: z.literal("keybinding"),
+      value: z.union([z.string(), z.null()]).optional(),
+    }),
+    CommandSettingBaseSchema.extend({
+      setting: z.literal("urlRules"),
+      value: UrlRulesSettingValueSchema,
+    }),
+  ],
+)
 
 export const CheckKeybindingConflictMessageSchema = z.object({
   type: z.literal("check-keybinding-conflict"),
@@ -89,6 +108,11 @@ export const GetPermissionsMessageSchema = z.object({
 
 export const RequestPermissionMessageSchema = z.object({
   type: z.literal("request-permission"),
+  permission: z.string().min(1, "Permission name cannot be empty"),
+})
+
+export const OpenPermissionGrantPageMessageSchema = z.object({
+  type: z.literal("open-permission-grant-page"),
   permission: z.string().min(1, "Permission name cannot be empty"),
 })
 
@@ -147,6 +171,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
   GetUnsplashBackgroundMessageSchema,
   GetPermissionsMessageSchema,
   RequestPermissionMessageSchema,
+  OpenPermissionGrantPageMessageSchema,
   ExecuteWorkflowMessageSchema,
 ])
 

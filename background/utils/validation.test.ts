@@ -44,4 +44,87 @@ describe("message business validation", () => {
       ).success,
     ).toBe(false)
   })
+
+  it("rejects malformed direct command setting updates", () => {
+    expect(
+      validateIncomingMessage(
+        {
+          type: "update-command-setting",
+          commandId: "open-new-tab",
+          setting: "keybinding",
+          value: "⌘ ⇧ K",
+          context,
+        },
+        {},
+      ).success,
+    ).toBe(false)
+
+    expect(
+      validateIncomingMessage(
+        {
+          type: "update-command-setting",
+          commandId: "open-new-tab",
+          setting: "urlRules",
+          value: {
+            allowUrls: ["ftp://example.com/*"],
+          },
+          context,
+        },
+        {},
+      ).success,
+    ).toBe(false)
+  })
+
+  it("accepts empty keybinding removal and valid URL-rule updates", () => {
+    expect(
+      validateIncomingMessage(
+        {
+          type: "update-command-setting",
+          commandId: "open-new-tab",
+          setting: "keybinding",
+          value: "",
+          context,
+        },
+        {},
+      ).success,
+    ).toBe(true)
+
+    expect(
+      validateIncomingMessage(
+        {
+          type: "update-command-setting",
+          commandId: "open-new-tab",
+          setting: "urlRules",
+          value: {
+            allowUrls: ["*://*.example.com/*"],
+            denyUrls: ["*://blocked.example.com/*"],
+          },
+          context,
+        },
+        {},
+      ).success,
+    ).toBe(true)
+  })
+
+  it("validates permission grant page messages with the permission allowlist", () => {
+    expect(
+      validateIncomingMessage(
+        {
+          type: "open-permission-grant-page",
+          permission: "bookmarks",
+        },
+        {},
+      ).success,
+    ).toBe(true)
+
+    expect(
+      validateIncomingMessage(
+        {
+          type: "open-permission-grant-page",
+          permission: "unknown",
+        },
+        {},
+      ).success,
+    ).toBe(false)
+  })
 })

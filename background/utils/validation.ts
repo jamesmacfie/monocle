@@ -6,8 +6,12 @@ import {
   type ValidationResult,
   validateMessage,
 } from "../../shared/types"
-import { isValidKeybinding } from "../../shared/utils/key-normalizer"
+import {
+  isValidKeybinding,
+  normalizeKeybinding,
+} from "../../shared/utils/key-normalizer"
 import { createMessageHandler } from "./messages"
+import { validateUrlPattern } from "./urlFilter"
 
 // Rate limiting for message validation (prevent spam/abuse)
 const validationRateLimit = new Map<
@@ -205,14 +209,50 @@ function validateBusinessLogic(message: ValidatedMessage): {
       break
     }
 
-    case "update-command-setting":
-      // Setting names should be safe strings
-      if (!/^[a-zA-Z0-9\-_]+$/.test(message.setting)) {
-        return { valid: false, error: "Invalid setting name format" }
+    case "update-command-setting": {
+      if (message.setting === "keybinding") {
+        if (
+          message.value === undefined ||
+          message.value === null ||
+          message.value === ""
+        ) {
+          break
+        }
+
+        const normalizedKeybinding = normalizeKeybinding(message.value)
+        if (!normalizedKeybinding || normalizedKeybinding !== message.value) {
+          return {
+            valid: false,
+            error: "Keybinding setting must be canonical keybinding text",
+          }
+        }
+        break
+      }
+
+      for (const [field, patterns] of Object.entries(message.value)) {
+        if (patterns === undefined) {
+          continue
+        }
+
+        if (!Array.isArray(patterns)) {
+          return { valid: false, error: `${field} must be an array` }
+        }
+
+        for (const pattern of patterns) {
+          const validation = validateUrlPattern(pattern)
+          if (validation !== true) {
+            return {
+              valid: false,
+              error: `Invalid ${field} pattern "${pattern}": ${validation}`,
+            }
+          }
+        }
       }
       break
+    }
 
-    case "request-permission": {
+    case "request-permission":
+    case "open-permission-grant-page": {
       // Validate permission name against known browser permissions
       const validPermissions = [
         "activeTab",

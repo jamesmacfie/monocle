@@ -6,7 +6,7 @@ import type {
 } from "../../../shared/types"
 import { showToast } from "../../messages/showToast"
 import { validateUrlPattern } from "../../utils/urlFilter"
-import { getCommandSettings, updateCommandSettings } from "../settings"
+import { getCommandSettings, updateCommandUrlRules } from "../settings"
 import { loadUserConfigurableCommands } from "../userConfigurableCommands"
 
 export const manageDenyList: GroupCommandNode = {
@@ -72,13 +72,8 @@ export const manageDenyList: GroupCommandNode = {
             }
           }
 
-          // Update settings
-          const currentSettings = (await getCommandSettings(command.id)) || {}
-          await updateCommandSettings(command.id, {
-            urlRules: {
-              ...currentSettings.urlRules,
-              denyUrls: patterns.length > 0 ? patterns : undefined,
-            },
+          await updateCommandUrlRules(command.id, {
+            denyUrls: patterns.length > 0 ? patterns : undefined,
           })
 
           await showToast({

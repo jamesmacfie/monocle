@@ -1,5 +1,33 @@
 # New Tab And Theme Fix Plan
 
+Status: implemented for the new-tab command context, theme target, settings
+persistence, and background fallback fixes. Manual content-overlay and new-tab
+browser validation is still required.
+
+## Implemented Fixes
+
+- Chose the supported new-tab keybinding policy: new-tab-only commands can use
+  custom/global keybindings when registry, conflict, and execution calls carry
+  `{ isNewTab: true }`.
+- Added focused execution coverage proving `toggle-clock-visibility` does not
+  run from a normal page context but does run from a new-tab context.
+- Consolidated content theme application through a host-element helper that
+  works with the closed shadow-root boundary.
+- Kept new-tab theme application on `document.documentElement` and added focused
+  tests for both theme targets.
+- Extracted background image cache/fallback/preload decisions into a testable
+  model and added deterministic cache, no-key, fetch, preload, and corrupt-cache
+  coverage.
+- Documented the current new-tab product scope as a launcher/palette surface,
+  not a dashboard.
+
+## Remaining Gaps
+
+- Manual Chrome/Firefox visual validation is still needed for content
+  light/dark/system, new-tab light/dark/system, and real Unsplash/CSP behavior.
+- There are still no browser E2E or visual-regression tests for the new-tab
+  page.
+
 ## Current Data Flow
 
 The generated extension manifest overrides the browser new-tab page through

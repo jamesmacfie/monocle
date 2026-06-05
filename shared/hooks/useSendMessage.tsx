@@ -8,6 +8,7 @@ import type {
   GetCommandsMessage,
   GetKeybindingStateMessage,
   GetPermissionsMessage,
+  OpenPermissionGrantPageMessage,
   RequestPermissionMessage,
   RequestToastMessage,
   UpdateCommandSettingMessage,
@@ -40,6 +41,7 @@ type SendableMessage =
   | CheckKeybindingConflictMessage
   | GetPermissionsMessage
   | RequestPermissionMessage
+  | OpenPermissionGrantPageMessage
   | RequestToastMessage
 
 export function useSendMessage() {
@@ -67,7 +69,8 @@ export function useSendMessage() {
       // Add context to messages that require it (not GetPermissionsMessage or RequestPermissionMessage)
       const messageWithContext =
         message.type === "get-permissions" ||
-        message.type === "request-permission"
+        message.type === "request-permission" ||
+        message.type === "open-permission-grant-page"
           ? message
           : { ...message, context }
 

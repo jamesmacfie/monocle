@@ -4,15 +4,19 @@ import type {
 } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
 
-// Cross-browser compatibility layer
-const browserAPI = getBrowserAPI()
-
 export async function requestPermission(
   message: RequestPermissionMessage,
 ): Promise<RequestPermissionResponse> {
+  const browserAPI = getBrowserAPI()
+  const permissions = [message.permission as chrome.runtime.ManifestPermissions]
+
   try {
-    const granted = await browserAPI.permissions.request({
-      permissions: [message.permission as chrome.runtime.ManifestPermissions],
+    await browserAPI.permissions.request({
+      permissions,
+    })
+
+    const granted = await browserAPI.permissions.contains({
+      permissions,
     })
 
     return { granted }

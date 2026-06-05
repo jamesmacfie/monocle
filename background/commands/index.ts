@@ -31,8 +31,8 @@ import {
 import {
   getAllCommandSettings,
   getCommandSettings,
-  removeCommandSettings,
-  updateCommandSettings,
+  removeCommandSetting,
+  updateCommandUrlRules,
 } from "./settings"
 import { allCommands, loadAllCommands } from "./source"
 import { recordCommandUsage } from "./usage"
@@ -191,7 +191,7 @@ const executeGeneratedAction = async (
   }
 
   if (action.type === "resetKeybinding") {
-    await removeCommandSettings(action.targetCommandId)
+    await removeCommandSetting(action.targetCommandId, "keybinding")
     await refreshKeybindingRegistry()
     return
   }
@@ -212,11 +212,8 @@ const executeGeneratedAction = async (
     const currentDenyUrls = currentSettings.urlRules?.denyUrls || []
 
     if (!currentDenyUrls.includes(pattern)) {
-      await updateCommandSettings(action.targetCommandId, {
-        urlRules: {
-          ...currentSettings.urlRules,
-          denyUrls: [...currentDenyUrls, pattern],
-        },
+      await updateCommandUrlRules(action.targetCommandId, {
+        denyUrls: [...currentDenyUrls, pattern],
       })
     }
 

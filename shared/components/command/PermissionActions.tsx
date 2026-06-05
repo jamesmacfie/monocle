@@ -46,12 +46,33 @@ export function PermissionActions({
       const canRequestDirectly =
         // Some browsers expose the permissions API directly to the content script
         typeof browserAPI?.permissions?.request === "function"
+      const permissionRequest = {
+        permissions: [permission as chrome.runtime.ManifestPermissions],
+      }
 
       if (isFirefox && canRequestDirectly) {
-        // Firefox: Request permission directly from content script when available
-        granted = await browserAPI.permissions.request({
-          permissions: [permission as chrome.runtime.ManifestPermissions],
+        const canCheckDirectly =
+          typeof browserAPI?.permissions?.contains === "function"
+
+        if (canCheckDirectly) {
+          await browserAPI.permissions.request(permissionRequest)
+          granted = await browserAPI.permissions.contains(permissionRequest)
+        } else {
+          // Firefox: Request permission directly from content script when available
+          granted = await browserAPI.permissions.request(permissionRequest)
+        }
+      } else if (isFirefox) {
+        await sendMessage({
+          type: "open-permission-grant-page",
+          permission,
         })
+        onClose?.()
+        await sendMessage({
+          type: "request-toast",
+          level: "info",
+          message: `Grant ${permissionDisplayNames[permission]} permission in the opened Monocle tab`,
+        })
+        return
       } else {
         // Fallback: Request permission via background script (Chrome + Firefox sandboxed envs)
         const response: { granted: boolean; error?: string } =
@@ -63,10 +84,9 @@ export function PermissionActions({
         errorMessage = response?.error
       }
 
-      if (granted) {
-        // Update permissions in Redux store
-        await dispatch(refreshPermissions())
+      await dispatch(refreshPermissions())
 
+      if (granted) {
         // Refresh commands to update UI
         onRefresh?.()
 
@@ -93,6 +113,8 @@ export function PermissionActions({
       }
     } catch (error) {
       console.error("Failed to request permission:", error)
+
+      await dispatch(refreshPermissions())
 
       // Close the actions menu
       onClose?.()

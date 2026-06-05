@@ -1,9 +1,12 @@
 import { merge } from "lodash"
 import type {
+  CommandSettingKey,
   CommandSettings,
+  CommandUrlRulesSetting,
   NewTabSettings,
   Settings,
   ThemeSettings,
+  UrlRules,
 } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
 
@@ -11,6 +14,67 @@ import { getBrowserAPI } from "../../shared/utils/extension-api"
 const browserAPI = getBrowserAPI()
 
 const STORAGE_KEY = "monocle-settings"
+
+const isEmptyObject = (value: object): boolean => {
+  return Object.keys(value).length === 0
+}
+
+const pruneUrlRules = (urlRules?: UrlRules): UrlRules | undefined => {
+  if (!urlRules) {
+    return undefined
+  }
+
+  const nextRules: UrlRules = {}
+
+  if (urlRules.allowUrls !== undefined) {
+    nextRules.allowUrls = urlRules.allowUrls
+  }
+
+  if (urlRules.denyUrls !== undefined) {
+    nextRules.denyUrls = urlRules.denyUrls
+  }
+
+  return isEmptyObject(nextRules) ? undefined : nextRules
+}
+
+const pruneCommandSettings = (
+  commandSettings: CommandSettings,
+): CommandSettings => {
+  const nextSettings: CommandSettings = {}
+
+  if (commandSettings.keybinding !== undefined) {
+    nextSettings.keybinding = commandSettings.keybinding
+  }
+
+  const urlRules = pruneUrlRules(commandSettings.urlRules)
+  if (urlRules) {
+    nextSettings.urlRules = urlRules
+  }
+
+  return nextSettings
+}
+
+export const mergeCommandSettings = (
+  existingSettings: CommandSettings,
+  partialSettings: Partial<CommandSettings>,
+): CommandSettings => {
+  const mergedSettings: CommandSettings = {
+    ...existingSettings,
+    ...partialSettings,
+  }
+
+  if ("urlRules" in partialSettings) {
+    mergedSettings.urlRules =
+      partialSettings.urlRules === undefined
+        ? undefined
+        : {
+            ...existingSettings.urlRules,
+            ...partialSettings.urlRules,
+          }
+  }
+
+  return pruneCommandSettings(mergedSettings)
+}
 
 // Load settings from storage
 const loadSettings = async (): Promise<Settings> => {
@@ -90,12 +154,25 @@ export const updateCommandSettings = async (
   }
 
   const existingSettings = settings.commands[commandId] || {}
-  settings.commands[commandId] = {
-    ...existingSettings,
-    ...partialSettings,
+  const nextSettings = mergeCommandSettings(existingSettings, partialSettings)
+
+  if (isEmptyObject(nextSettings)) {
+    delete settings.commands[commandId]
+  } else {
+    settings.commands[commandId] = nextSettings
   }
 
   await saveSettings(settings)
+}
+
+// Update URL rules for a command while preserving sibling rule lists
+export const updateCommandUrlRules = async (
+  commandId: string,
+  urlRules: CommandUrlRulesSetting,
+): Promise<void> => {
+  await updateCommandSettings(commandId, {
+    urlRules,
+  })
 }
 
 // Remove settings for a specific command
@@ -108,6 +185,34 @@ export const removeCommandSettings = async (
     delete settings.commands[commandId]
     await saveSettings(settings)
   }
+}
+
+// Remove one command setting field while preserving sibling settings
+export const removeCommandSetting = async (
+  commandId: string,
+  setting: CommandSettingKey,
+): Promise<void> => {
+  const settings = await loadSettings()
+  const existingSettings = settings.commands?.[commandId]
+
+  if (!existingSettings) {
+    return
+  }
+
+  const nextSettings: CommandSettings = { ...existingSettings }
+  delete nextSettings[setting]
+
+  const prunedSettings = pruneCommandSettings(nextSettings)
+
+  if (isEmptyObject(prunedSettings)) {
+    if (settings.commands) {
+      delete settings.commands[commandId]
+    }
+  } else if (settings.commands) {
+    settings.commands[commandId] = prunedSettings
+  }
+
+  await saveSettings(settings)
 }
 
 // Get theme settings

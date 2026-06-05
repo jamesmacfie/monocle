@@ -7,6 +7,12 @@ export interface CommandSettings {
   urlRules?: UrlRules
 }
 
+export type CommandSettingKey = keyof CommandSettings
+
+export type CommandUrlRulesSetting = Partial<
+  NonNullable<CommandSettings["urlRules"]>
+>
+
 // Theme settings
 export interface ThemeSettings {
   mode?: "light" | "dark" | "system"

@@ -3,7 +3,9 @@ import "../content/styles.css"
 import { createShadowRootUi } from "wxt/utils/content-script-ui/shadow-root"
 import { defineContentScript } from "wxt/utils/define-content-script"
 import { renderContentCommandPalette } from "../content/scripts"
+import type { Settings } from "../shared/types"
 import { getBrowserAPI } from "../shared/utils/extension-api"
+import { applyThemeToHost } from "../shared/utils/theme"
 
 type MountedPalette = () => void
 
@@ -23,29 +25,30 @@ export default defineContentScript({
         shadowHost.id = "extension-root"
 
         const browserAPI = getBrowserAPI()
-        const applyTheme = (settings: any) => {
-          const themeMode = settings?.theme?.mode || "system"
-
-          shadowHost.classList.remove("dark", "system")
-          if (themeMode === "dark") {
-            shadowHost.classList.add("dark")
-          } else if (themeMode === "system") {
-            shadowHost.classList.add("system")
-          }
+        const applyTheme = (settings?: Settings) => {
+          applyThemeToHost(shadowHost, settings)
         }
 
         browserAPI.storage?.local
           ?.get("monocle-settings")
-          .then((result: Record<string, any>) => {
-            applyTheme(result["monocle-settings"] || {})
+          .then((result: Record<string, unknown>) => {
+            applyTheme(
+              (result["monocle-settings"] as Settings | undefined) || {},
+            )
           })
           .catch((error: unknown) => {
             console.error("[content] Failed to load theme settings:", error)
           })
 
-        const handleStorageChange = (changes: any, areaName: string) => {
+        const handleStorageChange = (
+          changes: Record<string, { newValue?: unknown } | undefined>,
+          areaName: string,
+        ) => {
           if (areaName === "local" && changes["monocle-settings"]) {
-            applyTheme(changes["monocle-settings"].newValue || {})
+            applyTheme(
+              (changes["monocle-settings"].newValue as Settings | undefined) ||
+                {},
+            )
           }
         }
 

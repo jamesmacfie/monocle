@@ -1,29 +1,9 @@
 import { useEffect, useState } from "react"
 import type { UnsplashBackgroundResponse } from "../../shared/types"
+import { initializeBackgroundImage } from "../backgroundImageModel"
 
 interface BackgroundImageProps {
   className?: string
-}
-
-const CACHE_KEY = "monocle-unsplash-background"
-
-// Helper functions for localStorage caching
-const getCachedBackground = (): UnsplashBackgroundResponse | null => {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY)
-    return cached ? JSON.parse(cached) : null
-  } catch (error) {
-    console.warn("Failed to parse cached background:", error)
-    return null
-  }
-}
-
-const setCachedBackground = (data: UnsplashBackgroundResponse): void => {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data))
-  } catch (error) {
-    console.warn("Failed to cache background:", error)
-  }
 }
 
 // Preload image in browser cache
@@ -43,80 +23,50 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    let hasShownCachedImage = false
+    let isMounted = true
 
-    const initializeBackground = async () => {
-      // 1. Try to get cached image first
-      const cachedBackground = getCachedBackground()
-
-      if (cachedBackground?.imageUrl) {
-        // Show cached image immediately - no loading state
-        setBackgroundData(cachedBackground)
-        setIsLoading(false)
-        hasShownCachedImage = true
+    const requestBackground = () => {
+      const context = {
+        title: document.title,
+        url: window.location.href,
+        modifierKey: null,
+        isNewTab: true,
       }
 
-      // 2. Always fetch fresh image for next time (in background)
-      try {
-        const context = {
-          title: document.title,
-          url: window.location.href,
-          modifierKey: null,
-          isNewTab: true,
-        }
-
-        const response = await new Promise<UnsplashBackgroundResponse>(
-          (resolve, reject) => {
-            chrome.runtime.sendMessage(
-              { type: "get-unsplash-background", context },
-              (response) => {
-                if (chrome.runtime.lastError) {
-                  reject(chrome.runtime.lastError)
-                } else {
-                  resolve(response)
-                }
-              },
-            )
+      return new Promise<UnsplashBackgroundResponse>((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          { type: "get-unsplash-background", context },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError)
+            } else {
+              resolve(response)
+            }
           },
         )
-
-        if (!response.error && response.imageUrl) {
-          // Preload the image in browser cache
-          try {
-            await preloadImage(response.imageUrl)
-          } catch (preloadError) {
-            console.warn("Failed to preload image:", preloadError)
-          }
-
-          // Cache for next new tab
-          setCachedBackground(response)
-
-          // If no image is displayed yet (first time), show this one
-          if (!hasShownCachedImage) {
-            setBackgroundData(response)
-            setIsLoading(false)
-          }
-        } else {
-          console.warn("Failed to fetch new background:", response.error)
-          // If this is first time and we have an error, show error state
-          if (!hasShownCachedImage) {
-            setError(response.error || "Failed to load background")
-            setIsLoading(false)
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch background image:", err)
-        // Only set error if no cached image is showing
-        if (!hasShownCachedImage) {
-          setError(
-            err instanceof Error ? err.message : "Failed to load background",
-          )
-          setIsLoading(false)
-        }
-      }
+      })
     }
 
-    initializeBackground()
+    void initializeBackgroundImage({
+      cache: localStorage,
+      requestBackground,
+      preloadImage,
+      onBackground: (data) => {
+        if (!isMounted) return
+        setBackgroundData(data)
+        setError(null)
+        setIsLoading(false)
+      },
+      onFallback: (message) => {
+        if (!isMounted) return
+        setError(message)
+        setIsLoading(false)
+      },
+    })
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   if (isLoading) {
