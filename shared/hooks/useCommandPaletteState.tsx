@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
+import { getBrowserAPI } from "../utils/extension-api"
 
 // Cross-browser compatibility layer
-const browserAPI = typeof browser !== "undefined" ? browser : chrome
+const browserAPI = getBrowserAPI()
 
 // Custom hook for managing command palette shortcuts and toggle state
 export const useCommandPaletteState = () => {
@@ -19,11 +20,14 @@ export const useCommandPaletteState = () => {
     setIsOpen(false)
   }, [])
 
-  // Handle keyboard shortcut (Cmd+J)
+  // Handle content-side palette shortcut.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Check for Cmd+J (metaKey for Mac, could add ctrlKey for Windows/Linux)
-      if (event.key === "j" && event.metaKey) {
+      if (
+        event.key.toLowerCase() === "k" &&
+        event.shiftKey &&
+        (event.metaKey || event.ctrlKey)
+      ) {
         event.preventDefault()
         event.stopImmediatePropagation()
         toggleUI()
@@ -53,8 +57,10 @@ export const useCommandPaletteState = () => {
     ) => {
       if (message.type === "toggle-ui") {
         toggleUI()
+        _sendResponse({ received: true })
       } else if (message.type === "show-ui") {
         showUI()
+        _sendResponse({ received: true })
       }
     }
 

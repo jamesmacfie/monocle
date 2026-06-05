@@ -1,20 +1,46 @@
-// Browser extension API types for cross-browser compatibility
-declare const chrome: any
+import type { Browser, WxtBrowser } from "wxt/browser"
 
-// Browser API types for cross-compatibility
-declare namespace browser {
-  namespace runtime {
-    type MessageSender = chrome.runtime.MessageSender
+declare global {
+  const chrome: WxtBrowser
+  const browser: WxtBrowser & {
+    tabs: WxtBrowser["tabs"] & {
+      toggleReaderMode?: (tabId: number) => Promise<void>
+      saveAsPDF?: (options: any) => Promise<void>
+    }
+    contextualIdentities?: {
+      query: (queryInfo: any) => Promise<any[]>
+    }
   }
-}
 
-// Extended browser API that includes Firefox-specific features
-declare const browser: typeof chrome & {
-  tabs: typeof chrome.tabs & {
-    toggleReaderMode?: (tabId: number) => Promise<void>
-    saveAsPDF?: (options: any) => Promise<void>
+  namespace chrome {
+    namespace browsingData {
+      type DataTypeSet = Browser.browsingData.DataTypeSet
+      type RemovalOptions = Browser.browsingData.RemovalOptions
+    }
+
+    namespace history {
+      type HistoryItem = Browser.history.HistoryItem
+      type HistoryQuery = Browser.history.HistoryQuery
+    }
+
+    namespace runtime {
+      type ManifestPermissions = Browser.runtime.ManifestPermissions
+      type MessageSender = Browser.runtime.MessageSender
+    }
+
+    namespace sessions {
+      type Session = Browser.sessions.Session
+    }
   }
-  contextualIdentities?: {
-    query: (queryInfo: any) => Promise<any[]>
+
+  namespace browser {
+    namespace runtime {
+      type MessageSender = Browser.runtime.MessageSender
+    }
+  }
+
+  interface ImportMetaEnv {
+    readonly WXT_UNSPLASH_ACCESS_KEY?: string
+    readonly EXTENSION_PUBLIC_UNSPLASH_ACCESS_KEY?: string
   }
 }

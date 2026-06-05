@@ -1,4 +1,5 @@
 import type { ActionCommandNode, Browser } from "../../shared/types"
+import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { getActiveTab } from "../utils/browser"
 
 const STORAGE_KEY = "monocle-favoriteCommandIds"
@@ -6,8 +7,9 @@ const STORAGE_KEY = "monocle-favoriteCommandIds"
 // Load favorite command IDs from storage
 const loadFavoriteCommandIds = async (): Promise<string[]> => {
   try {
-    const b = typeof browser !== "undefined" ? browser : chrome
-    const result = await b.storage.local.get(STORAGE_KEY)
+    const result = (await getBrowserAPI().storage.local.get(
+      STORAGE_KEY,
+    )) as Record<string, string[] | undefined>
     const favoriteIds = result[STORAGE_KEY] || []
 
     return favoriteIds
@@ -20,8 +22,7 @@ const loadFavoriteCommandIds = async (): Promise<string[]> => {
 // Save favorite command IDs to storage
 const saveFavoriteCommandIds = async (commandIds: string[]): Promise<void> => {
   try {
-    const b = typeof browser !== "undefined" ? browser : chrome
-    await b.storage.local.set({
+    await getBrowserAPI().storage.local.set({
       [STORAGE_KEY]: commandIds,
     })
   } catch (error) {
@@ -110,7 +111,7 @@ export const clearFavoritesCommand: ActionCommandNode = {
   description: "Clear all favorite commands",
   icon: { type: "lucide", name: "Trash2" },
   execute: async () => {
-    const b = typeof browser !== "undefined" ? browser : chrome
+    const b = getBrowserAPI()
     try {
       await b.storage.local.remove(STORAGE_KEY)
 

@@ -5,16 +5,20 @@ import type {
   Settings,
   ThemeSettings,
 } from "../../shared/types"
+import { getBrowserAPI } from "../../shared/utils/extension-api"
 
 // Cross-browser compatibility layer
-const browserAPI = typeof browser !== "undefined" ? browser : chrome
+const browserAPI = getBrowserAPI()
 
 const STORAGE_KEY = "monocle-settings"
 
 // Load settings from storage
 const loadSettings = async (): Promise<Settings> => {
   try {
-    const result = await browserAPI.storage.local.get(STORAGE_KEY)
+    const result = (await browserAPI.storage.local.get(STORAGE_KEY)) as Record<
+      string,
+      Settings | undefined
+    >
     const settings = result[STORAGE_KEY] || {}
 
     return {

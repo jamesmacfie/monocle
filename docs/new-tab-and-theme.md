@@ -11,7 +11,8 @@ context includes `isNewTab`.
 
 ## How It Is Hooked Together
 
-- `manifest.json` defines `chrome_url_overrides.newtab` as `newtab/index.html`.
+- `wxt.config.ts` plus `entrypoints/newtab/index.html` define
+  `chrome_url_overrides.newtab` in the generated manifest.
 - `newtab/scripts.tsx` mounts the React new-tab app.
 - `newtab/NewTabApp.tsx` loads initial settings and permissions and renders the
   new-tab experience.
@@ -37,9 +38,9 @@ Automated test coverage: missing.
 
 Build checks that currently touch this feature:
 
-- `npm run tsc` validates new-tab React code and settings types.
-- `npm run fmt:check` validates formatting/lint.
-- `npm run build` validates the new-tab bundle and HTML output.
+- `pnpm run tsc` validates new-tab React code and settings types.
+- `pnpm run fmt:check` validates formatting/lint.
+- `pnpm run build` validates the new-tab bundle and HTML output.
 
 There are no visual tests, browser E2E tests, settings persistence tests, or
 Unsplash/background fallback tests.
@@ -77,4 +78,3 @@ Unsplash/background fallback tests.
 - The current docs do not establish product expectations for the new-tab page:
   whether it is a lightweight launcher, a full dashboard, or only a host for the
   palette. That decision affects future UI work.
-

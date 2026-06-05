@@ -1,11 +1,14 @@
 import { match } from "ts-pattern"
 import type { Browser, CommandNode, Suggestion } from "../../shared/types"
 import { isFirefox } from "../../shared/utils/browser"
+import { refreshKeybindingRegistry } from "../keybindings/registry"
+import { showToast } from "../messages/showToast"
 import {
   resolveActionLabel,
   resolveAsyncProperty,
   resolveModifierActionLabels,
 } from "../utils/commands"
+import { checkPermissions } from "../utils/permissions"
 import {
   createUrlPatternForDomain,
   extractDomain,
@@ -21,6 +24,7 @@ import { newTabCommands } from "./newTab"
 import {
   getAllCommandSettings,
   getCommandSettings,
+  removeCommandSettings,
   updateCommandSettings,
 } from "./settings"
 import { toolCommands } from "./tools"
@@ -321,11 +325,9 @@ export const executeCommand = async (
       })
       .with({ type: "resetKeybinding" }, async (ctx) => {
         // Reset custom keybinding by clearing it from settings
-        const { removeCommandSettings } = require("./settings")
         await removeCommandSettings(ctx.targetCommandId)
 
         // Refresh keybinding registry to use default keybinding
-        const { refreshKeybindingRegistry } = require("../keybindings/registry")
         await refreshKeybindingRegistry()
 
         return Promise.resolve()
@@ -394,9 +396,6 @@ export const executeCommand = async (
     ) {
       // Check permissions before executing the command
       if (commandToRun.permissions) {
-        const { checkPermissions } = require("../utils/permissions")
-        const { showToast } = require("../messages/showToast")
-
         const { hasAllPermissions, missingPermissions } =
           await checkPermissions(commandToRun.permissions)
 
@@ -491,7 +490,6 @@ const _createResetKeybindingAction = async (
   }
 
   // Check if command has a custom keybinding set
-  const { getCommandSettings } = require("./settings")
   const settings = await getCommandSettings(command.id)
   if (!settings?.keybinding) {
     return null // No custom keybinding to reset

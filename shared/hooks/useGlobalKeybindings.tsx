@@ -4,9 +4,6 @@ import { useAppSelector } from "../store/hooks"
 import { selectIsCapturing } from "../store/slices/keybinding.slice"
 import { RobustKeyCapture } from "../utils/robust-key-capture"
 
-// Cross-browser compatibility layer
-const _browserAPI = typeof browser !== "undefined" ? browser : chrome
-
 export function useGlobalKeybindings() {
   const sendMessage = useSendMessage()
   const isCapturing = useAppSelector(selectIsCapturing)

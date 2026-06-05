@@ -9,9 +9,10 @@ import type {
   Settings,
   ThemeSettings,
 } from "../../../shared/types"
+import { getBrowserAPI } from "../../utils/extension-api"
 
 // Cross-browser compatibility layer
-const browserAPI = typeof browser !== "undefined" ? browser : chrome
+const browserAPI = getBrowserAPI()
 
 // Settings state structure
 interface SettingsState {
@@ -56,7 +57,9 @@ export const loadSettings = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const STORAGE_KEY = "monocle-settings"
-      const result = await browserAPI.storage.local.get(STORAGE_KEY)
+      const result = (await browserAPI.storage.local.get(
+        STORAGE_KEY,
+      )) as Record<string, Settings | undefined>
       const settings = result[STORAGE_KEY] || {}
 
       return {

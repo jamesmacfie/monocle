@@ -2,6 +2,7 @@
   "name": "monocle",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.0.0",
   "type": "module",
   "main": "index.js",
   "paths": {
@@ -10,13 +11,15 @@
     ]
   },
   "scripts": {
-    "dev": "extension dev .",
-    "dev:firefox": "extension dev . --browser=firefox",
-    "build": "npm run tsc && extension build .",
-    "build:zip": "npm run tsc && extension build --zip .",
-    "build:firefox": "npm run tsc && extension build . --browser=firefox",
-    "build:firefox:zip": "npm run tsc && extension build . --browser=firefox --zip",
-    "preview": "npm run tsc && extension preview .",
+    "dev": "wxt",
+    "dev:chrome": "wxt -b chrome --mv3",
+    "dev:firefox": "wxt -b firefox --mv3",
+    "build": "tsc --noEmit && wxt build",
+    "build:zip": "tsc --noEmit && wxt zip",
+    "build:firefox": "tsc --noEmit && wxt build -b firefox --mv3",
+    "build:firefox:zip": "tsc --noEmit && wxt zip -b firefox --mv3",
+    "clean": "wxt clean",
+    "postinstall": "wxt prepare",
     "test": "echo \"Error: no test specified\" && exit 1",
     "tsc": "tsc --noEmit",
     "fmt": "biome check --write --unsafe",
@@ -40,7 +43,6 @@
     "react-redux": "^9.2.0",
     "react-select": "^5.10.2",
     "ts-pattern": "^5.8.0",
-    "usehooks-ts": "^3.1.1",
     "uuid": "^13.0.0",
     "zod": "^4.1.8"
   },
@@ -50,9 +52,9 @@
     "@types/lodash": "^4.17.20",
     "@types/react": "^19.0.13",
     "@types/react-dom": "^19.1.9",
-    "@types/webpack-env": "^1.18.8",
-    "extension": "^2.1.2",
+    "@wxt-dev/module-react": "^1.2.2",
     "tailwindcss": "^4.1.13",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "wxt": "^0.20.26"
   }
 }

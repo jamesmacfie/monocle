@@ -1,3 +1,5 @@
+import { getBrowserAPI } from "../../shared/utils/extension-api"
+
 interface CommandUsageStats {
   commandId: string
   totalUsage: number
@@ -21,8 +23,9 @@ const TIME_BOOST_FACTOR = 0.5 // Maximum boost factor for time-of-day similarity
 // Load usage data from storage
 const loadUsageData = async (): Promise<StoredUsageData> => {
   try {
-    const b = typeof browser !== "undefined" ? browser : chrome
-    const result = await b.storage.local.get(USAGE_STORAGE_KEY)
+    const result = (await getBrowserAPI().storage.local.get(
+      USAGE_STORAGE_KEY,
+    )) as Record<string, StoredUsageData | undefined>
     return (
       result[USAGE_STORAGE_KEY] || {
         commandStats: {},
@@ -41,8 +44,7 @@ const loadUsageData = async (): Promise<StoredUsageData> => {
 // Save usage data to storage
 const saveUsageData = async (data: StoredUsageData): Promise<void> => {
   try {
-    const b = typeof browser !== "undefined" ? browser : chrome
-    await b.storage.local.set({
+    await getBrowserAPI().storage.local.set({
       [USAGE_STORAGE_KEY]: data,
     })
   } catch (error) {

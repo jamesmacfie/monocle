@@ -54,10 +54,10 @@ Automated test coverage: missing.
 
 Build checks that currently touch this feature:
 
-- `npm run tsc` validates the URL rule types and the untracked GitHub command
+- `pnpm run tsc` validates the URL rule types and the untracked GitHub command
   code.
-- `npm run fmt:check` validates formatting/lint.
-- `npm run build` validates bundle compilation.
+- `pnpm run fmt:check` validates formatting/lint.
+- `pnpm run build` validates bundle compilation.
 
 There are no tests for pattern matching, precedence between command/user
 allow/deny rules, generated domain patterns, child filtering, or GitHub URL

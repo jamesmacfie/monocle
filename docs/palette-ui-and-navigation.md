@@ -11,14 +11,28 @@ Redux-backed navigation model.
 
 ## How It Is Hooked Together
 
-- `content/scripts.tsx` injects a closed shadow DOM host into every matching
-  page and mounts `ContentCommandPaletteWithState`.
+- `entrypoints/content.tsx` defines the WXT content script, creates a closed
+  shadow DOM host, injects the content CSS through WXT, and mounts
+  `ContentCommandPaletteWithState` through `content/scripts.tsx`.
+- `background/utils/contentPalette.ts` handles toolbar and browser shortcut
+  toggles. Chrome declares the shortcut as `_execute_action`. Firefox does not
+  declare `Cmd+Shift+K` as a browser command because Firefox can consume the
+  assigned shortcut without reliably delivering the command path in WXT MV3
+  dev mode; Firefox content tabs use the content-side keyboard capture instead.
+  The toolbar/action path first messages the active tab, then injects WXT's
+  generated content script and shows the palette if the tab has no receiver yet.
+- `wxt.config.ts` keeps Firefox's MV3 manifest CSP-valid in dev mode while
+  allowing WXT's localhost dev server connection. Firefox content tabs rely on
+  WXT's runtime content-script registration in dev and manifest registration in
+  production builds, so content-bundle dependencies must avoid `eval`/`Function`
+  usage that Firefox blocks under extension CSP.
 - `content/components/ContentCommandPaletteWithState.tsx` creates the Redux
   store for the content overlay and supplies background messaging to thunks.
 - `content/components/ContentCommandPalette.tsx` controls overlay visibility,
   fetches commands, loads settings and permissions, wires global keybindings,
   and renders the shared `CommandPalette`.
-- `newtab/scripts.tsx` and `newtab/NewTabApp.tsx` mount the new-tab app.
+- `entrypoints/newtab/index.html`, `entrypoints/newtab/main.tsx`,
+  `newtab/scripts.tsx`, and `newtab/NewTabApp.tsx` mount the new-tab app.
   `newtab/components/NewTabCommandPalette.tsx` renders the shared palette with
   `{ isNewTab: true }` context.
 - `shared/components/Command/CommandPalette.tsx` is the main shared shell. It
@@ -52,9 +66,9 @@ Automated test coverage: missing.
 
 Build checks that currently touch this feature:
 
-- `npm run tsc` validates React, Redux, and type contracts.
-- `npm run fmt:check` checks formatting/lint.
-- `npm run build` validates that content and new-tab bundles compile.
+- `pnpm run tsc` validates React, Redux, and type contracts.
+- `pnpm run fmt:check` checks formatting/lint.
+- `pnpm run build` validates that content and new-tab bundles compile.
 
 There are no component tests for navigation stack behavior, inline inputs,
 action menus, search restoration, deep search rendering, or content/new-tab
@@ -100,4 +114,3 @@ differences.
   while `useSendMessage` tracks the actual modifier. Navigation thunks that use
   the store-provided sender may not receive the same modifier context as direct
   command execution.
-

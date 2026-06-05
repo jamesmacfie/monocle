@@ -55,9 +55,9 @@ Automated test coverage: missing.
 
 Build checks that currently touch this feature:
 
-- `npm run tsc` validates workflow types and executor references.
-- `npm run fmt:check` validates formatting/lint.
-- `npm run build` validates background/content bundles.
+- `pnpm run tsc` validates workflow types and executor references.
+- `pnpm run fmt:check` validates formatting/lint.
+- `pnpm run build` validates background/content bundles.
 
 There are no executor unit tests, fixture-page tests, browser integration tests,
 or regression tests for selector behavior.

@@ -8,9 +8,10 @@ import {
   toggleUI,
 } from "../store/slices/commandPaletteState.slice"
 import type { Workflow } from "../types/workflow"
+import { getBrowserAPI } from "../utils/extension-api"
 
 // Cross-browser compatibility layer
-const browserAPI = typeof browser !== "undefined" ? browser : chrome
+const browserAPI = getBrowserAPI()
 
 // Redux-based hook for managing command palette shortcuts and toggle state
 export const useCommandPaletteStateRedux = () => {
@@ -29,11 +30,14 @@ export const useCommandPaletteStateRedux = () => {
     dispatch(toggleUI())
   }, [dispatch])
 
-  // Handle keyboard shortcut (Cmd+/)
+  // Handle content-side palette shortcut.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Check for Cmd+/ (metaKey for Mac, could add ctrlKey for Windows/Linux)
-      if (event.key.toLowerCase() === "k" && event.metaKey && event.shiftKey) {
+      if (
+        event.key.toLowerCase() === "k" &&
+        event.shiftKey &&
+        (event.metaKey || event.ctrlKey)
+      ) {
         event.preventDefault()
         event.stopImmediatePropagation()
         toggle()
@@ -63,8 +67,10 @@ export const useCommandPaletteStateRedux = () => {
     ) => {
       if (message.type === "toggle-ui") {
         toggle()
+        sendResponse({ received: true })
       } else if (message.type === "show-ui") {
         show()
+        sendResponse({ received: true })
       } else if (message.type === "execute-workflow-content") {
         // Handle workflow execution in content script
         console.log("[Content] Received workflow execution request:", message)

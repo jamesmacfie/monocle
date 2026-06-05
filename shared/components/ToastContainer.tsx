@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { v4 as uuidv4 } from "uuid"
 import type { ToastEvent } from "../../shared/types"
+import { getBrowserAPI } from "../utils/extension-api"
 import { Toast } from "./Toast"
 
 interface ToastItem {
@@ -37,8 +38,7 @@ export const ToastContainer = () => {
     }
 
     // Cross-browser runtime API usage
-    const runtime =
-      typeof browser !== "undefined" ? browser.runtime : chrome.runtime
+    const runtime = getBrowserAPI().runtime
     runtime.onMessage.addListener(handleMessage)
 
     return () => {

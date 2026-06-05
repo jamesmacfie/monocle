@@ -1,6 +1,5 @@
 import { Command } from "cmdk"
 import { type RefObject, useEffect, useRef } from "react"
-import { useOnClickOutside } from "usehooks-ts"
 import { usePermissionsGranted } from "../../hooks/usePermissionsGranted"
 import type { Suggestion } from "../../types"
 import { CommandActionsList } from "./CommandActionsList"
@@ -45,9 +44,33 @@ export function CommandActions({
     }
   }, [open])
 
-  useOnClickOutside(overlayRef as React.RefObject<HTMLElement>, (_event) => {
-    onClose?.()
-  })
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const overlay = overlayRef.current
+
+      if (!overlay) {
+        return
+      }
+
+      if (event.composedPath().includes(overlay)) {
+        return
+      }
+
+      onClose?.()
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    document.addEventListener("touchstart", handlePointerDown)
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown)
+      document.removeEventListener("touchstart", handlePointerDown)
+    }
+  }, [open, onClose])
 
   useEffect(() => {
     if (open && actionInputRef.current) {

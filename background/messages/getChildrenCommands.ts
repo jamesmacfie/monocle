@@ -104,12 +104,8 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
       }
     }
 
-    // Get all command settings for URL filtering
-    const { getAllCommandSettings } = require("../commands")
     const commandSettings = await getAllCommandSettings()
 
-    // Filter children based on URL rules
-    const { filterCommandsByUrl } = require("../utils/urlFilter")
     const filteredChildren = await filterCommandsByUrl(
       children,
       message.context.url || "",

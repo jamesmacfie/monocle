@@ -53,16 +53,16 @@ Automated test coverage: missing.
 
 Build checks that currently touch this feature:
 
-- `npm run tsc` validates command and suggestion types.
-- `npm run fmt:check` validates formatting/lint rules.
-- `npm run build` validates bundling through Extension.js.
+- `pnpm run tsc` validates command and suggestion types.
+- `pnpm run fmt:check` validates formatting/lint rules.
+- `pnpm run build` validates bundling through WXT.
 
 There are no focused tests for command loading, suggestion conversion,
 favorite handling, action menu generation, command execution, or deep search.
 
 ## Manual Test Checklist
 
-- Load the extension with `npm run dev`.
+- Load the extension with `pnpm run dev`.
 - Open the palette on a normal webpage with `Cmd+Shift+K`.
 - Confirm root suggestions render and commands can be searched.
 - Open a group command such as bookmarks, downloads, history, open tabs, or
@@ -101,4 +101,3 @@ favorite handling, action menu generation, command execution, or deep search.
 - `allCommands` is exported from `loadAllCommands()` without context, so
   context-only command groups such as new-tab commands are not always visible
   to settings/keybinding management surfaces.
-

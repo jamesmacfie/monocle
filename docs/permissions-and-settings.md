@@ -11,10 +11,12 @@ settings such as custom keybindings and URL rules.
 
 ## How It Is Hooked Together
 
-- `manifest.json` declares required permissions `activeTab` and `storage`.
-- `manifest.json` declares optional permissions for bookmarks, browsing data,
-  cookies, downloads, history, sessions, and tabs. Firefox also declares
-  contextual identities.
+- `wxt.config.ts` declares required permissions `activeTab`, `storage`, and
+  `scripting`. The `scripting` permission lets the background shortcut/action
+  path inject the WXT content script when the active tab has no palette
+  receiver yet. Firefox also declares contextual identities.
+- `wxt.config.ts` declares optional permissions for bookmarks, browsing data,
+  cookies, downloads, history, sessions, and tabs.
 - Commands declare their required permissions through `permissions` on
   `CommandNodeBase`.
 - `shared/store/slices/settings.slice.ts` loads permissions and settings into
@@ -50,9 +52,9 @@ Automated test coverage: missing.
 
 Build checks that currently touch this feature:
 
-- `npm run tsc` validates settings, permissions, and message types.
-- `npm run fmt:check` validates formatting/lint.
-- `npm run build` validates bundle compilation.
+- `pnpm run tsc` validates settings, permissions, and message types.
+- `pnpm run fmt:check` validates formatting/lint.
+- `pnpm run build` validates bundle compilation.
 
 There are no tests for storage migration/compatibility, permission request
 flows, command settings merging, URL rule validation, or cross-tab storage
@@ -93,4 +95,3 @@ sync.
   do not currently cover every context-specific command source.
 - URL pattern validation is custom and should get focused tests before the
   pattern language grows.
-

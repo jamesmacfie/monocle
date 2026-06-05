@@ -4,10 +4,11 @@ import { useSendMessage } from "../../hooks/useSendMessage"
 import { useAppDispatch } from "../../store/hooks"
 import { refreshPermissions } from "../../store/slices/settings.slice"
 import { isFirefox } from "../../utils/browser"
+import { getBrowserAPI } from "../../utils/extension-api"
 import { CommandName } from "./CommandName"
 
 // Cross-browser compatibility layer
-const browserAPI = typeof browser !== "undefined" ? browser : chrome
+const browserAPI = getBrowserAPI()
 
 interface PermissionActionsProps {
   missingPermissions: PermissionKey[]

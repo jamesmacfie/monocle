@@ -1,5 +1,6 @@
 import type { ActionCommandNode } from "../../../shared/types"
 import type { Workflow } from "../../../shared/types/workflow"
+import { getBrowserAPI } from "../../../shared/utils/extension-api"
 import { showToast } from "../../messages/showToast"
 import { sendMessageToActiveTab } from "../../utils/runtime"
 
@@ -13,7 +14,7 @@ export const debugWorkflow: ActionCommandNode = {
   actionLabel: "Run Debug Test",
   execute: async (context) => {
     // Close the command palette by sending a message to the content script
-    const browserAPI = typeof browser !== "undefined" ? browser : chrome
+    const browserAPI = getBrowserAPI()
 
     try {
       // First close the UI

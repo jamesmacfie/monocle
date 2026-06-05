@@ -43,9 +43,9 @@ Automated test coverage: missing.
 
 Build checks that currently touch this feature:
 
-- `npm run tsc` validates command definitions and browser utility types.
-- `npm run fmt:check` validates formatting/lint.
-- `npm run build` validates bundling.
+- `pnpm run tsc` validates command definitions and browser utility types.
+- `pnpm run fmt:check` validates formatting/lint.
+- `pnpm run build` validates bundling.
 
 There are no browser integration tests for tab mutations, permission prompts,
 bookmark/history/download queries, recently closed sessions, or Firefox-only

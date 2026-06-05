@@ -11,8 +11,8 @@ the root guidance changes.
 
 ## Project Overview
 
-Monocle is a browser extension built with Extension.js, TypeScript, React, and
-Redux. It provides a VS Code-style command palette for browser operations.
+Monocle is a browser extension built with WXT, TypeScript, React, and Redux. It
+provides a VS Code-style command palette for browser operations.
 
 It runs in two primary modes:
 
@@ -66,18 +66,20 @@ The docs baseline records the current system as follows:
 
 Validation from the docs baseline:
 
-- `npm run tsc` passes.
-- `npm run fmt:check` passes.
-- `npm run build` passes for the Chrome target.
-- `npm test` is currently a placeholder that exits with failure.
+- `pnpm run tsc` passes.
+- `pnpm run fmt:check` passes.
+- `pnpm run build` passes for the Chrome MV3 target.
+- `pnpm run build:firefox` passes for the Firefox MV3 target.
+- `pnpm test` is currently a placeholder that exits with failure.
 - Conventional automated test coverage is effectively absent.
 
-Always use `npm`, not `yarn`.
+Always use `pnpm`, not `npm` or `yarn`.
 
 ## Repository Shape
 
 ```text
 monocle/
+├── entrypoints/         # WXT background, content, and new-tab entrypoints
 ├── background/          # Service worker, commands, messages, keybindings
 ├── content/             # Content-script overlay and workflow executor
 ├── newtab/              # Browser new-tab replacement
@@ -193,7 +195,9 @@ Both content overlay and new-tab mode use the shared components under
 
 Important files:
 
-- `content/scripts.tsx`: injects the content overlay host.
+- `entrypoints/content.tsx`: defines the WXT content script and injects the
+  content overlay host.
+- `content/scripts.tsx`: renders the content palette into the WXT shadow host.
 - `content/components/ContentCommandPalette.tsx`: controls overlay visibility,
   settings, permissions, command fetching, and global keybindings.
 - `newtab/NewTabApp.tsx`: loads new-tab settings and renders the new-tab app.
@@ -216,8 +220,8 @@ regression checks.
 
 ## Permissions And Settings Contract
 
-Required manifest permissions are `activeTab` and `storage`. Optional
-permissions are requested on demand for browser command groups.
+Required generated manifest permissions are declared in `wxt.config.ts`.
+Optional permissions are requested on demand for browser command groups.
 
 Permission and setting changes should respect these invariants:
 
@@ -326,18 +330,21 @@ These are the easy traps to avoid:
 
 ## Development Commands
 
-Use npm scripts:
+Use pnpm scripts:
 
 ```bash
-npm run dev
-npm run dev:firefox
-npm run tsc
-npm run fmt:check
-npm run build
-npm run build:firefox
+pnpm run dev
+pnpm run dev:chrome
+pnpm run dev:firefox
+pnpm run tsc
+pnpm run fmt:check
+pnpm run build
+pnpm run build:firefox
+pnpm run build:zip
+pnpm run build:firefox:zip
 ```
 
-`npm run fmt` writes formatting changes. `npm test` is a placeholder failure
+`pnpm run fmt` writes formatting changes. `pnpm test` is a placeholder failure
 and should not be treated as a meaningful validation gate.
 
 ## Working Rules For Future Changes

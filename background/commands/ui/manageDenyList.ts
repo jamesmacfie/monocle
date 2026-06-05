@@ -4,6 +4,7 @@ import type {
   InputCommandNode,
   SubmitCommandNode,
 } from "../../../shared/types"
+import { showToast } from "../../messages/showToast"
 import { validateUrlPattern } from "../../utils/urlFilter"
 import { allCommands } from "../index"
 import { getCommandSettings, updateCommandSettings } from "../settings"
@@ -80,7 +81,6 @@ export const manageDenyList: GroupCommandNode = {
             },
           })
 
-          const { showToast } = require("../../messages/showToast")
           await showToast({
             type: "show-toast",
             level: "success",

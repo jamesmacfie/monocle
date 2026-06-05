@@ -2,9 +2,10 @@ import type {
   RequestPermissionMessage,
   RequestPermissionResponse,
 } from "../../shared/types"
+import { getBrowserAPI } from "../../shared/utils/extension-api"
 
 // Cross-browser compatibility layer
-const browserAPI = typeof browser !== "undefined" ? browser : chrome
+const browserAPI = getBrowserAPI()
 
 export async function requestPermission(
   message: RequestPermissionMessage,

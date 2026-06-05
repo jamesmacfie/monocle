@@ -9,6 +9,7 @@ import {
   selectClockVisibility,
   selectThemeMode,
 } from "../shared/store/slices/settings.slice"
+import { getBrowserAPI } from "../shared/utils/extension-api"
 import {
   applyThemeToDocument,
   setupSystemThemeListener,
@@ -18,7 +19,7 @@ import { Clock } from "./components/Clock"
 import { NewTabCommandPalette } from "./components/NewTabCommandPalette"
 
 // Cross-browser compatibility layer
-const browserAPI = typeof browser !== "undefined" ? browser : chrome
+const browserAPI = getBrowserAPI()
 
 function NewTabAppContent() {
   const showClock = useAppSelector(selectClockVisibility)

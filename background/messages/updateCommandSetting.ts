@@ -1,5 +1,6 @@
 import type { UpdateCommandSettingMessage } from "../../shared/types"
 import { updateCommandSettings } from "../commands/settings"
+import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { showToast } from "./showToast"
 
 export async function updateCommandSetting(
@@ -14,7 +15,6 @@ export async function updateCommandSetting(
 
   // Refresh keybinding registry if this was a keybinding update
   if (setting === "keybinding") {
-    const { refreshKeybindingRegistry } = require("../keybindings/registry")
     await refreshKeybindingRegistry()
 
     // Show success toast for keybinding updates

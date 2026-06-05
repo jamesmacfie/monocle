@@ -21,14 +21,16 @@ steps, and review findings without changing runtime code.
 
 Last verified in this baseline pass:
 
-- `npm run tsc` passes.
-- `npm run fmt:check` passes.
-- `npm run build` passes for the Chrome target.
-- `npm test` is not a useful gate: it is currently a placeholder that exits with failure.
+- `pnpm run tsc` passes.
+- `pnpm run fmt:check` passes.
+- `pnpm run build` passes for the Chrome MV3 target through WXT.
+- `pnpm run build:firefox` passes for the Firefox MV3 target through WXT.
+- `pnpm test` is not a useful gate: it is currently a placeholder that exits with failure.
 - No conventional test files were found through the usual `*.test.*`, `*.spec.*`, `tests`, or `__tests__` patterns.
 
-The Chrome build emits dependency freshness warnings for browser data packages,
-but no extension build errors.
+The WXT builds emit chunk-size warnings for the content and new-tab bundles and
+an ineffective dynamic import warning for `settings.slice.ts`, but no extension
+build errors.
 
 ## Dirty Worktree Note
 
@@ -70,4 +72,3 @@ contains the GitHub contextual command prototype and is reviewed in
   website commands need explicit review.
 - Automated coverage is effectively absent. Manual test lists in these docs are
   the current safety net until a real test harness is added.
-

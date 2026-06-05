@@ -7,7 +7,9 @@ import type {
 export async function getUnsplashBackground(
   _message: GetUnsplashBackgroundMessage,
 ): Promise<UnsplashBackgroundResponse> {
-  const accessKey = process.env.EXTENSION_PUBLIC_UNSPLASH_ACCESS_KEY
+  const accessKey =
+    import.meta.env.WXT_UNSPLASH_ACCESS_KEY ||
+    import.meta.env.EXTENSION_PUBLIC_UNSPLASH_ACCESS_KEY
 
   if (!accessKey) {
     return {

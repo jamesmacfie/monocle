@@ -48,9 +48,9 @@ Automated test coverage: missing.
 
 Build checks that currently touch this feature:
 
-- `npm run tsc` validates keybinding types and message shapes.
-- `npm run fmt:check` validates formatting/lint.
-- `npm run build` validates content/new-tab/background bundles.
+- `pnpm run tsc` validates keybinding types and message shapes.
+- `pnpm run fmt:check` validates formatting/lint.
+- `pnpm run build` validates content/new-tab/background bundles.
 
 There are no tests for canonical normalization, editable passthrough,
 multi-stroke timing, conflict detection, custom capture, registry refresh, or
