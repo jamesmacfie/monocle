@@ -5,6 +5,7 @@ import {
   buildCommandExecutionRequest,
   extractParentNames,
   getPageExecutionScope,
+  shouldRefreshCommandsAfterExecution,
 } from "./commandExecution"
 
 const parent: Suggestion = {
@@ -76,5 +77,10 @@ describe("command execution request", () => {
     }
 
     expect(getPageExecutionScope(root)).toBeUndefined()
+  })
+
+  it("refreshes command data after commands that remain open", () => {
+    expect(shouldRefreshCommandsAfterExecution(false)).toBe(true)
+    expect(shouldRefreshCommandsAfterExecution(true)).toBe(false)
   })
 })

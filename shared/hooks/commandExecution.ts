@@ -59,3 +59,9 @@ export function buildCommandExecutionRequest(
     executionScope: getPageExecutionScope(currentPage),
   }
 }
+
+export function shouldRefreshCommandsAfterExecution(
+  shouldNavigateBack: boolean,
+): boolean {
+  return !shouldNavigateBack
+}

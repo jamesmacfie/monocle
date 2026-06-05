@@ -13,7 +13,7 @@ steps, and review findings without changing runtime code.
 | Browser commands | Working with review notes | Permission inheritance and high-risk keybinding policy are covered by focused tests; manual Chrome/Firefox checks are still needed. |
 | Keybindings | Partial | Global capture, sequences, and custom keybindings exist, but registry coverage is uneven. |
 | Permissions and settings | Working with review notes | Optional permission flow and persisted command settings exist; some settings flows need manual validation. |
-| URL filtering and website plugins | Partial | `urlRules` is implemented and the GitHub/contextual command prototype is loaded, but there is still no first-class plugin registry. |
+| URL filtering and website plugins | Partial | `urlRules` is implemented, covered by focused tests, and the GitHub/contextual command prototype remains a URL-filtered command source rather than a first-class plugin registry. |
 | Workflow automation | Partial | Click workflows are implemented; wait is a no-op and most typed operations are unsupported. |
 | New tab and theme | Working with unknowns | New-tab commands and theme state are wired, but visual/manual coverage is needed. |
 
@@ -23,8 +23,8 @@ Last verified in this baseline pass:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
-- `pnpm test` passes with the current focused command-system and browser-command
-  Vitest coverage.
+- `pnpm test` passes with the current focused command-system, browser-command,
+  URL-filtering, settings-management, and GitHub parsing Vitest coverage.
 - `pnpm run build` passes for the Chrome MV3 target through WXT.
 - `pnpm run build:firefox` passes for the Firefox MV3 target through WXT.
 
@@ -60,14 +60,16 @@ contains the GitHub contextual command prototype and is reviewed in
 - GitHub contextual commands exist in `background/commands/websites/` and are
   loaded by `background/commands/source.ts`, but website commands are still just
   command arrays with URL rules rather than a first-class plugin system.
-- URL filtering is real and persisted through command settings, but it is a
-  command-level filtering mechanism rather than a plugin registry.
+- URL filtering is real, persisted through command settings, and covered by
+  focused tests, but it is a command-level filtering mechanism rather than a
+  plugin registry.
 - Workflow automation has a broad type model, but the content executor only
   meaningfully implements `click`; `wait` returns success without checking a
   condition.
 - The keybinding registry does not load every command source uniformly. Browser,
   tool, Firefox, and deep-search commands are registered, while UI/new-tab and
   website commands need explicit review.
-- Automated coverage now exists for the command-system and browser-command
-  background paths, but coverage remains narrow. Manual test lists in these docs
-  are still needed for browser integration behavior.
+- Automated coverage now exists for the command-system, browser-command, URL
+  filtering, settings-management, and GitHub parsing background paths, but
+  coverage remains narrow. Manual test lists in these docs are still needed for
+  browser integration behavior.

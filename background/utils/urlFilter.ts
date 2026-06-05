@@ -18,6 +18,67 @@ export function extractDomain(url: string): string {
   }
 }
 
+const getHostnameFromDomain = (domain: string): string => {
+  const trimmedDomain = domain.trim()
+
+  if (trimmedDomain.startsWith("[")) {
+    const closingBracketIndex = trimmedDomain.indexOf("]")
+    return closingBracketIndex === -1
+      ? trimmedDomain
+      : trimmedDomain.slice(0, closingBracketIndex + 1)
+  }
+
+  const colonCount = (trimmedDomain.match(/:/g) ?? []).length
+  if (colonCount > 1) {
+    return trimmedDomain
+  }
+
+  return trimmedDomain.split(":")[0]
+}
+
+const stripIpv6Brackets = (hostname: string): string => {
+  return hostname.startsWith("[") && hostname.endsWith("]")
+    ? hostname.slice(1, -1)
+    : hostname
+}
+
+const isIPv4Address = (hostname: string): boolean => {
+  const parts = hostname.split(".")
+
+  return (
+    parts.length === 4 &&
+    parts.every((part) => {
+      if (!/^\d{1,3}$/.test(part)) {
+        return false
+      }
+
+      const value = Number(part)
+      return value >= 0 && value <= 255
+    })
+  )
+}
+
+const isIPv6Address = (hostname: string): boolean => {
+  const normalizedHostname = stripIpv6Brackets(hostname)
+
+  return (
+    normalizedHostname.includes(":") &&
+    /^[0-9a-fA-F:.]+$/.test(normalizedHostname)
+  )
+}
+
+const isLocalhostOrIpAddress = (domain: string): boolean => {
+  const hostname = getHostnameFromDomain(domain).toLowerCase()
+  const normalizedHostname = stripIpv6Brackets(hostname)
+
+  return (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "0.0.0.0" ||
+    isIPv4Address(normalizedHostname) ||
+    isIPv6Address(normalizedHostname)
+  )
+}
+
 /**
  * Creates a URL pattern for a domain that matches all paths and subdomains
  * Examples:
@@ -25,22 +86,13 @@ export function extractDomain(url: string): string {
  * - localhost:3000 -> *://localhost:3000/*
  */
 export function createUrlPatternForDomain(domain: string): string {
-  // List of local addresses that shouldn't have wildcard subdomains
-  const LOCAL_ADDRESSES = ["localhost", "127.0.0.1", "::1", "0.0.0.0", "[::1]"]
+  const normalizedDomain = domain.trim()
 
-  // Check if it's a local address
-  const isLocalAddress = LOCAL_ADDRESSES.some((addr) => domain.startsWith(addr))
-
-  // Check if it's an IP address (IPv4 or IPv6)
-  const isIPAddress =
-    /^\d+\.\d+\.\d+\.\d+/.test(domain) || /^\[?[0-9a-fA-F:]+\]?/.test(domain)
-
-  // For localhost, IP addresses, don't add wildcard subdomain
-  if (isLocalAddress || isIPAddress) {
-    return `*://${domain}/*`
+  if (isLocalhostOrIpAddress(normalizedDomain)) {
+    return `*://${normalizedDomain}/*`
   }
-  // For regular domains, allow subdomains
-  return `*://*.${domain}/*`
+
+  return `*://*.${normalizedDomain}/*`
 }
 
 /**
@@ -48,18 +100,42 @@ export function createUrlPatternForDomain(domain: string): string {
  * Returns true if valid, or an error message if invalid
  */
 export function validateUrlPattern(pattern: string): true | string {
-  if (!pattern || pattern.trim() === "") {
+  const normalizedPattern = pattern.trim()
+
+  if (!normalizedPattern) {
     return "Pattern cannot be empty"
   }
 
-  // Check for some common invalid patterns
-  if (pattern.includes(" ") && !pattern.includes("*")) {
-    return "Pattern contains spaces - did you mean to use wildcards?"
+  if (/\s/.test(normalizedPattern)) {
+    return "Pattern cannot contain whitespace"
+  }
+
+  if (normalizedPattern.includes("://")) {
+    const protocolMatch = normalizedPattern.match(/^([^:]+):\/\/(.*)$/)
+
+    if (!protocolMatch) {
+      return "Pattern protocol is invalid"
+    }
+
+    const [, protocol, rest] = protocolMatch
+    if (!["*", "http", "https"].includes(protocol.toLowerCase())) {
+      return "Pattern protocol must be http, https, or *"
+    }
+
+    const host = rest.split("/")[0]
+    if (!host) {
+      return "Pattern host cannot be empty"
+    }
+  } else {
+    const host = normalizedPattern.split("/")[0]
+    if (!host || host.startsWith(":")) {
+      return "Pattern host cannot be empty"
+    }
   }
 
   // Try to convert to regex to check validity
   try {
-    patternToRegex(pattern)
+    patternToRegex(normalizedPattern)
     return true
   } catch {
     return "Invalid pattern format"
@@ -75,11 +151,13 @@ export function validateUrlPattern(pattern: string): true | string {
  * - example.com (exact domain match)
  */
 function patternToRegex(pattern: string): RegExp {
+  const normalizedPattern = pattern.trim()
+
   // Escape special regex characters except *
-  let regexStr = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+  let regexStr = normalizedPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&")
 
   // Treat '*.domain' segments as an optional subdomain so the base domain still matches
-  regexStr = regexStr.replace(/\*\\\./g, "(?:.*\\.)?")
+  regexStr = regexStr.replace(/\*\\\./g, "(?:[^/]+\\.)?")
 
   // Convert remaining wildcards to greedy matches
   regexStr = regexStr.replace(/\*/g, ".*")
@@ -102,8 +180,14 @@ function patternToRegex(pattern: string): RegExp {
  */
 export function matchesUrlPattern(url: string, patterns: string[]): boolean {
   return patterns.some((pattern) => {
+    const normalizedPattern = pattern.trim()
+
+    if (!normalizedPattern) {
+      return false
+    }
+
     try {
-      const regex = patternToRegex(pattern)
+      const regex = patternToRegex(normalizedPattern)
       return regex.test(url)
     } catch (error) {
       console.error(`Invalid URL pattern: ${pattern}`, error)

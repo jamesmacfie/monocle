@@ -5,6 +5,7 @@ const { useEffect, useCallback } = React
 
 import { CommandPalette } from "../../shared/components/Command"
 import { ToastContainer } from "../../shared/components/ToastContainer"
+import { shouldRefreshCommandsAfterExecution } from "../../shared/hooks/commandExecution"
 import { useCommandPaletteStateRedux } from "../../shared/hooks/useCommandPaletteStateRedux"
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
@@ -64,9 +65,15 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
           executionScope,
         })
 
-        if (response.success && navigateBack) {
-          hideUI() // Close palette in content script mode
-          onClose?.() // Call additional close handler if provided
+        if (response.success) {
+          if (shouldRefreshCommandsAfterExecution(navigateBack)) {
+            await fetchCommands()
+          }
+
+          if (navigateBack) {
+            hideUI() // Close palette in content script mode
+            onClose?.() // Call additional close handler if provided
+          }
         }
 
         // TODO: Handle errors
@@ -77,7 +84,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
         )
       }
     },
-    [hideUI, onClose, sendMessage],
+    [fetchCommands, hideUI, onClose, sendMessage],
   )
 
   const handleClose = useCallback(() => {

@@ -1,15 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
-import type { Browser, GroupCommandNode } from "../../shared/types"
+import type {
+  Browser,
+  CommandNode,
+  GroupCommandNode,
+  SubmitCommandNode,
+} from "../../shared/types"
 import { initializeKeybindingRegistry } from "../keybindings/registry"
 import { executeKeybinding } from "../messages/executeKeybinding"
+import { getChildrenCommands } from "../messages/getChildrenCommands"
 import { getCommands as getCommandMessage } from "../messages/getCommands"
 import { toggleFavoriteCommandId } from "./favorites"
 import { commandsToSuggestions, executeCommand, getCommands } from "./index"
-import { updateCommandSettings } from "./settings"
+import {
+  clearAllSettings,
+  getCommandSettings,
+  updateCommandSettings,
+} from "./settings"
 import { loadAllCommands } from "./source"
 import { calculator } from "./tools/calculator"
 import { googleSearch } from "./tools/googleSearch"
+import { manageAllowList } from "./ui/manageAllowList"
+import { manageDenyList } from "./ui/manageDenyList"
 import { getCommandUsageStats, getRankedCommandIds } from "./usage"
 
 type TestTab = {
@@ -157,13 +169,29 @@ const installChromeStubs = () => {
   vi.stubGlobal("chrome", chromeApi)
 }
 
-beforeEach(() => {
+const _getChildren = async (
+  id: string,
+  context: Browser.Context = normalContext,
+  parentPath: string[] = [],
+  searchValue?: string,
+) => {
+  return (await getChildrenCommands({
+    type: "get-children-commands",
+    id,
+    parentPath,
+    searchValue,
+    context,
+  })) as any
+}
+
+beforeEach(async () => {
   fakeBrowser.reset()
   tabs = defaultTabs.map((tab) => ({ ...tab }))
   tabMessages = []
   createdTabs = []
   permissionGranted = true
   installChromeStubs()
+  await clearAllSettings()
 })
 
 describe("command loading", () => {
@@ -410,6 +438,48 @@ describe("favorites and deep search", () => {
 })
 
 describe("URL-filtered execution", () => {
+  it("filters URL-denied root commands from suggestions and favorites", async () => {
+    await toggleFavoriteCommandId("open-new-tab")
+    await updateCommandSettings("open-new-tab", {
+      urlRules: { denyUrls: ["*://example.com/*"] },
+    })
+
+    const commands = await getCommands(normalContext)
+
+    expect(commands.suggestions.map((command) => command.id)).not.toContain(
+      "open-new-tab",
+    )
+    expect(commands.favorites.map((command) => command.id)).not.toContain(
+      "open-new-tab",
+    )
+  })
+
+  it("filters URL-denied child commands from child pages and deep search", async () => {
+    await updateCommandSettings("open-tab-2", {
+      urlRules: { denyUrls: ["*://example.com/*"] },
+    })
+
+    const childResponse = await _getChildren("open-tabs")
+    expect(
+      childResponse.children.map((item: { id: string }) => item.id),
+    ).toContain("open-tab-1")
+    expect(
+      childResponse.children.map((item: { id: string }) => item.id),
+    ).not.toContain("open-tab-2")
+
+    const rootResponse = (await getCommandMessage({
+      type: "get-commands",
+      context: normalContext,
+    })) as any
+
+    expect(
+      rootResponse.deepSearchItems.map((item: { id: string }) => item.id),
+    ).toContain("open-tab-1")
+    expect(
+      rootResponse.deepSearchItems.map((item: { id: string }) => item.id),
+    ).not.toContain("open-tab-2")
+  })
+
   it("blocks URL-denied commands through direct execution and keybindings", async () => {
     await updateCommandSettings("open-new-tab", {
       urlRules: { denyUrls: ["*://example.com/*"] },
@@ -429,5 +499,121 @@ describe("URL-filtered execution", () => {
 
     expect(response).toMatchObject({ success: false })
     expect(createdTabs).toHaveLength(0)
+  })
+
+  it("stores generated hide-from-domain deny patterns", async () => {
+    const docsContext: Browser.Context = {
+      url: "https://docs.example.com/reference",
+      title: "Docs",
+      modifierKey: null,
+    }
+
+    await executeCommand("hide-from-domain-bookmarks", docsContext, {})
+
+    await expect(getCommandSettings("bookmarks")).resolves.toEqual({
+      urlRules: {
+        denyUrls: ["*://*.docs.example.com/*"],
+      },
+    })
+  })
+})
+
+describe("URL rule management commands", () => {
+  const getManagementSubmit = async (
+    command: CommandNode,
+    groupId: string,
+    submitId: string,
+  ): Promise<SubmitCommandNode> => {
+    if (command.type !== "group") {
+      throw new Error("Expected management command to be a group")
+    }
+
+    const groups = await command.children(normalContext)
+    const group = groups.find((child) => child.id === groupId)
+
+    if (!group || group.type !== "group") {
+      throw new Error(`Expected to find group ${groupId}`)
+    }
+
+    const children = await group.children(normalContext)
+    const submit = children.find((child) => child.id === submitId)
+
+    if (!submit || submit.type !== "submit") {
+      throw new Error(`Expected to find submit command ${submitId}`)
+    }
+
+    return submit
+  }
+
+  it("includes website and new-tab command sources in URL-rule management", async () => {
+    const allowGroups = await manageAllowList.children(normalContext)
+    const denyGroups = await manageDenyList.children(normalContext)
+
+    expect(allowGroups.map((command) => command.id)).toContain(
+      "github-actions-allow-group",
+    )
+    expect(allowGroups.map((command) => command.id)).toContain(
+      "new-tab-clock-allow-group",
+    )
+    expect(denyGroups.map((command) => command.id)).toContain(
+      "github-actions-deny-group",
+    )
+    expect(denyGroups.map((command) => command.id)).toContain(
+      "new-tab-clock-deny-group",
+    )
+  })
+
+  it("preserves deny rules and keybindings when saving an allow list", async () => {
+    await updateCommandSettings("open-new-tab", {
+      keybinding: "<cmd-y>",
+      urlRules: {
+        denyUrls: ["*://blocked.example.com/*"],
+      },
+    })
+
+    const submit = await getManagementSubmit(
+      manageAllowList,
+      "open-new-tab-allow-group",
+      "open-new-tab-save-allow",
+    )
+
+    await submit.execute(normalContext, {
+      "allow-patterns": "*://allowed.example.com/*",
+    })
+
+    await expect(getCommandSettings("open-new-tab")).resolves.toEqual({
+      keybinding: "<cmd-y>",
+      urlRules: {
+        denyUrls: ["*://blocked.example.com/*"],
+        allowUrls: ["*://allowed.example.com/*"],
+      },
+    })
+  })
+
+  it("preserves allow rules and keybindings when saving a deny list", async () => {
+    await updateCommandSettings("open-new-tab", {
+      keybinding: "<cmd-y>",
+      urlRules: {
+        allowUrls: ["*://allowed.example.com/*"],
+      },
+    })
+
+    const submit = await getManagementSubmit(
+      manageDenyList,
+      "open-new-tab-deny-group",
+      "open-new-tab-save-deny",
+    )
+
+    await submit.execute(normalContext, {
+      "deny-patterns": "*://blocked.example.com/*",
+    })
+
+    await expect(getCommandSettings("open-new-tab")).resolves.toEqual({
+      keybinding: "<cmd-y>",
+      urlRules: {
+        allowUrls: ["*://allowed.example.com/*"],
+        denyUrls: ["*://blocked.example.com/*"],
+      },
+    })
   })
 })

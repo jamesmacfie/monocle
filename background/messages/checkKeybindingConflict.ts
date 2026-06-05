@@ -1,14 +1,16 @@
 import type { CheckKeybindingConflictMessage } from "../../shared/types"
-import { allCommands } from "../commands"
 import { getAllCommandSettings } from "../commands/settings"
+import { loadUserConfigurableCommands } from "../commands/userConfigurableCommands"
 
 export const checkKeybindingConflict = async ({
   keybinding,
   excludeCommandId,
 }: CheckKeybindingConflictMessage) => {
   try {
+    const commands = loadUserConfigurableCommands()
+
     // Check default keybindings from all commands
-    for (const command of allCommands) {
+    for (const command of commands) {
       if (command.id === excludeCommandId) continue
       if (command.type === "action" && command.keybinding === keybinding) {
         return {
@@ -27,7 +29,7 @@ export const checkKeybindingConflict = async ({
       if (commandId === excludeCommandId) continue
       if (settings.keybinding === keybinding) {
         // Find the command to get its name
-        const command = allCommands.find((c) => c.id === commandId)
+        const command = commands.find((c) => c.id === commandId)
         return {
           hasConflict: true,
           conflictingCommand: {

@@ -6,8 +6,8 @@ import type {
 } from "../../../shared/types"
 import { showToast } from "../../messages/showToast"
 import { validateUrlPattern } from "../../utils/urlFilter"
-import { allCommands } from "../index"
 import { getCommandSettings, updateCommandSettings } from "../settings"
+import { loadUserConfigurableCommands } from "../userConfigurableCommands"
 
 export const manageDenyList: GroupCommandNode = {
   type: "group",
@@ -28,7 +28,7 @@ export const manageDenyList: GroupCommandNode = {
     const commands: CommandNode[] = []
 
     // Add each command as a group with inputs for its deny rules
-    for (const command of allCommands) {
+    for (const command of loadUserConfigurableCommands()) {
       // Get current settings for this command
       const settings = await getCommandSettings(command.id)
       const currentDenyUrls = settings?.urlRules?.denyUrls || []

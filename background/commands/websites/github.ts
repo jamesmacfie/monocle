@@ -23,6 +23,7 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set<string>([
   "contact",
   "customer-stories",
   "enterprise",
+  "enterprises",
   "events",
   "explore",
   "features",
@@ -35,14 +36,19 @@ const RESERVED_TOP_LEVEL_SLUGS = new Set<string>([
   "organizations",
   "pricing",
   "pulls",
+  "repositories",
+  "search",
   "security",
   "settings",
   "site",
   "sponsors",
+  "stars",
   "topics",
+  "trending",
+  "users",
 ])
 
-type GithubPageDetails = {
+export type GithubPageDetails = {
   owner: string
   repo: string
   type: "repo" | "pull" | "issue"
@@ -51,7 +57,7 @@ type GithubPageDetails = {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const parseGithubPage = (url?: string): GithubPageDetails | null => {
+export const parseGithubPage = (url?: string): GithubPageDetails | null => {
   if (!url) {
     return null
   }
@@ -133,6 +139,7 @@ const executeGithubWorkflow = async (
   workflow: Workflow,
   context?: Browser.Context,
   successMessage?: string,
+  failureMessage = "Failed to run GitHub page automation",
 ) => {
   try {
     // Close the palette to prevent the overlay from intercepting clicks
@@ -156,9 +163,8 @@ const executeGithubWorkflow = async (
     }
   } catch (error) {
     console.error("[GitHub Commands] Workflow execution failed", error)
-    await sendErrorToastToActiveTab(
-      error instanceof Error ? error.message : "Failed to run workflow",
-    )
+    const detail = error instanceof Error ? error.message : "Unknown error"
+    await sendErrorToastToActiveTab(`${failureMessage}: ${detail}`)
   }
 }
 
@@ -172,7 +178,8 @@ const createToggleStarCommand = ({
     type: "action",
     id: "github-toggle-star",
     name: "Toggle Star",
-    description: "Star or unstar the current repository",
+    description:
+      "Best-effort page automation for clicking the current repository star button",
     icon: { type: "lucide", name: "Star" },
     color: "yellow",
     keywords: ["github", "star", owner, repo],
@@ -181,7 +188,8 @@ const createToggleStarCommand = ({
       await executeGithubWorkflow(
         toggleStarWorkflow,
         context,
-        `Toggled star for ${repoSlug}`,
+        `Ran star toggle for ${repoSlug}`,
+        "Could not click the GitHub star button on this page",
       )
     },
   }
