@@ -1,4 +1,5 @@
 import * as React from "react"
+import type { CommandExecutionScope } from "../../shared/types"
 
 const { useEffect, useCallback } = React
 
@@ -44,6 +45,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
       formValues: Record<string, string | string[]>,
       navigateBack: boolean = true,
       parentNames?: string[],
+      executionScope?: CommandExecutionScope,
     ) => {
       try {
         const response = await sendMessageWithNewTab({
@@ -51,6 +53,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
           id,
           formValues,
           parentNames,
+          executionScope,
         })
 
         if (response.success) {

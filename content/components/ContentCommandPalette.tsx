@@ -1,4 +1,5 @@
 import * as React from "react"
+import type { CommandExecutionScope } from "../../shared/types"
 
 const { useEffect, useCallback } = React
 
@@ -80,6 +81,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
       formValues: Record<string, string | string[]>,
       navigateBack: boolean = true,
       parentNames?: string[],
+      executionScope?: CommandExecutionScope,
     ) => {
       try {
         const response = await sendMessage({
@@ -87,6 +89,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
           id,
           formValues,
           parentNames,
+          executionScope,
         })
 
         if (response.success && navigateBack) {

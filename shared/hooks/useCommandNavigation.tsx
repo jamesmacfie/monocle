@@ -1,6 +1,6 @@
 import type { RefObject } from "react"
 import { useEffect, useRef } from "react"
-import type { Suggestion } from "../../shared/types"
+import type { CommandExecutionScope, Suggestion } from "../../shared/types"
 import { getDisplayName } from "../components/Command/CommandName"
 import { useAppDispatch, useAppSelector } from "../store/hooks"
 import { startCapture } from "../store/slices/keybinding.slice"
@@ -107,6 +107,7 @@ export function useCommandNavigation(
     formValues: Record<string, string | string[]>,
     navigateBack?: boolean,
     parentNames?: string[],
+    executionScope?: CommandExecutionScope,
   ) => Promise<void>,
 ) {
   const dispatch = useAppDispatch()

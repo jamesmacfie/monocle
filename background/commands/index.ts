@@ -1,6 +1,9 @@
-import { match } from "ts-pattern"
-import type { Browser, CommandNode, Suggestion } from "../../shared/types"
-import { isFirefox } from "../../shared/utils/browser"
+import type {
+  Browser,
+  CommandExecutionScope,
+  CommandNode,
+  Suggestion,
+} from "../../shared/types"
 import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { showToast } from "../messages/showToast"
 import {
@@ -9,431 +12,263 @@ import {
   resolveModifierActionLabels,
 } from "../utils/commands"
 import { checkPermissions } from "../utils/permissions"
+import { createUrlPatternForDomain, extractDomain } from "../utils/urlFilter"
+import { getFavoriteCommandIds, toggleFavoriteCommandId } from "./favorites"
 import {
-  createUrlPatternForDomain,
-  extractDomain,
-  filterCommandsByUrl,
-} from "../utils/urlFilter"
-import { browserCommands, firefoxCommands } from "./browser"
+  type GeneratedCommandAction,
+  parseGeneratedCommandAction,
+} from "./generatedActions"
 import {
-  clearFavoritesCommand,
-  getFavoriteCommandIds,
-  toggleFavoriteCommandId,
-} from "./favorites"
-import { newTabCommands } from "./newTab"
+  getCommandCollections,
+  normalizeContext,
+  type ResolvedCommand,
+  resolveCommandById,
+  resolveCommandInPage,
+} from "./query"
 import {
   getAllCommandSettings,
   getCommandSettings,
   removeCommandSettings,
   updateCommandSettings,
 } from "./settings"
-import { toolCommands } from "./tools"
-import { uiCommands } from "./ui"
-import { getRankedCommandIds } from "./usage"
+import { allCommands, loadAllCommands } from "./source"
+import { recordCommandUsage } from "./usage"
 
-// Helper function to load and filter all commands
-const loadAllCommands = (context?: Browser.Context): Array<CommandNode> => {
-  // First load in common browser commands
-  const allCommandsUnfiltered = [
-    ...browserCommands,
-    ...toolCommands,
-    ...uiCommands,
-    clearFavoritesCommand,
-  ]
+export { allCommands, loadAllCommands }
 
-  // Add new tab specific commands only if on new tab page
-  if (context?.isNewTab) {
-    allCommandsUnfiltered.push(...newTabCommands)
-  }
-
-  // Then, go and grab browser specific commands
-  if (isFirefox) {
-    allCommandsUnfiltered.push(...firefoxCommands)
-  }
-
-  // Filter commands based on browser compatibility
-  return allCommandsUnfiltered.filter((command) => {
-    // If no browsers property is defined, the command works everywhere
-    if (!("supportedBrowsers" in command) || !command.supportedBrowsers) {
-      return true
-    }
-
-    // Check if the command works in the current browser
-    return isFirefox
-      ? command.supportedBrowsers.includes("firefox")
-      : command.supportedBrowsers.includes("chrome")
-  })
-}
-
-// Export all commands for use in other modules (without context for general use)
-export const allCommands = loadAllCommands()
-
-// Helper function to recursively find all favorited commands including sub-commands
-const findFavoritedCommands = async (
-  commands: Array<CommandNode>,
-  favoriteCommandIds: string[],
-  context: Browser.Context,
-  parentName?: string,
-): Promise<Array<CommandNode>> => {
-  const favoritedCommands: Array<CommandNode> = []
-
-  for (const command of commands) {
-    // Check if this command is favorited
-    if (favoriteCommandIds.includes(command.id)) {
-      // If it's a sub-command, we need to modify its name to show parent context
-      if (parentName) {
-        const resolvedName = await resolveAsyncProperty(command.name, context)
-
-        // Create a new command object with the modified name
-        const modifiedCommand = {
-          ...command,
-          name: Array.isArray(resolvedName)
-            ? resolvedName
-            : [resolvedName!, parentName],
-        }
-        favoritedCommands.push(modifiedCommand)
-      } else {
-        favoritedCommands.push(command)
-      }
-    }
-
-    // If this is a ParentCommand, recursively search its children
-    if (command.type === "group") {
-      try {
-        const children = await command.children(context)
-        const commandName = await resolveAsyncProperty(command.name, context)
-        const parentNameString = Array.isArray(commandName)
-          ? commandName[0]
-          : commandName!
-
-        const favoritedChildren = await findFavoritedCommands(
-          children,
-          favoriteCommandIds,
-          context,
-          parentNameString,
-        )
-        favoritedCommands.push(...favoritedChildren)
-      } catch (error) {
-        console.error(
-          `Error getting children for command ${command.id}:`,
-          error,
-        )
-      }
-    }
-  }
-
-  return favoritedCommands
-}
-
-// Helper function to process suggestions (remaining commands ranked by usage)
-const _processSuggestions = async (
-  allCommands: Array<CommandNode>,
-  addedCommandIds: Set<string>,
-): Promise<Array<CommandNode>> => {
-  // Get usage-based ranking for suggestions
-  const rankedCommandIds = await getRankedCommandIds()
-
-  // Create a map for quick lookup of ranking position
-  const rankingMap = new Map<string, number>()
-  rankedCommandIds.forEach((id, index) => {
-    rankingMap.set(id, index)
-  })
-
-  // Add remaining commands without duplicates, sorted by usage ranking
-  const remainingCommands = allCommands.filter(
-    (command: any) => !addedCommandIds.has(command.id),
-  )
-
-  // Sort remaining commands by their usage ranking (commands with no usage data go to the end)
-  remainingCommands.sort((a: any, b: any) => {
-    const rankA = rankingMap.get(a.id) ?? Number.MAX_SAFE_INTEGER
-    const rankB = rankingMap.get(b.id) ?? Number.MAX_SAFE_INTEGER
-    return rankA - rankB
-  })
-
-  return remainingCommands
-}
-
-// Function to get all commands, including dynamically generated ones
 export const getCommands = async (
   context?: Browser.Context,
 ): Promise<{
-  favorites: Array<CommandNode>
-  suggestions: Array<CommandNode>
+  favorites: CommandNode[]
+  suggestions: CommandNode[]
+  deepSearchCommands: CommandNode[]
 }> => {
-  const allCommands = loadAllCommands(context)
-
-  // Get all command settings for URL filtering
-  const commandSettings = await getAllCommandSettings()
-
-  // Filter commands based on URL rules
-  const filteredCommands = await filterCommandsByUrl(
-    allCommands,
-    context?.url || "",
-    commandSettings,
-  )
-
-  const favoriteResult: Array<CommandNode> = []
-  const suggestionsResult: Array<CommandNode> = []
-  const addedCommandIds = new Set<string>()
-
-  // Add favorite commands first
-  const favoriteCommandIds = await getFavoriteCommandIds()
-
-  // Create a basic execution context for resolving command children
-  // Preserve the isNewTab flag from the input context
-  const basicContext: Browser.Context = {
-    url: "",
-    title: "",
-    modifierKey: null,
-    isNewTab: context?.isNewTab,
-  }
-
-  // Find all favorited commands including sub-commands
-  const favoritedCommands = await findFavoritedCommands(
-    filteredCommands,
-    favoriteCommandIds,
-    basicContext,
-  )
-
-  // Add favorited commands to results and track their IDs
-  for (const favoriteCommand of favoritedCommands) {
-    favoriteResult.push(favoriteCommand)
-    addedCommandIds.add(favoriteCommand.id)
-  }
-
-  // Process remaining commands as suggestions
-  const suggestions = await _processSuggestions(
-    filteredCommands,
-    addedCommandIds,
-  )
-  suggestionsResult.push(...suggestions)
-
-  return {
-    favorites: favoriteResult,
-    suggestions: suggestionsResult,
-  }
+  return await getCommandCollections(context)
 }
 
-// Helper function to find a command with depth-first traversal
 export const findCommand = async (
-  commands: Array<CommandNode>,
+  _commands: CommandNode[],
   commandId: string,
   context: Browser.Context,
 ): Promise<CommandNode | undefined> => {
-  // First try to find the command directly in the current level
-  const directCommand = commands.find((cmd) => cmd.id === commandId)
-  if (directCommand) {
-    return directCommand
-  }
-
-  // If not found, recursively search children of commands that have children
-  for (const command of commands) {
-    // Group node children
-    if (command.type === "group") {
-      const children = await command.children(context)
-      const foundInChildren = await findCommand(
-        children as Array<CommandNode>,
-        commandId,
-        context,
-      )
-      if (foundInChildren) {
-        return foundInChildren
-      }
-    }
-
-    // No action search at node level (actions are created dynamically)
-  }
-
-  return undefined
+  return (await resolveCommandById(commandId, context))?.command
 }
 
-// Helper function to find a Suggestion (with execution context) from suggestions list
-const findCommandSuggestion = (
-  suggestions: Suggestion[],
-  commandId: string,
-): Suggestion | undefined => {
-  // Search in suggestions and their actions recursively
-  for (const suggestion of suggestions) {
-    if (suggestion.id === commandId) {
-      return suggestion
-    }
+const showMissingPermissionsToast = async (
+  missingPermissions: string[],
+): Promise<void> => {
+  const permissionList = missingPermissions
+    .map(
+      (permission) => permission.charAt(0).toUpperCase() + permission.slice(1),
+    )
+    .join(", ")
 
-    // Search in actions if they exist
-    if (
-      (suggestion.type === "action" ||
-        suggestion.type === "submit" ||
-        suggestion.type === "group" ||
-        suggestion.type === "search") &&
-      suggestion.actions &&
-      Array.isArray(suggestion.actions)
-    ) {
-      const foundInActions = findCommandSuggestion(
-        suggestion.actions,
-        commandId,
-      )
-      if (foundInActions) {
-        return foundInActions
-      }
+  await showToast({
+    type: "show-toast",
+    level: "error",
+    message:
+      "Missing permissions: " +
+      permissionList +
+      ". Please grant these permissions to use this command.",
+  })
+}
+
+const normalizeFormValues = (
+  formValues: Record<string, string | string[]> = {},
+): Record<string, string> => {
+  return Object.fromEntries(
+    Object.entries(formValues).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? value.join(",") : (value ?? ""),
+    ]),
+  )
+}
+
+const shouldRecordUsage = (command: CommandNode): boolean => {
+  if (command.type === "action") {
+    return true
+  }
+
+  if (command.type === "submit") {
+    return command.doNotAddToRecents !== true
+  }
+
+  return false
+}
+
+const executeResolvedCommand = async (
+  resolved: ResolvedCommand,
+  context: Browser.Context,
+  formValues: Record<string, string | string[]>,
+  parentNames?: string[],
+): Promise<void> => {
+  const { command, permissions } = resolved
+
+  if (
+    command.type !== "action" &&
+    command.type !== "submit" &&
+    command.type !== "search"
+  ) {
+    throw new Error(`Command ${command.id} is not executable`)
+  }
+
+  if (permissions.length > 0) {
+    const { hasAllPermissions, missingPermissions } =
+      await checkPermissions(permissions)
+
+    if (!hasAllPermissions) {
+      await showMissingPermissionsToast(missingPermissions)
+      return
     }
   }
 
-  return undefined
+  try {
+    await command.execute?.(context, normalizeFormValues(formValues))
+
+    if (shouldRecordUsage(command)) {
+      await recordCommandUsage(command.id, parentNames ?? resolved.parentNames)
+    }
+  } catch (error) {
+    console.error(
+      `[ExecuteCommand] Error executing action ${command.id}:`,
+      error,
+    )
+    throw error
+  }
+}
+
+const resolveGeneratedActionTarget = async (
+  action: GeneratedCommandAction,
+  context: Browser.Context,
+  executionScope?: CommandExecutionScope,
+): Promise<ResolvedCommand> => {
+  const resolved = await resolveCommandInPage(
+    action.targetCommandId,
+    context,
+    executionScope,
+  )
+
+  if (!resolved) {
+    throw new Error(`Command not found: ${action.targetCommandId}`)
+  }
+
+  return resolved
+}
+
+const executeGeneratedAction = async (
+  action: GeneratedCommandAction,
+  context: Browser.Context,
+  formValues: Record<string, string | string[]>,
+  parentNames?: string[],
+  executionScope?: CommandExecutionScope,
+): Promise<void> => {
+  const resolved = await resolveGeneratedActionTarget(
+    action,
+    context,
+    executionScope,
+  )
+
+  if (action.type === "favorite") {
+    await toggleFavoriteCommandId(action.targetCommandId)
+    return
+  }
+
+  if (action.type === "setKeybinding") {
+    console.warn(
+      "setKeybinding action should be handled in UI layer, not background script",
+    )
+    return
+  }
+
+  if (action.type === "resetKeybinding") {
+    await removeCommandSettings(action.targetCommandId)
+    await refreshKeybindingRegistry()
+    return
+  }
+
+  if (action.type === "hideDomain") {
+    if (!context.url || context.isNewTab) {
+      return
+    }
+
+    const domain = extractDomain(context.url)
+    if (!domain) {
+      return
+    }
+
+    const pattern = createUrlPatternForDomain(domain)
+    const currentSettings =
+      (await getCommandSettings(action.targetCommandId)) || {}
+    const currentDenyUrls = currentSettings.urlRules?.denyUrls || []
+
+    if (!currentDenyUrls.includes(pattern)) {
+      await updateCommandSettings(action.targetCommandId, {
+        urlRules: {
+          ...currentSettings.urlRules,
+          denyUrls: [...currentDenyUrls, pattern],
+        },
+      })
+    }
+
+    return
+  }
+
+  if (action.type === "primary") {
+    if (resolved.command.type === "group") {
+      return
+    }
+
+    await executeResolvedCommand(resolved, context, formValues, parentNames)
+    return
+  }
+
+  await executeResolvedCommand(
+    resolved,
+    {
+      ...context,
+      modifierKey: action.modifierKey,
+    },
+    formValues,
+    parentNames,
+  )
 }
 
 export const executeCommand = async (
   id: string,
   context: Browser.Context,
   formValues: Record<string, string | string[]>,
-  _parentNames?: string[],
+  parentNames?: string[],
+  executionScope?: CommandExecutionScope,
 ): Promise<void> => {
-  // Handle toggle favorite actions directly for nested commands
-  if (id.startsWith("toggle-favorite-")) {
-    const targetCommandId = id.replace("toggle-favorite-", "")
-    await toggleFavoriteCommandId(targetCommandId)
+  const normalizedContext = normalizeContext(context)
+  const generatedAction = parseGeneratedCommandAction(id)
+
+  if (generatedAction) {
+    await executeGeneratedAction(
+      generatedAction,
+      normalizedContext,
+      formValues,
+      parentNames,
+      executionScope,
+    )
     return
   }
 
-  const { favorites, suggestions } = await getCommands(context)
-  const allSuggestions = await commandsToSuggestions(
-    [...favorites, ...suggestions],
-    context,
-  )
+  const resolved = executionScope
+    ? await resolveCommandInPage(id, normalizedContext, executionScope)
+    : await resolveCommandById(id, normalizedContext)
 
-  // First, try to find the action in our Suggestions (which have execution context)
-  const actionSuggestion = findCommandSuggestion(allSuggestions, id)
-
-  if (
-    (actionSuggestion?.type === "action" ||
-      actionSuggestion?.type === "submit") &&
-    actionSuggestion.executionContext
-  ) {
-    const executionCtx = actionSuggestion.executionContext
-
-    // Handle different action types using pattern matching
-    return await match(executionCtx)
-      .with({ type: "favorite" }, async (ctx) => {
-        await toggleFavoriteCommandId(ctx.targetCommandId)
-      })
-      .with({ type: "setKeybinding" }, (_ctx) => {
-        // setKeybinding actions are handled entirely in the UI layer via Redux
-        // They should not reach the background script's executeCommand function
-        console.warn(
-          "setKeybinding action should be handled in UI layer, not background script",
-        )
-        return Promise.resolve()
-      })
-      .with({ type: "resetKeybinding" }, async (ctx) => {
-        // Reset custom keybinding by clearing it from settings
-        await removeCommandSettings(ctx.targetCommandId)
-
-        // Refresh keybinding registry to use default keybinding
-        await refreshKeybindingRegistry()
-
-        return Promise.resolve()
-      })
-      .with({ type: "hideDomain" }, async (ctx) => {
-        // Add domain pattern to user's deny list for this command
-        const pattern = createUrlPatternForDomain(ctx.domain)
-
-        // Get current settings for this command
-        const currentSettings =
-          (await getCommandSettings(ctx.targetCommandId)) || {}
-
-        // Add to deny list (create if doesn't exist)
-        const currentDenyUrls = currentSettings.urlRules?.denyUrls || []
-
-        // Don't add if already exists
-        if (!currentDenyUrls.includes(pattern)) {
-          await updateCommandSettings(ctx.targetCommandId, {
-            urlRules: {
-              ...currentSettings.urlRules,
-              denyUrls: [...currentDenyUrls, pattern],
-            },
-          })
-        }
-
-        return Promise.resolve()
-      })
-      .with({ type: "primary" }, async (ctx) => {
-        const targetCommand = await findCommand(
-          [...favorites, ...suggestions],
-          ctx.targetCommandId,
-          context,
-        )
-
-        // If this is a group, we shouldn't execute it - the UI should navigate instead
-        if (targetCommand && targetCommand.type === "group") {
-          return Promise.resolve()
-        }
-
-        const modifiedContext = {
-          ...context,
-        }
-        return executeCommand(ctx.targetCommandId, modifiedContext, formValues)
-      })
-      .with({ type: "modifier" }, (ctx) => {
-        const modifiedContext = {
-          ...context,
-          modifierKey: ctx.modifierKey,
-        }
-        return executeCommand(ctx.targetCommandId, modifiedContext, formValues)
-      })
-      .exhaustive()
-  }
-
-  // If no metadata found, fall back to the original command lookup
-  const allCommands = [...favorites, ...suggestions]
-
-  // Find and execute the command
-  const commandToRun = await findCommand(allCommands as any, id, context)
-
-  if (commandToRun) {
-    if (
-      commandToRun.type === "action" ||
-      commandToRun.type === "submit" ||
-      (commandToRun as any).type === "search"
-    ) {
-      // Check permissions before executing the command
-      if (commandToRun.permissions) {
-        const { hasAllPermissions, missingPermissions } =
-          await checkPermissions(commandToRun.permissions)
-
-        if (!hasAllPermissions) {
-          const permissionList = missingPermissions
-            .map((p: string) => p.charAt(0).toUpperCase() + p.slice(1))
-            .join(", ")
-
-          await showToast({
-            type: "show-toast",
-            level: "error",
-            message: `Missing permissions: ${permissionList}. Please grant these permissions to use this command.`,
-          })
-
-          return
-        }
-      }
-
-      try {
-        const normalized: Record<string, string> = Object.fromEntries(
-          Object.entries(formValues || {}).map(([k, v]) => [
-            k,
-            Array.isArray(v) ? v.join(",") : (v ?? ""),
-          ]),
-        )
-        await (commandToRun as any).execute?.(context, normalized)
-        return
-      } catch (error) {
-        console.error(`[ExecuteCommand] Error executing action ${id}:`, error)
-        throw error
-      }
-    } else {
-      throw new Error(`Command ${id} is not executable`)
-    }
-  } else {
+  if (!resolved) {
     console.error(`[ExecuteCommand] Command not found: ${id}`)
     throw new Error(`Command not found: ${id}`)
   }
+
+  await executeResolvedCommand(
+    resolved,
+    normalizedContext,
+    formValues,
+    parentNames,
+  )
 }
 
 // Helper to create set keybinding action

@@ -8,6 +8,7 @@ const handleExecuteCommand = async (message: ExecuteCommandMessage) => {
     message.context,
     message.formValues ?? {},
     message.parentNames,
+    message.executionScope,
   )
   return { success: true }
 }

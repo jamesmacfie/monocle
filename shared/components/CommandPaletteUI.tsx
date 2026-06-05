@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react"
 import { useGetCommands } from "../hooks/useGetCommands"
 import { useGlobalKeybindings } from "../hooks/useGlobalKeybindings"
 import { useSendMessage } from "../hooks/useSendMessage"
+import type { CommandExecutionScope } from "../types"
 import { CommandPalette } from "./Command"
 
 interface CommandPaletteUIProps {
@@ -35,6 +36,7 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
       formValues: Record<string, string | string[]>,
       navigateBack: boolean = true,
       parentNames?: string[],
+      executionScope?: CommandExecutionScope,
     ) => {
       try {
         const response = await sendMessage({
@@ -42,6 +44,7 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
           id,
           formValues,
           parentNames,
+          executionScope,
         })
 
         if (response.success && navigateBack) {

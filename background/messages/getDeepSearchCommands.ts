@@ -134,10 +134,13 @@ export async function getDeepSearchCommands(): Promise<{
     modifierKey: null,
   }
 
-  const { suggestions } = await getCommands()
+  const { deepSearchCommands } = await getCommands()
 
   // Flatten all deep search enabled commands
-  const deepSearchItems = await flattenDeepSearchCommands(suggestions, context)
+  const deepSearchItems = await flattenDeepSearchCommands(
+    deepSearchCommands,
+    context,
+  )
 
   return { deepSearchItems }
 }

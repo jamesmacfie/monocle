@@ -20,7 +20,8 @@
     "build:firefox:zip": "tsc --noEmit && wxt zip -b firefox --mv3",
     "clean": "wxt clean",
     "postinstall": "wxt prepare",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "tsc": "tsc --noEmit",
     "fmt": "biome check --write --unsafe",
     "fmt:check": "biome check",
@@ -55,6 +56,7 @@
     "@wxt-dev/module-react": "^1.2.2",
     "tailwindcss": "^4.1.13",
     "typescript": "5.9.2",
+    "vitest": "^4.1.8",
     "wxt": "^0.20.26"
   }
 }

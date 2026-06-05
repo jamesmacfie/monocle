@@ -18,6 +18,13 @@ export const ExecuteCommandMessageSchema = z.object({
     .record(z.string(), z.union([z.string(), z.array(z.string())]))
     .optional(),
   parentNames: z.array(z.string()).optional(),
+  executionScope: z
+    .object({
+      pageId: z.string().min(1, "Page ID cannot be empty"),
+      parentPath: z.array(z.string()).optional(),
+      searchValue: z.string().optional(),
+    })
+    .optional(),
 })
 
 export const ExecuteKeybindingMessageSchema = z.object({

@@ -1,6 +1,6 @@
 import { Command, defaultFilter, useCommandState } from "cmdk"
 import { useEffect, useRef, useState } from "react"
-import type { Suggestion } from "../../../shared/types"
+import type { CommandExecutionScope, Suggestion } from "../../../shared/types"
 import { useActionLabel } from "../../hooks/useActionLabel"
 import { useCommandNavigation } from "../../hooks/useCommandNavigation"
 import { useAppSelector } from "../../store/hooks"
@@ -19,6 +19,12 @@ import { CommandList } from "./CommandList"
 const getDisplayName = (name: string | string[]): string => {
   return Array.isArray(name) ? name[0] : name
 }
+
+const getExecutionScope = (page: Page): CommandExecutionScope => ({
+  pageId: page.id,
+  parentPath: page.parentPath,
+  searchValue: page.searchValue,
+})
 
 function CommandContent({
   pages,
@@ -51,6 +57,7 @@ function CommandContent({
     formValues: Record<string, string | string[]>,
     navigateBack?: boolean,
     parentNames?: string[],
+    executionScope?: CommandExecutionScope,
   ) => Promise<void>
   onOpenActions: (suggestion: Suggestion) => void
   onCloseActions: (force?: boolean) => void
@@ -105,7 +112,13 @@ function CommandContent({
 
   const handleActionSelect = async (actionId: string) => {
     // Execute the action using the same flow as regular commands
-    await executeCommand(actionId, {}, false) // Don't navigate back for actions
+    await executeCommand(
+      actionId,
+      currentPage.formValues || {},
+      false,
+      undefined,
+      getExecutionScope(currentPage),
+    )
 
     // Refresh commands after any action to ensure UI is up to date
     onRefreshCommands()
@@ -196,6 +209,7 @@ interface Props {
     formValues: Record<string, string | string[]>,
     navigateBack?: boolean,
     parentNames?: string[],
+    executionScope?: CommandExecutionScope,
   ) => Promise<void>
   close: () => void
   onRefreshCommands: () => void
@@ -284,7 +298,13 @@ export function CommandPalette({
 
   const handleActionSelect = async (actionId: string) => {
     // Execute the action using the same flow as regular commands
-    await executeCommand(actionId, {}, false) // Don't navigate back for actions
+    await executeCommand(
+      actionId,
+      currentPage.formValues || {},
+      false,
+      undefined,
+      getExecutionScope(currentPage),
+    )
 
     // Refresh commands after any action to ensure UI is up to date
     onRefreshCommands()

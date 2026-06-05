@@ -2,12 +2,19 @@
 import type { Browser } from "./browser"
 import type { Workflow, WorkflowResult } from "./workflow"
 
+export type CommandExecutionScope = {
+  pageId: string
+  parentPath?: string[]
+  searchValue?: string
+}
+
 export type ExecuteCommandMessage = {
   type: "execute-command"
   id: string
   context: Browser.Context
   formValues?: Record<string, string | string[]>
   parentNames?: string[] // Optional parent context for nested commands
+  executionScope?: CommandExecutionScope
 }
 
 export type ExecuteKeybindingMessage = {
