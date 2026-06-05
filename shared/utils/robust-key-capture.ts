@@ -17,6 +17,11 @@ export type KeyHandler = (
 export interface RobustKeyCaptureOptions {
   /** Handler function for captured key events */
   onKeyPress?: KeyHandler
+  /** Synchronous preflight for shortcuts known to be handled by the extension */
+  shouldPreemptivelySuppress?: (
+    keyString: string,
+    event: KeyboardEvent,
+  ) => boolean
   /** Whether to enable debug logging */
   debug?: boolean
 }
@@ -140,12 +145,21 @@ export class RobustKeyCapture {
 
       this.log("Generated key string:", keyString)
 
+      const suppressPreemptively =
+        this.options.shouldPreemptivelySuppress?.(keyString, keyboardEvent) ===
+        true
+
+      if (suppressPreemptively) {
+        this.log("Known extension shortcut, suppressing before async handler")
+        this.suppressEvent(keyboardEvent)
+      }
+
       // Now check if we have a handler for this specific key combination
       // The handler will return true if it actually processed the key
       if (this.options.onKeyPress) {
         const handled = await this.options.onKeyPress(keyString, keyboardEvent)
 
-        if (handled) {
+        if (handled && !suppressPreemptively) {
           // Only suppress the event if we actually handled it
           this.log("Key handled by extension, suppressing browser default")
           this.suppressEvent(keyboardEvent)

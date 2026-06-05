@@ -22,6 +22,18 @@ const baseOptionalPermissions = [
   "tabs",
 ] as const
 
+const actionShortcutCommand = {
+  commands: {
+    _execute_action: {
+      suggested_key: {
+        default: "Ctrl+Shift+K",
+        mac: "Command+Shift+K",
+      },
+      description: "Toggle command palette",
+    },
+  },
+} as const
+
 function getExtensionPagesCsp(command: string): string {
   const connectSrc = ["'self'", ...remoteConnectSources]
 
@@ -42,6 +54,13 @@ function getExtensionPagesCsp(command: string): string {
     "object-src 'none'",
     `connect-src ${connectSrc.join(" ")}`,
   ].join("; ")
+}
+
+function shouldDeclareActionShortcut(
+  browser: string,
+  command: string,
+): boolean {
+  return browser !== "firefox" || command !== "serve"
 }
 
 export default defineConfig({
@@ -99,18 +118,8 @@ export default defineConfig({
     },
     host_permissions: externalHosts,
     optional_permissions: [...baseOptionalPermissions],
-    ...(browser === "firefox"
-      ? {}
-      : {
-          commands: {
-            _execute_action: {
-              suggested_key: {
-                default: "Ctrl+Shift+K",
-                mac: "Command+Shift+K",
-              },
-              description: "Toggle command palette",
-            },
-          },
-        }),
+    ...(shouldDeclareActionShortcut(browser, command)
+      ? actionShortcutCommand
+      : {}),
   }),
 })

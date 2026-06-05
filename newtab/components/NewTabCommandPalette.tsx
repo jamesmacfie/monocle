@@ -31,7 +31,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
   )
 
   // Enable global keybindings
-  useGlobalKeybindings()
+  useGlobalKeybindings({ isNewTab: true })
 
   // Fetch commands on initial render
   useEffect(() => {

@@ -15,11 +15,12 @@ Redux-backed navigation model.
   shadow DOM host, injects the content CSS through WXT, and mounts
   `ContentCommandPaletteWithState` through `content/scripts.tsx`.
 - `background/utils/contentPalette.ts` handles toolbar and browser shortcut
-  toggles. Chrome declares the shortcut as `_execute_action`. Firefox does not
-  declare `Cmd+Shift+K` as a browser command because Firefox can consume the
-  assigned shortcut without reliably delivering the command path in WXT MV3
-  dev mode; Firefox content tabs use the content-side keyboard capture instead.
-  The toolbar/action path first messages the active tab, then injects WXT's
+  toggles. Chrome declares the shortcut as `_execute_action` in dev and build
+  manifests. Firefox declares `_execute_action` only in production builds;
+  Firefox dev mode omits it because WXT MV3 dev can consume the assigned
+  shortcut without reliably delivering the command path. Firefox content tabs
+  still keep the content-side keyboard capture as a fallback. The
+  toolbar/action path first messages the active tab, then injects WXT's
   generated content script and shows the palette if the tab has no receiver yet.
 - `wxt.config.ts` keeps Firefox's MV3 manifest CSP-valid in dev mode while
   allowing WXT's localhost dev server connection. Firefox content tabs rely on

@@ -23,6 +23,11 @@ export type ExecuteKeybindingMessage = {
   context: Browser.Context
 }
 
+export type GetKeybindingStateMessage = {
+  type: "get-keybinding-state"
+  context: Browser.Context
+}
+
 export type GetChildrenMessage = {
   type: "get-children-commands"
   id: string
@@ -54,12 +59,14 @@ export type UpdateCommandSettingMessage = {
   commandId: string
   setting: string
   value: any
+  context?: Browser.Context
 }
 
 export type CheckKeybindingConflictMessage = {
   type: "check-keybinding-conflict"
   keybinding: string
   excludeCommandId?: string
+  context?: Browser.Context
 }
 
 export type GetUnsplashBackgroundMessage = {
@@ -96,6 +103,7 @@ export type Message =
   | GetChildrenMessage
   | GetCommandsMessage
   | ExecuteKeybindingMessage
+  | GetKeybindingStateMessage
   | ShowToastMessage
   | RequestToastMessage
   | UpdateCommandSettingMessage

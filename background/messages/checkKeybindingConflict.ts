@@ -1,43 +1,29 @@
 import type { CheckKeybindingConflictMessage } from "../../shared/types"
-import { getAllCommandSettings } from "../commands/settings"
-import { loadUserConfigurableCommands } from "../commands/userConfigurableCommands"
+import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
+import { loadKeybindingCommandEntries } from "../keybindings/source"
 
 export const checkKeybindingConflict = async ({
   keybinding,
   excludeCommandId,
+  context,
 }: CheckKeybindingConflictMessage) => {
   try {
-    const commands = loadUserConfigurableCommands()
+    const normalizedKeybinding = normalizeKeybinding(keybinding)
+    if (!normalizedKeybinding) {
+      return { hasConflict: false, conflictingCommand: null }
+    }
 
-    // Check default keybindings from all commands
+    const commands = await loadKeybindingCommandEntries(context)
+
     for (const command of commands) {
       if (command.id === excludeCommandId) continue
-      if (command.type === "action" && command.keybinding === keybinding) {
+
+      if (normalizeKeybinding(command.keybinding) === normalizedKeybinding) {
         return {
           hasConflict: true,
           conflictingCommand: {
             id: command.id,
-            name: typeof command.name === "string" ? command.name : command.id,
-          },
-        }
-      }
-    }
-
-    // Check custom keybindings from settings
-    const commandSettings = await getAllCommandSettings()
-    for (const [commandId, settings] of Object.entries(commandSettings)) {
-      if (commandId === excludeCommandId) continue
-      if (settings.keybinding === keybinding) {
-        // Find the command to get its name
-        const command = commands.find((c) => c.id === commandId)
-        return {
-          hasConflict: true,
-          conflictingCommand: {
-            id: commandId,
-            name:
-              command && typeof command.name === "string"
-                ? command.name
-                : commandId,
+            name: command.name,
           },
         }
       }

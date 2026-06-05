@@ -1,154 +1,203 @@
 import type { Browser, ExecuteKeybindingMessage } from "../../shared/types"
 import { executeCommand as executeCommandById } from "../commands"
 import {
-  getCommandIdForKeybinding,
-  hasKeybindingStartingWith,
+  getCommandIdFromSnapshot,
+  getKeybindingRegistrySnapshot,
   normalizeKeybinding,
+  snapshotHasKeybindingStartingWith,
 } from "../keybindings/registry"
-import { createMessageHandler } from "../utils/messages"
 
-// Sequence matching state (global per background script)
-let currentSequence: string[] = []
-let sequenceTimer: ReturnType<typeof setTimeout> | null = null
-let pendingSingle: { commandId: string; context: Browser.Context } | null = null
-
-const CHORD_TIMEOUT_MS = 800
-
-function resetSequence() {
-  currentSequence = []
-  if (sequenceTimer) {
-    clearTimeout(sequenceTimer)
-    sequenceTimer = null
-  }
-  pendingSingle = null
+type SequenceState = {
+  currentSequence: string[]
+  sequenceTimer: ReturnType<typeof setTimeout> | null
+  pendingSingle: { commandId: string; context: Browser.Context } | null
 }
 
-const handleExecuteKeybinding = async (message: ExecuteKeybindingMessage) => {
-  // Normalize incoming single-stroke keybinding (e.g., "⌘ k" -> "cmd k")
-  const stroke = normalizeKeybinding(message.keybinding)
+const sequenceStates = new Map<string, SequenceState>()
+const CHORD_TIMEOUT_MS = 800
 
-  // Any new input cancels a previous pending timeout
-  if (sequenceTimer) {
-    clearTimeout(sequenceTimer)
-    sequenceTimer = null
+const createSequenceState = (): SequenceState => ({
+  currentSequence: [],
+  pendingSingle: null,
+  sequenceTimer: null,
+})
+
+const getSequenceScopeKey = (
+  message: ExecuteKeybindingMessage,
+  sender?: any,
+): string => {
+  const tabId = sender?.tab?.id ?? sender?.validationContext?.senderTab
+  const documentId = sender?.documentId
+  const frameId = sender?.frameId
+
+  if (tabId !== undefined && tabId !== null) {
+    return `tab:${tabId}:document:${documentId ?? frameId ?? "top"}`
   }
 
-  // Append stroke to the current sequence
-  currentSequence.push(stroke)
-  const prefix = currentSequence.join(", ")
+  const context = message.context
+  return `context:${context.isNewTab ? "newtab" : "page"}:${context.url || "unknown"}`
+}
 
-  const exactId = getCommandIdForKeybinding(prefix)
-  const hasLonger = hasKeybindingStartingWith(prefix)
+const getSequenceState = (scopeKey: string): SequenceState => {
+  const existing = sequenceStates.get(scopeKey)
+  if (existing) return existing
 
-  // Helper to execute a command safely
-  const executeNow = async (id: string) => {
+  const created = createSequenceState()
+  sequenceStates.set(scopeKey, created)
+  return created
+}
+
+const resetSequence = (scopeKey: string) => {
+  const state = sequenceStates.get(scopeKey)
+  if (!state) return
+
+  if (state.sequenceTimer) {
+    clearTimeout(state.sequenceTimer)
+  }
+
+  sequenceStates.delete(scopeKey)
+}
+
+const scheduleReset = (scopeKey: string, state: SequenceState): void => {
+  state.sequenceTimer = setTimeout(() => {
+    resetSequence(scopeKey)
+  }, CHORD_TIMEOUT_MS)
+}
+
+const executeNow = async (
+  scopeKey: string,
+  id: string,
+  context: Browser.Context,
+) => {
+  try {
+    await executeCommandById(id, context, {})
+    resetSequence(scopeKey)
+    return { success: true, executed: true }
+  } catch (error) {
+    console.error(`[ExecuteKeybinding] Failed to execute ${id}:`, error)
+    resetSequence(scopeKey)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
+  }
+}
+
+const schedulePendingSingle = (
+  scopeKey: string,
+  state: SequenceState,
+  commandId: string,
+  context: Browser.Context,
+): void => {
+  state.pendingSingle = { commandId, context }
+  state.sequenceTimer = setTimeout(async () => {
+    const latestState = sequenceStates.get(scopeKey)
+    const pendingSingle = latestState?.pendingSingle
+
+    if (!pendingSingle) {
+      resetSequence(scopeKey)
+      return
+    }
+
     try {
-      await executeCommandById(id, message.context, {})
-      resetSequence()
-      return { success: true, executed: true }
+      await executeCommandById(
+        pendingSingle.commandId,
+        pendingSingle.context,
+        {},
+      )
     } catch (error) {
-      console.error(`[ExecuteKeybinding] Failed to execute ${id}:`, error)
-      resetSequence()
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      }
+      console.error(
+        `[ExecuteKeybinding] Delayed execute failed for ${pendingSingle.commandId}:`,
+        error,
+      )
+    } finally {
+      resetSequence(scopeKey)
+    }
+  }, CHORD_TIMEOUT_MS)
+}
+
+const evaluateSequence = async (
+  scopeKey: string,
+  state: SequenceState,
+  context: Browser.Context,
+) => {
+  const snapshot = await getKeybindingRegistrySnapshot(context)
+  const prefix = state.currentSequence.join(", ")
+  const exactId = getCommandIdFromSnapshot(snapshot, prefix)
+  const hasLonger = snapshotHasKeybindingStartingWith(snapshot, prefix)
+
+  if (exactId && !hasLonger) {
+    return await executeNow(scopeKey, exactId, context)
+  }
+
+  if (exactId && hasLonger) {
+    schedulePendingSingle(scopeKey, state, exactId, context)
+    return { success: true, executed: false, pending: true }
+  }
+
+  if (!exactId && hasLonger) {
+    scheduleReset(scopeKey, state)
+    return { success: true, executed: false, pending: true }
+  }
+
+  return null
+}
+
+const handleExecuteKeybinding = async (
+  message: ExecuteKeybindingMessage,
+  sender?: any,
+) => {
+  const stroke = normalizeKeybinding(message.keybinding)
+  if (!stroke) {
+    return {
+      success: false,
+      error: `Invalid keybinding: ${message.keybinding}`,
     }
   }
 
-  // Case 1: Exact match and no longer sequence — execute immediately
-  if (exactId && !hasLonger) {
-    return await executeNow(exactId)
+  const scopeKey = getSequenceScopeKey(message, sender)
+  const state = getSequenceState(scopeKey)
+
+  if (state.sequenceTimer) {
+    clearTimeout(state.sequenceTimer)
+    state.sequenceTimer = null
   }
 
-  // Case 2: Exact match but also a longer sequence exists — delay execution
-  if (exactId && hasLonger) {
-    pendingSingle = { commandId: exactId, context: message.context }
+  state.currentSequence.push(stroke)
 
-    sequenceTimer = setTimeout(async () => {
-      if (pendingSingle) {
-        try {
-          await executeCommandById(
-            pendingSingle.commandId,
-            pendingSingle.context,
-            {},
-          )
-        } catch (error) {
-          console.error(
-            `[ExecuteKeybinding] Delayed execute failed for ${pendingSingle.commandId}:`,
-            error,
-          )
-        } finally {
-          resetSequence()
-        }
-      }
-    }, CHORD_TIMEOUT_MS)
+  const sequenceResult = await evaluateSequence(
+    scopeKey,
+    state,
+    message.context,
+  )
 
-    // Mark as handled to let content preventDefault, but not executed yet
-    return { success: true, executed: false, pending: true }
+  if (sequenceResult) {
+    return sequenceResult
   }
 
-  // Case 3: No exact match but we have longer sequences that start with the prefix — wait for next stroke
-  if (!exactId && hasLonger) {
-    // Schedule cleanup to avoid getting stuck if user stops typing
-    sequenceTimer = setTimeout(() => {
-      resetSequence()
-    }, CHORD_TIMEOUT_MS)
+  state.currentSequence = [stroke]
 
-    return { success: true, executed: false, pending: true }
+  const singleResult = await evaluateSequence(scopeKey, state, message.context)
+
+  if (singleResult) {
+    return singleResult
   }
 
-  // Case 4: No match at all — try treating the latest stroke as a new prefix
-  // Reset to just the latest stroke and re-evaluate
-  currentSequence = [stroke]
-  const singlePrefix = currentSequence.join(", ")
-  const singleExact = getCommandIdForKeybinding(singlePrefix)
-  const singleHasLonger = hasKeybindingStartingWith(singlePrefix)
-
-  if (singleExact && !singleHasLonger) {
-    return await executeNow(singleExact)
-  }
-
-  if (singleExact && singleHasLonger) {
-    pendingSingle = { commandId: singleExact, context: message.context }
-    sequenceTimer = setTimeout(async () => {
-      if (pendingSingle) {
-        try {
-          await executeCommandById(
-            pendingSingle.commandId,
-            pendingSingle.context,
-            {},
-          )
-        } catch (error) {
-          console.error(
-            `[ExecuteKeybinding] Delayed execute failed for ${pendingSingle.commandId}:`,
-            error,
-          )
-        } finally {
-          resetSequence()
-        }
-      }
-    }, CHORD_TIMEOUT_MS)
-
-    return { success: true, executed: false, pending: true }
-  }
-
-  if (!singleExact && singleHasLonger) {
-    sequenceTimer = setTimeout(() => {
-      resetSequence()
-    }, CHORD_TIMEOUT_MS)
-    return { success: true, executed: false, pending: true }
-  }
-
-  // No matches at all — clear state and report unhandled so page can receive the key
-  resetSequence()
+  resetSequence(scopeKey)
   return {
     success: false,
     error: `No command registered for keybinding: ${message.keybinding}`,
   }
 }
 
-export const executeKeybinding = createMessageHandler(
-  handleExecuteKeybinding,
-  "Failed to execute keybinding",
-)
+export const executeKeybinding = async (
+  message: ExecuteKeybindingMessage,
+  sender?: any,
+) => {
+  try {
+    return await handleExecuteKeybinding(message, sender)
+  } catch (error) {
+    console.error("[background] Failed to execute keybinding:", error)
+    return { error: "Failed to execute keybinding" }
+  }
+}

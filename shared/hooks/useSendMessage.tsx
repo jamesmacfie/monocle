@@ -6,6 +6,7 @@ import type {
   ExecuteKeybindingMessage,
   GetChildrenMessage,
   GetCommandsMessage,
+  GetKeybindingStateMessage,
   GetPermissionsMessage,
   RequestPermissionMessage,
   RequestToastMessage,
@@ -24,12 +25,17 @@ type ExecuteKeybindingMessageWithoutContext = Omit<
   ExecuteKeybindingMessage,
   "context"
 >
+type GetKeybindingStateMessageWithoutContext = Omit<
+  GetKeybindingStateMessage,
+  "context"
+>
 
 type SendableMessage =
   | ExecuteCommandMessageWithoutContext
   | GetCommandsMessageWithoutContext
   | GetChildrenMessageWithoutContext
   | ExecuteKeybindingMessageWithoutContext
+  | GetKeybindingStateMessageWithoutContext
   | UpdateCommandSettingMessage
   | CheckKeybindingConflictMessage
   | GetPermissionsMessage

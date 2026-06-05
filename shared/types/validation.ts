@@ -33,6 +33,11 @@ export const ExecuteKeybindingMessageSchema = z.object({
   context: BrowserContextSchema,
 })
 
+export const GetKeybindingStateMessageSchema = z.object({
+  type: z.literal("get-keybinding-state"),
+  context: BrowserContextSchema,
+})
+
 export const GetChildrenMessageSchema = z.object({
   type: z.literal("get-children-commands"),
   id: z.string().min(1, "Command ID cannot be empty"),
@@ -63,12 +68,14 @@ export const UpdateCommandSettingMessageSchema = z.object({
   commandId: z.string().min(1, "Command ID cannot be empty"),
   setting: z.string().min(1, "Setting name cannot be empty"),
   value: z.any(), // Allow any value type for settings
+  context: BrowserContextSchema.optional(),
 })
 
 export const CheckKeybindingConflictMessageSchema = z.object({
   type: z.literal("check-keybinding-conflict"),
   keybinding: z.string().min(1, "Keybinding cannot be empty"),
   excludeCommandId: z.string().optional(),
+  context: BrowserContextSchema.optional(),
 })
 
 export const GetUnsplashBackgroundMessageSchema = z.object({
@@ -130,6 +137,7 @@ export const ExecuteWorkflowMessageSchema = z.object({
 export const MessageSchema = z.discriminatedUnion("type", [
   ExecuteCommandMessageSchema,
   ExecuteKeybindingMessageSchema,
+  GetKeybindingStateMessageSchema,
   GetChildrenMessageSchema,
   GetCommandsMessageSchema,
   ShowToastMessageSchema,

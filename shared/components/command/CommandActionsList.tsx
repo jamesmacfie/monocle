@@ -1,7 +1,11 @@
 import { Command } from "cmdk"
 import { useEffect, useRef, useState } from "react"
 import type { Suggestion } from "../../../shared/types"
-import { toDisplayFormat } from "../../../shared/utils/key-normalizer"
+import {
+  getKeyString,
+  normalizeKeybinding,
+  toDisplayFormat,
+} from "../../../shared/utils/key-normalizer"
 import { useSendMessage } from "../../hooks/useSendMessage"
 import { useAppDispatch, useAppSelector } from "../../store/hooks"
 import {
@@ -14,42 +18,6 @@ import {
 import { KeybindingDisplay } from "../KeybindingDisplay"
 import { CommandName } from "./CommandName"
 
-// Convert Unicode symbol keybinding to canonical format
-function convertToCanonicalFormat(keys: string[]): string {
-  const modifiers: string[] = []
-  let primaryKey = ""
-
-  // Extract modifiers and primary key
-  for (const key of keys) {
-    switch (key) {
-      case "⌘":
-        modifiers.push("cmd")
-        break
-      case "⌃":
-        modifiers.push("ctrl")
-        break
-      case "⌥":
-        modifiers.push("alt")
-        break
-      case "⇧":
-        modifiers.push("shift")
-        break
-      default:
-        primaryKey = key.toLowerCase()
-        break
-    }
-  }
-
-  // Build canonical format
-  if (modifiers.length === 0) {
-    return primaryKey
-  } else {
-    // Sort modifiers for consistency: alt, cmd, ctrl, shift
-    modifiers.sort()
-    return `<${[...modifiers, primaryKey].join("-")}>`
-  }
-}
-
 // Keybinding capture component
 function KeybindingCapture({
   onComplete,
@@ -60,9 +28,8 @@ function KeybindingCapture({
   onCancel: () => void
   commandId?: string
 }) {
-  // Sequence capture: array of completed strokes (e.g., ["⌘ K", "G"]) and current stroke parts
+  // Sequence capture: array of completed canonical strokes.
   const [strokes, setStrokes] = useState<string[]>([])
-  const [currentKeys, setCurrentKeys] = useState<string[]>([])
   const [hasConflict, setHasConflict] = useState(false)
   // Saving the conflicting command for if we want to display it via a tooltip or something
   const [_conflictingCommand, setConflictingCommand] = useState<{
@@ -101,28 +68,14 @@ function KeybindingCapture({
     e.preventDefault()
     e.stopPropagation()
 
-    if (e.key === "Enter" && (strokes.length > 0 || currentKeys.length > 0)) {
+    if (e.key === "Enter" && strokes.length > 0) {
       // Don't save if there's a conflict
       if (hasConflict) {
         return
       }
 
-      // Complete the current stroke if it has a primary key
-      let finalStrokes = [...strokes]
-      if (
-        currentKeys.some(
-          (k) => k !== "⌘" && k !== "⌃" && k !== "⌥" && k !== "⇧",
-        )
-      ) {
-        // Convert to canonical format instead of Unicode symbols with spaces
-
-        const canonicalStroke = convertToCanonicalFormat(currentKeys)
-
-        finalStrokes = [...finalStrokes, canonicalStroke]
-      }
-
       // Save the sequence (strokes separated by comma)
-      const keybinding = finalStrokes.join(", ")
+      const keybinding = normalizeKeybinding(strokes.join(", "))
       onComplete(keybinding)
       return
     }
@@ -133,109 +86,14 @@ function KeybindingCapture({
       return
     }
 
-    // Build current keybinding string for real-time display (one stroke)
-    const current: string[] = []
+    const canonicalStroke = getKeyString(e.nativeEvent)
+    if (canonicalStroke) {
+      const newStrokes = [...strokes, canonicalStroke]
+      const normalizedSequence = normalizeKeybinding(newStrokes.join(", "))
+      setStrokes(newStrokes)
 
-    if (e.metaKey) current.push("⌘")
-    if (e.ctrlKey) current.push("⌃")
-    if (e.altKey) current.push("⌥")
-    if (e.shiftKey) current.push("⇧")
-
-    // Use e.code for better consistency and prevent macOS key composition issues
-    // Only add non-modifier keys
-    if (
-      ![
-        "MetaLeft",
-        "MetaRight",
-        "ControlLeft",
-        "ControlRight",
-        "AltLeft",
-        "AltRight",
-        "ShiftLeft",
-        "ShiftRight",
-      ].includes(e.code)
-    ) {
-      // Convert e.code to a clean key representation
-      let keyName = ""
-
-      // Handle special keys
-      if (e.code === "Space") {
-        keyName = "SPACE"
-      } else if (e.code === "Backspace") {
-        keyName = "⌫"
-      } else if (e.code === "Delete") {
-        keyName = "⌦"
-      } else if (e.code === "Tab") {
-        keyName = "⇥"
-      } else if (e.code === "Enter") {
-        keyName = "↵"
-      } else if (e.code.startsWith("Key")) {
-        // KeyA -> A, KeyB -> B, etc.
-        keyName = e.code.slice(3)
-      } else if (e.code.startsWith("Digit")) {
-        // Digit1 -> 1, Digit2 -> 2, etc.
-        keyName = e.code.slice(5)
-      } else if (e.code.startsWith("Arrow")) {
-        // ArrowUp -> ↑, etc.
-        const arrows: Record<string, string> = {
-          ArrowUp: "↑",
-          ArrowDown: "↓",
-          ArrowLeft: "←",
-          ArrowRight: "→",
-        }
-        keyName = arrows[e.code] || e.code
-      } else if (e.code.startsWith("F") && /^F\d+$/.test(e.code)) {
-        // F1, F2, etc.
-        keyName = e.code
-      } else if (e.code === "Semicolon") {
-        keyName = ";"
-      } else if (e.code === "Equal") {
-        keyName = "="
-      } else if (e.code === "Comma") {
-        keyName = ","
-      } else if (e.code === "Period") {
-        keyName = "."
-      } else if (e.code === "Slash") {
-        keyName = "/"
-      } else if (e.code === "Backquote") {
-        keyName = "`"
-      } else if (e.code === "BracketLeft") {
-        keyName = "["
-      } else if (e.code === "BracketRight") {
-        keyName = "]"
-      } else if (e.code === "Backslash") {
-        keyName = "\\"
-      } else if (e.code === "Quote") {
-        keyName = "'"
-      } else if (e.code === "Minus") {
-        keyName = "-"
-      } else {
-        // For other keys, use the key value but sanitized
-        keyName = e.key.length === 1 ? e.key.toUpperCase() : e.key
-      }
-
-      if (keyName) {
-        current.push(keyName)
-      }
-    }
-
-    // Only update if we have at least one key (including just modifiers)
-    if (current.length > 0) {
-      // Update the current stroke display
-      setCurrentKeys(current)
-
-      // If a non-modifier key is present, finalize this stroke
-      const hasPrimary = current.some((k) => !["⌘", "⌃", "⌥", "⇧"].includes(k))
-      if (hasPrimary) {
-        // Convert to canonical format for stroke completion
-        const canonicalStroke = convertToCanonicalFormat(current)
-        const newStrokes = [...strokes, canonicalStroke]
-        setStrokes(newStrokes)
-        setCurrentKeys([])
-
-        // Check for conflicts on the completed sequence so far
-        checkForConflict(newStrokes.join(", "))
-      }
+      // Check for conflicts on the completed sequence so far
+      checkForConflict(normalizedSequence)
     }
   }
 
@@ -258,7 +116,7 @@ function KeybindingCapture({
             : "border-[var(--color-focus-ring)]"
         }`}
       >
-        {strokes.length === 0 && currentKeys.length === 0 ? (
+        {strokes.length === 0 ? (
           <span className="text-[var(--cmdk-muted-foreground)] text-xs">
             Press keys in sequence. Enter to save
           </span>
@@ -291,31 +149,6 @@ function KeybindingCapture({
                 </div>
               )
             })}
-            {currentKeys.length > 0 && (
-              <div className="flex items-center gap-1">
-                {currentKeys.map((k, kIdx) => {
-                  // Convert Unicode symbols to display format for consistency
-                  let displayKey = k
-                  if (k === "⌘") displayKey = "⌘"
-                  else if (k === "⌃") displayKey = "⌃"
-                  else if (k === "⌥") displayKey = "⌥"
-                  else if (k === "⇧") displayKey = "⇧"
-
-                  return (
-                    <kbd
-                      key={`current-${kIdx}`}
-                      className={`px-1.5 py-0.5 rounded text-xs ${
-                        hasConflict
-                          ? "bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error-fg)]"
-                          : "bg-[var(--cmdk-list-item-background-active)]"
-                      }`}
-                    >
-                      {displayKey}
-                    </kbd>
-                  )
-                })}
-              </div>
-            )}
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import type {
   CommandNode,
   Suggestion,
 } from "../../shared/types"
+import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
 import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { showToast } from "../messages/showToast"
 import {
@@ -336,7 +337,7 @@ const _createResetKeybindingAction = async (
     description:
       (command.type === "action" || command.type === "submit") &&
       command.keybinding
-        ? `Reset to default keybinding: ${command.keybinding}`
+        ? `Reset to default keybinding: ${normalizeKeybinding(command.keybinding)}`
         : "Reset to default keybinding",
     icon: { type: "lucide", name: "RotateCcw" },
     color: "orange",
@@ -448,10 +449,13 @@ export const commandsToSuggestions = async (
         keywords: await resolveAsyncProperty(node.keywords, context),
         color: (await resolveAsyncProperty(node.color, context)) as any,
         keybinding: allowsKeybinding(node)
-          ? commandSettings[node.id]?.keybinding ||
-            (node.type === "action" || node.type === "submit"
-              ? node.keybinding
-              : undefined)
+          ? normalizeKeybinding(
+              commandSettings[node.id]?.keybinding ||
+                (node.type === "action" || node.type === "submit"
+                  ? node.keybinding
+                  : undefined) ||
+                "",
+            ) || undefined
           : undefined,
         isFavorite: favoriteCommandIds.includes(node.id),
         permissions: effectivePermissions,

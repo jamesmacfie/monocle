@@ -6,6 +6,7 @@ import {
   type ValidationResult,
   validateMessage,
 } from "../../shared/types"
+import { isValidKeybinding } from "../../shared/utils/key-normalizer"
 import { createMessageHandler } from "./messages"
 
 // Rate limiting for message validation (prevent spam/abuse)
@@ -198,15 +199,7 @@ function validateBusinessLogic(message: ValidatedMessage): {
       break
 
     case "execute-keybinding": {
-      // Keybindings should follow expected format (both old Unicode and new canonical format)
-      const oldFormat = /^[⌘⌃⌥⇧\s]*[a-zA-Z0-9↵]$/.test(message.keybinding)
-      const canonicalFormat =
-        /^(<[a-zA-Z-]+>|[a-zA-Z0-9])(\s*,\s*(<[a-zA-Z-]+>|[a-zA-Z0-9]))*$/.test(
-          message.keybinding,
-        )
-      const singleChar = /^[a-zA-Z0-9]$/.test(message.keybinding)
-
-      if (!oldFormat && !canonicalFormat && !singleChar) {
+      if (!isValidKeybinding(message.keybinding)) {
         return { valid: false, error: "Invalid keybinding format" }
       }
       break

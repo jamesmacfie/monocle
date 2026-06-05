@@ -2,13 +2,14 @@
 
 ## Current Status
 
-Status: partial.
+Status: working with review notes.
 
 Monocle has a substantial keybinding system: canonical key formats, global
 event capture, multi-stroke sequences, command execution from keybindings,
 custom keybinding capture, conflict checks, and display formatting. The code
-builds, but registry coverage is uneven and needs manual validation before
-keybindings can be considered stable across all command categories.
+builds, canonical parsing is shared across capture/storage/display/registry
+paths, and registry coverage is now context-aware. Manual browser validation is
+still needed before considering the feature fully stable in Chrome and Firefox.
 
 ## How It Is Hooked Together
 
@@ -17,13 +18,18 @@ keybindings can be considered stable across all command categories.
 - `shared/utils/event-filter.ts` decides when page/editable events should pass
   through or be considered for extension keybindings.
 - `shared/utils/robust-key-capture.ts` installs capture listeners at multiple
-  DOM levels and suppresses events only when the extension handles them.
+  DOM levels and can suppress known handled shortcuts before awaiting the
+  background response.
 - `shared/hooks/useGlobalKeybindings.tsx` installs `RobustKeyCapture` and sends
-  `execute-keybinding` messages to the background.
-- `background/keybindings/registry.ts` owns the keybinding registry and matches
-  exact bindings or sequence prefixes.
-- `background/messages/executeKeybinding.ts` handles sequence state, delayed
-  single-stroke execution, and final command execution.
+  `get-keybinding-state` and `execute-keybinding` messages to the background.
+- `background/keybindings/source.ts` loads globally bindable commands from the
+  current command context, including UI commands, new-tab commands when
+  relevant, website commands when URL-visible, Firefox commands, deep-search
+  items, and custom-bound nested commands.
+- `background/keybindings/registry.ts` builds normalized registry snapshots and
+  matches exact bindings or sequence prefixes.
+- `background/messages/executeKeybinding.ts` handles sender-scoped sequence
+  state, delayed single-stroke execution, and final command execution.
 - `shared/components/KeybindingDisplay.tsx` renders canonical keybindings in a
   user-facing format.
 - `shared/components/Command/CommandActionsList.tsx` implements custom
@@ -40,26 +46,37 @@ The main data flow is:
 
 1. User presses a key.
 2. Content or new-tab UI normalizes/captures the event.
-3. UI sends `execute-keybinding`.
-4. Background appends the stroke to sequence state.
-5. Registry finds exact or prefix matches.
-6. Background executes the matching command or waits for another stroke.
+3. UI checks its cached exact bindings and sequence prefixes to suppress known
+   handled shortcuts synchronously.
+4. UI sends `execute-keybinding`.
+5. Background appends the stroke to sender-scoped sequence state.
+6. A context-aware registry snapshot finds exact or prefix matches.
+7. Background executes the matching command or waits for another stroke.
 
 ## Test Coverage
 
-Automated test coverage: narrow.
+Automated test coverage: improved but still not a browser integration suite.
 
 Build checks that currently touch this feature:
 
 - `pnpm run tsc` validates keybinding types and message shapes.
 - `pnpm run fmt:check` validates formatting/lint.
 - `pnpm run build` validates content/new-tab/background bundles.
+- `shared/utils/key-normalizer.test.ts` covers canonical equivalence for
+  modifier order, case, aliases, special keys, arrows, punctuation, function
+  keys, keyboard events, display formatting, and sequences.
+- `background/keybindings/registry.test.ts` covers normalized registry lookup,
+  conflict detection, sequence prefixes, confirmation-required command
+  exclusion, and command-source coverage for browser, tool, UI, new-tab,
+  website, Firefox, and deep-search commands.
+- `background/utils/validation.test.ts` covers message validation for canonical
+  keybindings with punctuation, arrows, and sequences.
 - `background/commands/browser-commands.test.ts` covers the high-risk policy
   that confirmation-required browser commands are not globally keybindable.
 
-There are still no tests for canonical normalization, editable passthrough,
-multi-stroke timing, conflict detection, custom capture, full registry refresh,
-or cross-platform modifier behavior.
+Remaining gaps are manual or browser-level: editable passthrough, page shortcut
+passthrough, real browser default suppression timing, action-menu capture UX,
+and full Chrome/Firefox smoke coverage.
 
 ## Manual Test Checklist
 
@@ -83,18 +100,13 @@ or cross-platform modifier behavior.
 - The keybinding architecture is more robust than a simple document keydown
   listener. Separating normalization, filtering, capture, registry matching,
   and UI display is the right structure.
-- Registry initialization currently registers browser commands, tool commands,
-  Firefox commands, and deep-search commands. It does not register UI commands,
-  new-tab commands, or website commands uniformly. This is the main correctness
-  risk.
-- Conflict detection uses `allCommands`, which is context-free and excludes
-  some command sources. This can miss conflicts for command categories that are
-  not in `allCommands`.
-- Custom keybinding capture has its own conversion path in
-  `CommandActionsList.tsx`. It should be tested against the shared normalizer
-  so capture, storage, display, and execution always agree.
-- Sequence state lives globally in the background service worker. That is
-  simple, but multiple tabs using sequences at the same time could interfere.
-- `execute-keybinding` validation currently permits a narrower subset of
-  canonical forms than the type-level keybinding model suggests. Special keys
-  and uncommon sequences need manual checks.
+- Registry and conflict detection now use the same context-aware keybinding
+  source and normalize both sides before comparing.
+- Custom keybinding capture now uses the shared event normalizer instead of a
+  separate glyph conversion path.
+- Sequence state is scoped by sender tab/document when sender data is available,
+  with a context fallback for extension pages and tests.
+- Commands with `confirmAction: true` remain excluded from default and custom
+  global keybindings.
+- Manual browser smoke is still needed for actual shortcut suppression timing,
+  editable passthrough, and cross-browser modifier behavior.

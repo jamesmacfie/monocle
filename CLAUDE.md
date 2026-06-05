@@ -58,7 +58,7 @@ The docs baseline records the current system as follows:
 | Command system | Working with review notes | Core `CommandNode` to `Suggestion` pipeline is buildable, context-aware, and shared by both palette modes. |
 | Palette UI and navigation | Working with review notes | Content overlay and new-tab mode share command palette components and Redux navigation. |
 | Browser commands | Working with review notes | Permission inheritance and high-risk keybinding policy have focused tests; manual Chrome/Firefox validation is still needed. |
-| Keybindings | Partial | Capture, sequences, and custom keybindings exist; registry coverage is uneven. |
+| Keybindings | Working with review notes | Canonicalization, context-aware registry coverage, custom conflicts, and scoped sequence state have focused tests; manual browser smoke is still needed. |
 | Permissions and settings | Working with review notes | Optional permissions and persisted command settings exist; settings compatibility needs tests. |
 | URL filtering and website plugins | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. |
 | Workflow automation | Partial | Click workflows work; `wait` is a no-op and most operations are unsupported. |
@@ -68,7 +68,8 @@ Validation from the docs baseline:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
-- `pnpm test` passes with focused command-system and browser-command coverage.
+- `pnpm test` passes with focused command-system, browser-command, keybinding,
+  URL-filtering, settings-management, and GitHub parsing coverage.
 - `pnpm run build` passes for the Chrome MV3 target.
 - `pnpm run build:firefox` passes for the Firefox MV3 target.
 

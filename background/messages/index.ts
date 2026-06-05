@@ -6,6 +6,7 @@ import { executeKeybinding } from "./executeKeybinding"
 import { executeWorkflow } from "./executeWorkflow"
 import { getChildrenCommands } from "./getChildrenCommands"
 import { getCommands } from "./getCommands"
+import { getKeybindingState } from "./getKeybindingState"
 import { getPermissions } from "./getPermissions"
 import { getUnsplashBackground } from "./getUnsplashBackground"
 import { requestPermission } from "./requestPermission"
@@ -49,7 +50,10 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
       return await executeCommand(msg)
     })
     .with({ type: "execute-keybinding" }, async (msg) => {
-      return await executeKeybinding(msg)
+      return await executeKeybinding(msg, sender)
+    })
+    .with({ type: "get-keybinding-state" }, async (msg) => {
+      return await getKeybindingState(msg)
     })
     .with({ type: "show-toast" }, async (msg) => {
       return await showToast(msg)
