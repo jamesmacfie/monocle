@@ -7,6 +7,7 @@ import type {
   Browser,
   CommandIcon,
   CommandNode,
+  SubmitCommandNode,
 } from "../../shared/types"
 
 // Helper type for properties that can be static or async
@@ -115,4 +116,22 @@ export function createNoOpCommand(
     icon,
     color: "gray",
   }
+}
+
+export function isExecutableCommandNode(
+  command: CommandNode,
+): command is ActionCommandNode | SubmitCommandNode {
+  return command.type === "action" || command.type === "submit"
+}
+
+export function allowsKeybinding(command: CommandNode): boolean {
+  if (!isExecutableCommandNode(command)) {
+    return false
+  }
+
+  if (command.confirmAction === true) {
+    return false
+  }
+
+  return command.allowCustomKeybinding !== false
 }

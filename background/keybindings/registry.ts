@@ -8,6 +8,7 @@ import { browserCommands } from "../commands/browser"
 import { firefoxCommands } from "../commands/browser/firefox"
 import { getAllCommandSettings } from "../commands/settings"
 import { toolCommands } from "../commands/tools"
+import { allowsKeybinding } from "../utils/commands"
 
 // Re-export for compatibility
 export { normalizeKeybinding }
@@ -71,6 +72,10 @@ function registerCommand(
   command: CommandNode,
   commandSettings: Record<string, any>,
 ): void {
+  if (!allowsKeybinding(command)) {
+    return
+  }
+
   // Use settings keybinding if available, otherwise use command's default
   const id = command.id
   const defaultKey = "keybinding" in command ? command.keybinding : undefined

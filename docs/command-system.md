@@ -17,11 +17,13 @@ for selected command groups.
 ## How It Is Hooked Together
 
 - Source commands live under `background/commands/`, grouped into browser,
-  tools, UI, Firefox-only, and new-tab command modules.
-- `background/commands/index.ts` is the main orchestration point. It loads
-  command arrays, applies browser compatibility, applies URL filters, computes
-  favorites, ranks suggestions, finds nested commands, converts commands to
-  suggestions, and executes commands.
+  tools, UI, website, Firefox-only, and new-tab command modules.
+- `background/commands/source.ts` owns command loading and browser/context
+  source selection.
+- `background/commands/query.ts` owns context normalization, URL filtering,
+  favorites, ranking, command pages, inherited permissions, and direct lookup.
+- `background/commands/index.ts` is now a compatibility facade plus suggestion
+  conversion and execution dispatch.
 - `shared/types/commands.ts` defines the background-facing command contract.
   `shared/types/ui.ts` defines the suggestion shapes consumed by the React UI.
 - `background/messages/getCommands.ts` returns root favorites, suggestions, and
@@ -49,16 +51,21 @@ The main data flow is:
 
 ## Test Coverage
 
-Automated test coverage: missing.
+Automated test coverage: narrow but present.
 
 Build checks that currently touch this feature:
 
 - `pnpm run tsc` validates command and suggestion types.
 - `pnpm run fmt:check` validates formatting/lint rules.
+- `pnpm test` includes focused command-system coverage in
+  `background/commands/command-system.test.ts`.
 - `pnpm run build` validates bundling through WXT.
 
-There are no focused tests for command loading, suggestion conversion,
-favorite handling, action menu generation, command execution, or deep search.
+The current command-system tests cover context-aware loading, usage ranking,
+`doNotAddToRecents`, generated actions across root/child/search/deep-search
+scopes, deep search with favorites, favorited child context, and URL-filtered
+execution. Broader UI/component and browser integration coverage is still
+missing.
 
 ## Manual Test Checklist
 
@@ -81,10 +88,10 @@ favorite handling, action menu generation, command execution, or deep search.
 
 ## Code Review Notes
 
-- `background/commands/index.ts` is doing a lot: loading, filtering, ranking,
-  action generation, execution dispatch, and settings side effects. It is the
-  right place to understand the system, but it is large enough that future
-  feature work should avoid adding more responsibilities directly into it.
+- `background/commands/index.ts` still owns suggestion conversion, generated
+  action handling, execution dispatch, and settings side effects. Keep moving
+  unrelated loading/query responsibilities into focused modules rather than
+  growing this facade again.
 - The command model is mostly well-shaped. `CommandNode` keeps command authors
   close to a single abstraction, and `Suggestion` protects the UI from
   background-only execution functions.
@@ -95,9 +102,6 @@ favorite handling, action menu generation, command execution, or deep search.
 - Deep search only processes action and submit children. Input and display rows
   are intentionally skipped, but this should be kept explicit in future docs or
   tests so form-like command groups are not expected to flatten cleanly.
-- Dynamic search support is present through `SearchCommandNode`, but the search
-  branch in `getChildrenCommands` appears to import settings from the wrong
-  module path. This should be fixed before treating search commands as stable.
 - `allCommands` is exported from `loadAllCommands()` without context, so
   context-only command groups such as new-tab commands are not always visible
   to settings/keybinding management surfaces.

@@ -1,5 +1,6 @@
 import type {
   Browser,
+  BrowserPermission,
   CommandExecutionScope,
   CommandNode,
   Suggestion,
@@ -7,6 +8,7 @@ import type {
 import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { showToast } from "../messages/showToast"
 import {
+  allowsKeybinding,
   resolveActionLabel,
   resolveAsyncProperty,
   resolveModifierActionLabels,
@@ -82,6 +84,13 @@ const normalizeFormValues = (
       Array.isArray(value) ? value.join(",") : (value ?? ""),
     ]),
   )
+}
+
+const mergePermissions = (
+  inherited: BrowserPermission[],
+  own?: BrowserPermission[],
+): BrowserPermission[] => {
+  return Array.from(new Set([...inherited, ...(own ?? [])]))
 }
 
 const shouldRecordUsage = (command: CommandNode): boolean => {
@@ -275,16 +284,7 @@ export const executeCommand = async (
 const _createSetKeybindingAction = async (
   command: CommandNode,
 ): Promise<Suggestion | null> => {
-  // Don't create action for groups
-  if (command.type === "group") {
-    return null
-  }
-
-  // Don't create action if command explicitly opts out
-  if (
-    (command.type === "action" || command.type === "submit") &&
-    command.allowCustomKeybinding === false
-  ) {
+  if (!allowsKeybinding(command)) {
     return null
   }
 
@@ -421,6 +421,7 @@ export const commandsToSuggestions = async (
   commands: Array<CommandNode>,
   context: Browser.Context,
   _parentName?: string,
+  inheritedPermissions: BrowserPermission[] = [],
 ): Promise<Suggestion[]> => {
   const favoriteCommandIds = await getFavoriteCommandIds()
   const commandSettings = await getAllCommandSettings()
@@ -428,6 +429,10 @@ export const commandsToSuggestions = async (
   return await Promise.all(
     commands.map(async (command) => {
       const node = command
+      const effectivePermissions = mergePermissions(
+        inheritedPermissions,
+        node.permissions,
+      )
       const baseName = await resolveAsyncProperty(node.name, context)
       const displayName = (baseName ?? "Unnamed Command") as string
 
@@ -438,11 +443,14 @@ export const commandsToSuggestions = async (
         icon: await resolveAsyncProperty(node.icon, context),
         keywords: await resolveAsyncProperty(node.keywords, context),
         color: (await resolveAsyncProperty(node.color, context)) as any,
-        keybinding:
-          commandSettings[node.id]?.keybinding ||
-          (node.type === "action" ? node.keybinding : undefined),
+        keybinding: allowsKeybinding(node)
+          ? commandSettings[node.id]?.keybinding ||
+            (node.type === "action" || node.type === "submit"
+              ? node.keybinding
+              : undefined)
+          : undefined,
         isFavorite: favoriteCommandIds.includes(node.id),
-        permissions: node.permissions,
+        permissions: effectivePermissions,
       }
 
       let suggestion: Suggestion
@@ -526,6 +534,7 @@ export const commandsToSuggestions = async (
             node.type === "action" || node.type === "submit"
               ? node.confirmAction
               : undefined,
+          permissions: effectivePermissions,
           executionContext: { type: "primary", targetCommandId: node.id },
         })
       }
@@ -574,7 +583,7 @@ export const commandsToSuggestions = async (
               modifierActionLabel: undefined,
               remainOpenOnSelect: undefined,
               actions: undefined,
-              permissions: undefined,
+              permissions: effectivePermissions,
               color: undefined,
               executionContext: {
                 type: "modifier",

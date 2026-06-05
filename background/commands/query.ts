@@ -43,22 +43,49 @@ export const normalizeContext = (
   isNewTab: context?.isNewTab,
 })
 
-const mergePermissions = (
+export const mergePermissions = (
   inherited: BrowserPermission[],
   own?: BrowserPermission[],
 ): BrowserPermission[] => {
   return Array.from(new Set([...inherited, ...(own ?? [])]))
 }
 
+const checkRequiredPermissions = async (
+  permissions: BrowserPermission[],
+): Promise<{
+  hasAllPermissions: boolean
+  missingPermissions: BrowserPermission[]
+}> => {
+  if (permissions.length === 0) {
+    return {
+      hasAllPermissions: true,
+      missingPermissions: [],
+    }
+  }
+
+  return await checkPermissions(permissions)
+}
+
 const hasRequiredPermissions = async (
   permissions: BrowserPermission[],
 ): Promise<boolean> => {
-  if (permissions.length === 0) {
-    return true
-  }
+  return (await checkRequiredPermissions(permissions)).hasAllPermissions
+}
 
-  const result = await checkPermissions(permissions)
-  return result.hasAllPermissions
+const createMissingPermissionsCommand = (
+  permissions: BrowserPermission[],
+): CommandNode => {
+  const permissionList = permissions.join(", ")
+
+  return {
+    type: "display",
+    id: `missing-permissions-${permissions.join("-")}`,
+    name: "Permission Required",
+    description: `Grant ${permissionList} permission${permissions.length === 1 ? "" : "s"} to view these commands.`,
+    icon: { type: "lucide", name: "ShieldAlert" },
+    color: "red",
+    permissions,
+  }
 }
 
 const filterForContext = async (
@@ -104,12 +131,13 @@ const findFavoritedCommands = async (
         const resolvedName = await resolveAsyncProperty(command.name, context)
         favoritedCommands.push({
           ...command,
+          permissions,
           name: Array.isArray(resolvedName)
             ? [...resolvedName, ...parentNames]
             : [resolvedName ?? "Unnamed Command", ...parentNames],
         })
       } else {
-        favoritedCommands.push(command)
+        favoritedCommands.push({ ...command, permissions })
       }
     }
 
@@ -247,10 +275,15 @@ export const getCommandPageCommands = async (
     )
 
     if (pageCommand.type === "group") {
-      if (!(await hasRequiredPermissions(inheritedPermissions))) {
+      const permissionState =
+        await checkRequiredPermissions(inheritedPermissions)
+
+      if (!permissionState.hasAllPermissions) {
         return {
           pageCommand,
-          commands: [],
+          commands: [
+            createMissingPermissionsCommand(permissionState.missingPermissions),
+          ],
           inheritedPermissions,
           parentNames,
         }
@@ -278,24 +311,32 @@ export const getCommandPageCommands = async (
   }
 
   if (pageCommand?.type === "search") {
-    const search = (searchValue || "").trim()
-    const searchNode = pageCommand as SearchCommandNode
+    const permissionState = await checkRequiredPermissions(inheritedPermissions)
 
-    if (!search) {
-      commands = []
+    if (!permissionState.hasAllPermissions) {
+      commands = [
+        createMissingPermissionsCommand(permissionState.missingPermissions),
+      ]
     } else {
-      try {
-        commands = await filterForContext(
-          await searchNode.getResults(normalizedContext, search),
-          normalizedContext,
-          commandSettings,
-        )
-      } catch (error) {
-        console.error(
-          `[SearchNode] Error resolving results for ${searchNode.id}:`,
-          error,
-        )
+      const search = (searchValue || "").trim()
+      const searchNode = pageCommand as SearchCommandNode
+
+      if (!search) {
         commands = []
+      } else {
+        try {
+          commands = await filterForContext(
+            await searchNode.getResults(normalizedContext, search),
+            normalizedContext,
+            commandSettings,
+          )
+        } catch (error) {
+          console.error(
+            `[SearchNode] Error resolving results for ${searchNode.id}:`,
+            error,
+          )
+          commands = []
+        }
       }
     }
   }

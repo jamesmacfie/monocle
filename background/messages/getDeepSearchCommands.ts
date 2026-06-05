@@ -1,6 +1,7 @@
 import type {
   ActionCommandNode,
   Browser,
+  BrowserPermission,
   CommandNode,
   GroupCommandNode,
   SubmitCommandNode,
@@ -9,7 +10,15 @@ import type {
 import { commandsToSuggestions, getCommands } from "../commands"
 import { getAllCommandSettings } from "../commands/settings"
 import { resolveAsyncProperty } from "../utils/commands"
+import { checkPermissions } from "../utils/permissions"
 import { filterCommandsByUrl } from "../utils/urlFilter"
+
+const mergePermissions = (
+  inherited: BrowserPermission[],
+  own?: BrowserPermission[],
+): BrowserPermission[] => {
+  return Array.from(new Set([...inherited, ...(own ?? [])]))
+}
 
 // Helper function to recursively flatten commands with enableDeepSearch: true
 export async function flattenDeepSearchCommands(
@@ -17,12 +26,18 @@ export async function flattenDeepSearchCommands(
   context: Browser.Context,
   parentPath: string[] = [],
   inheritedDeepSearch: boolean = false,
+  inheritedPermissions: BrowserPermission[] = [],
 ): Promise<Suggestion[]> {
   const flattenedCommands: Suggestion[] = []
 
   for (const command of commands) {
     // Check if this is a group command with deep search enabled
     if (command.type !== "group") continue
+
+    const permissions = mergePermissions(
+      inheritedPermissions,
+      command.permissions,
+    )
 
     const enableFlag = command.enableDeepSearch
     const shouldDeepSearch =
@@ -31,11 +46,8 @@ export async function flattenDeepSearchCommands(
     if (shouldDeepSearch) {
       try {
         // Check if command requires permissions before calling children()
-        if (command.permissions && command.permissions.length > 0) {
-          const { checkPermissions } = await import("../utils/permissions")
-          const { hasAllPermissions } = await checkPermissions(
-            command.permissions,
-          )
+        if (permissions.length > 0) {
+          const { hasAllPermissions } = await checkPermissions(permissions)
 
           if (!hasAllPermissions) {
             // Skip this command if permissions are missing - don't call children()
@@ -96,6 +108,8 @@ export async function flattenDeepSearchCommands(
             const [suggestion] = await commandsToSuggestions(
               [enhancedChild],
               context,
+              undefined,
+              permissions,
             )
             flattenedCommands.push(suggestion)
           }
@@ -110,6 +124,7 @@ export async function flattenDeepSearchCommands(
           context,
           newPath,
           true,
+          permissions,
         )
         flattenedCommands.push(...childFlattenedCommands)
       } catch (error) {

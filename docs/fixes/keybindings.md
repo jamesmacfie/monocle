@@ -44,8 +44,10 @@ checks.
   equality.
 - Event suppression happens after awaiting the background response, which is
   too late for reliable prevention of browser defaults for handled shortcuts.
-- Keybinding execution bypasses UI confirmation for commands with
-  `confirmAction`.
+- The browser-command pass chose the default confirmation policy:
+  `confirmAction` commands are not registered as global keybindings and do not
+  expose Set Custom Keybinding actions. Broader keybinding execution and
+  conflict coverage still needs dedicated tests.
 - Sequence state is global in the background service worker, so simultaneous
   tabs can interfere.
 
@@ -70,7 +72,8 @@ checks.
 - Decide the confirmation policy for keybindings:
   - Do not allow keybindings on `confirmAction` commands.
   - Or route keybinding execution into a confirmation UI/toast flow.
-  The default should prevent destructive commands from executing immediately.
+  The current default prevents destructive confirmed commands from being
+  registered globally.
 - Scope sequence state by sender tab or sender document where possible.
 
 ## Required Tests

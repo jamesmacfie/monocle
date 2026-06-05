@@ -55,12 +55,12 @@ The docs baseline records the current system as follows:
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Command system | Working with review notes | Core `CommandNode` to `Suggestion` pipeline is buildable and shared by both palette modes. |
+| Command system | Working with review notes | Core `CommandNode` to `Suggestion` pipeline is buildable, context-aware, and shared by both palette modes. |
 | Palette UI and navigation | Working with review notes | Content overlay and new-tab mode share command palette components and Redux navigation. |
-| Browser commands | Working with unknowns | Browser API commands compile but need manual Chrome/Firefox validation. |
+| Browser commands | Working with review notes | Permission inheritance and high-risk keybinding policy have focused tests; manual Chrome/Firefox validation is still needed. |
 | Keybindings | Partial | Capture, sequences, and custom keybindings exist; registry coverage is uneven. |
 | Permissions and settings | Working with review notes | Optional permissions and persisted command settings exist; settings compatibility needs tests. |
-| URL filtering and website plugins | Partial | `urlRules` works; the GitHub/contextual command prototype is not registered. |
+| URL filtering and website plugins | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. |
 | Workflow automation | Partial | Click workflows work; `wait` is a no-op and most operations are unsupported. |
 | New tab and theme | Working with unknowns | New-tab and theme state are wired; visual/manual coverage is needed. |
 
@@ -68,10 +68,9 @@ Validation from the docs baseline:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
+- `pnpm test` passes with focused command-system and browser-command coverage.
 - `pnpm run build` passes for the Chrome MV3 target.
 - `pnpm run build:firefox` passes for the Firefox MV3 target.
-- `pnpm test` is currently a placeholder that exits with failure.
-- Conventional automated test coverage is effectively absent.
 
 Always use `pnpm`, not `npm` or `yarn`.
 
@@ -250,8 +249,9 @@ In progress:
 
 - `background/commands/websites/` contains a GitHub contextual command
   prototype.
-- `websiteCommands` is exported there but is not imported into
-  `background/commands/index.ts`, so the commands are currently unregistered.
+- `websiteCommands` is loaded by `background/commands/source.ts`, but website
+  commands are still command arrays with URL rules rather than a first-class
+  plugin registry.
 
 Before broadening website commands, decide whether they are just command arrays
 with `urlRules` or a first-class registry with metadata, activation policy, and
@@ -314,19 +314,14 @@ These are the easy traps to avoid:
 - `background/commands/index.ts` is already overloaded with loading,
   filtering, ranking, action generation, execution dispatch, and settings
   effects. Avoid adding more unrelated responsibilities there.
-- Dynamic search support exists, but the search branch in
-  `background/messages/getChildrenCommands.ts` appears to import
-  `getAllCommandSettings` from the wrong module path.
 - `allCommands` is context-free, so global management surfaces can miss
-  context-only command sources such as new-tab and website commands.
-- Website/GitHub commands are present in an untracked directory but not
-  registered into the main command loader.
-- Permission-protected dynamic groups can look empty when permissions are
-  missing. Preserve clear permission UI paths.
+  context-only command sources such as new-tab commands.
+- Permission-protected dynamic groups should preserve clear permission UI paths
+  when permissions are missing or revoked.
 - Keybinding sequence state is global in the background service worker, so
   simultaneous tabs may interfere.
-- Automated tests are absent. Use the manual checklists in `docs/` for the
-  feature area you touch.
+- Automated tests are narrow. Use the manual checklists in `docs/` for browser
+  integration behavior in the feature area you touch.
 
 ## Development Commands
 
@@ -344,8 +339,8 @@ pnpm run build:zip
 pnpm run build:firefox:zip
 ```
 
-`pnpm run fmt` writes formatting changes. `pnpm test` is a placeholder failure
-and should not be treated as a meaningful validation gate.
+`pnpm run fmt` writes formatting changes. `pnpm test` runs the focused Vitest
+suite, but manual browser checks are still required for extension API behavior.
 
 ## Working Rules For Future Changes
 

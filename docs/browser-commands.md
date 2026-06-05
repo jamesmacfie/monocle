@@ -2,13 +2,13 @@
 
 ## Current Status
 
-Status: working with unknowns.
+Status: working with review notes.
 
 The browser command category is the largest command surface. It includes tab,
 window, bookmark, history, download, browsing-data, recently-closed, clipboard,
 pin/mute, movement, and Firefox container/reader commands. The code compiles,
-but most commands depend on browser APIs and optional permissions, so manual
-browser verification is required.
+but many commands depend on browser APIs and optional permissions, so manual
+Chrome/Firefox verification is still required.
 
 ## How It Is Hooked Together
 
@@ -16,17 +16,23 @@ browser verification is required.
   command list.
 - `background/commands/browser/firefox/index.ts` exports Firefox-only command
   additions.
-- `background/commands/index.ts` adds common browser commands for all contexts
+- `background/commands/source.ts` adds common browser commands for all contexts
   and Firefox commands when `isFirefox` is true.
 - `background/utils/browser.ts` wraps browser APIs such as tabs, windows,
   bookmarks, browsing data, downloads, history, and sessions.
 - Optional-permission commands declare `permissions` on their command nodes.
-  `commandsToSuggestions` carries those permissions into the UI.
+  The command query/execution path carries inherited parent permissions into
+  generated child rows and direct child execution.
 - The UI checks permissions with `usePermissionsGranted`, and execution checks
   permissions again in the background before running protected commands.
+- Permission-protected dynamic groups return a "Permission Required" display
+  row when the real browser permission is missing, before their browser API
+  loaders are called.
 - Dynamic groups such as bookmarks, open tabs, history, downloads, and recently
   closed generate children from browser API calls at navigation time.
 - Groups such as open tabs and recently closed opt into `enableDeepSearch`.
+- Commands with `confirmAction: true` are intentionally not keybindable until a
+  keybinding-specific confirmation flow exists.
 
 Representative command areas:
 
@@ -39,15 +45,20 @@ Representative command areas:
 
 ## Test Coverage
 
-Automated test coverage: missing.
+Automated test coverage: narrow but present.
 
 Build checks that currently touch this feature:
 
+- `pnpm exec vitest run background/commands/browser-commands.test.ts` covers
+  inherited permissions for generated bookmark, tab, history, download, and
+  session rows; missing-permission child pages; stale permission revocation
+  during execution; high-risk keybinding blocking; browsing-data confirmation
+  metadata; and representative tab API behavior.
 - `pnpm run tsc` validates command definitions and browser utility types.
 - `pnpm run fmt:check` validates formatting/lint.
 - `pnpm run build` validates bundling.
 
-There are no browser integration tests for tab mutations, permission prompts,
+There are still no real browser integration tests for permission prompts,
 bookmark/history/download queries, recently closed sessions, or Firefox-only
 commands.
 
@@ -80,17 +91,15 @@ commands.
   browsing data, downloads, history, and sessions. Future work should avoid
   continuing to grow this file without extracting feature-specific browser API
   helpers.
-- Permission handling is intentionally defensive: dynamic API readers often
-  return empty arrays when permission is missing, while execution also checks
-  permission before running. This avoids crashes but can hide the difference
-  between "no data" and "permission missing" on some child pages.
+- Permission handling is enforced in the command query/execution layer before
+  protected child loaders run. Low-level browser readers no longer silently
+  turn missing permissions into empty arrays.
 - `allCommands` is context-free, so command-management UIs built from it do not
-  include new-tab-only commands and currently do not include website commands.
+  include new-tab-only command sources.
 - Dynamic commands use generated ids and often opt out of custom keybindings.
   That is the right default because browser data changes over time.
-- Clear browsing data commands should be treated as higher risk. They need
-  confirmation coverage and manual checks because browser behavior varies by
-  platform and data type.
+- Clear browsing data and tab/window close commands are higher risk. They keep
+  palette confirmation metadata, and confirmed commands are excluded from the
+  global keybinding registry.
 - Firefox-specific behavior needs real Firefox validation. TypeScript passing is
   not enough for APIs such as contextual identities and reader mode.
-

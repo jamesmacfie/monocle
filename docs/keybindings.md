@@ -32,6 +32,9 @@ keybindings can be considered stable across all command categories.
   refreshes the registry.
 - `background/messages/checkKeybindingConflict.ts` checks default and custom
   keybinding conflicts.
+- Commands with `confirmAction: true` are excluded from registry insertion and
+  do not expose Set Custom Keybinding actions. They must be executed through a
+  UI path that can show confirmation.
 
 The main data flow is:
 
@@ -44,17 +47,19 @@ The main data flow is:
 
 ## Test Coverage
 
-Automated test coverage: missing.
+Automated test coverage: narrow.
 
 Build checks that currently touch this feature:
 
 - `pnpm run tsc` validates keybinding types and message shapes.
 - `pnpm run fmt:check` validates formatting/lint.
 - `pnpm run build` validates content/new-tab/background bundles.
+- `background/commands/browser-commands.test.ts` covers the high-risk policy
+  that confirmation-required browser commands are not globally keybindable.
 
-There are no tests for canonical normalization, editable passthrough,
-multi-stroke timing, conflict detection, custom capture, registry refresh, or
-cross-platform modifier behavior.
+There are still no tests for canonical normalization, editable passthrough,
+multi-stroke timing, conflict detection, custom capture, full registry refresh,
+or cross-platform modifier behavior.
 
 ## Manual Test Checklist
 
@@ -80,8 +85,8 @@ cross-platform modifier behavior.
   and UI display is the right structure.
 - Registry initialization currently registers browser commands, tool commands,
   Firefox commands, and deep-search commands. It does not register UI commands,
-  new-tab commands, or untracked website commands uniformly. This is the main
-  correctness risk.
+  new-tab commands, or website commands uniformly. This is the main correctness
+  risk.
 - Conflict detection uses `allCommands`, which is context-free and excludes
   some command sources. This can miss conflicts for command categories that are
   not in `allCommands`.
@@ -93,4 +98,3 @@ cross-platform modifier behavior.
 - `execute-keybinding` validation currently permits a narrower subset of
   canonical forms than the type-level keybinding model suggests. Special keys
   and uncommon sequences need manual checks.
-

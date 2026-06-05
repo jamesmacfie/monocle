@@ -37,6 +37,7 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
       targetPage.commands,
       message.context,
       parentNameString,
+      targetPage.inheritedPermissions,
     )
 
     return {
@@ -62,6 +63,7 @@ const handleGetChildrenCommands = async (message: GetChildrenMessage) => {
       targetPage.commands,
       message.context,
       parentNameString,
+      targetPage.inheritedPermissions,
     )
 
     return {
