@@ -14,7 +14,7 @@ steps, and review findings without changing runtime code.
 | Keybindings | Working with review notes | Canonicalization, context-aware registry coverage, custom conflicts, and scoped sequence state are covered by focused tests; manual browser smoke is still needed. |
 | Permissions and settings | Working with review notes | Optional permission requests, persisted command-setting compatibility, update validation, and URL-rule management have focused tests; manual Chrome/Firefox permission prompts still need smoke checks. |
 | URL filtering and website plugins | Partial | `urlRules` is implemented, covered by focused tests, and the GitHub/contextual command prototype remains a URL-filtered command source rather than a first-class plugin registry. |
-| Workflow automation | Partial | Click workflows are implemented; wait is a no-op and most typed operations are unsupported. |
+| Workflow automation | Partial | Click workflows and focused wait conditions are implemented with strict validation, targeted routing, and focused tests; most typed operations remain unsupported. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
 
 ## Build And Test Baseline
@@ -24,8 +24,8 @@ Last verified in this baseline pass:
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
 - `pnpm test` passes with the current focused command-system, browser-command,
-  keybinding, URL-filtering, settings-management, new-tab/theme/background, and
-  GitHub parsing Vitest coverage.
+  keybinding, URL-filtering, settings-management, workflow automation,
+  new-tab/theme/background, and GitHub parsing Vitest coverage.
 - `pnpm run build` passes for the Chrome MV3 target through WXT.
 - `pnpm run build:firefox` passes for the Firefox MV3 target through WXT.
 
@@ -64,14 +64,14 @@ contains the GitHub contextual command prototype and is reviewed in
 - URL filtering is real, persisted through command settings, and covered by
   focused tests, but it is a command-level filtering mechanism rather than a
   plugin registry.
-- Workflow automation has a broad type model, but the content executor only
-  meaningfully implements `click`; `wait` returns success without checking a
-  condition.
+- Workflow automation has a broad type model, but the public runtime schema now
+  accepts only implemented `click` and `wait` steps. Unsupported modeled
+  operations remain future design and fail clearly.
 - The keybinding registry now uses a context-aware command source for browser,
   tool, UI, new-tab, website, Firefox, deep-search, and custom-bound nested
   commands, but shortcut suppression still needs manual Chrome/Firefox smoke
   checks.
 - Automated coverage now exists for the command-system, browser-command, URL
-  filtering, keybinding, settings-management, new-tab/theme/background, and
-  GitHub parsing paths, but coverage remains narrow. Manual test lists in these
-  docs are still needed for browser integration behavior.
+  filtering, keybinding, settings-management, workflow automation,
+  new-tab/theme/background, and GitHub parsing paths, but manual test lists in
+  these docs are still needed for browser integration behavior.

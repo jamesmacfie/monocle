@@ -1,12 +1,16 @@
-import { sendMessageToActiveTab } from "../utils/runtime"
+import type { ExecuteWorkflowMessage } from "../../shared/types"
+import { executeWorkflowOnTargetTab } from "../workflows/execution"
 
-export const executeWorkflow = async (message: any) => {
+export const executeWorkflow = async (
+  message: ExecuteWorkflowMessage,
+  sender?: any,
+) => {
   try {
-    // Forward the workflow to the content script for execution
-    const result = await sendMessageToActiveTab({
-      type: "execute-workflow-content",
+    const { result } = await executeWorkflowOnTargetTab({
       workflow: message.workflow,
       context: message.context,
+      tabId: message.tabId,
+      sender,
     })
 
     return { result }

@@ -37,7 +37,19 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
 
   const message = validation.data
 
-  console.log("Received message", message)
+  console.log(
+    "Received message",
+    message.type === "execute-workflow"
+      ? {
+          type: message.type,
+          tabId: message.tabId,
+          workflow: {
+            name: message.workflow.name,
+            stepCount: message.workflow.steps.length,
+          },
+        }
+      : message,
+  )
 
   // Route validated message to appropriate handler
   return await match(message)
@@ -81,7 +93,7 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
       return await openPermissionGrantPage(msg)
     })
     .with({ type: "execute-workflow" }, async (msg) => {
-      return await executeWorkflow(msg)
+      return await executeWorkflow(msg, sender)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${message.type}`)

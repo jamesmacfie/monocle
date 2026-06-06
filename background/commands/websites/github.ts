@@ -9,9 +9,13 @@ import {
   focusOrGoToUrl,
   sendErrorToastToActiveTab,
   sendSuccessToastToActiveTab,
+  sendTabMessage,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
-import { sendMessageToActiveTab } from "../../utils/runtime"
+import {
+  executeWorkflowOnTargetTab,
+  resolveWorkflowTargetTabId,
+} from "../../workflows/execution"
 
 const GITHUB_DOMAIN_ALLOW_LIST = ["*://github.com/*", "*://*.github.com/*"]
 
@@ -56,6 +60,18 @@ export type GithubPageDetails = {
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const sendWorkflowToast = async (
+  tabId: number,
+  level: "success" | "error",
+  message: string,
+): Promise<void> => {
+  await sendTabMessage(tabId, {
+    type: "monocle-toast",
+    level,
+    message,
+  } as any).catch(() => undefined)
+}
 
 export const parseGithubPage = (url?: string): GithubPageDetails | null => {
   if (!url) {
@@ -141,30 +157,39 @@ const executeGithubWorkflow = async (
   successMessage?: string,
   failureMessage = "Failed to run GitHub page automation",
 ) => {
+  let tabId: number | undefined
+
   try {
-    // Close the palette to prevent the overlay from intercepting clicks
-    await sendMessageToActiveTab({ type: "toggle-ui" }).catch(() => undefined)
+    tabId = await resolveWorkflowTargetTabId({ context })
+    await sendTabMessage(tabId, { type: "toggle-ui" } as any).catch(
+      () => undefined,
+    )
     await delay(200)
 
-    const response = await sendMessageToActiveTab({
-      type: "execute-workflow-content",
+    const { result } = await executeWorkflowOnTargetTab({
+      tabId,
       workflow,
       context,
     })
-
-    const result = response?.result ?? response
 
     if (!result?.success) {
       throw new Error(result?.error || "Workflow execution failed")
     }
 
     if (successMessage) {
-      await sendSuccessToastToActiveTab(successMessage)
+      await sendWorkflowToast(tabId, "success", successMessage)
     }
   } catch (error) {
     console.error("[GitHub Commands] Workflow execution failed", error)
     const detail = error instanceof Error ? error.message : "Unknown error"
-    await sendErrorToastToActiveTab(`${failureMessage}: ${detail}`)
+    const message = `${failureMessage}: ${detail}`
+
+    if (tabId) {
+      await sendWorkflowToast(tabId, "error", message)
+      return
+    }
+
+    await sendErrorToastToActiveTab(message)
   }
 }
 

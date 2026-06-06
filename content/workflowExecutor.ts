@@ -4,21 +4,31 @@ import type {
   Selector,
   Step,
   StepResult,
+  WaitStep,
   Workflow,
   WorkflowResult,
 } from "../shared/types/workflow"
+
+const DEFAULT_WAIT_TIMEOUT_MS = 5000
+const WAIT_POLL_INTERVAL_MS = 50
+
+const READY_STATE_ORDER: Record<DocumentReadyState, number> = {
+  loading: 0,
+  interactive: 1,
+  complete: 2,
+}
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+type FindElementOptions = {
+  includeHiddenText?: boolean
+}
 
 export class WorkflowExecutor {
   private vars: Record<string, any> = {}
 
   async executeWorkflow(workflow: Workflow): Promise<WorkflowResult> {
-    console.log("[WorkflowExecutor] Starting workflow:", workflow.name)
-    console.log(
-      "[WorkflowExecutor] Full workflow spec:",
-      JSON.stringify(workflow, null, 2),
-    )
-
-    // Initialize variables
     this.vars = { ...workflow.vars }
 
     const stepResults: StepResult[] = []
@@ -26,13 +36,8 @@ export class WorkflowExecutor {
     try {
       for (let i = 0; i < workflow.steps.length; i++) {
         const step = workflow.steps[i]
-        console.log(
-          `[WorkflowExecutor] Executing step ${i + 1}/${workflow.steps.length}:`,
-          step,
-        )
-
         const startTime = Date.now()
-        const result = await this.executeStep(step)
+        const result = await this.executeStepWithPolicy(step)
         const duration = Date.now() - startTime
 
         stepResults.push({
@@ -47,21 +52,15 @@ export class WorkflowExecutor {
             op: step.op,
             id: step.id,
             error: result.error,
-            step: step,
           })
           return {
             success: false,
             error: `Step ${step.op} failed: ${result.error}`,
             stepResults,
           }
-        } else {
-          console.log(
-            `[WorkflowExecutor] Step ${i + 1} completed successfully in ${duration}ms`,
-          )
         }
       }
 
-      console.log("[WorkflowExecutor] Workflow completed successfully")
       return {
         success: true,
         stepResults,
@@ -82,21 +81,74 @@ export class WorkflowExecutor {
     }
   }
 
-  private async executeStep(step: Step): Promise<StepResult> {
-    console.log("[WorkflowExecutor] Executing step:", {
-      op: step.op,
-      id: step.id,
-      description: step.description,
-      fullStep: step,
-    })
+  private async executeStepWithPolicy(step: Step): Promise<StepResult> {
+    const attempts = (step.retry?.retries ?? 0) + 1
+    let lastResult: StepResult | undefined
 
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const result = await this.executeStepWithTimeout(step)
+
+      if (result.success) {
+        return result
+      }
+
+      lastResult = result
+
+      if (attempt < attempts - 1) {
+        await sleep(this.getRetryDelay(step, attempt))
+      }
+    }
+
+    return lastResult ?? { success: false, error: "Step failed" }
+  }
+
+  private async executeStepWithTimeout(step: Step): Promise<StepResult> {
+    if (step.timeoutMs === undefined || step.op === "wait") {
+      return await this.executeStep(step)
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+    try {
+      return await Promise.race([
+        this.executeStep(step),
+        new Promise<StepResult>((resolve) => {
+          timeoutId = setTimeout(() => {
+            resolve({
+              success: false,
+              error: `Timed out after ${step.timeoutMs}ms`,
+            })
+          }, step.timeoutMs)
+        }),
+      ])
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }
+
+  private getRetryDelay(step: Step, completedAttemptIndex: number): number {
+    const retry = step.retry
+    if (!retry) {
+      return 0
+    }
+
+    const baseDelay = retry.delayMs ?? 0
+    if (retry.backoff !== "exponential") {
+      return baseDelay
+    }
+
+    return baseDelay * 2 ** completedAttemptIndex
+  }
+
+  private async executeStep(step: Step): Promise<StepResult> {
     try {
       switch (step.op) {
         case "click":
-          return await this.executeClick(step as ClickStep)
+          return await this.executeClick(step)
         case "wait":
-          // TODO: Implement wait step
-          return { success: true }
+          return await this.executeWait(step)
         default:
           return {
             success: false,
@@ -105,7 +157,8 @@ export class WorkflowExecutor {
       }
     } catch (error) {
       console.error("[WorkflowExecutor] Step execution error:", {
-        step,
+        op: step.op,
+        id: step.id,
         error,
         message: error instanceof Error ? error.message : "Unknown error",
         stack: error instanceof Error ? error.stack : undefined,
@@ -118,65 +171,128 @@ export class WorkflowExecutor {
   }
 
   private async executeClick(step: ClickStep): Promise<StepResult> {
-    console.log(
-      "[WorkflowExecutor] executeClick - Finding element:",
-      step.target,
-    )
+    const element = await this.findElement(step.target)
+    if (!element) {
+      return {
+        success: false,
+        error: `Could not find element for selector: ${JSON.stringify(step.target)}`,
+      }
+    }
 
-    try {
-      const element = await this.findElement(step.target)
-      if (!element) {
-        console.error("[WorkflowExecutor] Element not found:", {
-          selector: step.target,
-          searchStrategy: step.target.strategy,
-          value: step.target.value,
-          documentBody: document.body ? "exists" : "missing",
-          visibleElements: document.querySelectorAll("*").length,
-        })
+    await this.applyTargeting(element, step.targeting)
+    await this.clickElement(element, step)
+
+    return { success: true }
+  }
+
+  private async executeWait(step: WaitStep): Promise<StepResult> {
+    if ("timeMs" in step.for) {
+      if (step.timeoutMs !== undefined && step.timeoutMs < step.for.timeMs) {
+        await sleep(step.timeoutMs)
         return {
           success: false,
-          error: `Could not find element for selector: ${JSON.stringify(step.target)}`,
+          error: `Timed out waiting for ${this.describeWaitCondition(step)}`,
         }
       }
 
-      console.log("[WorkflowExecutor] Element found:", {
-        tagName: element.tagName,
-        id: element.id,
-        className: element.className,
-        textContent: element.textContent?.substring(0, 50),
-      })
-
-      // Apply targeting options
-      await this.applyTargeting(element, step.targeting)
-
-      // Perform the click
-      console.log("[WorkflowExecutor] Clicking element")
-      await this.clickElement(element, step)
-
-      console.log("[WorkflowExecutor] Click successful")
+      await sleep(step.for.timeMs)
       return { success: true }
-    } catch (error) {
-      console.error("[WorkflowExecutor] Click failed:", {
-        error,
-        message: error instanceof Error ? error.message : "Click failed",
-        stack: error instanceof Error ? error.stack : undefined,
-        step,
-      })
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Click failed",
+    }
+
+    const timeoutMs = step.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS
+    const startTime = Date.now()
+
+    while (Date.now() - startTime <= timeoutMs) {
+      if (await this.isWaitConditionSatisfied(step)) {
+        return { success: true }
       }
+
+      const elapsed = Date.now() - startTime
+      const remaining = timeoutMs - elapsed
+      if (remaining <= 0) {
+        break
+      }
+
+      await sleep(Math.min(WAIT_POLL_INTERVAL_MS, remaining))
+    }
+
+    return {
+      success: false,
+      error: `Timed out waiting for ${this.describeWaitCondition(step)}`,
     }
   }
 
-  private async findElement(selector: Selector): Promise<Element | null> {
-    console.log("[WorkflowExecutor] findElement - Strategy:", selector.strategy)
+  private async isWaitConditionSatisfied(step: WaitStep): Promise<boolean> {
+    const condition = step.for
 
+    if ("timeMs" in condition) {
+      return true
+    }
+
+    if ("selector" in condition) {
+      return await this.matchesSelectorState(
+        condition.selector,
+        condition.state ?? "visible",
+      )
+    }
+
+    if ("urlIncludes" in condition) {
+      return window.location.href.includes(condition.urlIncludes)
+    }
+
+    return (
+      READY_STATE_ORDER[document.readyState] >=
+      READY_STATE_ORDER[condition.readyState]
+    )
+  }
+
+  private async matchesSelectorState(
+    selector: Selector,
+    state: "attached" | "visible" | "hidden" | "detached",
+  ): Promise<boolean> {
+    const element = await this.findElement(selector, {
+      includeHiddenText: state !== "visible",
+    })
+
+    switch (state) {
+      case "attached":
+        return !!element
+      case "visible":
+        return !!element && this.isElementVisible(element)
+      case "hidden":
+        return !!element && !this.isElementVisible(element)
+      case "detached":
+        return !element
+    }
+  }
+
+  private describeWaitCondition(step: WaitStep): string {
+    const condition = step.for
+
+    if ("timeMs" in condition) {
+      return `${condition.timeMs}ms delay`
+    }
+
+    if ("selector" in condition) {
+      return `${condition.state ?? "visible"} selector ${JSON.stringify(condition.selector)}`
+    }
+
+    if ("urlIncludes" in condition) {
+      return `URL to include "${condition.urlIncludes}"`
+    }
+
+    return `document readyState ${condition.readyState}`
+  }
+
+  private async findElement(
+    selector: Selector,
+    options: FindElementOptions = {},
+  ): Promise<Element | null> {
     switch (selector.strategy) {
       case "css":
         return this.findElementByCSS(selector)
       case "text":
-        return this.findElementByText(selector)
+        return this.findElementByText(selector, options)
       default: {
         const error = `Unsupported selector strategy: ${(selector as any).strategy}`
         console.error(`[WorkflowExecutor] ${error}`, selector)
@@ -190,21 +306,9 @@ export class WorkflowExecutor {
     value: string
     index?: number
   }): Element | null {
-    console.log(
-      "[WorkflowExecutor] findElementByCSS - Selector:",
-      selector.value,
-    )
-
     try {
       const elements = document.querySelectorAll(selector.value)
       const index = selector.index ?? 0
-
-      console.log("[WorkflowExecutor] CSS search results:", {
-        selector: selector.value,
-        found: elements.length,
-        requestedIndex: index,
-        elementExists: !!elements[index],
-      })
 
       return elements[index] || null
     } catch (error) {
@@ -212,28 +316,27 @@ export class WorkflowExecutor {
         selector: selector.value,
         error: error instanceof Error ? error.message : "Invalid CSS selector",
       })
-      return null
+      throw new Error(
+        `Invalid CSS selector "${selector.value}": ${
+          error instanceof Error ? error.message : "Unknown selector error"
+        }`,
+      )
     }
   }
 
-  private async findElementByText(selector: {
-    strategy: "text"
-    value: string
-    exact?: boolean
-    within?: Selector
-    index?: number
-  }): Promise<Element | null> {
-    console.log("[WorkflowExecutor] findElementByText:", {
-      searchText: selector.value,
-      exact: selector.exact,
-      hasWithin: !!selector.within,
-      index: selector.index ?? 0,
-    })
-
-    // Get the search scope
+  private async findElementByText(
+    selector: {
+      strategy: "text"
+      value: string
+      exact?: boolean
+      within?: Selector
+      index?: number
+    },
+    options: FindElementOptions,
+  ): Promise<Element | null> {
     let searchRoot: Element | Document = document
     if (selector.within) {
-      const withinElement = await this.findElement(selector.within)
+      const withinElement = await this.findElement(selector.within, options)
       if (!withinElement) {
         console.log("[WorkflowExecutor] 'within' element not found")
         return null
@@ -241,7 +344,6 @@ export class WorkflowExecutor {
       searchRoot = withinElement
     }
 
-    // Create a TreeWalker to traverse text nodes
     const walker = document.createTreeWalker(
       searchRoot,
       NodeFilter.SHOW_TEXT,
@@ -249,31 +351,25 @@ export class WorkflowExecutor {
     )
 
     const elements: Element[] = []
-    let node: Node | null
+    let node: Node | null = walker.nextNode()
 
-    // biome-ignore lint/suspicious/noAssignInExpressions: todo: fix this
-    while ((node = walker.nextNode())) {
+    while (node) {
       const text = node.textContent?.trim() || ""
       const matches = selector.exact
         ? text === selector.value
         : text.includes(selector.value)
 
       if (matches && node.parentElement) {
-        // Check if element is visible
-        if (this.isElementVisible(node.parentElement)) {
+        if (
+          options.includeHiddenText ||
+          this.isElementVisible(node.parentElement)
+        ) {
           elements.push(node.parentElement)
         }
       }
-    }
 
-    console.log("[WorkflowExecutor] Text search results:", {
-      searchText: selector.value,
-      foundCount: elements.length,
-      matchingElements: elements.map((el) => ({
-        tag: el.tagName,
-        text: el.textContent?.substring(0, 50),
-      })),
-    })
+      node = walker.nextNode()
+    }
 
     const index = selector.index ?? 0
     return elements[index] || null
@@ -302,70 +398,99 @@ export class WorkflowExecutor {
       throw new Error("Element is not visible")
     }
 
-    if (scrollIntoView) {
+    if (scrollIntoView && typeof element.scrollIntoView === "function") {
       element.scrollIntoView({
         block: "center",
         inline: "center",
         behavior: "smooth",
       })
-      // Wait a moment for scroll to complete
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await sleep(100)
     }
   }
 
   private async clickElement(element: Element, step: ClickStep): Promise<void> {
     const htmlElement = element as HTMLElement
 
-    // Try simple click first
-    if (typeof htmlElement.click === "function") {
+    if (
+      !this.requiresSyntheticClick(step) &&
+      typeof htmlElement.click === "function"
+    ) {
       htmlElement.click()
       return
     }
 
-    // Fallback to event dispatching
-    const rect = element.getBoundingClientRect()
-    const x = rect.left + rect.width / 2
-    const y = rect.top + rect.height / 2
+    await this.dispatchClickSequence(element, step)
+  }
 
-    const button =
-      step.button === "right" ? 2 : step.button === "middle" ? 1 : 0
+  private requiresSyntheticClick(step: ClickStep): boolean {
+    return (
+      step.button !== undefined ||
+      step.clickCount !== undefined ||
+      step.delayMs !== undefined ||
+      (step.modifiers?.length ?? 0) > 0
+    )
+  }
+
+  private async dispatchClickSequence(
+    element: Element,
+    step: ClickStep,
+  ): Promise<void> {
     const clickCount = step.clickCount ?? 1
 
-    // Dispatch pointer events sequence
-    const pointerEvents = [
-      "pointerover",
-      "mouseover",
-      "mousemove",
-      "pointerdown",
-      "mousedown",
-      "pointerup",
-      "mouseup",
-      "click",
-    ]
+    this.dispatchMouseEvent(element, "pointerover", step, 0)
+    this.dispatchMouseEvent(element, "mouseover", step, 0)
+    this.dispatchMouseEvent(element, "mousemove", step, 0)
 
-    for (const eventType of pointerEvents) {
-      const event = new MouseEvent(eventType, {
-        bubbles: true,
-        cancelable: true,
-        clientX: x,
-        clientY: y,
-        button,
-        detail: eventType === "click" ? clickCount : 1,
-        ...(step.modifiers && {
-          altKey: step.modifiers.includes("Alt"),
-          ctrlKey: step.modifiers.includes("Control"),
-          metaKey: step.modifiers.includes("Meta"),
-          shiftKey: step.modifiers.includes("Shift"),
-        }),
-      })
+    for (let clickIndex = 0; clickIndex < clickCount; clickIndex++) {
+      const detail = clickIndex + 1
 
-      element.dispatchEvent(event)
+      this.dispatchMouseEvent(element, "pointerdown", step, detail)
+      this.dispatchMouseEvent(element, "mousedown", step, detail)
 
-      // Add delay between down/up if specified
-      if (eventType === "mousedown" && step.delayMs) {
-        await new Promise((resolve) => setTimeout(resolve, step.delayMs))
+      if (step.delayMs) {
+        await sleep(step.delayMs)
+      }
+
+      this.dispatchMouseEvent(element, "pointerup", step, detail)
+      this.dispatchMouseEvent(element, "mouseup", step, detail)
+      this.dispatchMouseEvent(element, "click", step, detail)
+
+      if (step.button === "right") {
+        this.dispatchMouseEvent(element, "contextmenu", step, detail)
       }
     }
+
+    if ((step.clickCount ?? 1) === 2) {
+      this.dispatchMouseEvent(element, "dblclick", step, 2)
+    }
+  }
+
+  private dispatchMouseEvent(
+    element: Element,
+    eventType: string,
+    step: ClickStep,
+    detail: number,
+  ): void {
+    const rect = element.getBoundingClientRect()
+    const button =
+      step.button === "right" ? 2 : step.button === "middle" ? 1 : 0
+
+    element.dispatchEvent(
+      new MouseEvent(eventType, {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2,
+        button,
+        buttons: eventType.includes("down") ? 1 << button : 0,
+        detail,
+        altKey: step.modifiers?.includes("Alt") ?? false,
+        ctrlKey: step.modifiers?.includes("Control") ?? false,
+        metaKey: step.modifiers?.includes("Meta") ?? false,
+        shiftKey: step.modifiers?.includes("Shift") ?? false,
+      }),
+    )
   }
 }
 

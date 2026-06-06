@@ -1,8 +1,13 @@
 import type { ActionCommandNode } from "../../../shared/types"
 import type { Workflow } from "../../../shared/types/workflow"
-import { getBrowserAPI } from "../../../shared/utils/extension-api"
 import { showToast } from "../../messages/showToast"
-import { sendMessageToActiveTab } from "../../utils/runtime"
+import { sendTabMessage } from "../../utils/browser"
+import {
+  executeWorkflowOnTargetTab,
+  resolveWorkflowTargetTabId,
+} from "../../workflows/execution"
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const debugWorkflow: ActionCommandNode = {
   type: "action",
@@ -13,22 +18,15 @@ export const debugWorkflow: ActionCommandNode = {
   icon: { type: "lucide", name: "Bug" },
   actionLabel: "Run Debug Test",
   execute: async (context) => {
-    // Close the command palette by sending a message to the content script
-    const browserAPI = getBrowserAPI()
+    let tabId: number | undefined
 
     try {
-      // First close the UI
-      if (context?.url) {
-        const tabs = await browserAPI.tabs.query({ url: context.url })
-        if (tabs.length > 0) {
-          await browserAPI.tabs.sendMessage(tabs[0].id!, { type: "toggle-ui" })
-        }
-      }
+      tabId = await resolveWorkflowTargetTabId({ context })
+      await sendTabMessage(tabId, { type: "toggle-ui" } as any).catch(
+        () => undefined,
+      )
+      await delay(200)
 
-      // Wait a moment for UI to close
-      await new Promise((resolve) => setTimeout(resolve, 200))
-
-      // Create a simple test workflow that clicks a submit button
       const testWorkflow: Workflow = {
         version: "1.0",
         name: "Debug Test - Click Submit Button",
@@ -51,19 +49,38 @@ export const debugWorkflow: ActionCommandNode = {
         ],
       }
 
-      // Send workflow execution message to content
-      await sendMessageToActiveTab({
-        type: "execute-workflow-content",
+      const { result } = await executeWorkflowOnTargetTab({
+        tabId,
         workflow: testWorkflow,
         context,
       })
+
+      if (!result.success) {
+        throw new Error(result.error || "Workflow execution failed")
+      }
+
+      await sendTabMessage(tabId, {
+        type: "monocle-toast",
+        level: "success",
+        message: "Debug workflow clicked the first Submit target",
+      } as any)
     } catch (error) {
       console.error("[DebugWorkflow] Error:", error)
+      const message = `Debug workflow error: ${error instanceof Error ? error.message : "Unknown error"}`
+
+      if (tabId) {
+        await sendTabMessage(tabId, {
+          type: "monocle-toast",
+          level: "error",
+          message,
+        } as any).catch(() => undefined)
+        return
+      }
 
       await showToast({
         type: "show-toast",
         level: "error",
-        message: `Debug workflow error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message,
       })
     }
   },

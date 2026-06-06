@@ -121,3 +121,100 @@ describe("permission grant page schema validation", () => {
     ).toBe(false)
   })
 })
+
+describe("workflow schema validation", () => {
+  it("accepts executable click and wait steps with explicit tab targeting", () => {
+    expect(
+      validateMessage({
+        type: "execute-workflow",
+        tabId: 42,
+        context,
+        workflow: {
+          version: "1.0",
+          name: "Click and wait",
+          steps: [
+            {
+              op: "click",
+              target: {
+                strategy: "css",
+                value: "button[type='submit']",
+              },
+              button: "left",
+              clickCount: 2,
+              modifiers: ["Meta"],
+              targeting: {
+                ensureVisible: true,
+                scrollIntoView: false,
+              },
+            },
+            {
+              op: "wait",
+              timeoutMs: 1000,
+              for: {
+                selector: {
+                  strategy: "text",
+                  value: "Saved",
+                  exact: true,
+                },
+                state: "visible",
+              },
+            },
+          ],
+        },
+      }).success,
+    ).toBe(true)
+  })
+
+  it("rejects malformed click steps and unsupported modeled operations", () => {
+    expect(
+      validateMessage({
+        type: "execute-workflow",
+        context,
+        workflow: {
+          version: "1.0",
+          steps: [
+            {
+              op: "click",
+            },
+          ],
+        },
+      }).success,
+    ).toBe(false)
+
+    expect(
+      validateMessage({
+        type: "execute-workflow",
+        context,
+        workflow: {
+          version: "1.0",
+          steps: [
+            {
+              op: "hover",
+              target: {
+                strategy: "css",
+                value: "#target",
+              },
+            },
+          ],
+        },
+      }).success,
+    ).toBe(false)
+
+    expect(
+      validateMessage({
+        type: "execute-workflow",
+        tabId: 0,
+        context,
+        workflow: {
+          version: "1.0",
+          steps: [
+            {
+              op: "wait",
+              for: { timeMs: 1 },
+            },
+          ],
+        },
+      }).success,
+    ).toBe(false)
+  })
+})

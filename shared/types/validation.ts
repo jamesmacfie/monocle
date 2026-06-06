@@ -1,5 +1,6 @@
 // Runtime validation schemas for message types
 import { z } from "zod"
+import type { Selector } from "./workflow"
 
 // Browser context validation schema
 export const BrowserContextSchema = z.object({
@@ -116,28 +117,97 @@ export const OpenPermissionGrantPageMessageSchema = z.object({
   permission: z.string().min(1, "Permission name cannot be empty"),
 })
 
-// Workflow schemas
-export const WorkflowStepSchema = z
+// Workflow schemas. This intentionally validates only the currently executable
+// content-side subset; broader workflow types remain future design until their
+// runtime behavior is implemented.
+const NonNegativeIntegerSchema = z.number().int().nonnegative()
+
+const RetryPolicySchema = z
   .object({
-    op: z.string(),
-    id: z.string().optional(),
-    description: z.string().optional(),
-    timeoutMs: z.number().optional(),
-    retry: z
-      .object({
-        retries: z.number(),
-        delayMs: z.number().optional(),
-        backoff: z.enum(["none", "exponential"]).optional(),
-      })
-      .optional(),
-    targeting: z
-      .object({
-        scrollIntoView: z.boolean().optional(),
-        ensureVisible: z.boolean().optional(),
-      })
-      .optional(),
+    retries: NonNegativeIntegerSchema,
+    delayMs: NonNegativeIntegerSchema.optional(),
+    backoff: z.enum(["none", "exponential"]).optional(),
   })
-  .passthrough() // Allow additional properties for specific step types
+  .strict()
+
+const TargetingOptsSchema = z
+  .object({
+    scrollIntoView: z.boolean().optional(),
+    ensureVisible: z.boolean().optional(),
+  })
+  .strict()
+
+const BaseWorkflowStepSchema = z.object({
+  id: z.string().optional(),
+  description: z.string().optional(),
+  timeoutMs: NonNegativeIntegerSchema.optional(),
+  retry: RetryPolicySchema.optional(),
+  targeting: TargetingOptsSchema.optional(),
+})
+
+const SelectorSchema: z.ZodType<Selector> = z.lazy(() =>
+  z.discriminatedUnion("strategy", [
+    z
+      .object({
+        strategy: z.literal("css"),
+        value: z.string().min(1, "CSS selector cannot be empty"),
+        index: NonNegativeIntegerSchema.optional(),
+      })
+      .strict(),
+    z
+      .object({
+        strategy: z.literal("text"),
+        value: z.string().min(1, "Text selector cannot be empty"),
+        exact: z.boolean().optional(),
+        within: SelectorSchema.optional(),
+        index: NonNegativeIntegerSchema.optional(),
+      })
+      .strict(),
+  ]),
+)
+
+const ClickStepSchema = BaseWorkflowStepSchema.extend({
+  op: z.literal("click"),
+  target: SelectorSchema,
+  button: z.enum(["left", "middle", "right"]).optional(),
+  clickCount: z.union([z.literal(1), z.literal(2)]).optional(),
+  delayMs: NonNegativeIntegerSchema.optional(),
+  modifiers: z.array(z.enum(["Alt", "Control", "Meta", "Shift"])).optional(),
+}).strict()
+
+const WaitForSchema = z.union([
+  z
+    .object({
+      timeMs: NonNegativeIntegerSchema,
+    })
+    .strict(),
+  z
+    .object({
+      selector: SelectorSchema,
+      state: z.enum(["attached", "visible", "hidden", "detached"]).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      urlIncludes: z.string().min(1, "URL wait text cannot be empty"),
+    })
+    .strict(),
+  z
+    .object({
+      readyState: z.enum(["loading", "interactive", "complete"]),
+    })
+    .strict(),
+])
+
+const WaitStepSchema = BaseWorkflowStepSchema.extend({
+  op: z.literal("wait"),
+  for: WaitForSchema,
+}).strict()
+
+export const WorkflowStepSchema = z.discriminatedUnion("op", [
+  ClickStepSchema,
+  WaitStepSchema,
+])
 
 export const WorkflowSchema = z.object({
   version: z.literal("1.0"),
@@ -155,6 +225,7 @@ export const ExecuteWorkflowMessageSchema = z.object({
   type: z.literal("execute-workflow"),
   workflow: WorkflowSchema,
   context: BrowserContextSchema,
+  tabId: z.number().int().positive().optional(),
 })
 
 // Union schema for all message types

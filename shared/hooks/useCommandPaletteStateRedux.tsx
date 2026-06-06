@@ -60,7 +60,7 @@ export const useCommandPaletteStateRedux = () => {
 
   // Handle background messages
   useEffect(() => {
-    const handleBackgroundMessage = async (
+    const handleBackgroundMessage = (
       message: any,
       _sender: browser.runtime.MessageSender | chrome.runtime.MessageSender,
       sendResponse: (response?: any) => void,
@@ -72,38 +72,40 @@ export const useCommandPaletteStateRedux = () => {
         show()
         sendResponse({ received: true })
       } else if (message.type === "execute-workflow-content") {
-        // Handle workflow execution in content script
-        console.log("[Content] Received workflow execution request:", message)
+        console.log("[Content] Received workflow execution request:", {
+          name: message.workflow?.name,
+          stepCount: message.workflow?.steps?.length ?? 0,
+        })
 
-        try {
-          const result = await workflowExecutor.executeWorkflow(
-            message.workflow as Workflow,
-          )
+        // Keep this listener synchronous. Some runtimes treat an async
+        // listener's returned Promise as the message response.
+        workflowExecutor
+          .executeWorkflow(message.workflow as Workflow)
+          .then((result) => {
+            console.log("[Content] Workflow execution completed:", {
+              success: result.success,
+              error: result.error,
+              stepCount: result.stepResults?.length || 0,
+            })
 
-          console.log("[Content] Workflow execution completed:", {
-            success: result.success,
-            error: result.error,
-            stepCount: result.stepResults?.length || 0,
-            fullResult: result,
+            sendResponse({ result })
           })
+          .catch((error) => {
+            console.error("[Content] Workflow execution failed:", {
+              error,
+              message: error instanceof Error ? error.message : "Unknown error",
+              stack: error instanceof Error ? error.stack : undefined,
+              workflow: message.workflow?.name,
+            })
 
-          sendResponse({ result })
-        } catch (error) {
-          console.error("[Content] Workflow execution failed:", {
-            error,
-            message: error instanceof Error ? error.message : "Unknown error",
-            stack: error instanceof Error ? error.stack : undefined,
-            workflow: message.workflow?.name,
+            sendResponse({
+              result: {
+                success: false,
+                error: error instanceof Error ? error.message : "Unknown error",
+              },
+            })
           })
-
-          sendResponse({
-            result: {
-              success: false,
-              error: error instanceof Error ? error.message : "Unknown error",
-            },
-          })
-        }
-        return true // Keep message channel open for async response
+        return true
       }
     }
 

@@ -61,7 +61,7 @@ The docs baseline records the current system as follows:
 | Keybindings | Working with review notes | Canonicalization, context-aware registry coverage, custom conflicts, and scoped sequence state have focused tests; manual browser smoke is still needed. |
 | Permissions and settings | Working with review notes | Optional permission requests, command-setting compatibility, update validation, and URL-rule management have focused tests; manual Chrome/Firefox permission prompts still need smoke checks. |
 | URL filtering and website plugins | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. |
-| Workflow automation | Partial | Click workflows work; `wait` is a no-op and most operations are unsupported. |
+| Workflow automation | Partial | Click workflows and focused wait conditions work; validation/routing/debug feedback have focused tests, and most operations remain unsupported. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
 
 Validation from the docs baseline:
@@ -69,8 +69,8 @@ Validation from the docs baseline:
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
 - `pnpm test` passes with focused command-system, browser-command, keybinding,
-  URL-filtering, settings-management, new-tab/theme/background, and GitHub
-  parsing coverage.
+  URL-filtering, settings-management, workflow automation,
+  new-tab/theme/background, and GitHub parsing coverage.
 - `pnpm run build` passes for the Chrome MV3 target.
 - `pnpm run build:firefox` passes for the Firefox MV3 target.
 
@@ -295,19 +295,21 @@ Implemented in `content/workflowExecutor.ts`:
 - Scroll into view.
 - Click execution.
 - Modifier flags for fallback click events.
+- Wait conditions for `timeMs`, selector attached/visible/hidden/detached,
+  `urlIncludes`, and document `readyState`.
+- Per-step retry and timeout handling for supported content-side steps.
 
 Not implemented or incomplete:
 
-- Reliable wait conditions.
 - Navigation.
 - Hover, focus, blur, fill, type, key combo, select, check, uncheck, submit,
   scroll, copy, and clipboard write.
-- Retry and timeout enforcement.
 - Variable interpolation.
 - Background privileged operations such as tab navigation and clipboard write.
 
-`wait` currently succeeding without evaluating its condition is a correctness
-risk. Treat it as unsupported until implemented or changed to fail clearly.
+Public workflow message validation currently accepts only implemented `click`
+and `wait` steps. Treat the broader workflow type model as future design until
+each operation is implemented and tested.
 
 ## Known Architectural Risks
 

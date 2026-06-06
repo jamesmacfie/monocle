@@ -110,6 +110,7 @@ export type ExecuteWorkflowMessage = {
   type: "execute-workflow"
   workflow: Workflow
   context: Browser.Context
+  tabId?: number
 }
 
 export interface ExecuteWorkflowResponse {
