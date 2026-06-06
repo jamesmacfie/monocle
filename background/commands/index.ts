@@ -3,6 +3,7 @@ import type {
   BrowserPermission,
   CommandExecutionScope,
   CommandNode,
+  CommandSettings,
   Suggestion,
 } from "../../shared/types"
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
@@ -23,6 +24,7 @@ import {
 } from "./generatedActions"
 import {
   getCommandCollections,
+  mergePermissions,
   normalizeContext,
   type ResolvedCommand,
   resolveCommandById,
@@ -85,13 +87,6 @@ const normalizeFormValues = (
       Array.isArray(value) ? value.join(",") : (value ?? ""),
     ]),
   )
-}
-
-const mergePermissions = (
-  inherited: BrowserPermission[],
-  own?: BrowserPermission[],
-): BrowserPermission[] => {
-  return Array.from(new Set([...inherited, ...(own ?? [])]))
 }
 
 const shouldRecordUsage = (command: CommandNode): boolean => {
@@ -306,9 +301,10 @@ const _createSetKeybindingAction = async (
 }
 
 // Helper to create reset keybinding action
-const _createResetKeybindingAction = async (
+const _createResetKeybindingAction = (
   command: CommandNode,
-): Promise<Suggestion | null> => {
+  settings?: CommandSettings,
+): Suggestion | null => {
   // Don't create action for groups
   if (command.type === "group") {
     return null
@@ -323,7 +319,6 @@ const _createResetKeybindingAction = async (
   }
 
   // Check if command has a custom keybinding set
-  const settings = await getCommandSettings(command.id)
   if (!settings?.keybinding) {
     return null // No custom keybinding to reset
   }
@@ -458,6 +453,12 @@ export const commandsToSuggestions = async (
         permissions: effectivePermissions,
       }
 
+      // Resolved once and reused for both the suggestion and its modifier actions
+      const modifierActionLabels =
+        node.type === "action" || node.type === "submit"
+          ? await resolveModifierActionLabels(node, context)
+          : undefined
+
       let suggestion: Suggestion
 
       if (node.type === "action") {
@@ -465,7 +466,7 @@ export const commandsToSuggestions = async (
           ...baseProps,
           type: "action",
           actionLabel: await resolveActionLabel(node, context),
-          modifierActionLabel: await resolveModifierActionLabels(node, context),
+          modifierActionLabel: modifierActionLabels,
           confirmAction: node.confirmAction,
           remainOpenOnSelect: node.remainOpenOnSelect,
           executionContext: undefined,
@@ -476,7 +477,7 @@ export const commandsToSuggestions = async (
           ...baseProps,
           type: "submit",
           actionLabel: await resolveActionLabel(node, context),
-          modifierActionLabel: await resolveModifierActionLabels(node, context),
+          modifierActionLabel: modifierActionLabels,
           confirmAction: node.confirmAction,
           remainOpenOnSelect: node.remainOpenOnSelect,
           executionContext: undefined,
@@ -543,8 +544,11 @@ export const commandsToSuggestions = async (
           executionContext: { type: "primary", targetCommandId: node.id },
         })
       }
-      if (node.type === "action" || node.type === "submit") {
-        const modifierLabels = await resolveModifierActionLabels(node, context)
+      if (
+        (node.type === "action" || node.type === "submit") &&
+        modifierActionLabels
+      ) {
+        const modifierLabels = modifierActionLabels
         const defs = [
           {
             key: "cmd" as const,
@@ -603,7 +607,10 @@ export const commandsToSuggestions = async (
       const hideFromDomain = await _createHideFromDomainAction(node, context)
       if (hideFromDomain) actions.push(hideFromDomain)
       const setKB = await _createSetKeybindingAction(node)
-      const resetKB = await _createResetKeybindingAction(node)
+      const resetKB = _createResetKeybindingAction(
+        node,
+        commandSettings[node.id],
+      )
       if (setKB) actions.push(setKB)
       if (resetKB) actions.push(resetKB)
       if (

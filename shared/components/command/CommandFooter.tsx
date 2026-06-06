@@ -10,7 +10,7 @@ export interface CommandFooterProps {
   focusedSuggestion: Suggestion | undefined
   actionLabel: string
   inputRef: RefObject<HTMLInputElement | null>
-  onActionSelect?: (id: string) => void
+  onSelect?: (id: string) => void
   onOpenActions?: (suggestion: Suggestion) => void
   actionsButtonRef?: RefObject<HTMLButtonElement>
 }
@@ -19,9 +19,20 @@ export function CommandFooter({
   currentPage,
   focusedSuggestion,
   actionLabel,
+  inputRef,
+  onSelect,
   onOpenActions,
   actionsButtonRef,
 }: CommandFooterProps) {
+  // Clicking the primary button mirrors pressing Enter on the focused row
+  const handlePrimaryClick = () => {
+    if (focusedSuggestion && onSelect) {
+      onSelect(focusedSuggestion.id)
+      // Return focus to the search input so keyboard flow keeps working
+      inputRef?.current?.focus()
+    }
+  }
+
   const handleActionsClick = () => {
     if (focusedSuggestion && onOpenActions) {
       onOpenActions(focusedSuggestion)
@@ -46,7 +57,7 @@ export function CommandFooter({
         {focusedSuggestion && (
           <>
             {(focusedSuggestion.type === "group" || actionLabel) && (
-              <button cmdk-raycast-open-trigger="">
+              <button cmdk-raycast-open-trigger="" onClick={handlePrimaryClick}>
                 {focusedSuggestion.type === "group" ? "Open" : actionLabel}
                 <kbd>↵</kbd>
               </button>

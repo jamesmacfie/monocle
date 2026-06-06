@@ -1,8 +1,4 @@
-import {
-  createAsyncThunk,
-  createSlice,
-  type PayloadAction,
-} from "@reduxjs/toolkit"
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 import type {
   NewTabSettings,
   PermissionSettings,
@@ -13,6 +9,21 @@ import { getBrowserAPI } from "../../utils/extension-api"
 
 // Cross-browser compatibility layer
 const browserAPI = getBrowserAPI()
+
+// Storage key for persisted settings (mirrors background/commands/settings.ts)
+const STORAGE_KEY = "monocle-settings"
+
+// Shared get-permissions round-trip used by the load/refresh thunks
+const fetchPermissions = () =>
+  new Promise<PermissionSettings>((resolve, reject) => {
+    browserAPI.runtime.sendMessage({ type: "get-permissions" }, (response) => {
+      if (browserAPI.runtime.lastError) {
+        reject(browserAPI.runtime.lastError)
+      } else {
+        resolve(response as PermissionSettings)
+      }
+    })
+  })
 
 // Settings state structure
 interface SettingsState {
@@ -56,7 +67,6 @@ export const loadSettings = createAsyncThunk(
   "settings/loadSettings",
   async (_, { rejectWithValue }) => {
     try {
-      const STORAGE_KEY = "monocle-settings"
       const result = (await browserAPI.storage.local.get(
         STORAGE_KEY,
       )) as Record<string, Settings | undefined>
@@ -79,20 +89,7 @@ export const loadPermissions = createAsyncThunk(
   "settings/loadPermissions",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await new Promise((resolve, reject) => {
-        browserAPI.runtime.sendMessage(
-          { type: "get-permissions" },
-          (response) => {
-            if (browserAPI.runtime.lastError) {
-              reject(browserAPI.runtime.lastError)
-            } else {
-              resolve(response)
-            }
-          },
-        )
-      })
-
-      return response as PermissionSettings
+      return await fetchPermissions()
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to load permissions",
@@ -106,20 +103,7 @@ export const refreshPermissions = createAsyncThunk(
   "settings/refreshPermissions",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await new Promise((resolve, reject) => {
-        browserAPI.runtime.sendMessage(
-          { type: "get-permissions" },
-          (response) => {
-            if (browserAPI.runtime.lastError) {
-              reject(browserAPI.runtime.lastError)
-            } else {
-              resolve(response)
-            }
-          },
-        )
-      })
-
-      return response as PermissionSettings
+      return await fetchPermissions()
     } catch (error) {
       return rejectWithValue(
         error instanceof Error
@@ -135,8 +119,6 @@ export const updateThemeMode = createAsyncThunk(
   "settings/updateThemeMode",
   async (mode: "light" | "dark" | "system", { rejectWithValue }) => {
     try {
-      const STORAGE_KEY = "monocle-settings"
-
       // Get current settings from storage
       const result = await browserAPI.storage.local.get(STORAGE_KEY)
       const currentSettings: Settings = result[STORAGE_KEY] || {}
@@ -169,8 +151,6 @@ export const updateClockVisibility = createAsyncThunk(
   "settings/updateClockVisibility",
   async (show: boolean, { rejectWithValue }) => {
     try {
-      const STORAGE_KEY = "monocle-settings"
-
       // Get current settings from storage
       const result = await browserAPI.storage.local.get(STORAGE_KEY)
       const currentSettings: Settings = result[STORAGE_KEY] || {}
@@ -210,23 +190,6 @@ export const settingsSlice = createSlice({
   reducers: {
     clearError: (state) => {
       state.error = null
-    },
-    // Synchronous update for immediate UI feedback
-    setClockVisibility: (state, action: PayloadAction<boolean>) => {
-      state.newTab.clock = {
-        ...state.newTab.clock,
-        show: action.payload,
-      }
-    },
-    // Synchronous theme update for immediate UI feedback
-    setThemeMode: (
-      state,
-      action: PayloadAction<"light" | "dark" | "system">,
-    ) => {
-      state.theme = {
-        ...state.theme,
-        mode: action.payload,
-      }
     },
   },
   extraReducers: (builder) => {
@@ -326,29 +289,16 @@ export const settingsSlice = createSlice({
   },
 })
 
-export const { clearError, setClockVisibility, setThemeMode } =
-  settingsSlice.actions
+export const { clearError } = settingsSlice.actions
 
 // Selectors
 export const selectThemeMode = (state: { settings: SettingsState }) =>
   state.settings.theme.mode ?? "system"
 
-export const selectNewTabSettings = (state: { settings: SettingsState }) =>
-  state.settings.newTab
-
 export const selectClockVisibility = (state: { settings: SettingsState }) =>
   state.settings.newTab.clock?.show ?? true
 
-export const selectSettingsLoading = (state: { settings: SettingsState }) =>
-  state.settings.loading
-
-export const selectSettingsError = (state: { settings: SettingsState }) =>
-  state.settings.error
-
 export const selectPermissions = (state: { settings: SettingsState }) =>
   state.settings.permissions
-
-export const selectPermissionsLoaded = (state: { settings: SettingsState }) =>
-  state.settings.permissions.isLoaded
 
 export default settingsSlice.reducer

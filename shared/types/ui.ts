@@ -104,6 +104,7 @@ interface SuggestionBase {
   keybinding?: string
   isFavorite?: boolean
   permissions?: BrowserPermission[]
+  rankWeight?: number
 }
 
 export interface ActionSuggestion extends SuggestionBase {

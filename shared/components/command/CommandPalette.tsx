@@ -1,5 +1,5 @@
 import { Command, defaultFilter, useCommandState } from "cmdk"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { CommandExecutionScope, Suggestion } from "../../../shared/types"
 import { useActionLabel } from "../../hooks/useActionLabel"
 import { useCommandNavigation } from "../../hooks/useCommandNavigation"
@@ -18,12 +18,8 @@ import { CommandActions } from "./CommandActions"
 import { CommandFooter } from "./CommandFooter"
 import { CommandHeader } from "./CommandHeader"
 import { CommandList } from "./CommandList"
+import { getDisplayName } from "./CommandName"
 import { getPaletteKeyboardCommand } from "./paletteKeyboard"
-
-// Temporary inline function to avoid import issues
-const getDisplayName = (name: string | string[]): string => {
-  return Array.isArray(name) ? name[0] : name
-}
 
 const getExecutionScope = (page: Page): CommandExecutionScope => ({
   pageId: page.id,
@@ -39,13 +35,9 @@ function CommandContent({
   updateSearchValue,
   selectCommand,
   close,
-  executeCommand,
   onOpenActions,
   onCloseActions,
-  onRefreshCommands,
-  onRefreshCurrentPage,
   deepSearchItems = [],
-  onDeepSearchItemsChange,
   isLoading = false,
   isActionsOpen = false,
   actionsOpenForSuggestion = null,
@@ -57,26 +49,14 @@ function CommandContent({
   updateSearchValue: (search: string) => void
   selectCommand: (id: string) => void
   close: () => void
-  executeCommand: (
-    id: string,
-    formValues: Record<string, string | string[]>,
-    navigateBack?: boolean,
-    parentNames?: string[],
-    executionScope?: CommandExecutionScope,
-  ) => Promise<void>
   onOpenActions: (suggestion: Suggestion) => void
   onCloseActions: (force?: boolean) => void
-  onRefreshCommands: () => void
-  onRefreshCurrentPage: () => void
   deepSearchItems?: Suggestion[]
-  onDeepSearchItemsChange?: (items: Suggestion[]) => void
   isLoading?: boolean
   isActionsOpen?: boolean
   actionsOpenForSuggestion?: Suggestion | null
 }) {
   const focusedValue = useCommandState((state) => state.value)
-  // Track the last key pressed to correlate with focus changes
-  const _lastKeyRef = useRef<string | null>(null)
 
   // Find the focused suggestion based on its value
   const focusedSuggestion =
@@ -102,41 +82,9 @@ function CommandContent({
     }
   }, [focusedValue, isActionsOpen, actionsOpenForSuggestion, onCloseActions])
 
-  // Debug: Log navigation focus changes with last key pressed
-  useEffect(() => {
-    if (!focusedValue) return
-    const _key = _lastKeyRef.current
-    const _display = focusedSuggestion
-      ? Array.isArray(focusedSuggestion.name)
-        ? focusedSuggestion.name.join(" > ")
-        : focusedSuggestion.name
-      : focusedValue
-  }, [focusedValue, focusedSuggestion])
-
   const actionLabel = useActionLabel(currentPage)
 
-  const handleActionSelect = async (actionId: string) => {
-    // Execute the action using the same flow as regular commands
-    await executeCommand(
-      actionId,
-      currentPage.formValues || {},
-      false,
-      undefined,
-      getExecutionScope(currentPage),
-    )
-
-    // Refresh commands after any action to ensure UI is up to date
-    onRefreshCommands()
-
-    // If this is a favorite toggle action, also refresh the current page
-    // to update the isFavorite flags of nested commands
-    if (actionId.startsWith("toggle-favorite-")) {
-      await onRefreshCurrentPage()
-    }
-  }
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    _lastKeyRef.current = e.key
     const inputElement = e.currentTarget.querySelector(
       "input[cmdk-input]",
     ) as HTMLInputElement
@@ -178,7 +126,6 @@ function CommandContent({
       <CommandList
         currentPage={currentPage}
         onSelect={selectCommand}
-        onDeepSearchItemsChange={onDeepSearchItemsChange}
         deepSearchItems={deepSearchItems}
         isLoading={isLoading}
       />
@@ -187,7 +134,7 @@ function CommandContent({
         focusedSuggestion={focusedSuggestion}
         actionLabel={actionLabel}
         inputRef={inputRef}
-        onActionSelect={handleActionSelect}
+        onSelect={selectCommand}
         onOpenActions={onOpenActions}
       />
     </div>
@@ -228,8 +175,6 @@ export function CommandPalette({
 
   const _isCapturing = useAppSelector(selectIsCapturing)
 
-  const [_deepSearchItems, _setDeepSearchItems] = useState<Suggestion[]>([])
-
   const {
     pages,
     currentPage,
@@ -253,6 +198,14 @@ export function CommandPalette({
       inputRef?.current?.focus()
     }
   }, [autoFocus])
+
+  const rankWeightById = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const item of items.deepSearchItems ?? []) {
+      if (typeof item.rankWeight === "number") map.set(item.id, item.rankWeight)
+    }
+    return map
+  }, [items.deepSearchItems])
 
   const handleOpenActions = (suggestion: Suggestion) => {
     setActionsState({
@@ -315,17 +268,24 @@ export function CommandPalette({
     // Refresh commands after any action to ensure UI is up to date
     onRefreshCommands()
 
+    // The background stamps generated actions with a typed executionContext;
+    // branch on that instead of re-parsing the id prefix taxonomy
+    const executionType =
+      selectedAction?.type === "action" || selectedAction?.type === "submit"
+        ? selectedAction.executionContext?.type
+        : undefined
+
     // Refresh child pages for actions that mutate command visibility/state locally
     if (
-      actionId.startsWith("toggle-favorite-") ||
-      actionId.startsWith("reset-keybinding-") ||
-      actionId.startsWith("hide-from-domain-")
+      executionType === "favorite" ||
+      executionType === "resetKeybinding" ||
+      executionType === "hideDomain"
     ) {
       await refreshCurrentPage()
     }
 
     // For setKeybinding actions, don't close the menu - it will stay open for capture
-    if (actionId.startsWith("set-keybinding-")) {
+    if (executionType === "setKeybinding") {
       return // Keep menu open
     }
   }
@@ -340,7 +300,7 @@ export function CommandPalette({
       <>
         <Command
           // Custom filter: weight the primary name higher than other tokens
-          filter={(_value, search, keywords) => {
+          filter={(value, search, keywords) => {
             // Guard: no search means everything visible
             if (!search) return 1
 
@@ -362,13 +322,15 @@ export function CommandPalette({
               ? 0.1
               : 0
 
-            // Combine with weights (cap at 1)
+            // Combine with weights (cap at 1), then apply source multiplier.
+            // Deep-search items carry rankWeight < 1; root commands default to 1.
             const combined = Math.min(
               1,
               nameScore * 0.8 + restScore * 0.2 + prefixBoost,
             )
+            const sourceWeight = rankWeightById.get(value) ?? 1
 
-            return combined
+            return combined * sourceWeight
           }}
         >
           <CommandContent
@@ -379,13 +341,9 @@ export function CommandPalette({
             updateSearchValue={updateSearchValue}
             selectCommand={selectCommand}
             close={close}
-            executeCommand={executeCommand}
             onOpenActions={handleOpenActions}
             onCloseActions={handleCloseActions}
-            onRefreshCommands={onRefreshCommands}
-            onRefreshCurrentPage={refreshCurrentPage}
             deepSearchItems={items.deepSearchItems || []}
-            onDeepSearchItemsChange={_setDeepSearchItems}
             isLoading={loading || isLoading}
             isActionsOpen={actionsState.open}
             actionsOpenForSuggestion={actionsState.suggestion}

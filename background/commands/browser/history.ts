@@ -7,6 +7,7 @@ import {
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
 import { getFaviconUrl } from "../../utils/favicon"
+import { normalizeUrlForDedupe } from "../../utils/urlFilter"
 
 type HistoryItem = chrome.history.HistoryItem
 
@@ -18,6 +19,7 @@ interface TimePeriod {
   description: string
   startTime: number
   endTime: number
+  deepSearch: boolean
 }
 
 // Get time periods for grouping history
@@ -36,6 +38,7 @@ function getTimePeriods(): TimePeriod[] {
       description: "History from today",
       startTime: today.getTime(),
       endTime: now.getTime(),
+      deepSearch: true,
     },
     {
       id: "yesterday",
@@ -44,6 +47,7 @@ function getTimePeriods(): TimePeriod[] {
       description: "History from yesterday",
       startTime: yesterday.getTime(),
       endTime: today.getTime(),
+      deepSearch: true,
     },
     {
       id: "last-week",
@@ -52,6 +56,7 @@ function getTimePeriods(): TimePeriod[] {
       description: "History from the past week",
       startTime: lastWeek.getTime(),
       endTime: yesterday.getTime(),
+      deepSearch: false,
     },
     {
       id: "last-month",
@@ -60,6 +65,7 @@ function getTimePeriods(): TimePeriod[] {
       description: "History from the past month",
       startTime: lastMonth.getTime(),
       endTime: lastWeek.getTime(),
+      deepSearch: false,
     },
     {
       id: "older",
@@ -68,6 +74,7 @@ function getTimePeriods(): TimePeriod[] {
       description: "History older than a month",
       startTime: 0,
       endTime: lastMonth.getTime(),
+      deepSearch: false,
     },
   ]
 }
@@ -97,6 +104,7 @@ function createHistoryItemCommand(item: HistoryItem): CommandNode {
     id: `history-${item.id}`,
     name: item.title || item.url || "Untitled",
     description: `${item.url} • ${visitTime}`,
+    dedupeKey: item.url ? normalizeUrlForDedupe(item.url) : undefined,
     icon: faviconUrl
       ? { type: "url", url: faviconUrl }
       : { type: "lucide", name: "Globe" },
@@ -179,6 +187,7 @@ function createTimePeriodCommands(): CommandNode[] {
       icon: { type: "lucide", name: period.icon },
       color: "blue",
       keywords: [period.name.toLowerCase(), "history"],
+      enableDeepSearch: period.deepSearch ? undefined : false,
       children: async () => {
         try {
           // Fetch history items for this time period
@@ -238,6 +247,7 @@ export const browsingHistory: CommandNode = {
   color: "green",
   keywords: ["history", "browsing", "visited", "past", "sites"],
   permissions: ["history"],
+  enableDeepSearch: true,
   children: async () => {
     try {
       // Return time period commands

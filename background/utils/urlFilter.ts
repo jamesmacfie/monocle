@@ -7,6 +7,23 @@ import type { CommandNode, CommandSettings } from "../../shared/types"
  * - http://localhost:3000/path -> localhost:3000
  * - https://app.example.com/page -> app.example.com
  */
+/**
+ * Normalizes a URL into a stable dedupe key for cross-source deduplication.
+ * Strips hash, strips single trailing path slash, lowercases host, keeps query params.
+ * Non-parseable URLs fall back to the trimmed raw string.
+ */
+export function normalizeUrlForDedupe(url: string): string {
+  try {
+    const u = new URL(url)
+    u.hash = ""
+    let path = u.pathname
+    if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1)
+    return `${u.protocol}//${u.host.toLowerCase()}${path}${u.search}`
+  } catch {
+    return url.trim()
+  }
+}
+
 export function extractDomain(url: string): string {
   try {
     const urlObj = new URL(url)

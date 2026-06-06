@@ -10,6 +10,7 @@ import {
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
 import { getFaviconIcon } from "../../utils/favicon"
+import { normalizeUrlForDedupe } from "../../utils/urlFilter"
 
 interface TabInfo {
   id: number
@@ -41,6 +42,7 @@ function createTabCommand(tab: TabInfo, _windowTitle: string): CommandNode {
     id: `open-tab-${tab.id}`,
     name: tabName,
     description: tabUrl,
+    dedupeKey: tabUrl ? normalizeUrlForDedupe(tabUrl) : undefined,
     icon: async () => {
       return await getFaviconIcon({
         browserFaviconUrl: tab.favIconUrl,

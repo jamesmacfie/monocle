@@ -86,6 +86,7 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
   keybinding?: string
+  dedupeKey?: string
 }
 
 // Search parent node with dynamic results driven by search input
@@ -110,6 +111,7 @@ export interface SubmitCommandNode extends CommandNodeBase, ActionLabel {
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
   keybinding?: string
+  dedupeKey?: string
 }
 
 // A single inline input rendered as a list item

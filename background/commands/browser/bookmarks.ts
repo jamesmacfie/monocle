@@ -10,6 +10,7 @@ import {
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
 import { getFaviconUrl } from "../../utils/favicon"
+import { normalizeUrlForDedupe } from "../../utils/urlFilter"
 
 interface BookmarkNode {
   id: string
@@ -64,6 +65,7 @@ function processBookmarkNode(
       id: `bookmark-${node.id}`,
       name: node.title,
       description: node.url,
+      dedupeKey: normalizeUrlForDedupe(node.url),
       icon: faviconUrl
         ? { type: "url", url: faviconUrl }
         : { type: "lucide", name: "Globe" },

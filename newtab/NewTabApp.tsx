@@ -3,6 +3,7 @@ import { Provider } from "react-redux"
 import { ToastContainer } from "../shared/components/ToastContainer"
 import { createAppStore } from "../shared/store"
 import { useAppDispatch, useAppSelector } from "../shared/store/hooks"
+import { createPaletteSendMessage } from "../shared/store/sendMessage"
 import {
   loadPermissions,
   loadSettings,
@@ -103,25 +104,10 @@ function NewTabAppContent() {
 
 export default function NewTabApp() {
   // Build a messaging function with new tab context and basic page info
-  const sendMessageWithNewTab = useMemo(() => {
-    return (message: any) =>
-      new Promise((resolve, reject) => {
-        const context = {
-          title: document.title,
-          url: window.location.href,
-          modifierKey: null,
-          isNewTab: true,
-        }
-        const messageWithContext = { ...message, context }
-        chrome.runtime.sendMessage(messageWithContext, (response) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError)
-          } else {
-            resolve(response)
-          }
-        })
-      })
-  }, [])
+  const sendMessageWithNewTab = useMemo(
+    () => createPaletteSendMessage({ isNewTab: true }),
+    [],
+  )
 
   // Create Redux store for the entire app (provide messaging to thunks)
   const store = useMemo(

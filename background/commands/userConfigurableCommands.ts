@@ -1,31 +1,14 @@
 import type { Browser, CommandNode } from "../../shared/types"
-import { isFirefox } from "../../shared/utils/browser"
 import { browserCommands, firefoxCommands } from "./browser"
 import { clearFavoritesCommand } from "./favorites"
 import { newTabCommands } from "./newTab"
+import { getPlatform, supportsPlatform } from "./platform"
 import { toolCommands } from "./tools"
 import { toggleTheme } from "./ui/theme"
 import { websiteCommands } from "./websites"
 
 type UserConfigurableCommandOptions = {
   platform?: Browser.Platform
-}
-
-const getPlatform = (
-  options?: UserConfigurableCommandOptions,
-): Browser.Platform => {
-  return options?.platform ?? (isFirefox ? "firefox" : "chrome")
-}
-
-const supportsPlatform = (
-  command: CommandNode,
-  platform: Browser.Platform,
-): boolean => {
-  if (!command.supportedBrowsers) {
-    return true
-  }
-
-  return command.supportedBrowsers.includes(platform)
 }
 
 const uniqueById = (commands: CommandNode[]): CommandNode[] => {

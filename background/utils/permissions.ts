@@ -19,23 +19,25 @@ export async function checkPermissions(
 
   try {
     const browserAPI = isFirefox ? browser : chrome
-    const missingPermissions: BrowserPermission[] = []
 
-    // Check each permission individually
-    for (const permission of requiredPermissions) {
-      // Skip contextualIdentities check on Chrome as it's Firefox-only
-      if (permission === "contextualIdentities" && !isFirefox) {
-        continue
-      }
+    // Check permissions concurrently; each check is an independent API call
+    const checkResults = await Promise.all(
+      requiredPermissions.map(async (permission) => {
+        // Skip contextualIdentities check on Chrome as it's Firefox-only
+        if (permission === "contextualIdentities" && !isFirefox) {
+          return null
+        }
 
-      const hasPermission = await browserAPI.permissions.contains({
-        permissions: [permission as chrome.runtime.ManifestPermissions],
-      })
+        const hasPermission = await browserAPI.permissions.contains({
+          permissions: [permission as chrome.runtime.ManifestPermissions],
+        })
 
-      if (!hasPermission) {
-        missingPermissions.push(permission)
-      }
-    }
+        return hasPermission ? null : permission
+      }),
+    )
+    const missingPermissions = checkResults.filter(
+      (permission): permission is BrowserPermission => permission !== null,
+    )
 
     return {
       hasAllPermissions: missingPermissions.length === 0,

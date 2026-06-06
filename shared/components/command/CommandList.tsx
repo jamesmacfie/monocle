@@ -20,11 +20,9 @@ export interface CommandListProps {
 export function CommandList({
   currentPage,
   onSelect,
-  onDeepSearchItemsChange,
   deepSearchItems = [],
   isLoading = false,
 }: CommandListProps & {
-  onDeepSearchItemsChange?: (items: Suggestion[]) => void
   deepSearchItems?: Suggestion[]
 }) {
   const cmdkSearch = useCommandState((state) => state.search)
@@ -129,7 +127,6 @@ export function CommandList({
       <DeepSearchItems
         currentPage={currentPage}
         onSelect={onSelect}
-        onDeepSearchItemsChange={onDeepSearchItemsChange}
         deepSearchItems={deepSearchItems}
       />
     </Command.List>

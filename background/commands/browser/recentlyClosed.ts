@@ -7,6 +7,7 @@ import {
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
 import { getFaviconUrl } from "../../utils/favicon"
+import { normalizeUrlForDedupe } from "../../utils/urlFilter"
 
 // Format time for display
 function formatClosedTime(timestamp: number): string {
@@ -70,6 +71,7 @@ export const recentlyClosed: CommandNode = {
             id: `restore-tab-${tab.sessionId}`,
             name: tab.title || tab.url || "Untitled Tab",
             description: `${tab.url} • Closed ${timeAgo}`,
+            dedupeKey: tab.url ? normalizeUrlForDedupe(tab.url) : undefined,
             icon: faviconUrl
               ? { type: "url", url: faviconUrl }
               : { type: "lucide", name: "Globe" },

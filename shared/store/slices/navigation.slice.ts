@@ -41,7 +41,7 @@ interface NavigationState {
 }
 
 // Helper function to find a command in the current page's commands or deep search items
-function findCommandInPage(
+export function findCommandInPage(
   page: Page,
   commandId: string,
   deepSearchItems: Suggestion[] = [],
@@ -329,34 +329,9 @@ export const navigationSlice = createSlice({
       }
     },
 
-    // Clear all form values for current page
-    clearFormValues: (state) => {
-      if (state.pages.length > 0) {
-        const currentPageIndex = state.pages.length - 1
-        state.pages[currentPageIndex].formValues = {}
-      }
-    },
-
     // Add new page to navigation stack (used by successful navigateToCommand)
     addPage: (state, action: PayloadAction<Page>) => {
       state.pages.push(action.payload)
-    },
-
-    // Update current page's commands (used by successful refreshCurrentPage)
-    updateCurrentPageCommands: (
-      state,
-      action: PayloadAction<{
-        favorites: Suggestion[]
-        suggestions: Suggestion[]
-      }>,
-    ) => {
-      if (state.pages.length > 0) {
-        const currentPageIndex = state.pages.length - 1
-        state.pages[currentPageIndex] = {
-          ...state.pages[currentPageIndex],
-          commands: action.payload,
-        }
-      }
     },
   },
   extraReducers: (builder) => {
@@ -443,9 +418,7 @@ export const {
   navigateBack,
   clearError,
   setFormValue,
-  clearFormValues,
   addPage,
-  updateCurrentPageCommands,
 } = navigationSlice.actions
 
 // Export selectors

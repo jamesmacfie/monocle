@@ -5,9 +5,9 @@ import { useAppDispatch, useAppSelector } from "../store/hooks"
 import { startCapture } from "../store/slices/keybinding.slice"
 import {
   clearError,
+  findCommandInPage,
   navigateBack as navigateBackAction,
   navigateToCommand,
-  type Page,
   refreshCurrentPage as refreshCurrentPageThunk,
   selectCurrentPage,
   selectError,
@@ -18,23 +18,6 @@ import {
   updateSearchValue as updateSearchValueAction,
 } from "../store/slices/navigation.slice"
 import { buildCommandExecutionRequest } from "./commandExecution"
-
-// Helper function to find a command in the current page's commands or deep search items
-function _findCommandInPage(
-  page: Page,
-  commandId: string,
-  deepSearchItems: Suggestion[] = [],
-): Suggestion | undefined {
-  return (
-    (page.commands.favorites || []).find(
-      (command) => command.id === commandId,
-    ) ||
-    (page.commands.suggestions || []).find(
-      (command) => command.id === commandId,
-    ) ||
-    deepSearchItems.find((command) => command.id === commandId)
-  )
-}
 
 // Helper function to clear search input
 function _clearAndResetSearch(
@@ -246,7 +229,7 @@ export function useCommandNavigation(
    * Called when user clicks or presses Enter on a command
    */
   const selectCommand = async (id: string) => {
-    const selectedCommand = _findCommandInPage(
+    const selectedCommand = findCommandInPage(
       currentPage,
       id,
       storedInitialCommands.deepSearchItems,
