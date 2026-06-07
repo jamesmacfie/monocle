@@ -5,9 +5,10 @@ This is the canonical agent guide for the Monocle browser extension.
 read the same project instructions.
 
 Keep this file as a stable architecture map and working contract. The detailed
-feature baseline now lives in `docs/`. When behavior, status, or verification
-changes, update the relevant feature doc first, then adjust this file only if
-the root guidance changes.
+feature documentation lives in `docs/`. When behavior or verification changes,
+update the relevant feature doc first, then adjust this file only if the root
+guidance changes. Feature status and validation state are owned by this file
+(the docs describe behavior, not status).
 
 ## Project Overview
 
@@ -30,28 +31,43 @@ background and execute commands through message handlers.
 
 Use the feature docs as the source of truth before editing related code:
 
-- `docs/README.md`: feature baseline, build/test state, dirty-worktree note,
-  and cross-cutting review findings.
-- `docs/command-system.md`: command node model, suggestion conversion,
-  favorites, usage ranking, action menus, deep search, and execution.
+- `docs/README.md`: documentation index, reading order, and doc conventions.
+- `docs/architecture.md`: runtime modes, entrypoints, ownership boundaries,
+  Redux store layout, WXT build system, and core data-flow walkthroughs.
+- `docs/messaging.md`: complete message protocol reference: every
+  UI-to-background and background-to-tab message, payloads, and handlers.
+- `docs/command-schema.md`: field-by-field `CommandNode` reference,
+  `AsyncValue` semantics, action/modifier labels, all `FormField` variants,
+  and node-to-`Suggestion` conversion.
+- `docs/command-types.md`: the six command node types (action, submit, group,
+  search, input, display) with rendering and selection behavior.
+- `docs/authoring-commands.md`: how to add and register a command: category
+  folders, loaders, conventions, form/search patterns, and pitfalls.
+- `docs/search-and-ranking.md`: palette search, keywords, usage ranking,
+  favorites, and deep search.
+- `docs/execution-and-actions.md`: execution flow, enter vs modifier-enter,
+  action labels, the action menu, and generated actions.
 - `docs/palette-ui-and-navigation.md`: shared palette UI, content overlay,
-  new-tab palette, Redux navigation stack, inline inputs, and action menus.
-- `docs/browser-commands.md`: browser API command categories, optional
-  permissions, dynamic groups, and Firefox-specific commands.
+  new-tab palette, Redux navigation stack, and inline inputs.
 - `docs/keybindings.md`: canonical key format, global capture, multi-stroke
   sequences, registry matching, custom capture, and conflict checks.
-- `docs/permissions-and-settings.md`: optional permission flow, persisted
-  settings, command settings, URL rules, and theme/new-tab preferences.
-- `docs/url-filtering-and-website-plugins.md`: command URL visibility rules,
-  allow/deny settings, and the in-progress website command direction.
+- `docs/url-filtering.md`: command URL visibility rules, allow/deny matching
+  and precedence semantics, and rule management.
+- `docs/permissions.md`: required vs optional permissions, grant flows,
+  inheritance, and execution-time checks.
+- `docs/settings.md`: settings storage shape, command settings, merge/prune
+  semantics, and the Redux mirror.
 - `docs/workflow-automation.md`: workflow type model, background-to-content
   execution path, implemented click behavior, and unsupported operations.
 - `docs/new-tab-and-theme.md`: new-tab override, new-tab-only commands,
   background image behavior, clock settings, and theme application.
+- `docs/commands/`: per-category command catalogs: `browser.md`, `tools.md`,
+  `ui.md`, `new-tab.md`, and `websites.md` (the GitHub prototype and the
+  in-progress website command direction).
 
 ## Current Baseline
 
-The docs baseline records the current system as follows:
+Current feature status:
 
 | Feature | Status | Notes |
 | --- | --- | --- |
@@ -64,7 +80,7 @@ The docs baseline records the current system as follows:
 | Workflow automation | Partial | Click workflows and focused wait conditions work; validation/routing/debug feedback have focused tests, and most operations remain unsupported. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
 
-Validation from the docs baseline:
+Last verified validation:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
@@ -85,7 +101,7 @@ monocle/
 ├── content/             # Content-script overlay and workflow executor
 ├── newtab/              # Browser new-tab replacement
 ├── shared/              # Shared React components, hooks, store, types, utils
-├── docs/                # Feature-level architecture/status docs
+├── docs/                # Feature and subsystem reference docs
 ├── server/              # Local support server
 └── test-inputs.html     # Manual workflow/input fixture page
 ```
@@ -232,7 +248,9 @@ Permission and setting changes should respect these invariants:
 - Command settings are keyed by command id.
 - `updateCommandSettings` shallow-merges command settings. Preserve nested
   state explicitly when updating nested structures such as `urlRules`.
-- URL rule validation is custom and currently lacks tests.
+- URL rule validation is custom; matching, update validation, and nested-merge
+  behavior have focused tests (`urlFilter.test.ts`, `validation.test.ts`,
+  `settings.test.ts`).
 
 ## URL Filtering And Website Commands
 
@@ -322,8 +340,10 @@ These are the easy traps to avoid:
   context-only command sources such as new-tab commands.
 - Permission-protected dynamic groups should preserve clear permission UI paths
   when permissions are missing or revoked.
-- Keybinding sequence state is global in the background service worker, so
-  simultaneous tabs may interfere.
+- Keybinding sequence state lives in the background service worker, scoped per
+  sender tab/document (`getSequenceScopeKey` in
+  `background/messages/executeKeybinding.ts`). Senders without tab data fall
+  back to a context key and can still collide across tabs.
 - Automated tests are narrow. Use the manual checklists in `docs/` for browser
   integration behavior in the feature area you touch.
 
@@ -367,5 +387,5 @@ suite, but manual browser checks are still required for extension API behavior.
   root filtering, and child filtering.
 - If you touch workflow automation, add or use fixture-page checks. Do not
   silently treat unsupported workflow steps as successful.
-- Do not remove or overwrite unrelated untracked work. The docs baseline notes
-  existing untracked `.codex/` and `background/commands/websites/` paths.
+- Do not remove or overwrite unrelated untracked work. The untracked `.codex/`
+  and `background/commands/websites/` paths are intentional in-progress work.
