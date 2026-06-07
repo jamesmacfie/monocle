@@ -63,6 +63,9 @@ Use the feature docs as the source of truth before editing related code:
   execution path, implemented click behavior, and unsupported operations.
 - `docs/new-tab-and-theme.md`: new-tab override, new-tab-only commands,
   background image behavior, clock settings, and theme application.
+- `docs/store-submission.md`: Chrome Web Store / Firefox AMO submission
+  processes, Monocle-specific rejection risks, hard pre-submission blockers,
+  and reviewer-notes guidance (external policy research, June 2026).
 - `docs/commands/`: per-category command catalogs: `browser.md`, `tools.md`,
   `ui.md`, `new-tab.md`, and `websites.md` (the GitHub prototype and the
   in-progress website command direction).

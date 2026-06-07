@@ -1,6 +1,7 @@
 import { Command, type LucideProps } from "lucide-react"
 import type { ColorName, CommandIcon } from "../../shared/types"
 import { darkenColor, lightenColor } from "../utils"
+import { svgIconToDataUri } from "../utils/svg-icon"
 import { getIconComponent } from "./iconRegistry"
 
 const COLOR_MAP: Record<ColorName, string> = {
@@ -65,6 +66,20 @@ export const Icon = ({
       return (
         <div className="icon-wrapper favicon-wrapper">
           <img src={icon.url} alt="icon" className="url-icon favicon" />
+        </div>
+      )
+    } else if (icon.type === "svg") {
+      // Untrusted markup (site SDK): render only as a static <img> data URI,
+      // never inline — the browser's secure static image mode disables
+      // scripts, event handlers, and external fetches. See
+      // shared/utils/svg-icon.ts before changing this.
+      return (
+        <div className="icon-wrapper favicon-wrapper">
+          <img
+            src={svgIconToDataUri(icon.svg)}
+            alt="icon"
+            className="url-icon favicon"
+          />
         </div>
       )
     } else if (icon.type === "lucide") {

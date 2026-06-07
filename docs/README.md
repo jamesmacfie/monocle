@@ -71,6 +71,14 @@ If you are adding a command, the fast path is
   vs the implemented executor (`click` + `wait` only), target-tab routing,
   public validation, and the debug command.
 
+## Publishing
+
+- [store-submission.md](./store-submission.md) — Chrome Web Store and Firefox
+  AMO submission: review processes, Monocle-specific rejection risks
+  (single-purpose, site SDK, permissions), hard pre-submission blockers, and
+  reviewer-notes guidance. Describes external policy as researched in
+  June 2026, not code behavior.
+
 ## Command catalogs
 
 - [commands/browser.md](./commands/browser.md) — Every browser command: tabs,
