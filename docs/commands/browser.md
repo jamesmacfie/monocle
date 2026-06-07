@@ -20,6 +20,7 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 
 | Command id | Name | Type | Permissions | Default keybinding | Browsers | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
+| `add-bookmark` | Add Bookmark | group/form | `bookmarks` | — | all | Top-level + first child of `bookmarks`; `enableDeepSearch: false` so form elements never appear in search |
 | `bookmarks` | Bookmarks | group | `bookmarks` | — | all | Deep search; recursive folder tree |
 | `capture-screenshot` | Capture screenshot | action | — | — | all | Visible-area `captureVisibleTab` (activeTab). Enter → copy to clipboard; Cmd → download. Page-side via `monocle-screenshot` |
 | `clear-browser-data` | Clear Browser Data | group | `browsingData`, `history`, `cookies`, `sessions` | — | all | site-cookies action + 11 data types × 5 time spans; leaf actions `confirmAction` |
@@ -150,6 +151,19 @@ Reads the full tree via `getBookmarkTree` and recursively flattens it (`processB
 - Separators are skipped; untyped nodes with children are recursed (Chrome compatibility).
 
 Bookmark action label "Open"; modifier **cmd** "Open in New Tab". Default execution uses `focusOrGoToUrl` (switch to an existing tab with that URL, else navigate the current tab); cmd opens via a `monocle-newTab` content message. Empty tree → `no-bookmarks` NoOp; error → `bookmarks-error` NoOp. Top-level results are sorted alphabetically.
+
+The first child of the group is always the `add-bookmark` form (pinned above the alphabetical list, present even when the tree is empty).
+
+### `add-bookmark` (group/form, `bookmarks`)
+Registered both as a **top-level** command (in `browserCommands`) and as the pinned first child of the `bookmarks` group, so it is reachable by searching "Add Bookmark" and by browsing into Bookmarks. The group sets **`enableDeepSearch: false`** so its `input` rows and `submit` are never flattened into root search — only the group itself appears as a search result, opening the form on selection.
+
+A form `group` (children built per-context, like `tools/calculator`) for bookmarking the current page. Its `children(context)` returns three `input` rows plus a `submit`:
+
+- **Title** (`text`) — `defaultValue` from `context.title`.
+- **URL** (`text`) — `defaultValue` from `context.url`.
+- **Folder** (`select`) — options built by walking `getBookmarkTree` and emitting one entry per folder, value = folder id, label = the full `" > "`-joined path (e.g. `Bookmarks Bar > Work`). Defaults to "Other Bookmarks": Chrome's unfiled root id `2`, Firefox's `unfiled_____`, then a path matching `/^other bookmarks$/i`, then the first folder. If no folders exist, a NoOp row explains the bookmark saves to the default location.
+
+On submit, the executor validates the URL with `isValidUrl` (invalid → error toast, no write), then calls `createBookmark({ parentId, title, url })` (`background/utils/browserBookmarks.ts`) and shows a success toast. Folder-tree fetch failures fall back to an `add-bookmark-error` NoOp.
 
 ### `history` (group, `history`)
 Two-level group. The top group lists five fixed time-period subgroups built by `createTimePeriodCommands`: Today, Yesterday, Last Week, Last Month, Older. `enableDeepSearch: true` on the top group; the subgroups set `enableDeepSearch: period.deepSearch ? undefined : false`, so Today and Yesterday leave it undefined (inherit/no explicit setting) while Last Week, Last Month, and Older set `enableDeepSearch: false`.

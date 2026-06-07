@@ -26,3 +26,20 @@ export async function getBookmarkChildren(id: string): Promise<any[]> {
     throw error
   }
 }
+
+export async function createBookmark(args: {
+  parentId?: string
+  title: string
+  url: string
+}): Promise<any> {
+  try {
+    if (isFirefox) {
+      return await (browser as any).bookmarks.create(args)
+    }
+
+    return await callBrowserAPI("bookmarks", "create", args)
+  } catch (error) {
+    console.error("Failed to create bookmark:", error)
+    throw error
+  }
+}

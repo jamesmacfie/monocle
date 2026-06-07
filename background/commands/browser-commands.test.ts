@@ -10,10 +10,13 @@ import {
   initializeKeybindingRegistry,
 } from "../keybindings/registry"
 import { getChildrenCommands } from "../messages/getChildrenCommands"
+import { searchCommands } from "../messages/searchCommands"
 import { getBookmarkTree, getRecentDownloads } from "../utils/browser"
+import { addBookmark } from "./browser/bookmarks"
 import { clearBrowserData } from "./browser/clearBrowserData"
 import { closeCurrentTab } from "./browser/closeCurrentTab"
 import { commandsToSuggestions, executeCommand } from "./index"
+import { invalidateSearchIndex } from "./searchIndex"
 import { updateCommandSettings } from "./settings"
 
 type TestTab = {
@@ -244,6 +247,14 @@ const installChromeStubs = () => {
     bookmarks: {
       getTree: callbackResult(bookmarkTree),
       getChildren: callbackResult([]),
+      create: vi.fn((args: unknown, callback?: Function) => {
+        const created = {
+          id: "new-bookmark",
+          ...(typeof args === "object" && args ? args : {}),
+        }
+        callback?.(created)
+        return Promise.resolve(created)
+      }),
     },
     downloads: {
       search: vi.fn((_query: unknown, callback?: Function) => {
@@ -496,6 +507,108 @@ describe("browser API readers", () => {
 
     expect(chromeApi.bookmarks.getTree).toHaveBeenCalledOnce()
     expect(chromeApi.downloads.search).toHaveBeenCalledOnce()
+  })
+})
+
+describe("add bookmark command", () => {
+  const setBookmarkTree = (nodes: any[]) => {
+    bookmarkTree.length = 0
+    bookmarkTree.push(...nodes)
+  }
+
+  const folderTree = [
+    {
+      id: "0",
+      title: "",
+      children: [
+        {
+          id: "1",
+          title: "Bookmarks Bar",
+          children: [{ id: "11", title: "Work", children: [] }],
+        },
+        { id: "2", title: "Other Bookmarks", children: [] },
+      ],
+    },
+  ]
+
+  it("surfaces the Add Bookmark group in search but never its form elements", async () => {
+    setBookmarkTree(folderTree)
+    invalidateSearchIndex()
+
+    const response = (await searchCommands({
+      type: "search-commands",
+      context: normalContext,
+      query: "add bookmark",
+      seq: 1,
+    })) as any
+
+    const ids = response.results.map((item: { id: string }) => item.id)
+    // The group itself is the searchable entry (opens the form on selection).
+    expect(ids).toContain("add-bookmark")
+    // No form internals leak into search.
+    expect(ids).not.toContain("add-bookmark-execute")
+    expect(ids).not.toContain("add-bookmark-title")
+    expect(ids).not.toContain("add-bookmark-url")
+    expect(ids).not.toContain("add-bookmark-folder")
+  })
+
+  it("prefills title and URL from context and lists folders with full paths", async () => {
+    setBookmarkTree(folderTree)
+
+    const children = (await (addBookmark as any).children(
+      normalContext,
+    )) as any[]
+
+    const titleField = children.find((c) => c.id === "add-bookmark-title")
+    const urlField = children.find((c) => c.id === "add-bookmark-url")
+    const folderField = children.find((c) => c.id === "add-bookmark-folder")
+
+    expect(titleField?.field.defaultValue).toBe(normalContext.title)
+    expect(urlField?.field.defaultValue).toBe(normalContext.url)
+    expect(folderField?.field.options).toEqual([
+      { value: "1", label: "Bookmarks Bar" },
+      { value: "11", label: "Bookmarks Bar > Work" },
+      { value: "2", label: "Other Bookmarks" },
+    ])
+    // Defaults to "Other Bookmarks" (Chrome unfiled root id "2").
+    expect(folderField?.field.defaultValue).toBe("2")
+  })
+
+  it("creates a bookmark in the selected folder on submit", async () => {
+    setBookmarkTree(folderTree)
+
+    const children = (await (addBookmark as any).children(
+      normalContext,
+    )) as any[]
+    const submit = children.find((c) => c.id === "add-bookmark-execute")
+
+    await submit.execute(normalContext, {
+      title: "My Page",
+      url: "https://example.com/page",
+      folder: "11",
+    })
+
+    expect(chromeApi.bookmarks.create).toHaveBeenCalledWith(
+      { parentId: "11", title: "My Page", url: "https://example.com/page" },
+      expect.any(Function),
+    )
+  })
+
+  it("rejects an invalid URL without creating a bookmark", async () => {
+    setBookmarkTree(folderTree)
+
+    const children = (await (addBookmark as any).children(
+      normalContext,
+    )) as any[]
+    const submit = children.find((c) => c.id === "add-bookmark-execute")
+
+    await submit.execute(normalContext, {
+      title: "Bad",
+      url: "not a url",
+      folder: "2",
+    })
+
+    expect(chromeApi.bookmarks.create).not.toHaveBeenCalled()
   })
 })
 

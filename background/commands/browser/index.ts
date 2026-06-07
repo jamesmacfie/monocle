@@ -1,4 +1,4 @@
-import { bookmarks } from "./bookmarks"
+import { addBookmark, bookmarks } from "./bookmarks"
 import { captureScreenshot } from "./captureScreenshot"
 import { clearBrowserData } from "./clearBrowserData"
 import { closeCurrentTab } from "./closeCurrentTab"
@@ -36,6 +36,7 @@ import { togglePinCurrentTab } from "./togglePinCurrentTab"
 export { firefoxCommands } from "./firefox"
 
 export const browserCommands = [
+  addBookmark,
   bookmarks,
   captureScreenshot,
   clearBrowserData,
