@@ -399,6 +399,21 @@ export const navigationSlice = createSlice({
     addPage: (state, action: PayloadAction<Page>) => {
       state.pages.push(action.payload)
     },
+
+    // Reset the navigation stack back to the root page. Used when the palette
+    // closes so that reopening starts at home rather than on a deep child page.
+    resetNavigation: (state) => {
+      state.pages = [
+        {
+          id: "root",
+          commands: state.initialCommands,
+          searchValue: "",
+          parentPath: [],
+          formValues: {},
+          dynamicChildren: false,
+        },
+      ]
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -546,6 +561,7 @@ export const {
   clearError,
   setFormValue,
   addPage,
+  resetNavigation,
 } = navigationSlice.actions
 
 // Export selectors
