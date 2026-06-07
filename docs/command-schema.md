@@ -84,7 +84,7 @@ A static string is the common case; use the array form for flattened deep-search
 
 ```ts
 export type CommandIcon =
-  | { type: "lucide"; name: string }
+  | { type: "lucide"; name: IconName }
   | { type: "url"; url: string }
 ```
 
@@ -92,8 +92,16 @@ Source: `shared/types/commands.ts`, `CommandIcon`.
 
 | Variant | Shape | Use |
 | --- | --- | --- |
-| Lucide | `{ type: "lucide", name: "Bookmark" }` | Named [Lucide](https://lucide.dev) icon. `name` is the PascalCase Lucide component name. |
+| Lucide | `{ type: "lucide", name: "Bookmark" }` | Named [Lucide](https://lucide.dev) icon. `name` is the PascalCase Lucide component name and must be a registered `IconName`. |
 | URL | `{ type: "url", url: faviconUrl }` | Remote image, typically a favicon (`getFaviconUrl` / `getFaviconIcon` in `background/utils/`). |
+
+`IconName` is the closed set of Lucide icons Monocle ships, defined in
+`shared/types/icons.ts` (`ICON_NAMES`). Only registered icons are bundled —
+a namespace import of `lucide-react` would ship the entire icon library
+(~560 KB per bundle), so the palette UI resolves icons through the explicit
+map in `shared/components/iconRegistry.ts`. To use a new Lucide icon, add its
+name to `ICON_NAMES` and its component import to `ICON_MAP`; `tsc` enforces
+that the two stay in sync and that every command references a registered icon.
 
 ### `CommandColor`
 

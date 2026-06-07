@@ -2,6 +2,7 @@
 export * from "./browser"
 export * from "./commands"
 export * from "./events"
+export * from "./icons"
 export * from "./messaging"
 export * from "./settings"
 export * from "./ui"

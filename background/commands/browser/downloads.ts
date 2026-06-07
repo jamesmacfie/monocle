@@ -1,4 +1,4 @@
-import type { CommandNode } from "../../../shared/types"
+import type { CommandIcon, CommandNode } from "../../../shared/types"
 import {
   getActiveTab,
   getRecentDownloads,
@@ -24,10 +24,7 @@ interface DownloadItem {
 }
 
 // File type to icon mapping
-function getFileTypeIcon(
-  filename: string,
-  mime?: string,
-): { type: "lucide"; name: string } {
+function getFileTypeIcon(filename: string, mime?: string): CommandIcon {
   const extension = filename.toLowerCase().split(".").pop() || ""
 
   // Check MIME type first, then extension
@@ -230,7 +227,7 @@ export const downloads: CommandNode = {
             "no-downloads",
             "No downloads found",
             "No recent downloads available",
-            { type: "lucide", name: "DownloadX" },
+            { type: "lucide", name: "FileX" },
           ),
         ]
       }

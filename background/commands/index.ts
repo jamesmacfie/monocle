@@ -4,6 +4,7 @@ import type {
   CommandExecutionScope,
   CommandNode,
   CommandSettings,
+  IconName,
   Suggestion,
 } from "../../shared/types"
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
@@ -549,7 +550,12 @@ export const commandsToSuggestions = async (
         modifierActionLabels
       ) {
         const modifierLabels = modifierActionLabels
-        const defs = [
+        const defs: Array<{
+          key: "cmd" | "shift" | "alt" | "ctrl"
+          icon: IconName
+          symbol: string
+          description: string
+        }> = [
           {
             key: "cmd" as const,
             icon: "Command",

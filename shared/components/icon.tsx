@@ -1,7 +1,7 @@
-import * as icons from "lucide-react"
-import type * as React from "react"
+import { Command, type LucideProps } from "lucide-react"
 import type { ColorName, CommandIcon } from "../../shared/types"
 import { darkenColor, lightenColor } from "../utils"
+import { getIconComponent } from "./iconRegistry"
 
 const COLOR_MAP: Record<ColorName, string> = {
   red: "#ef4444",
@@ -18,7 +18,7 @@ const COLOR_MAP: Record<ColorName, string> = {
   yellow: "#eab308",
 }
 
-interface IconProps extends icons.LucideProps {
+interface IconProps extends LucideProps {
   icon?: CommandIcon
   // Backward compatibility - will be removed
   name?: string
@@ -67,11 +67,8 @@ export const Icon = ({
           <img src={icon.url} alt="icon" className="url-icon favicon" />
         </div>
       )
-    } else if (icon.type === "lucide" && icon.name in icons) {
-      // biome-ignore lint/performance/noDynamicNamespaceImportAccess: we're ok here
-      const IconComponent = icons[
-        icon.name as keyof typeof icons
-      ] as React.ElementType
+    } else if (icon.type === "lucide") {
+      const IconComponent = getIconComponent(icon.name) ?? Command
       return (
         <div className="icon-wrapper" style={backgroundStyle}>
           <IconComponent size={10} {...props} />
@@ -90,22 +87,20 @@ export const Icon = ({
   }
 
   // Handle Lucide icon type or fallback to default
-  if (!name || !(name in icons)) {
+  const LegacyIconComponent = name ? getIconComponent(name) : undefined
+
+  if (!LegacyIconComponent) {
     // Return a default icon if name is invalid/missing
     return (
       <div className="icon-wrapper" style={backgroundStyle}>
-        <icons.Command size={10} className="icon-default" />
+        <Command size={10} className="icon-default" />
       </div>
     )
   }
 
-  // Explicitly cast the dynamic component to ElementType
-  // biome-ignore lint/performance/noDynamicNamespaceImportAccess: we're ok here
-  const IconComponent = icons[name as keyof typeof icons] as React.ElementType
-
   return (
     <div className="icon-wrapper" style={backgroundStyle}>
-      <IconComponent size={10} {...props} />
+      <LegacyIconComponent size={10} {...props} />
     </div>
   )
 }

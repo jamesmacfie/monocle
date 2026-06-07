@@ -1,4 +1,4 @@
-import type { CommandNode } from "../../../shared/types"
+import type { CommandIcon, CommandNode } from "../../../shared/types"
 import {
   clearAllBrowserData,
   clearCache,
@@ -35,7 +35,13 @@ export const clearBrowserData: CommandNode = {
   ],
 
   children: async () => {
-    const dataTypes = [
+    const dataTypes: Array<{
+      id: string
+      name: string
+      description: string
+      icon: CommandIcon
+      clearFunction: (startTime: number, endTime?: number) => Promise<void>
+    }> = [
       {
         id: "all",
         name: "All Data",
@@ -128,7 +134,13 @@ export const clearBrowserData: CommandNode = {
         children: async () => {
           const now = Date.now()
 
-          const timeSpans = [
+          const timeSpans: Array<{
+            id: string
+            name: string
+            description: string
+            minutes: number | null
+            icon: CommandIcon
+          }> = [
             {
               id: "5-mins",
               name: "Last 5 Minutes",

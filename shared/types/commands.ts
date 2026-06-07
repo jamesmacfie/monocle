@@ -1,11 +1,12 @@
 // Core command definitions and execution types
 import type { Browser } from "./browser"
+import type { IconName } from "./icons"
 import type { FormField, Suggestion, SuggestionExecutionPayload } from "./ui"
 
 export type AsyncValue<T> = T | ((context: Browser.Context) => Promise<T>)
 
 export type CommandIcon =
-  | { type: "lucide"; name: string }
+  | { type: "lucide"; name: IconName }
   | { type: "url"; url: string }
 
 export type ColorName =

@@ -1,4 +1,4 @@
-import type { CommandNode } from "../../../shared/types"
+import type { CommandNode, IconName } from "../../../shared/types"
 import {
   focusOrGoToUrl,
   getActiveTab,
@@ -15,7 +15,7 @@ type HistoryItem = chrome.history.HistoryItem
 interface TimePeriod {
   id: string
   name: string
-  icon: string
+  icon: IconName
   description: string
   startTime: number
   endTime: number

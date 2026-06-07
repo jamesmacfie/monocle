@@ -120,7 +120,7 @@ function createWindowCommand(windowInfo: WindowInfo): CommandNode {
     description: `Browse ${tabCount} tabs in this window`,
     icon: {
       type: "lucide",
-      name: windowInfo.focused ? "WindowMaximize" : "Window",
+      name: windowInfo.focused ? "AppWindow" : "Monitor",
     },
     color: windowInfo.focused ? "green" : "blue",
     children: async () => {
@@ -136,7 +136,7 @@ export const openTabs: CommandNode = {
   id: "open-tabs",
   name: "Open Tabs",
   description: "Browse and manage all open tabs across all windows",
-  icon: { type: "lucide", name: "Tabs" },
+  icon: { type: "lucide", name: "PanelsTopLeft" },
   color: "blue",
   permissions: ["tabs"],
   enableDeepSearch: true, // Enable deep search for nested tab access
@@ -151,7 +151,7 @@ export const openTabs: CommandNode = {
             "no-open-tabs",
             "No tabs found",
             "No open tabs available",
-            { type: "lucide", name: "TabsX" },
+            { type: "lucide", name: "SquareX" },
           ),
         ]
       }
