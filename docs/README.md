@@ -34,6 +34,9 @@ If you are adding a command, the fast path is
   form/search patterns, and common pitfalls.
 - [site-sdk.md](./site-sdk.md) — Page-world `window.Monocle` SDK for
   non-privileged, session-only site commands.
+- [site-sdk-security.md](./site-sdk-security.md) — Threat model for the site
+  SDK: attacker model, containment guarantees, page-reachable risks, and
+  defense-in-depth gaps.
 
 ## Palette behavior
 

@@ -45,6 +45,8 @@ Use the feature docs as the source of truth before editing related code:
   folders, loaders, conventions, form/search patterns, and pitfalls.
 - `docs/site-sdk.md`: page-world `window.Monocle` SDK for non-privileged,
   session-only site commands.
+- `docs/site-sdk-security.md`: site SDK threat model — attacker model,
+  containment guarantees, page-reachable risks, and defense-in-depth gaps.
 - `docs/search-and-ranking.md`: palette search, keywords, usage ranking,
   favorites, and deep search.
 - `docs/execution-and-actions.md`: execution flow, enter vs modifier-enter,
