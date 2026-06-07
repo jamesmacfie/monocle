@@ -49,6 +49,7 @@ Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMess
 | `toggle-ui` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, plus `debugWorkflow`/`github` command executors | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
 | `show-ui` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, `toggleContentPalette` | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
 | `monocle-newTab` | bg -> tab | `{ url }` | command executors (e.g. `background/commands/browser/history.ts`, `bookmarks.ts`) | `shared/components/Listeners/NewTabListener.tsx` (`window.open(url, "_blank")` for http(s) only) |
+| `monocle-scroll` | bg -> tab | `{ direction: "top" \| "bottom" }` | `background/commands/browser/scrollToTop.ts`, `scrollToBottom.ts` | `shared/components/Listeners/ScrollListener.tsx` (`window.scrollTo` with smooth behavior) |
 | `monocle-sdk-sync-request` | bg -> content bridge | `{}` | `{ registrations }` | `background/commands/siteSdk/index.ts`, `prepareSiteSdkCommandLoadOptions` | Ask the isolated content bridge to replay current page SDK registrations after service-worker restart. |
 | `monocle-sdk-invoke` | bg -> content bridge | `{ request }` | `{ success: true, commands? }` or `{ success: false, error }` | `background/commands/siteSdk/commands.ts`, SDK wrappers | Invoke a page-world SDK callback for execute, dynamic group children, or dynamic search results. |
 

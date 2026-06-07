@@ -556,3 +556,31 @@ describe("copy title + URL as a Markdown link", () => {
     )
   })
 })
+
+describe("scroll commands", () => {
+  it("sends a scroll-to-top message to the active tab", async () => {
+    await executeCommand("scroll-to-top", normalContext, {})
+
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-scroll",
+        direction: "top",
+      }),
+      expect.anything(),
+    )
+  })
+
+  it("sends a scroll-to-bottom message to the active tab", async () => {
+    await executeCommand("scroll-to-bottom", normalContext, {})
+
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-scroll",
+        direction: "bottom",
+      }),
+      expect.anything(),
+    )
+  })
+})

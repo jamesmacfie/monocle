@@ -50,6 +50,8 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `recently-closed` | Recently Closed | group | `sessions` | — | all | Closed tabs and windows; deep search |
 | `reload-current-tab` | Reload current tab | action | — | `<cmd-r>` | all | |
 | `reopen-last-closed-tab` | Reopen Last Closed Tab | action | `sessions` | — | all | Most recent closed tab only |
+| `scroll-to-top` | Scroll to top | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
+| `scroll-to-bottom` | Scroll to bottom | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
 | `open-container-tab` | Open container tab | group | `contextualIdentities` | — | firefox | Per-container children |
 | `open-current-tab-in-container` | Open current tab in container | group | `tabs`, `contextualIdentities` | — | firefox | Reopens current URL, closes original |
 | `toggle-reader-mode` | Toggle Reader Mode | action | — | `<alt-cmd-R>` | firefox | |

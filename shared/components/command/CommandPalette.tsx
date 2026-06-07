@@ -10,6 +10,7 @@ import type { CommandData } from "../../types"
 import { CommandNavigationError } from "../CommandNavigationError"
 import CopyToClipboardListener from "../Listeners/CopyToClipboardListener"
 import NewTabListener from "../Listeners/NewTabListener"
+import ScrollListener from "../Listeners/ScrollListener"
 import {
   getPrimaryNavigationActionTarget,
   getSuggestionActions,
@@ -285,6 +286,7 @@ export function CommandPalette({
     <div className="raycast">
       <CopyToClipboardListener />
       <NewTabListener />
+      <ScrollListener />
       {error && (
         <CommandNavigationError error={error} onClearError={clearError} />
       )}

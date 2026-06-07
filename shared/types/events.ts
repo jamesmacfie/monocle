@@ -24,6 +24,11 @@ export type NewTabEvent = {
   url: string
 }
 
+export type ScrollEvent = {
+  type: "monocle-scroll"
+  direction: "top" | "bottom"
+}
+
 export type ToastEvent = {
   type: "monocle-toast"
   level: "info" | "warning" | "success" | "error"
@@ -43,6 +48,7 @@ export type Event =
   | AlertEvent
   | CopyToClipboardEvent
   | NewTabEvent
+  | ScrollEvent
   | ToastEvent
   | SiteSdkSyncRequestEvent
   | SiteSdkInvokeEvent

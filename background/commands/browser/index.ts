@@ -27,6 +27,8 @@ import { pinCurrentTab } from "./pinCurrentTab"
 import { recentlyClosed } from "./recentlyClosed"
 import { reloadCurrentTab } from "./reloadCurrentTab"
 import { reopenLastClosedTab } from "./reopenLastClosedTab"
+import { scrollToBottom } from "./scrollToBottom"
+import { scrollToTop } from "./scrollToTop"
 import { unmuteCurrentTab } from "./unmuteCurrentTab"
 import { unpinCurrentTab } from "./unpinCurrentTab"
 
@@ -62,6 +64,8 @@ export const browserCommands = [
   recentlyClosed,
   reloadCurrentTab,
   reopenLastClosedTab,
+  scrollToBottom,
+  scrollToTop,
   unmuteCurrentTab,
   unpinCurrentTab,
 ]
