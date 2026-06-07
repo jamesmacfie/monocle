@@ -20,7 +20,7 @@ Source commands live under `background/commands/`, grouped into folders. Pick th
 | --- | --- | --- | --- |
 | `browser/` | `browserCommands` | Anything calling privileged browser APIs: tabs, windows, bookmarks, history, downloads, navigation, browsing data. | Always |
 | `browser/firefox/` | `firefoxCommands` | Firefox-only browser features (containers, reader mode). | Firefox platform only |
-| `tools/` | `toolCommands` | Self-contained utilities that do not depend on a specific browser API surface: calculator, UUID generator, Google search, workflow debug. | Always |
+| `tools/` | `toolCommands` | Self-contained utilities that do not depend on a specific browser API surface: calculator, UUID generator, workflow debug. | Always |
 | `ui/` | `uiCommands` | Commands that change Monocle's own state or settings: theme toggle, allow/deny list management. | Always |
 | `newTab/` | `newTabCommands` | Commands that only make sense on the new-tab page (clock visibility). | New-tab context only |
 | `websites/` | `websiteCommands` | Contextual commands scoped to a specific site via `urlRules` (GitHub prototype). | Always (visibility gated by `urlRules`) |
@@ -133,7 +133,7 @@ Follow the [command-schema.md](./command-schema.md) field rules. The conventions
 - **Registered icon names only.** Lucide icon `name` values are typed as `IconName`, the closed set in `shared/types/icons.ts`. Only registered icons ship in the bundle. To use a new Lucide icon, add it to `ICON_NAMES` there and to `ICON_MAP` in `shared/components/iconRegistry.ts`; `tsc` fails on unregistered names.
 - **`AsyncValue` for context-dependent display.** `name`, `description`, `icon`, `color`, `keywords`, and `executionPayload` are resolved through `resolveAsyncProperty(value, context)` in `commandsToSuggestions`. They can be a literal, a function of context, or a promise. Use this for site- or tab-aware labels (the GitHub group's `name` is an async function returning a `"GitHub: acme/widgets"` style label from the current URL).
 - **Empty/error states use display rows, not alerts.** Return a `display` node from a `group.children`/`search.getResults` instead of throwing or firing a toast. Use the `createNoOpCommand(id, name, description, icon?)` helper in `background/utils/commands.ts`, which returns a gray `display` node. `bookmarks` and `history` both do this for empty results.
-- **Dynamic ids sparingly, with custom keybindings disabled.** When a command id encodes volatile data (a specific tab, a search result), set `allowCustomKeybinding: false` so users can't bind a shortcut to an id that won't exist next time. `googleSearch`'s generated result actions do exactly this.
+- **Dynamic ids sparingly, with custom keybindings disabled.** When a command id encodes volatile data (a specific tab, a search result), set `allowCustomKeybinding: false` so users can't bind a shortcut to an id that won't exist next time. `gotoTab`'s per-tab children do exactly this.
 - **`actionLabel` on executables.** Action/submit/search/group rows surface a primary label; set `actionLabel` (groups default to "Open"). Add `modifierActionLabel` to advertise modifier-key behavior (see [execution-and-actions.md](./execution-and-actions.md)).
 
 ## Permissions
@@ -225,13 +225,13 @@ Field variants (`text`, `select`, `multi`, `switch`, `color`, etc.) are document
 
 A `search` node renders a dedicated page whose results are produced dynamically from the current query. Provide `getResults(context, search)` returning `CommandNode[]`, and optionally an `execute` for when the search row itself is actioned.
 
-Sketch from `background/commands/tools/googleSearch.ts` (`googleSearch`):
+Sketch (there is currently no static `search` command in the tree; site SDK registrations in `background/commands/siteSdk/commands.ts` are the live producer of `search` nodes):
 
 ```ts
-export const googleSearch: SearchCommandNode = {
+export const mySearch: SearchCommandNode = {
   type: "search",
-  id: "google-search",
-  name: "Google Search",
+  id: "my-search",
+  name: "My Search",
   icon: { type: "lucide", name: "Search" },
   color: "teal",
   actionLabel: "Search",
@@ -239,8 +239,8 @@ export const googleSearch: SearchCommandNode = {
     const query = (search || "").trim()
     if (!query) return []
     const nodes: CommandNode[] = []
-    nodes.push(createSearchQueryAction(`google-search-q-${safe(query)}`, query))
-    // ...append remote autosuggest result actions
+    nodes.push(createResultAction(`my-search-q-${safe(query)}`, query))
+    // ...append dynamically generated result actions
     return nodes
   },
   async execute(_context, values) {

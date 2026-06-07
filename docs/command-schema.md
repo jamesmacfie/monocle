@@ -93,6 +93,7 @@ A static string is the common case; use the array form for flattened deep-search
 export type CommandIcon =
   | { type: "lucide"; name: IconName }
   | { type: "url"; url: string }
+  | { type: "svg"; svg: string }
 ```
 
 Source: `shared/types/commands.ts`, `CommandIcon`.
@@ -101,6 +102,7 @@ Source: `shared/types/commands.ts`, `CommandIcon`.
 | --- | --- | --- |
 | Lucide | `{ type: "lucide", name: "Bookmark" }` | Named [Lucide](https://lucide.dev) icon. `name` is the PascalCase Lucide component name and must be a registered `IconName`. |
 | URL | `{ type: "url", url: faviconUrl }` | Remote image, typically a favicon (`getFaviconUrl` / `getFaviconIcon` in `background/utils/`). |
+| SVG | `{ type: "svg", svg: "<svg ...>...</svg>" }` | Inline SVG markup, primarily for site SDK brand icons. Rendered only as a static `<img>` data URI (`svgIconToDataUri` in `shared/utils/svg-icon.ts`), never injected inline, so scripts, event handlers, and external references are inert. Site SDK input is additionally validated by `validateSvgIconMarkup`. |
 
 `IconName` is the curated, closed set of Lucide icons Monocle ships, defined in
 `shared/types/icons.ts` (`ICON_NAMES`). Only registered icons are bundled, so the
@@ -139,7 +141,7 @@ The resolved color is carried onto the suggestion as a plain string (`baseProps.
 export type SuggestionExecutionPayload = Record<string, string | string[]>
 ```
 
-`executionPayload` is an `AsyncValue<SuggestionExecutionPayload>` resolved onto the suggestion. It carries command-specific data the UI may pass back during execution. The Google search actions set `executionPayload: { dynamicUrl: url }` (`background/commands/tools/googleSearch.ts`) so the parent `SearchCommandNode.execute` can open the selected child's URL via `values.dynamicUrl`. Use it for static-per-row data that execution needs; for form input use [`InputCommandNode`](#inputcommandnode) instead.
+`executionPayload` is an `AsyncValue<SuggestionExecutionPayload>` resolved onto the suggestion. It carries command-specific data the UI may pass back during execution — for example, a dynamic search result can set `executionPayload: { dynamicUrl: url }` so the parent `SearchCommandNode.execute` can open the selected child's URL via `values.dynamicUrl`. Site SDK commands pass declared payloads through the same field (`background/commands/siteSdk/commands.ts`). Use it for static-per-row data that execution needs; for form input use [`InputCommandNode`](#inputcommandnode) instead.
 
 ### Permission inheritance
 
@@ -209,7 +211,7 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
 | `execute` | `CommandExecutor` | Required. `(context?, values?) => void \| Promise<void>`. Runs in the background. Receives the normalized `Browser.Context` and form values (see [CommandExecutor & form value normalization](#commandexecutor--form-value-normalization)). |
 | `confirmAction` | `boolean` | If `true`, the row requires a second Enter ("Are you sure?") before executing (`CommandItem`), and the command is **excluded from custom keybindings** (`allowsKeybinding` in `background/utils/commands.ts`). |
 | `remainOpenOnSelect` | `boolean` | If `true`, the palette stays open after execution instead of closing. |
-| `allowCustomKeybinding` | `boolean` | Defaults to allowed. Set `false` to forbid user-assigned keybindings — used for dynamic commands whose ids churn (e.g. `gotoTab` children, Google search results). |
+| `allowCustomKeybinding` | `boolean` | Defaults to allowed. Set `false` to forbid user-assigned keybindings — used for dynamic commands whose ids churn (e.g. `gotoTab` children, dynamic search results). |
 | `keybinding` | `string` | Author-default keybinding in canonical angle-bracket format, e.g. `<cmd-t>`. User overrides in command settings take precedence. See [keybindings.md](keybindings.md). |
 | `dedupeKey` | `string` | Stable key used to de-duplicate rows that point at the same target across sources (bookmarks use `normalizeUrlForDedupe(node.url)`). Distinct from `id`; see [search-and-ranking.md](search-and-ranking.md). |
 
@@ -304,9 +306,9 @@ export interface SearchCommandNode extends CommandNodeBase, ActionLabel {
 | Field | Type | Notes |
 | --- | --- | --- |
 | `getResults` | `(context, search) => Promise<CommandNode[]>` | Required. Re-invoked as the user types on the search page; returns the dynamic result nodes for the current `search` text. |
-| `execute` | `CommandExecutor` | **Optional.** Used when the UI executes the search parent itself (e.g. opening the selected result's URL via its `executionPayload`). `googleSearch.execute` reads `values.dynamicUrl`. |
+| `execute` | `CommandExecutor` | **Optional.** Used when the UI executes the search parent itself (e.g. opening the selected result's URL via its `executionPayload.dynamicUrl`). |
 
-Unlike `group`, a search node is conceptually executable (its `actionLabel` is its own, not forced to `"Open"`), and `getResults` keys off the live search string rather than returning a fixed child set. See `background/commands/tools/googleSearch.ts` for a full example with URL detection, an explicit query action, and remote autosuggestions.
+Unlike `group`, a search node is conceptually executable (its `actionLabel` is its own, not forced to `"Open"`), and `getResults` keys off the live search string rather than returning a fixed child set. There is currently no static `search` command in the tree; site SDK registrations (`background/commands/siteSdk/commands.ts`) are the live producer of search nodes.
 
 ### `InputCommandNode`
 
@@ -502,7 +504,7 @@ export const exampleForm: GroupCommandNode = {
 
 The `submit`'s `execute` receives `{ title, tags }` with `tags` comma-joined per [form value normalization](#commandexecutor--form-value-normalization).
 
-For a minimal action see `openNewTab` above; for a dynamic group see `gotoTab`; for a search command see `googleSearch` (`background/commands/tools/googleSearch.ts`); for modifier labels and a per-row `dedupeKey` see `bookmarks` (`background/commands/browser/bookmarks.ts`).
+For a minimal action see `openNewTab` above; for a dynamic group see `gotoTab`; for search nodes see the site SDK conversion (`background/commands/siteSdk/commands.ts`); for modifier labels and a per-row `dedupeKey` see `bookmarks` (`background/commands/browser/bookmarks.ts`).
 
 ## Known issues / gotchas
 

@@ -21,8 +21,8 @@ import {
   updateCommandSettings,
 } from "./settings"
 import { loadAllCommands } from "./source"
+import { toolCommands } from "./tools"
 import { calculator } from "./tools/calculator"
-import { googleSearch } from "./tools/googleSearch"
 import { manageAllowList } from "./ui/manageAllowList"
 import { manageDenyList } from "./ui/manageDenyList"
 import { getCommandUsageStats, getRankedCommandIds } from "./usage"
@@ -369,17 +369,23 @@ describe("generated actions", () => {
       calculatorGroup.children = originalCalculatorChildren
     }
 
-    const originalGetResults = googleSearch.getResults
     const searchExecute = vi.fn()
-    googleSearch.getResults = async () => [
-      {
-        type: "action",
-        id: "test-search-result",
-        name: "Search Result",
-        actionLabel: "Open",
-        execute: searchExecute,
-      },
-    ]
+    const searchFixture: CommandNode = {
+      type: "search",
+      id: "test-search-page",
+      name: "Test Search",
+      actionLabel: "Search",
+      getResults: async () => [
+        {
+          type: "action",
+          id: "test-search-result",
+          name: "Search Result",
+          actionLabel: "Open",
+          execute: searchExecute,
+        },
+      ],
+    }
+    ;(toolCommands as CommandNode[]).push(searchFixture)
 
     try {
       await executeCommand(
@@ -388,14 +394,17 @@ describe("generated actions", () => {
         {},
         undefined,
         {
-          pageId: "google-search",
-          parentPath: ["google-search"],
+          pageId: "test-search-page",
+          parentPath: ["test-search-page"],
           searchValue: "widgets",
         },
       )
       expect(searchExecute).toHaveBeenCalledOnce()
     } finally {
-      googleSearch.getResults = originalGetResults
+      const index = (toolCommands as CommandNode[]).indexOf(searchFixture)
+      if (index !== -1) {
+        ;(toolCommands as CommandNode[]).splice(index, 1)
+      }
     }
 
     await executeCommand("open-tab-2-enter-action", normalContext, {})

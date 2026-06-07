@@ -85,7 +85,7 @@ If you are adding a command, the fast path is
   windows, navigation, bookmarks, history, downloads, sessions, clear-data,
   and the Firefox container/reader commands.
 - [commands/tools.md](./commands/tools.md) — Tool commands: calculator, copy
-  UUID v4, debug workflow, Google search.
+  UUID v4, debug workflow.
 - [commands/ui.md](./commands/ui.md) — UI/settings commands: toggle theme,
   Manage Allow List, Manage Deny List, clear favorites.
 - [commands/new-tab.md](./commands/new-tab.md) — New-tab-only commands: the

@@ -270,13 +270,13 @@ Deep search: search results are not flattened into root deep search (deep search
 only walks `group` children — `collectDeepSearchEntries` skips any
 non-`group` command).
 
-Real example — Google Search (`background/commands/tools/googleSearch.ts`):
+Illustrative example (there is currently no static `search` command in the tree; site SDK registrations in `background/commands/siteSdk/commands.ts` are the live producer of search nodes):
 
 ```typescript
-export const googleSearch: SearchCommandNode = {
+export const mySearch: SearchCommandNode = {
   type: "search",
-  id: "google-search",
-  name: "Google Search",
+  id: "my-search",
+  name: "My Search",
   actionLabel: "Search",
   async execute(_context, values) {
     const url = (values as any)?.dynamicUrl
@@ -285,7 +285,7 @@ export const googleSearch: SearchCommandNode = {
   async getResults(_context, search) {
     const query = (search || "").trim()
     if (!query) return []
-    // returns `action` nodes: open-as-URL, base query, and remote autosuggestions
+    // returns `action` nodes derived from the query
   },
 }
 ```
@@ -459,7 +459,7 @@ See [search-and-ranking.md](./search-and-ranking.md) for ranking specifics.
   confirm a child page opens and Escape navigates back.
 - Open the calculator group, fill the `input` fields, and confirm the `submit`
   button validates and executes; confirm invalid input toasts and blocks submit.
-- Open a `search` node (Google Search) and confirm results re-resolve as you type.
+- Open a `search` node (e.g. a site SDK search command) and confirm results re-resolve as you type.
 - Trigger an empty/error child state (e.g. revoke `sessions` then open Recently
   Closed) and confirm a `display`/NoOp row appears rather than an alert.
 - Execute an `action` and confirm the palette closes; execute one with

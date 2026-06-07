@@ -3,13 +3,11 @@ import { defineConfig } from "wxt"
 const externalHosts = [
   "https://api.unsplash.com/*",
   "https://icons.duckduckgo.com/*",
-  "https://www.google.com/*",
 ]
 
 const remoteConnectSources = [
   "https://api.unsplash.com",
   "https://icons.duckduckgo.com",
-  "https://www.google.com",
 ]
 
 const baseOptionalPermissions = [

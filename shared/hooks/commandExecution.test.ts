@@ -9,8 +9,8 @@ import {
 } from "./commandExecution"
 
 const parent: Suggestion = {
-  id: "google-search",
-  name: "Google Search",
+  id: "web-search",
+  name: "Web Search",
   type: "search",
   actionLabel: "Search",
 }
@@ -18,7 +18,7 @@ const parent: Suggestion = {
 describe("command execution request", () => {
   it("builds scoped execution for dynamic search results without reading descriptions", () => {
     const selected: Suggestion = {
-      id: "google-search-q-widgets",
+      id: "web-search-q-widgets",
       name: "widgets",
       description: "https://description.example/ignored",
       executionPayload: { dynamicUrl: "https://payload.example/search" },
@@ -26,9 +26,9 @@ describe("command execution request", () => {
       actionLabel: "Open",
     }
     const page: Page = {
-      id: "google-search",
+      id: "web-search",
       parent,
-      parentPath: ["google-search"],
+      parentPath: ["web-search"],
       dynamicChildren: true,
       searchValue: "widgets",
       commands: { favorites: [], suggestions: [selected] },
@@ -36,16 +36,16 @@ describe("command execution request", () => {
     }
 
     expect(buildCommandExecutionRequest(selected, page)).toEqual({
-      id: "google-search-q-widgets",
+      id: "web-search-q-widgets",
       formValues: {
         existing: "value",
         dynamicUrl: "https://payload.example/search",
       },
       shouldNavigateBack: true,
-      parentNames: ["Google Search"],
+      parentNames: ["Web Search"],
       executionScope: {
-        pageId: "google-search",
-        parentPath: ["google-search"],
+        pageId: "web-search",
+        parentPath: ["web-search"],
         searchValue: "widgets",
       },
     })

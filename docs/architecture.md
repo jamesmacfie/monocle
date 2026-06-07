@@ -127,7 +127,7 @@ The build is driven by WXT (`wxt.config.ts`) with the React module.
 - The `manifest` is generated as a function of `{ browser, command }`:
   - **Permissions** are browser-specific. Chrome gets `["scripting", "activeTab", "storage"]`; Firefox additionally gets `contextualIdentities`.
   - **Optional permissions** (`bookmarks`, `browsingData`, `cookies`, `downloads`, `history`, `sessions`, `tabs`) are declared once and requested on demand at runtime.
-  - **Host permissions** cover external hosts: Unsplash API, DuckDuckGo icons, Google.
+  - **Host permissions** cover external hosts: Unsplash API, DuckDuckGo icons.
   - **CSP** for extension pages is computed by `getExtensionPagesCsp`; the dev `serve` command relaxes `connect-src`/`script-src` to allow `localhost`/`ws` for HMR.
   - The toolbar **action shortcut** `_execute_action` is bound to `Cmd/Ctrl+Shift+K`, declared for all browser/command combos except Firefox `serve`.
 - A `build:manifestGenerated` hook strips Firefox-incompatible fields for Firefox MV3 (`content_security_policy.sandbox` and `use_dynamic_url` on web-accessible resources).

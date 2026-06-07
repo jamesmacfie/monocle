@@ -43,11 +43,11 @@ function actionSuggestion(id: string, name = id): Suggestion {
 
 function searchPage(overrides: Partial<Page> = {}): Page {
   return {
-    id: "google-search",
-    parentPath: ["google-search"],
+    id: "web-search",
+    parentPath: ["web-search"],
     parent: {
-      id: "google-search",
-      name: "Google Search",
+      id: "web-search",
+      name: "Web Search",
       type: "search",
       actionLabel: "Search",
     },

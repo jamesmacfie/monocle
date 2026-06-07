@@ -29,7 +29,7 @@ declared under `optional_permissions` and are dormant until requested.
 | `sessions` | Optional | Recently-closed and reopen-last-closed-tab commands. |
 | `tabs` | Optional | Tab management commands. |
 
-`host_permissions` (`api.unsplash.com`, `icons.duckduckgo.com`, `www.google.com`)
+`host_permissions` (`api.unsplash.com`, `icons.duckduckgo.com`)
 are separate host grants for new-tab background images and favicons, not part of
 the command permission model documented here.
 

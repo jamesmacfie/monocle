@@ -1,6 +1,6 @@
 # Tool Commands
 
-Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are four tool commands today: a calculator, a UUID generator, a Google search/omnibox command, and a workflow debug command.
+Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are three tool commands today: a calculator, a UUID generator, and a workflow debug command.
 
 ## Summary
 
@@ -9,12 +9,11 @@ Tool commands are general-purpose utilities that are not tied to a browser API s
 | Calculator | `calculator` | `group` | Evaluate arithmetic expressions with formatting and optional clipboard copy | Custom recursive-descent string evaluator, not `eval` |
 | Copy UUID v4 | `uuidv4` | `action` | Generate a v4 UUID and copy it to the clipboard | Uses the `uuid` package |
 | Debug Workflow | `debug-workflow` | `action` | Run a fixed click workflow against the active page | Exercises the workflow execution path; see [../workflow-automation.md](../workflow-automation.md) |
-| Google Search | `google-search` | `search` | Omnibox-style search with live Google autosuggest and URL detection | Fetches remote suggestions; opens results via tab navigation |
 
-All four are registered in `background/commands/tools/index.ts`:
+All three are registered in `background/commands/tools/index.ts`:
 
 ```ts
-export const toolCommands = [calculator, copyUuidV4, debugWorkflow, googleSearch]
+export const toolCommands = [calculator, copyUuidV4, debugWorkflow]
 ```
 
 ---
@@ -101,35 +100,6 @@ This command exists to exercise the end-to-end workflow execution path against a
 This is the only workflow surface that ships as a first-class command; it only exercises the implemented `click` step. The `test-inputs.html` fixture page at the repo root provides a Submit button to test against. For the workflow type model versus what the executor actually supports, see [../workflow-automation.md](../workflow-automation.md).
 
 Test coverage: `background/commands/tools/debugWorkflow.test.ts` stubs Chrome tabs and asserts the message sequence is exactly `toggle-ui` -> `execute-workflow-content` -> `monocle-toast`, that all messages target the resolved (non-active) tab whose URL matched the context, and that a failing `WorkflowResult` produces a targeted error toast containing the underlying error string.
-
----
-
-## Google Search
-
-Source: `background/commands/tools/googleSearch.ts`, exported as `googleSearch` (`SearchCommandNode`). Id `google-search`, `actionLabel: "Search"`.
-
-A `search` command: it renders a child page whose results are produced dynamically from the search box via `getResults(context, search)`. This makes it an omnibox-style command.
-
-### Result generation (`getResults`)
-
-For a non-empty trimmed query it builds a list of dynamic `action` children:
-
-1. **URL detection.** `isProbablyUrl(query)` returns true when the query has no whitespace and either starts with `http(s)://` or ends in a dotted TLD (`/\.[a-z]{2,}$/i`). When true, an "Open `<query>`" action is prepended, normalizing the URL with `toHttpUrl` (prefixing `https://` if no scheme).
-2. **Base search action.** Always adds a search action for the literal query, opening `https://www.google.com/search?q=<encoded>`.
-3. **Remote autosuggestions.** Calls `fetchGoogleSuggestions(query)`, which GETs `https://www.google.com/complete/search?client=chrome&q=<encoded>` and parses the Chrome-style `[query, [suggestions...]]` JSON shape. Up to 8 suggestions are added as additional search actions, skipping blanks, the exact query, and case-insensitive duplicates. Network/parse failures are caught and yield an empty list (logged as a warning), so the command still works offline.
-
-Each generated child uses a `safeIdSegment` of the query/suggestion for its id and carries `executionPayload: { dynamicUrl }`.
-
-### Opening behavior and modifier
-
-The open/search action executors and the top-level `googleSearch.execute` share the same navigation logic, keyed on the modifier:
-
-| Modifier | Behavior |
-| --- | --- |
-| none (Enter) | Update the active tab's URL in place (`updateTab`); if there is no active tab, open a new tab |
-| cmd (cmd-Enter) | Open the URL in a new tab (`createTab`) |
-
-The action labels reflect this: open-URL actions use `actionLabel: "Open"` / `modifierActionLabel: { cmd: "Open in New Tab" }`; search actions use `actionLabel: "Search"` / `modifierActionLabel: { cmd: "Open in New Tab" }`. All generated children set `allowCustomKeybinding: false` because their ids are query-dependent and ephemeral. The top-level `execute` only acts when called with a `values.dynamicUrl` that matches `^https?://`.
 
 ---
 
