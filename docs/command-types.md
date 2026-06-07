@@ -392,9 +392,9 @@ states, e.g. `createNoOpCommand("no-recently-closed", "No Recently Closed Items"
 
 ## Deep search: which descendants flatten
 
-Deep search is computed in `background/messages/getDeepSearchCommands.ts`
-(`flattenDeepSearchCommands` / `collectDeepSearchEntries`). The rules, verified
-in code:
+Deep search is computed at search-index build time in
+`background/commands/searchIndex.ts` (the `walkGroups` flatten); matches are
+returned by the `search-commands` message. The rules, verified in code:
 
 - Only `group` nodes are walked. A group participates when
   `enableDeepSearch === true`, or when a parent group already opted in and the

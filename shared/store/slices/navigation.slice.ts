@@ -20,16 +20,21 @@ export type Page = {
   formValues?: Record<string, string | string[]> // For inline input values
   // When true, this page's children are driven by search input
   dynamicChildren?: boolean
+  // Background search results for the current searchValue (root and child
+  // group pages). Rendered instead of favorites/suggestions while searching.
+  searchResults?: Suggestion[]
+  searchLoading?: boolean
+  // Last applied search-commands sequence number, used to drop stale responses
+  searchSeq?: number
 }
 
 // State shape
 interface NavigationState {
   pages: Page[]
-  // Keep initial commands for root page updates and deep search
+  // Keep initial commands for root page updates
   initialCommands: {
     favorites: Suggestion[]
     suggestions: Suggestion[]
-    deepSearchItems: Suggestion[]
   }
   loading: boolean
   error: string | null
@@ -40,11 +45,10 @@ interface NavigationState {
   } | null
 }
 
-// Helper function to find a command in the current page's commands or deep search items
+// Helper function to find a command in the current page's commands or search results
 export function findCommandInPage(
   page: Page,
   commandId: string,
-  deepSearchItems: Suggestion[] = [],
 ): Suggestion | undefined {
   return (
     (page.commands.favorites || []).find(
@@ -53,7 +57,7 @@ export function findCommandInPage(
     (page.commands.suggestions || []).find(
       (command) => command.id === commandId,
     ) ||
-    deepSearchItems.find((command) => command.id === commandId)
+    (page.searchResults || []).find((command) => command.id === commandId)
   )
 }
 
@@ -66,12 +70,11 @@ export const navigateToCommand = createAsyncThunk<
   {
     id: string
     currentPage: Page
-    initialCommands: NavigationState["initialCommands"]
   },
   { extra: ThunkApi }
 >(
   "navigation/navigateToCommand",
-  async ({ id, currentPage, initialCommands }, { extra, rejectWithValue }) => {
+  async ({ id, currentPage }, { extra, rejectWithValue }) => {
     try {
       if (!extra || typeof extra.sendMessage !== "function") {
         return rejectWithValue(
@@ -95,11 +98,7 @@ export const navigateToCommand = createAsyncThunk<
 
       if (shouldOpenPage) {
         // Store reference to parent command for breadcrumb navigation
-        const parentCommand = findCommandInPage(
-          currentPage,
-          id,
-          initialCommands.deepSearchItems,
-        )
+        const parentCommand = findCommandInPage(currentPage, id)
 
         // Build path for the new page (used by future child navigations)
         const newParentPath =
@@ -222,6 +221,58 @@ export const refreshCurrentPage = createAsyncThunk<
   },
 )
 
+// Background-owned search for the current page. Root pages send an empty
+// parentPath; child group pages send their full parent path. Responses echo
+// seq + query so stale (out-of-order or outdated) results are dropped in the
+// fulfilled reducer, mirroring the refreshRequest staleness guard.
+export const searchCurrentPage = createAsyncThunk<
+  {
+    results: Suggestion[]
+    seq: number
+    query: string
+  },
+  {
+    pageId: string
+    parentPath: string[]
+    query: string
+    seq: number
+  },
+  { extra: ThunkApi }
+>(
+  "navigation/searchCurrentPage",
+  async ({ pageId, parentPath, query, seq }, { extra, rejectWithValue }) => {
+    try {
+      if (!extra || typeof extra.sendMessage !== "function") {
+        return rejectWithValue(
+          "Messaging unavailable: sendMessage not provided",
+        )
+      }
+
+      const response = await extra.sendMessage({
+        type: "search-commands",
+        query,
+        parentPath: pageId === "root" ? [] : parentPath,
+        seq,
+      })
+
+      if (!response || response.error) {
+        return rejectWithValue(response?.error || "Failed to search commands")
+      }
+
+      return {
+        results: response.results || [],
+        seq: response.seq ?? seq,
+        query: response.query ?? query,
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to search commands"
+      console.error("❌ Error searching commands:", error)
+      return rejectWithValue(errorMessage)
+    }
+  },
+)
+
 // Create slice
 export const navigationSlice = createSlice({
   name: "navigation",
@@ -255,7 +306,6 @@ export const navigationSlice = createSlice({
     initialCommands: initialCommands || {
       favorites: [],
       suggestions: [],
-      deepSearchItems: [],
     },
     loading: false,
     error: null,
@@ -289,13 +339,29 @@ export const navigationSlice = createSlice({
       if (state.pages.length > 0) {
         const currentPageIndex = state.pages.length - 1
         const currentPage = state.pages[currentPageIndex]
+        const isCleared = action.payload.trim().length === 0
         state.pages[currentPageIndex] = {
           ...currentPage,
           searchValue: action.payload,
           commands:
-            currentPage.dynamicChildren && action.payload.trim().length === 0
+            currentPage.dynamicChildren && isCleared
               ? { favorites: [], suggestions: [] }
               : currentPage.commands,
+          // Clearing the query instantly restores the non-search rendering
+          searchResults: isCleared ? undefined : currentPage.searchResults,
+          searchLoading: isCleared ? false : currentPage.searchLoading,
+        }
+      }
+    },
+
+    // Drop background search results for the current page (empty query)
+    clearSearchResults: (state) => {
+      if (state.pages.length > 0) {
+        const currentPageIndex = state.pages.length - 1
+        state.pages[currentPageIndex] = {
+          ...state.pages[currentPageIndex],
+          searchResults: undefined,
+          searchLoading: false,
         }
       }
     },
@@ -400,6 +466,66 @@ export const navigationSlice = createSlice({
         state.refreshRequest = null
         state.error = action.payload as string
       })
+      // searchCurrentPage cases — guard against page changes and stale responses
+      .addCase(searchCurrentPage.pending, (state, action) => {
+        const currentPageIndex = state.pages.length - 1
+        if (
+          currentPageIndex < 0 ||
+          state.pages[currentPageIndex].id !== action.meta.arg.pageId
+        ) {
+          return
+        }
+
+        state.pages[currentPageIndex] = {
+          ...state.pages[currentPageIndex],
+          searchLoading: true,
+        }
+      })
+      .addCase(searchCurrentPage.fulfilled, (state, action) => {
+        const currentPageIndex = state.pages.length - 1
+        if (currentPageIndex < 0) return
+
+        const currentPage = state.pages[currentPageIndex]
+
+        // Only apply to the page the search was issued for
+        if (currentPage.id !== action.meta.arg.pageId) return
+
+        // Drop out-of-order responses
+        if (
+          currentPage.searchSeq !== undefined &&
+          action.payload.seq < currentPage.searchSeq
+        ) {
+          return
+        }
+
+        // Drop responses for a query the user has already typed past; the
+        // debounced follow-up request for the newer query releases the spinner
+        if (action.payload.query !== currentPage.searchValue) {
+          return
+        }
+
+        state.pages[currentPageIndex] = {
+          ...currentPage,
+          searchResults: action.payload.results,
+          searchLoading: false,
+          searchSeq: action.payload.seq,
+        }
+      })
+      .addCase(searchCurrentPage.rejected, (state, action) => {
+        const currentPageIndex = state.pages.length - 1
+        if (
+          currentPageIndex < 0 ||
+          state.pages[currentPageIndex].id !== action.meta.arg.pageId
+        ) {
+          return
+        }
+
+        // Search failures are non-fatal: stop the spinner, keep prior results
+        state.pages[currentPageIndex] = {
+          ...state.pages[currentPageIndex],
+          searchLoading: false,
+        }
+      })
   },
   selectors: {
     // Current page is always the last one in the stack
@@ -415,6 +541,7 @@ export const navigationSlice = createSlice({
 export const {
   setInitialCommands,
   updateSearchValue,
+  clearSearchResults,
   navigateBack,
   clearError,
   setFormValue,

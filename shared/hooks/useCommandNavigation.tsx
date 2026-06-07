@@ -5,13 +5,14 @@ import { useAppDispatch, useAppSelector } from "../store/hooks"
 import { startCapture } from "../store/slices/keybinding.slice"
 import {
   clearError,
+  clearSearchResults,
   findCommandInPage,
   navigateBack as navigateBackAction,
   navigateToCommand,
   refreshCurrentPage as refreshCurrentPageThunk,
+  searchCurrentPage,
   selectCurrentPage,
   selectError,
-  selectInitialCommands,
   selectLoading,
   selectPages,
   setInitialCommands,
@@ -60,7 +61,6 @@ export function useCommandNavigation(
   initialCommands: {
     favorites: Suggestion[]
     suggestions: Suggestion[]
-    deepSearchItems: Suggestion[]
   },
   inputRef: RefObject<HTMLInputElement | null>,
   executeCommand: (
@@ -75,7 +75,6 @@ export function useCommandNavigation(
 
   // Redux selectors - subscribe only to what we need
   const pages = useAppSelector(selectPages)
-  const storedInitialCommands = useAppSelector(selectInitialCommands)
   const loading = useAppSelector(selectLoading)
   const error = useAppSelector(selectError)
   const currentPage = useAppSelector(selectCurrentPage)
@@ -83,10 +82,16 @@ export function useCommandNavigation(
   // Ref flags to prevent various race conditions and loops:
   const ignoreSearchUpdate = useRef(false) // Prevents search updates from being saved during navigation
   const prevPageRef = useRef<string | null>(null) // Tracks page changes for search restoration
+  const searchSeqRef = useRef(0) // Monotonic sequence for search-commands requests
   const currentPageId = currentPage?.id
   const currentPageSearchValue = currentPage?.searchValue ?? ""
   const currentPageParentPathKey = currentPage?.parentPath.join("\u0000") ?? ""
   const currentPageHasDynamicChildren = currentPage?.dynamicChildren === true
+  // Form pages bypass search entirely: every row stays visible while typing.
+  // Display rows (NoOp empty/error states) intentionally don't trigger this.
+  const currentPageIsForm = (currentPage?.commands.suggestions || []).some(
+    (suggestion) => suggestion.type === "input" || suggestion.type === "submit",
+  )
 
   // Update Redux store when initialCommands change (e.g., favorites update)
   useEffect(() => {
@@ -139,6 +144,44 @@ export function useCommandNavigation(
     dispatch,
   ])
 
+  // Debounced background search for root and child group pages. Keyed on the
+  // Redux searchValue so programmatic DOM pokes (back-nav search restoration)
+  // don't trigger spurious searches — those are filtered by ignoreSearchUpdate
+  // before they reach Redux. search-type pages keep their get-children path
+  // and form pages bypass search entirely.
+  useEffect(() => {
+    if (!currentPageId || currentPageHasDynamicChildren || currentPageIsForm) {
+      return
+    }
+
+    if (currentPageSearchValue.trim().length === 0) {
+      dispatch(clearSearchResults())
+      return
+    }
+
+    const handle = setTimeout(() => {
+      searchSeqRef.current += 1
+      dispatch(
+        searchCurrentPage({
+          pageId: currentPageId,
+          parentPath: currentPageParentPathKey
+            ? currentPageParentPathKey.split("\u0000")
+            : [],
+          query: currentPageSearchValue,
+          seq: searchSeqRef.current,
+        }),
+      )
+    }, 200)
+    return () => clearTimeout(handle)
+  }, [
+    currentPageId,
+    currentPageSearchValue,
+    currentPageParentPathKey,
+    currentPageHasDynamicChildren,
+    dispatch,
+    currentPageIsForm,
+  ])
+
   /**
    * Updates the search value for the current page
    * Called by CMDK when user types in search input
@@ -168,7 +211,6 @@ export function useCommandNavigation(
         navigateToCommand({
           id,
           currentPage,
-          initialCommands: storedInitialCommands,
         }),
       ).unwrap()
 
@@ -229,11 +271,7 @@ export function useCommandNavigation(
    * Called when user clicks or presses Enter on a command
    */
   const selectCommand = async (id: string) => {
-    const selectedCommand = findCommandInPage(
-      currentPage,
-      id,
-      storedInitialCommands.deepSearchItems,
-    )
+    const selectedCommand = findCommandInPage(currentPage, id)
 
     if (!selectedCommand) {
       console.error("⚠️ Selected command not found for id:", id)

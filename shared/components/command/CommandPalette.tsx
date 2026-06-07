@@ -1,5 +1,5 @@
-import { Command, defaultFilter, useCommandState } from "cmdk"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Command, useCommandState } from "cmdk"
+import { useEffect, useRef, useState } from "react"
 import type { CommandExecutionScope, Suggestion } from "../../../shared/types"
 import { useActionLabel } from "../../hooks/useActionLabel"
 import { useCommandNavigation } from "../../hooks/useCommandNavigation"
@@ -37,7 +37,6 @@ function CommandContent({
   close,
   onOpenActions,
   onCloseActions,
-  deepSearchItems = [],
   isLoading = false,
   isActionsOpen = false,
   actionsOpenForSuggestion = null,
@@ -51,7 +50,6 @@ function CommandContent({
   close: () => void
   onOpenActions: (suggestion: Suggestion) => void
   onCloseActions: (force?: boolean) => void
-  deepSearchItems?: Suggestion[]
   isLoading?: boolean
   isActionsOpen?: boolean
   actionsOpenForSuggestion?: Suggestion | null
@@ -66,7 +64,9 @@ function CommandContent({
     (currentPage.commands.suggestions || []).find(
       (item: Suggestion) => item.id === focusedValue,
     ) ||
-    deepSearchItems.find((item: Suggestion) => item.id === focusedValue)
+    (currentPage.searchResults || []).find(
+      (item: Suggestion) => item.id === focusedValue,
+    )
 
   // Close action menu when focused command changes and is different from the one with actions open
   useEffect(() => {
@@ -126,7 +126,6 @@ function CommandContent({
       <CommandList
         currentPage={currentPage}
         onSelect={selectCommand}
-        deepSearchItems={deepSearchItems}
         isLoading={isLoading}
       />
       <CommandFooter
@@ -198,14 +197,6 @@ export function CommandPalette({
       inputRef?.current?.focus()
     }
   }, [autoFocus])
-
-  const rankWeightById = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const item of items.deepSearchItems ?? []) {
-      if (typeof item.rankWeight === "number") map.set(item.id, item.rankWeight)
-    }
-    return map
-  }, [items.deepSearchItems])
 
   const handleOpenActions = (suggestion: Suggestion) => {
     setActionsState({
@@ -298,41 +289,9 @@ export function CommandPalette({
         <CommandNavigationError error={error} onClearError={clearError} />
       )}
       <>
-        <Command
-          // Custom filter: weight the primary name higher than other tokens
-          filter={(value, search, keywords) => {
-            // Guard: no search means everything visible
-            if (!search) return 1
-
-            const tokens = keywords ?? []
-            const primary = tokens[0] ?? ""
-            const rest = tokens.slice(1)
-
-            // Score primary display name
-            const nameScore = primary ? defaultFilter(primary, search) : 0
-            // Score all other keyword tokens together
-            const restScore = rest.length
-              ? defaultFilter(rest.join(" "), search)
-              : 0
-
-            // Small boost for prefix matches on the display name
-            const prefixBoost = primary
-              .toLowerCase()
-              .startsWith(search.toLowerCase())
-              ? 0.1
-              : 0
-
-            // Combine with weights (cap at 1), then apply source multiplier.
-            // Deep-search items carry rankWeight < 1; root commands default to 1.
-            const combined = Math.min(
-              1,
-              nameScore * 0.8 + restScore * 0.2 + prefixBoost,
-            )
-            const sourceWeight = rankWeightById.get(value) ?? 1
-
-            return combined * sourceWeight
-          }}
-        >
+        {/* Filtering and ranking are background-owned (search-commands).
+            cmdk only renders lists and handles keyboard navigation. */}
+        <Command shouldFilter={false}>
           <CommandContent
             pages={pages}
             currentPage={currentPage}
@@ -343,7 +302,6 @@ export function CommandPalette({
             close={close}
             onOpenActions={handleOpenActions}
             onCloseActions={handleCloseActions}
-            deepSearchItems={items.deepSearchItems || []}
             isLoading={loading || isLoading}
             isActionsOpen={actionsState.open}
             actionsOpenForSuggestion={actionsState.suggestion}

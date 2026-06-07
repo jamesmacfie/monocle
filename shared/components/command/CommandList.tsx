@@ -1,7 +1,6 @@
-import { Command, useCommandState } from "cmdk"
+import { Command } from "cmdk"
 import { Loader2, SearchX } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { Suggestion } from "../../../shared/types"
 import { useToast } from "../../hooks/useToast"
 import type { Page } from "../../store/slices/navigation.slice"
 import {
@@ -9,7 +8,6 @@ import {
   validateFormValues,
 } from "../../utils/forms"
 import { CommandItem } from "./CommandItem"
-import { DeepSearchItems } from "./DeepSearchItems"
 
 export interface CommandListProps {
   currentPage: Page
@@ -20,37 +18,46 @@ export interface CommandListProps {
 export function CommandList({
   currentPage,
   onSelect,
-  deepSearchItems = [],
   isLoading = false,
-}: CommandListProps & {
-  deepSearchItems?: Suggestion[]
-}) {
-  const cmdkSearch = useCommandState((state) => state.search)
+}: CommandListProps) {
   const toast = useToast()
   const listRef = useRef<HTMLDivElement>(null)
   const prevSearchRef = useRef<string>("")
 
-  // Track when user is actively typing to show loader during debounce period
+  const searchValue = currentPage.searchValue
+  const trimmedQuery = searchValue.trim()
+
+  // Form pages bypass search entirely: all rows stay visible while typing.
+  // Display rows (NoOp empty/error states) intentionally don't count.
+  const isFormPage = (currentPage.commands.suggestions || []).some(
+    (suggestion) => suggestion.type === "input" || suggestion.type === "submit",
+  )
+
+  // Search-type pages (dynamicChildren) keep their get-children flow and
+  // render results through commands.suggestions, not searchResults
+  const isSearchDriven =
+    trimmedQuery.length > 0 && !isFormPage && !currentPage.dynamicChildren
+
+  // Track when user is actively typing to show loader during the debounce
+  // window before the background search/refresh dispatches
   const [isTyping, setIsTyping] = useState(false)
 
-  // Debounce typing state to prevent flash of "No results" during search
   useEffect(() => {
-    if (cmdkSearch) {
+    if (trimmedQuery) {
       setIsTyping(true)
       const timer = setTimeout(() => {
         setIsTyping(false)
-      }, 250) // Standard debounce timing for search responsiveness
+      }, 250) // Matches the search/refresh debounce timing
       return () => clearTimeout(timer)
     } else {
       setIsTyping(false)
     }
-  }, [cmdkSearch])
+  }, [trimmedQuery])
 
   // Scroll to top when search value changes
   useEffect(() => {
-    // Only scroll if the search value actually changed
-    if (cmdkSearch !== prevSearchRef.current && listRef.current) {
-      prevSearchRef.current = cmdkSearch
+    if (searchValue !== prevSearchRef.current && listRef.current) {
+      prevSearchRef.current = searchValue
       // Use requestAnimationFrame to ensure DOM updates are complete before scrolling
       requestAnimationFrame(() => {
         listRef.current?.scrollTo({ top: 0, behavior: "instant" })
@@ -81,16 +88,20 @@ export function CommandList({
     toast,
   ])
 
+  const showSpinner =
+    isLoading || isTyping || currentPage.searchLoading === true
+
   return (
     <Command.List ref={listRef} className="cmdk-command-list">
-      {isLoading || isTyping ? (
+      {/* Command.Empty renders only when no items are mounted */}
+      {showSpinner ? (
         <Command.Empty>
           <div className="flex items-center justify-center gap-2 py-4">
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         </Command.Empty>
       ) : (
-        cmdkSearch && (
+        trimmedQuery && (
           <Command.Empty>
             <div className="flex flex-col items-center justify-center gap-2 py-4">
               <SearchX className="h-8 w-8 text-gray-400" />
@@ -99,36 +110,50 @@ export function CommandList({
           </Command.Empty>
         )
       )}
-      {(currentPage.commands.favorites || []).length > 0 && (
-        <Command.Group heading="Favorites">
-          {(currentPage.commands.favorites || []).map((item) => (
-            <CommandItem
-              key={item.id}
-              suggestion={item}
-              onSelect={onSelect}
-              currentPage={currentPage}
-            />
-          ))}
-        </Command.Group>
+      {isSearchDriven ? (
+        // Background-ranked results: a single flat group that includes
+        // deep-search matches inline
+        (currentPage.searchResults || []).length > 0 && (
+          <Command.Group heading="Results">
+            {(currentPage.searchResults || []).map((item) => (
+              <CommandItem
+                key={item.id}
+                suggestion={item}
+                onSelect={onSelect}
+                currentPage={currentPage}
+              />
+            ))}
+          </Command.Group>
+        )
+      ) : (
+        <>
+          {(currentPage.commands.favorites || []).length > 0 && (
+            <Command.Group heading="Favorites">
+              {(currentPage.commands.favorites || []).map((item) => (
+                <CommandItem
+                  key={item.id}
+                  suggestion={item}
+                  onSelect={onSelect}
+                  currentPage={currentPage}
+                />
+              ))}
+            </Command.Group>
+          )}
+          {(currentPage.commands.suggestions || []).length > 0 && (
+            <Command.Group heading="Suggestions">
+              {(currentPage.commands.suggestions || []).map((item) => (
+                <CommandItem
+                  key={item.id}
+                  suggestion={item}
+                  onSelect={onSelect}
+                  currentPage={currentPage}
+                  onInputSubmit={handleInputSubmit}
+                />
+              ))}
+            </Command.Group>
+          )}
+        </>
       )}
-      {(currentPage.commands.suggestions || []).length > 0 && (
-        <Command.Group heading="Suggestions">
-          {(currentPage.commands.suggestions || []).map((item) => (
-            <CommandItem
-              key={item.id}
-              suggestion={item}
-              onSelect={onSelect}
-              currentPage={currentPage}
-              onInputSubmit={handleInputSubmit}
-            />
-          ))}
-        </Command.Group>
-      )}
-      <DeepSearchItems
-        currentPage={currentPage}
-        onSelect={onSelect}
-        deepSearchItems={deepSearchItems}
-      />
     </Command.List>
   )
 }

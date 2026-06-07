@@ -23,7 +23,8 @@ Every entry below is registered in `handleMessage`. "Direction" is always UI -> 
 
 | Type string | Direction | Request payload | Response shape | Handler file / symbol | Purpose |
 | --- | --- | --- | --- | --- | --- |
-| `get-commands` | UI -> bg | `{ context }` | `{ favorites: Suggestion[], suggestions: Suggestion[], deepSearchItems: Suggestion[] }` | `background/messages/getCommands.ts`, `getCommands` | Load root palette: ranked suggestions, favorites, flattened deep-search items. |
+| `get-commands` | UI -> bg | `{ context }` | `{ favorites: Suggestion[], suggestions: Suggestion[] }` | `background/messages/getCommands.ts`, `getCommands` | Load the root palette empty state: favorites and usage-ranked suggestions. |
+| `search-commands` | UI -> bg | `{ context, query, parentPath?, limit?, seq }` | `{ results: Suggestion[], seq, query }` | `background/messages/searchCommands.ts`, `searchCommands` | Background-owned palette search: score the index (root) or page children (child pages), return the top-N suggestions. |
 | `get-children-commands` | UI -> bg | `{ id, context, parentPath?, searchValue? }` | `{ children: Suggestion[], openPage?: boolean, dynamicChildren?: boolean }` | `background/messages/getChildrenCommands.ts`, `getChildrenCommands` | Resolve children of a `group`/`search` node for the next palette page. |
 | `execute-command` | UI -> bg | `{ id, context, formValues?, parentNames?, executionScope? }` | `{ success: true }` or `{ error }` | `background/messages/executeCommand.ts`, `executeCommand` | Run a command's executor with form values and execution scope. |
 | `execute-keybinding` | UI -> bg | `{ keybinding, context }` | sequence/exec result (see below) or `{ error }` | `background/messages/executeKeybinding.ts`, `executeKeybinding` | Resolve a key stroke against the registry, handle chords, execute matches. |
@@ -48,7 +49,7 @@ Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMess
 | `show-ui` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, `toggleContentPalette` | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
 | `monocle-newTab` | bg -> tab | `{ url }` | command executors (e.g. `background/commands/browser/history.ts`, `bookmarks.ts`) | `shared/components/Listeners/NewTabListener.tsx` (`window.open(url, "_blank")` for http(s) only) |
 
-> **`get-deep-search-commands` does not exist as a message.** `background/messages/getDeepSearchCommands.ts` exports `flattenDeepSearchCommands` (used inside the `get-commands` handler) and a standalone `getDeepSearchCommands()` function, but neither is wired into `handleMessage` and no `get-deep-search-commands` type string is sent anywhere in the repo. Deep-search items are delivered through `get-commands` as the `deepSearchItems` field.
+> **Deep-search items are delivered through `search-commands`.** They are flattened into the background search index (`background/commands/searchIndex.ts`) and arrive inline in `results` with a `rankWeight` stamp. `get-commands` no longer returns a `deepSearchItems` field.
 
 ## Shared Request Building Blocks
 
@@ -81,13 +82,20 @@ export type CommandExecutionScope = {
 
 ### Commands
 
-**`get-commands`** — `getCommands` calls `getCommands(context)` from `background/commands`, then converts the three command-node buckets to `Suggestion[]` via `commandsToSuggestions` and flattens deep-search groups with `flattenDeepSearchCommands`. Returns:
+**`get-commands`** — `getCommands` calls `getCommands(context)` from `background/commands` and converts the favorites/suggestions node buckets to `Suggestion[]` via `commandsToSuggestions`. It serves the root **empty state** only — searching goes through `search-commands`. Returns:
 
 ```ts
-{ favorites: Suggestion[], suggestions: Suggestion[], deepSearchItems: Suggestion[] }
+{ favorites: Suggestion[], suggestions: Suggestion[] }
 ```
 
-See [search-and-ranking.md](search-and-ranking.md) for how `suggestions` are ranked and how `deepSearchItems` are weighted and deduped, and [command-types.md](command-types.md) for the underlying node families.
+**`search-commands`** — `searchCommands` answers palette queries:
+
+- **Root** (`parentPath` empty/undefined): scores entries from the in-memory search index (`background/commands/searchIndex.ts`) after query-time URL filtering. An empty root query returns `results: []`.
+- **Child pages**: scores ephemeral entries built from `getCommandPageCommands(context, parentPath)`. An empty child query returns all children in load order.
+- `limit` caps results (default 40, validation max 200). Only the top-N entries are converted to `Suggestion`s; deep-search results carry `rankWeight`.
+- `seq` (a monotonic client counter) and `query` are echoed back so the navigation slice can drop stale or out-of-order responses.
+
+See [search-and-ranking.md](search-and-ranking.md) for the index, scoring tiers, and deep-search weighting/dedupe, and [command-types.md](command-types.md) for the underlying node families.
 
 **`get-children-commands`** — `getChildrenCommands` rebuilds the current page with `getCommandPageCommands(context, parentPath, searchValue)`, finds the target by `id`, and branches:
 
@@ -238,15 +246,14 @@ Content-side receivers live in the shared UI so both overlay and new-tab modes h
 
 ## Known Issues / Notes
 
-- The `Message` union in `shared/types/messaging.ts`, the `MessageSchema` discriminated union in `shared/types/validation.ts`, and the `match` chain in `handleMessage` all enumerate the same 14 message types. `MessageSchema` and `handleMessage` are the runtime source of truth (validation rejects anything not in the union before it reaches a handler); the `Message` union is the type-level mirror. Note that `useSendMessage`'s `SendableMessage` union is deliberately narrower — it omits `ShowToastMessage` and `GetUnsplashBackgroundMessage` (sent from stores / non-hook paths rather than the hook) and uses context-stripped variants for the command/keybinding messages.
+- The `Message` union in `shared/types/messaging.ts`, the `MessageSchema` discriminated union in `shared/types/validation.ts`, and the `match` chain in `handleMessage` all enumerate the same 15 message types. `MessageSchema` and `handleMessage` are the runtime source of truth (validation rejects anything not in the union before it reaches a handler); the `Message` union is the type-level mirror. Note that `useSendMessage`'s `SendableMessage` union is deliberately narrower — it omits `ShowToastMessage` and `GetUnsplashBackgroundMessage` (sent from stores / non-hook paths rather than the hook) and uses context-stripped variants for the command/keybinding/search messages.
 - `executeKeybinding` and `checkKeybindingConflict` are not wrapped by `createMessageHandler`; their error contracts differ (they return domain-shaped fallbacks, not `{ error: <generic> }`).
-- `getDeepSearchCommands()` and the standalone `getDeepSearchCommands` export are effectively dead-code paths today; deep-search delivery goes through `get-commands`.
 - Keybinding sequence state is global to the service worker; multi-tab chord interactions can interfere. See [keybindings.md](keybindings.md).
 
 ## Manual Test Checklist
 
-- Open the palette in both content overlay and new-tab modes and confirm `get-commands` populates favorites, suggestions, and deep-search items.
-- Navigate into a `group` and a `search` node; confirm `get-children-commands` returns `openPage: true` and that `search` recomputes as you type (`dynamicChildren: true`).
+- Open the palette in both content overlay and new-tab modes and confirm `get-commands` populates favorites and suggestions, and that typing routes through `search-commands` (deep-search items appear inline in results).
+- Navigate into a `group` and a `search` node; confirm `get-children-commands` returns `openPage: true` and that `search` recomputes as you type (`dynamicChildren: true`); typing on a plain group page filters its children through `search-commands`.
 - Execute a command with enter and with the modifier held; confirm the modifier reaches the background (visible in execution behavior / usage).
 - Set, change, and clear a custom keybinding; confirm `check-keybinding-conflict` flags collisions and `update-command-setting` shows the success toast and refreshes the registry.
 - Trigger a permission-gated command in Chrome and Firefox; confirm `request-permission` / `open-permission-grant-page` flows and that `get-permissions` reflects the grant.

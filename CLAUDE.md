@@ -84,7 +84,8 @@ Last verified validation:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
-- `pnpm test` passes with focused command-system, browser-command, keybinding,
+- `pnpm test` passes with focused command-system, palette-search
+  (index/scoring/search-commands/slice staleness), browser-command, keybinding,
   URL-filtering, settings-management, workflow automation,
   new-tab/theme/background, and GitHub parsing coverage.
 - `pnpm run build` passes for the Chrome MV3 target.
@@ -119,17 +120,24 @@ The important boundaries are:
 
 ## Core Data Flows
 
-Command loading and execution:
+Command loading, search, and execution:
 
 1. Content or new-tab UI sends `get-commands` with current browser context.
 2. `background/commands/index.ts` loads command nodes, applies browser/context
    compatibility, applies URL filtering, ranks suggestions, and computes
-   favorites/deep-search items.
+   favorites — the root empty state.
 3. Commands are converted into UI-facing `Suggestion` values.
-4. The shared palette renders suggestions with CMDK.
-5. UI sends `execute-command` with command id, context, modifier, and form
+4. The shared palette renders suggestions with CMDK as a list renderer only
+   (`shouldFilter={false}`).
+5. Typing debounces ~200ms and sends `search-commands`; the background scores
+   entries from an in-memory search index
+   (`background/commands/searchIndex.ts`, event/TTL-invalidated, URL rules
+   applied at query time) and returns top-N suggestions with deep-search
+   matches inline. Child group pages search via `parentPath`; form pages
+   bypass search; `search`-type pages keep `get-children-commands`.
+6. UI sends `execute-command` with command id, context, modifier, and form
    values.
-6. Background resolves the command, checks permissions, runs the executor, and
+7. Background resolves the command, checks permissions, runs the executor, and
    records usage.
 
 Nested command navigation:

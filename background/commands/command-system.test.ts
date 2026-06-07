@@ -10,8 +10,10 @@ import { initializeKeybindingRegistry } from "../keybindings/registry"
 import { executeKeybinding } from "../messages/executeKeybinding"
 import { getChildrenCommands } from "../messages/getChildrenCommands"
 import { getCommands as getCommandMessage } from "../messages/getCommands"
+import { searchCommands } from "../messages/searchCommands"
 import { toggleFavoriteCommandId } from "./favorites"
 import { commandsToSuggestions, executeCommand, getCommands } from "./index"
+import { invalidateSearchIndex } from "./searchIndex"
 import {
   clearAllSettings,
   getCommandSettings,
@@ -199,6 +201,7 @@ beforeEach(async () => {
   createdTabs = []
   permissionGranted = true
   installChromeStubs()
+  invalidateSearchIndex()
   await clearAllSettings()
 })
 
@@ -419,8 +422,15 @@ describe("favorites and deep search", () => {
     expect(
       response.suggestions.map((item: { id: string }) => item.id),
     ).not.toContain("open-tabs")
+
+    const searchResponse = (await searchCommands({
+      type: "search-commands",
+      context: normalContext,
+      query: "docs",
+      seq: 1,
+    })) as any
     expect(
-      response.deepSearchItems.map((item: { id: string }) => item.id),
+      searchResponse.results.map((item: { id: string }) => item.id),
     ).toContain("open-tab-2")
   })
 
@@ -475,16 +485,19 @@ describe("URL-filtered execution", () => {
       childResponse.children.map((item: { id: string }) => item.id),
     ).not.toContain("open-tab-2")
 
-    const rootResponse = (await getCommandMessage({
-      type: "get-commands",
+    // Root search applies URL deny rules to deep-search results at query time
+    const searchResponse = (await searchCommands({
+      type: "search-commands",
       context: normalContext,
+      query: "tab",
+      seq: 1,
     })) as any
 
     expect(
-      rootResponse.deepSearchItems.map((item: { id: string }) => item.id),
+      searchResponse.results.map((item: { id: string }) => item.id),
     ).toContain("open-tab-1")
     expect(
-      rootResponse.deepSearchItems.map((item: { id: string }) => item.id),
+      searchResponse.results.map((item: { id: string }) => item.id),
     ).not.toContain("open-tab-2")
   })
 

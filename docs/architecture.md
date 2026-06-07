@@ -43,7 +43,7 @@ WXT generates the manifest and bundles three entrypoints under `entrypoints/`:
 | `entrypoints/content.tsx` | `defineContentScript` | Injects the shadow-DOM overlay on `<all_urls>`. |
 | `entrypoints/newtab/` (`index.html` + `main.tsx`) | HTML page | Browser new-tab override; mounts the React new-tab app. |
 
-`background/index.ts` `initializeBackground()` is the service worker's startup: it initializes the keybinding registry (`initializeKeybindingRegistry`), registers a cross-browser runtime message listener that routes everything through `handleMessage`, and wires the toolbar `action.onClicked` to `toggleContentPalette`.
+`background/index.ts` `initializeBackground()` is the service worker's startup: it initializes the keybinding registry (`initializeKeybindingRegistry`), wires search-index invalidation events and warms the search index (`initializeSearchIndexInvalidation` / `warmSearchIndex` from `background/commands/searchIndex.ts`), registers a cross-browser runtime message listener that routes everything through `handleMessage`, and wires the toolbar `action.onClicked` to `toggleContentPalette`.
 
 ## Background ownership and boundaries
 
@@ -147,12 +147,12 @@ Stack: React 19, Redux Toolkit, CMDK (palette), `ts-pattern` (message routing), 
 
 All UI→background communication is a single typed message channel routed in `background/messages/index.ts` via `ts-pattern`, after Zod-backed validation in `validateIncomingMessage`. See [messaging.md](./messaging.md) for the full message catalog.
 
-### Command load
+### Command load and search
 
 1. The UI sends `get-commands` with current browser context (new-tab mode includes `{ isNewTab: true }`).
-2. `getCommands` (`background/messages/getCommands.ts`) loads command nodes, applies browser/context compatibility, applies URL filtering, ranks suggestions, and computes favorites/deep-search items.
-3. Nodes are converted to UI-facing `Suggestion` values.
-4. The shared palette renders them with CMDK.
+2. `getCommands` (`background/messages/getCommands.ts`) loads command nodes, applies browser/context compatibility, applies URL filtering, ranks suggestions, and computes favorites — the root empty state.
+3. Nodes are converted to UI-facing `Suggestion` values and the shared palette renders them with CMDK (`shouldFilter={false}` — CMDK never filters).
+4. Typing debounces ~200 ms and sends `search-commands`; `searchCommands` (`background/messages/searchCommands.ts`) scores entries from the in-memory search index (`background/commands/searchIndex.ts` — module-scoped cache, ~30 s TTL plus browser-event invalidation, URL rules applied at query time) and returns the top-N suggestions, deep-search matches inline. Child group pages search the same way via `parentPath`; form pages bypass search.
 
 See [search-and-ranking.md](./search-and-ranking.md), [url-filtering.md](./url-filtering.md), and [command-types.md](./command-types.md).
 

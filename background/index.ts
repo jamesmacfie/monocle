@@ -1,4 +1,8 @@
 import { getBrowserAPI } from "../shared/utils/extension-api"
+import {
+  initializeSearchIndexInvalidation,
+  warmSearchIndex,
+} from "./commands/searchIndex"
 import { initializeKeybindingRegistry } from "./keybindings/registry"
 import { handleMessage } from "./messages"
 import { toggleContentPalette } from "./utils/contentPalette"
@@ -12,6 +16,11 @@ export function initializeBackground() {
 
   // Initialize keybinding registry on startup
   initializeKeybindingRegistry().catch(console.error)
+
+  // Wire search-index invalidation events and warm the index so the first
+  // palette query after a cold start doesn't pay the full tree resolve
+  initializeSearchIndexInvalidation()
+  warmSearchIndex()
 
   addRuntimeListener(
     createCrossBrowserMessageHandler((message, sender) =>

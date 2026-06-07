@@ -12,6 +12,7 @@ import { getUnsplashBackground } from "./getUnsplashBackground"
 import { openPermissionGrantPage } from "./openPermissionGrantPage"
 import { requestPermission } from "./requestPermission"
 import { requestToast } from "./requestToast"
+import { searchCommands } from "./searchCommands"
 import { showToast } from "./showToast"
 import { updateCommandSetting } from "./updateCommandSetting"
 
@@ -55,6 +56,9 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
   return await match(message)
     .with({ type: "get-commands" }, async (msg) => {
       return await getCommands(msg)
+    })
+    .with({ type: "search-commands" }, async (msg) => {
+      return await searchCommands(msg)
     })
     .with({ type: "get-children-commands" }, async (msg) => {
       return await getChildrenCommands(msg)

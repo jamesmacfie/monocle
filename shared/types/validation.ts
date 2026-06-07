@@ -52,6 +52,15 @@ export const GetCommandsMessageSchema = z.object({
   context: BrowserContextSchema,
 })
 
+export const SearchCommandsMessageSchema = z.object({
+  type: z.literal("search-commands"),
+  context: BrowserContextSchema,
+  query: z.string().max(1000, "Search query too long"),
+  parentPath: z.array(z.string()).optional(),
+  limit: z.number().int().positive().max(200).optional(),
+  seq: z.number().int().nonnegative(),
+})
+
 export const ShowToastMessageSchema = z.object({
   type: z.literal("show-toast"),
   level: z.enum(["info", "warning", "success", "error"]),
@@ -235,6 +244,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
   GetKeybindingStateMessageSchema,
   GetChildrenMessageSchema,
   GetCommandsMessageSchema,
+  SearchCommandsMessageSchema,
   ShowToastMessageSchema,
   RequestToastMessageSchema,
   UpdateCommandSettingMessageSchema,

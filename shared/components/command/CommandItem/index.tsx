@@ -1,5 +1,5 @@
 import { Command, useCommandState } from "cmdk"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { memo, type ReactNode, useEffect, useRef, useState } from "react"
 import { match } from "ts-pattern"
 import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
@@ -33,7 +33,7 @@ interface Props extends CommandItemProps {
   children?: ReactNode
 }
 
-export function CommandItem({
+function CommandItemComponent({
   suggestion,
   onSelect,
   currentPage,
@@ -142,34 +142,6 @@ export function CommandItem({
     ? "Are you sure?"
     : getContextualDisplayName(suggestion.name)
 
-  // Build rich keywords to improve fuzzy search ranking without changing stable value (id)
-  const primaryNameToken = Array.isArray(suggestion.name)
-    ? suggestion.name[0]
-    : suggestion.name
-  const ancestorNameTokens = Array.isArray(suggestion.name)
-    ? suggestion.name.slice(1)
-    : []
-  const descriptionToken =
-    typeof suggestion.description === "string"
-      ? suggestion.description
-      : undefined
-  const keybindingToken =
-    typeof suggestion.keybinding === "string"
-      ? suggestion.keybinding
-      : undefined
-  const mergedKeywords = [
-    // Put primary name first to give it highest weight in custom filter
-    primaryNameToken,
-    // Include any ancestor/breadcrumb names for deep search context
-    ...ancestorNameTokens,
-    // Existing explicit keywords from the command definition
-    ...(suggestion.keywords || []),
-    // Description can help match URLs or extra context (e.g., bookmarks)
-    descriptionToken,
-    // Keybinding text
-    keybindingToken,
-  ].filter(Boolean) as string[]
-
   const inputField =
     suggestion.type === "input" ? suggestion.inputField : undefined
   const onInlineInputKeyDown = (e: React.KeyboardEvent<any>) => {
@@ -211,10 +183,10 @@ export function CommandItem({
   return (
     <Command.Item
       ref={itemRef as any}
-      // Keep value as the stable id so focus/selection logic based on ids continues to work
+      // Keep value as the stable id so focus/selection logic based on ids
+      // continues to work. Match keywords are no longer needed: filtering and
+      // ranking are background-owned and cmdk runs with shouldFilter={false}.
       value={suggestion.id}
-      // Provide a richer set of keywords for the fuzzy filter to score against
-      keywords={mergedKeywords}
       onSelect={handleSelect}
     >
       {match(suggestion.type)
@@ -299,3 +271,8 @@ export function CommandItem({
     </Command.Item>
   )
 }
+
+// Memoized: background-owned search caps the mounted row count at ~50, so
+// this is insurance against re-rendering every row body when unrelated parent
+// state changes between keystrokes.
+export const CommandItem = memo(CommandItemComponent)

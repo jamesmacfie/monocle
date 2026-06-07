@@ -11,6 +11,7 @@ import type {
   OpenPermissionGrantPageMessage,
   RequestPermissionMessage,
   RequestToastMessage,
+  SearchCommandsMessage,
   UpdateCommandSettingMessage,
 } from "../../shared/types"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
@@ -30,10 +31,15 @@ type GetKeybindingStateMessageWithoutContext = Omit<
   GetKeybindingStateMessage,
   "context"
 >
+type SearchCommandsMessageWithoutContext = Omit<
+  SearchCommandsMessage,
+  "context"
+>
 
 type SendableMessage =
   | ExecuteCommandMessageWithoutContext
   | GetCommandsMessageWithoutContext
+  | SearchCommandsMessageWithoutContext
   | GetChildrenMessageWithoutContext
   | ExecuteKeybindingMessageWithoutContext
   | GetKeybindingStateMessageWithoutContext

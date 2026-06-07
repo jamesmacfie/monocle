@@ -255,7 +255,7 @@ export interface GroupCommandNode extends CommandNodeBase {
 | Field | Type | Notes |
 | --- | --- | --- |
 | `children` | `(context) => Promise<CommandNode[]>` | Required resolver returning child nodes. Always a function (not `AsyncValue`); always receives context. Return [`createNoOpCommand`](#display-only-helper) display rows for empty/error states rather than throwing or alerting. |
-| `enableDeepSearch` | `boolean` | If `true`, the group's `action` and `submit` descendants are flattened into root deep search (`background/messages/getDeepSearchCommands.ts`). **`input` and `display` children are not flattened.** See [search-and-ranking.md](search-and-ranking.md). |
+| `enableDeepSearch` | `boolean` | If `true`, the group's `action` and `submit` descendants are flattened into root search results via the background search index (`background/commands/searchIndex.ts`). **`input` and `display` children are not flattened.** See [search-and-ranking.md](search-and-ranking.md). |
 
 Groups are not executable; their suggestion `actionLabel` is forced to `"Open"`. Example (`background/commands/browser/gotoTab.ts`):
 

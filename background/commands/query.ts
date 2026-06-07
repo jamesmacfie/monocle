@@ -24,7 +24,6 @@ export type ResolvedCommand = {
 export type CommandCollections = {
   favorites: CommandNode[]
   suggestions: CommandNode[]
-  deepSearchCommands: CommandNode[]
 }
 
 type CommandPage = {
@@ -224,7 +223,6 @@ export const getCommandCollections = async (
   return {
     favorites,
     suggestions,
-    deepSearchCommands: filteredCommands,
   }
 }
 

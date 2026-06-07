@@ -262,6 +262,24 @@ function shouldShowCommand(
 }
 
 /**
+ * Per-command URL visibility check with the same precedence semantics as
+ * filterCommandsByUrl. Used by the search index, which stores entries
+ * pre-URL-filter and applies visibility at query time.
+ */
+export function isCommandVisibleForUrl(
+  command: Pick<CommandNode, "urlRules">,
+  currentUrl: string,
+  userSettings?: CommandSettings,
+): boolean {
+  // If no URL provided (e.g., new tab page), don't filter
+  if (!currentUrl || currentUrl === "") {
+    return true
+  }
+
+  return shouldShowCommand(command as CommandNode, currentUrl, userSettings)
+}
+
+/**
  * Filters an array of commands based on the current URL and user settings
  */
 export async function filterCommandsByUrl(

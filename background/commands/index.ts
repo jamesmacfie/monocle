@@ -47,7 +47,6 @@ export const getCommands = async (
 ): Promise<{
   favorites: CommandNode[]
   suggestions: CommandNode[]
-  deepSearchCommands: CommandNode[]
 }> => {
   return await getCommandCollections(context)
 }

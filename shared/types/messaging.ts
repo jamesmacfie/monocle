@@ -1,6 +1,7 @@
 // Background/content script communication types
 import type { Browser } from "./browser"
 import type { CommandUrlRulesSetting } from "./settings"
+import type { Suggestion } from "./ui"
 import type { Workflow, WorkflowResult } from "./workflow"
 
 export type CommandExecutionScope = {
@@ -41,6 +42,25 @@ export type GetChildrenMessage = {
 export type GetCommandsMessage = {
   type: "get-commands"
   context: Browser.Context
+}
+
+export type SearchCommandsMessage = {
+  type: "search-commands"
+  context: Browser.Context
+  query: string
+  // Empty/undefined = root palette; otherwise the command-page parent path
+  parentPath?: string[]
+  // Maximum results to return (default 40)
+  limit?: number
+  // Monotonic sequence number echoed back for out-of-order response handling
+  seq: number
+}
+
+export interface SearchCommandsResponse {
+  results: Suggestion[]
+  // seq and query are echoed back so the UI can drop stale responses
+  seq: number
+  query: string
 }
 
 export type ShowToastMessage = {
@@ -121,6 +141,7 @@ export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
   | GetCommandsMessage
+  | SearchCommandsMessage
   | ExecuteKeybindingMessage
   | GetKeybindingStateMessage
   | ShowToastMessage

@@ -19,12 +19,11 @@ The palette is composed from these components (all under
 
 | Component | File | Responsibility |
 | --- | --- | --- |
-| `CommandPalette` | `CommandPalette.tsx` | Top-level shell. Owns the action-menu state, the CMDK custom filter, deep-search rank weighting, and the keybinding-refresh callback. Wraps everything in CMDK's `<Command>`. |
-| `CommandContent` | `CommandPalette.tsx` (local) | Inner body: reads CMDK focused value, resolves the focused `Suggestion`, runs the palette keyboard handler, and renders header/list/footer. |
+| `CommandPalette` | `CommandPalette.tsx` | Top-level shell. Owns the action-menu state and the keybinding-refresh callback. Wraps everything in CMDK's `<Command shouldFilter={false}>` — filtering and ranking are background-owned (see [search-and-ranking.md](./search-and-ranking.md)); CMDK only renders lists and handles keyboard navigation. |
+| `CommandContent` | `CommandPalette.tsx` (local) | Inner body: reads CMDK focused value, resolves the focused `Suggestion` (from favorites, suggestions, or the page's `searchResults`), runs the palette keyboard handler, and renders header/list/footer. |
 | `CommandHeader` | `CommandHeader.tsx` | Back-chevron (when not on root), `Command.Input`, dynamic placeholder, and the Raycast top-shine/loader chrome. |
-| `CommandList` | `CommandList.tsx` | Renders `Favorites` and `Suggestions` `Command.Group`s, the empty/loading states, and `DeepSearchItems`. Owns typing-debounce and scroll-to-top behavior. |
-| `DeepSearchItems` | `DeepSearchItems.tsx` | Flattened deep-search rows; only rendered when a search value exists **and** the current page has no `parent` (root only). |
-| `CommandItem` | `CommandItem/index.tsx` | Per-row dispatcher. Chooses the variant component based on `suggestion.type` (and `inputField.type` for inputs). Holds the stable `value={suggestion.id}`, builds fuzzy-search keywords, and manages confirmation state. |
+| `CommandList` | `CommandList.tsx` | Explicit render logic: `Favorites`/`Suggestions` groups for the empty state, a flat `Results` group from `searchResults` while searching, the form-page search bypass, and the empty/loading states. Owns typing-debounce and scroll-to-top behavior. |
+| `CommandItem` | `CommandItem/index.tsx` | Per-row dispatcher (memoized with `React.memo`). Chooses the variant component based on `suggestion.type` (and `inputField.type` for inputs). Holds the stable `value={suggestion.id}` and manages confirmation state. |
 | `CommandFooter` | `CommandFooter.tsx` | Parent breadcrumb (icon + name), primary action button (Enter), and the `Actions` (Alt) button when the focused row supports a menu. |
 | `CommandName` | `CommandName.tsx` | Renders a command name, the `parent > child` array form, and a red "Missing permissions" suffix. Exports `getDisplayName`. |
 | `CommandActions` | `CommandActions.tsx` | The secondary action menu (covered in [execution-and-actions.md](./execution-and-actions.md)). |
@@ -49,11 +48,10 @@ The palette is composed from these components (all under
 | `action`, `group`, `search` | — | `CommandItemAction` (the `.otherwise` branch) | Icon, favorite star, name, optional `KeybindingDisplay`, and a meta label (`Group` for groups, otherwise `Command`). |
 
 `CommandItem` always renders an outer `Command.Item` with `value={suggestion.id}`
-(stable id so focus/selection logic keyed on ids keeps working) and a
-`keywords` array assembled from the primary name, ancestor names, the command's
-own `keywords`, the description, and the keybinding string. The `text-list`
-variant is the exception: it renders its own `Command.Item` per row with values
-`"<suggestion.id>__<index>"`.
+(stable id so focus/selection logic keyed on ids keeps working). With
+`shouldFilter={false}` no match keywords are passed — the background scores
+queries against its own index. The `text-list` variant is the exception: it
+renders its own `Command.Item` per row with values `"<suggestion.id>__<index>"`.
 
 #### Confirmation rows
 
@@ -85,12 +83,15 @@ type Page = {
   parentPath: string[]             // chain of parent command ids used by the background to locate children
   formValues?: Record<string, string | string[]>  // inline input values for this page
   dynamicChildren?: boolean        // page children are driven by the search input
+  searchResults?: Suggestion[]     // background search-commands results for searchValue
+  searchLoading?: boolean          // a search-commands request is in flight
+  searchSeq?: number               // last applied search sequence number (staleness guard)
 }
 ```
 
-`NavigationState` also holds `initialCommands` (root favorites/suggestions plus
-`deepSearchItems`), `loading`, `error`, and `refreshRequest` (the in-flight
-dynamic-refresh request id used for race-protection).
+`NavigationState` also holds `initialCommands` (root favorites/suggestions),
+`loading`, `error`, and `refreshRequest` (the in-flight dynamic-refresh request
+id used for race-protection).
 
 ### Reducers and thunks worth knowing
 
@@ -99,7 +100,8 @@ Synchronous reducers (`navigationSlice.actions`):
 | Action | Effect |
 | --- | --- |
 | `setInitialCommands(commands)` | Replaces `initialCommands` and rewrites the root page's `commands`. This is how root favorites/suggestions refresh without resetting the stack. |
-| `updateSearchValue(string)` | Sets `searchValue` on the current page. For `dynamicChildren` pages, when the trimmed value is empty it **also clears** `commands` to `{ favorites: [], suggestions: [] }` so stale search results disappear immediately. |
+| `updateSearchValue(string)` | Sets `searchValue` on the current page. Clearing the value also clears `searchResults`/`searchLoading` so the non-search rendering restores instantly. For `dynamicChildren` pages, when the trimmed value is empty it **also clears** `commands` to `{ favorites: [], suggestions: [] }` so stale search results disappear immediately. |
+| `clearSearchResults()` | Drops the current page's `searchResults` and `searchLoading` (dispatched by the hook when the query empties). |
 | `navigateBack()` | Pops the current page. No-op on root (`pages.length <= 1`). |
 | `setFormValue({ fieldId, value })` | Writes an inline form value on the current page. `value` may be a `string` or `string[]`. |
 | `addPage(page)` | Pushes a page. The navigate thunk's fulfilled case pushes directly (`state.pages.push`) rather than via this action; `addPage` is currently exercised only by tests. |
@@ -107,7 +109,7 @@ Synchronous reducers (`navigationSlice.actions`):
 
 Async thunks:
 
-- **`navigateToCommand({ id, currentPage, initialCommands })`** — sends
+- **`navigateToCommand({ id, currentPage })`** — sends
   `get-children-commands` with the computed `parentPath`. A new page is pushed
   when the response has `openPage === true` or a non-empty `children` array. The
   new page starts with `searchValue: ""`, child suggestions in `suggestions`
@@ -118,6 +120,12 @@ Async thunks:
   For dynamic pages with an empty search it returns empty commands while
   preserving current `formValues`. Otherwise it merges fresh input defaults
   under existing form values (`{ ...defaults, ...currentValues }`).
+- **`searchCurrentPage({ pageId, parentPath, query, seq })`** — sends
+  `search-commands` (root pages send `parentPath: []`). The fulfilled reducer
+  writes `searchResults` onto the current page only when the page id still
+  matches, the echoed `seq` is not older than the last applied one, and the
+  echoed `query` still equals the page's `searchValue`. Failures stop the
+  spinner and keep prior results.
 
 #### Dynamic-search race protection
 
@@ -143,7 +151,7 @@ consumes. It subscribes to the slice selectors and exposes:
 | `clearError()` | Dispatches `clearError`. |
 
 `selectCommand` resolves the suggestion (searching favorites, suggestions, and
-deep-search items via `findCommandInPage`) and branches:
+the page's `searchResults` via `findCommandInPage`) and branches:
 
 - `input` / `display` → no-op (non-executable).
 - `action` with `executionContext.type === "setKeybinding"` → dispatch
@@ -153,9 +161,15 @@ deep-search items via `findCommandInPage`) and branches:
 - everything else → build a request via `buildCommandExecutionRequest` and call
   the surface's `executeCommand`. See [execution-and-actions.md](./execution-and-actions.md).
 
-The hook also runs a **debounced (250 ms) refresh** effect for pages with
-`dynamicChildren`, re-fetching children as the search value changes — this is how
-`search` command pages stream results.
+The hook also runs two debounced effects keyed on the Redux `searchValue`:
+
+- a **250 ms refresh** for pages with `dynamicChildren`, re-fetching children as
+  the search value changes — this is how `search` command pages stream results;
+- a **200 ms `searchCurrentPage` dispatch** for every other page with a
+  non-empty query (root and child group pages), tagged with a monotonic `seq`
+  from a `useRef` counter. Form pages (any `input`/`submit` suggestion on the
+  page) are excluded — they bypass search entirely. An emptied query dispatches
+  `clearSearchResults` immediately instead.
 
 ## CMDK ↔ Redux Search Synchronization (fragile)
 
@@ -176,23 +190,33 @@ Two effects/handlers in `useCommandNavigation` do this:
 
 `_clearAndResetSearch` does the same dance to blank the input when navigating
 into a child page. `CommandList` independently scrolls the list to top whenever
-the CMDK search changes and shows a spinner during a 250 ms typing debounce to
-avoid a flash of "No results".
+the page's `searchValue` changes and shows a spinner while typing (250 ms,
+matching the search debounce) or while `searchLoading` is set, to avoid a flash
+of "No results". Because the background-search dispatch is keyed on the *Redux*
+`searchValue` (not CMDK's internal string), the programmatic DOM pokes cannot
+trigger spurious searches — `ignoreSearchUpdate` filters them before Redux.
 
 > This sync is the most fragile part of the UI. Any change to navigation,
 > Escape/Backspace handling, or search restoration needs manual regression
 > checks in both surfaces.
 
-## CommandPalette Custom Filter and Ranking
+## CommandList Render Logic
 
-`CommandPalette` passes a custom `filter` to CMDK that scores against the
-`keywords` array `CommandItem` builds. The primary name (`keywords[0]`) is
-weighted `0.8`, the remaining tokens `0.2`, with a `0.1` prefix-match boost,
-capped at `1`. The combined score is then multiplied by a per-item source weight:
-deep-search items carry a `rankWeight < 1` (looked up from
-`items.deepSearchItems`), root commands default to `1`. Empty search returns `1`
-for everything. Full ranking detail lives in
-[search-and-ranking.md](./search-and-ranking.md).
+With `shouldFilter={false}`, `CommandList` decides explicitly what to render:
+
+- **Root or child page, empty query** — `Favorites` + `Suggestions` groups from
+  `page.commands` (the child case has only `Suggestions`).
+- **Root or child group page, non-empty query** — a single flat `Results` group
+  from `page.searchResults` (background-ranked; deep-search matches arrive
+  inline). See [search-and-ranking.md](./search-and-ranking.md).
+- **Form pages** (any `input` or `submit` suggestion present) — search is
+  bypassed and all rows always render, so typing in the palette input can never
+  hide form fields. Display rows alone do not trigger the bypass.
+- **`search`-type pages** (`dynamicChildren`) — results stream through
+  `commands.suggestions` via `get-children-commands`, unchanged.
+- **Empty/loading** — `Command.Empty` (which only renders when no items are
+  mounted) shows a spinner while loading/typing, else "No results" when a query
+  is present.
 
 ## Inline Inputs and Forms
 
@@ -336,9 +360,9 @@ executions (`id.includes("clock")`/`"settings"`) it reloads settings into Redux.
 
 ## Known Issues / Review Notes
 
-- `CommandPalette.tsx` carries several concerns at once: the CMDK custom filter,
-  action-menu state, keybinding-refresh handling, deep-search plumbing, and the
-  execute callback. Workable, but a good candidate for splitting if it grows.
+- `CommandPalette.tsx` carries several concerns at once: action-menu state,
+  keybinding-refresh handling, and the execute callback. Workable, but a good
+  candidate for splitting if it grows.
 - Search synchronization relies on direct DOM writes against `input[cmdk-input]`
   with an `ignoreSearchUpdate` ref. This is the most fragile area; treat any
   navigation/Escape/Backspace/search-restoration change as needing manual checks.
@@ -359,7 +383,12 @@ executions (`id.includes("clock")`/`"settings"`) it reloads settings into Redux.
 - On root, press Escape and confirm the overlay closes; on a child page, confirm
   Escape navigates back instead.
 - Enter a group, type a search, navigate back, and confirm the parent page's
-  search is restored and selected.
+  search is restored and selected (and re-runs the background search once, not
+  repeatedly).
+- Type on root and confirm a flat Results group replaces Favorites/Suggestions;
+  clear the query and confirm the empty state restores instantly.
+- On a form page, type into the palette input and confirm all form fields stay
+  visible.
 - Confirm Backspace pops only when the nested search box is empty (and deletes
   text otherwise).
 - Open a group with inline inputs, edit text/select/switch/multi/color/text-list

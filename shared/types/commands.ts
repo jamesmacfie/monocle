@@ -139,5 +139,4 @@ export type CommandNode =
 export type CommandData = {
   favorites: Suggestion[]
   suggestions: Suggestion[]
-  deepSearchItems: Suggestion[]
 }
