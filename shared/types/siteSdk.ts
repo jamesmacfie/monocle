@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { validateSvgIconMarkup } from "../utils/svg-icon"
 import type { Browser } from "./browser"
 import type { ColorName, CommandColor, CommandIcon } from "./commands"
 import { ICON_NAMES, type IconName } from "./icons"
@@ -180,6 +181,19 @@ const IconSchema: z.ZodType<CommandIcon> = z.discriminatedUnion("type", [
             return false
           }
         }, "Icon URL must use http or https"),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("svg"),
+      // Defense-in-depth only; the rendering boundary is the static <img>
+      // data URI in shared/components/Icon.tsx. See shared/utils/svg-icon.ts.
+      svg: z.string().superRefine((value, ctx) => {
+        const result = validateSvgIconMarkup(value)
+        if (result !== true) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: result })
+        }
+      }),
     })
     .strict(),
 ])

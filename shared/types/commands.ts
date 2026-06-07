@@ -8,6 +8,10 @@ export type AsyncValue<T> = T | ((context: Browser.Context) => Promise<T>)
 export type CommandIcon =
   | { type: "lucide"; name: IconName }
   | { type: "url"; url: string }
+  // Raw SVG markup. Untrusted (site SDK) input: validated by
+  // `validateSvgIconMarkup` at the SDK boundary and rendered only as a static
+  // <img> data URI — never injected inline. See shared/utils/svg-icon.ts.
+  | { type: "svg"; svg: string }
 
 export type ColorName =
   | "red"

@@ -99,7 +99,10 @@ type MonocleCommandBase = {
   id: string
   name: string | string[]
   description?: string
-  icon?: { type: "lucide"; name: IconName } | { type: "url"; url: string }
+  icon?:
+    | { type: "lucide"; name: IconName }
+    | { type: "url"; url: string }
+    | { type: "svg"; svg: string }
   color?: ColorName | { preset: ColorName } | { custom: string }
   keywords?: string[]
   executionPayload?: Record<string, string | string[]>
@@ -112,7 +115,29 @@ type MonocleCommandBase = {
 intended for generic command concepts such as links, files, users, commerce,
 messages, analytics, developer tools, location, and device actions. Use
 `{ type: "url" }` for site logos, brand marks, favicons, or imagery that is too
-specific for the shared Lucide set.
+specific for the shared Lucide set, or `{ type: "svg" }` to inline the markup
+directly without hosting an image file.
+
+`{ type: "svg" }` accepts raw SVG markup with these constraints
+(`validateSvgIconMarkup` in `shared/utils/svg-icon.ts`):
+
+- max 10,000 characters
+- exactly one `<svg>...</svg>` root element with no surrounding content
+- no `<script>`, `<foreignObject>`, `<iframe>`, `<embed>`, or `<object>`
+  elements
+- no inline event handlers (`onload=`, `onclick=`, ...) and no `javascript:`
+  URLs
+- `href` / `xlink:href` may only reference same-document fragments (`#id`),
+  so `<use>` and `<image>` cannot load external resources
+
+Monocle renders svg icons exclusively as a static `<img>` data URI — the
+markup is never injected inline into the DOM, so even content that slipped
+past validation cannot execute scripts, fire event handlers, or fetch
+external resources. The validation list above is defense-in-depth, not the
+security boundary. One caveat: a host page with a strict `img-src` CSP that
+excludes `data:` can block the icon from rendering in the content overlay
+(remote `{ type: "url" }` icons have the same class of limitation under
+strict `img-src` policies).
 
 Supported node families:
 
@@ -302,6 +327,7 @@ Important limits:
 | Keywords | max 20, each max 80 chars |
 | Text fields | max 500 chars unless field-specific |
 | URL rule patterns | max 25 per allow/deny list, each max 500 chars |
+| SVG icon markup | max 10,000 chars |
 | Callback id length | 1-160 |
 
 Validation rejects:
@@ -314,6 +340,9 @@ Validation rejects:
 - unknown object fields
 - unsupported `radio` fields
 - invalid icon URL protocols; only `http:` and `https:` are allowed
+- unsafe svg icon markup; oversize markup, multiple or non-`<svg>` roots,
+  script-capable elements, inline event handlers, `javascript:` URLs, and
+  non-fragment `href` references are rejected
 - invalid URL rule protocols; only `http`, `https`, or `*` are accepted
 - nested or callback-returned `placement`
 

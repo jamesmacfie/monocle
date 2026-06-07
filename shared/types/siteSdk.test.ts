@@ -179,6 +179,81 @@ describe("site SDK schema validation", () => {
     ).toBe(false)
   })
 
+  it("accepts inline svg icons and rejects unsafe svg markup", () => {
+    expect(
+      validateSiteSdkRegistrations([
+        {
+          id: "svg-icons",
+          namespace: "svg-icons",
+          icon: {
+            type: "svg",
+            svg: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="tomato"/></svg>',
+          },
+          commands: [
+            {
+              ...action("create-note"),
+              icon: {
+                type: "svg",
+                svg: '<svg viewBox="0 0 16 16"><rect width="16" height="16"/></svg>',
+              },
+            },
+          ],
+        },
+      ]).success,
+    ).toBe(true)
+
+    expect(
+      validateSiteSdkRegistrations([
+        {
+          id: "svg-script",
+          namespace: "svg-script",
+          commands: [
+            {
+              ...action(),
+              icon: {
+                type: "svg",
+                svg: "<svg><script>alert(1)</script></svg>",
+              },
+            },
+          ],
+        },
+      ]).success,
+    ).toBe(false)
+
+    expect(
+      validateSiteSdkRegistrations([
+        {
+          id: "svg-handler",
+          namespace: "svg-handler",
+          commands: [
+            {
+              ...action(),
+              icon: { type: "svg", svg: '<svg onload="alert(1)"></svg>' },
+            },
+          ],
+        },
+      ]).success,
+    ).toBe(false)
+
+    expect(
+      validateSiteSdkRegistrations([
+        {
+          id: "svg-oversize",
+          namespace: "svg-oversize",
+          commands: [
+            {
+              ...action(),
+              icon: {
+                type: "svg",
+                svg: `<svg>${"<!-- pad -->".repeat(2000)}</svg>`,
+              },
+            },
+          ],
+        },
+      ]).success,
+    ).toBe(false)
+  })
+
   it("rejects invalid ids, duplicate ids, unsupported fields, and radio fields", () => {
     expect(
       validateSiteSdkRegistrations([
