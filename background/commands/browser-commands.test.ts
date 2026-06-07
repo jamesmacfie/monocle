@@ -526,3 +526,33 @@ describe("high-risk browser commands", () => {
     )
   })
 })
+
+describe("copy title + URL as a Markdown link", () => {
+  it("copies the active tab as a Markdown link to the clipboard", async () => {
+    await executeCommand("copy-title-and-url-as-markdown", normalContext, {})
+
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-copyToClipboard",
+        message: "[Example](https://example.com/page)",
+      }),
+      expect.anything(),
+    )
+  })
+
+  it("escapes square brackets in the page title", async () => {
+    tabs[0].title = "Issue [BUG] crash"
+
+    await executeCommand("copy-title-and-url-as-markdown", normalContext, {})
+
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-copyToClipboard",
+        message: "[Issue \\[BUG\\] crash](https://example.com/page)",
+      }),
+      expect.anything(),
+    )
+  })
+})
