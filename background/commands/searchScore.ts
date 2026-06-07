@@ -18,6 +18,15 @@ export type ScorableEntry = {
   keybindingLower: string
   sourceWeight: number
   isFavorite: boolean
+  // Optional build-time precomputation (production fast path). When present,
+  // the scorer skips the per-keystroke regex split and field-array allocation.
+  // `nameWords`/`restWords` hold word-start tokens; `restFields` is the
+  // pre-combined list of non-empty rest field texts, aligned with `restWords`.
+  // Entries created directly (e.g. tests) omit these and fall back to deriving
+  // them on the fly. Build them with computeScorableTokens().
+  nameWords?: string[]
+  restFields?: string[]
+  restWords?: string[][]
 }
 
 export type ScoredEntry<T extends ScorableEntry> = {
@@ -52,10 +61,55 @@ const subsequenceDensity = (text: string, query: string): number | null => {
   return query.length / (last - first + 1)
 }
 
-const hasWordBoundaryMatch = (text: string, query: string): boolean => {
-  return text
-    .split(/[^a-z0-9]+/)
-    .some((word) => word.length > 0 && word.startsWith(query))
+const WORD_SPLIT = /[^a-z0-9]+/
+
+const splitWords = (text: string): string[] => text.split(WORD_SPLIT)
+
+const hasWordBoundaryMatch = (words: string[], query: string): boolean => {
+  for (const word of words) {
+    if (word.length > 0 && word.startsWith(query)) {
+      return true
+    }
+  }
+  return false
+}
+
+// Precompute the token shapes the scorer needs so the per-keystroke path never
+// allocates a combined field array or re-runs the word-split regex. Returns the
+// fields ScorableEntry overlays; the index build spreads these onto each entry.
+export type ScorableTokens = {
+  nameWords: string[]
+  restFields: string[]
+  restWords: string[][]
+}
+
+export const computeScorableTokens = (
+  fields: Pick<
+    ScorableEntry,
+    | "nameLower"
+    | "breadcrumbLower"
+    | "keywordsLower"
+    | "descriptionLower"
+    | "keybindingLower"
+  >,
+): ScorableTokens => {
+  const restFields: string[] = []
+  for (const text of [
+    ...fields.breadcrumbLower,
+    ...fields.keywordsLower,
+    fields.descriptionLower,
+    fields.keybindingLower,
+  ]) {
+    if (text.length > 0) {
+      restFields.push(text)
+    }
+  }
+
+  return {
+    nameWords: splitWords(fields.nameLower),
+    restFields,
+    restWords: restFields.map(splitWords),
+  }
 }
 
 type NameScore = {
@@ -63,7 +117,11 @@ type NameScore = {
   isPrefix: boolean
 }
 
-const scoreName = (nameLower: string, queryLower: string): NameScore => {
+const scoreName = (
+  nameLower: string,
+  nameWords: string[],
+  queryLower: string,
+): NameScore => {
   if (nameLower === queryLower) {
     return { score: 1, isPrefix: true }
   }
@@ -72,7 +130,7 @@ const scoreName = (nameLower: string, queryLower: string): NameScore => {
     return { score: 0.9, isPrefix: true }
   }
 
-  if (hasWordBoundaryMatch(nameLower, queryLower)) {
+  if (hasWordBoundaryMatch(nameWords, queryLower)) {
     return { score: 0.75, isPrefix: false }
   }
 
@@ -88,7 +146,14 @@ const scoreName = (nameLower: string, queryLower: string): NameScore => {
   return { score: 0, isPrefix: false }
 }
 
-const scoreRestField = (text: string, queryLower: string): number => {
+// Max achievable rest-field score (prefix tier); lets scoreRest stop early.
+const MAX_REST_SCORE = 0.4
+
+const scoreRestField = (
+  text: string,
+  words: string[],
+  queryLower: string,
+): number => {
   if (text.length === 0) {
     return 0
   }
@@ -97,7 +162,7 @@ const scoreRestField = (text: string, queryLower: string): number => {
     return 0.4
   }
 
-  if (hasWordBoundaryMatch(text, queryLower)) {
+  if (hasWordBoundaryMatch(words, queryLower)) {
     return 0.3
   }
 
@@ -113,18 +178,30 @@ const scoreRestField = (text: string, queryLower: string): number => {
 }
 
 const scoreRest = (entry: ScorableEntry, queryLower: string): number => {
-  const fields = [
-    ...entry.breadcrumbLower,
-    ...entry.keywordsLower,
-    entry.descriptionLower,
-    entry.keybindingLower,
-  ]
+  // Fast path: precomputed fields/tokens. Fallback derives them inline for
+  // entries constructed without computeScorableTokens (e.g. unit tests).
+  const texts =
+    entry.restFields ??
+    [
+      ...entry.breadcrumbLower,
+      ...entry.keywordsLower,
+      entry.descriptionLower,
+      entry.keybindingLower,
+    ].filter((text) => text.length > 0)
+  const words = entry.restWords
 
   let best = 0
-  for (const field of fields) {
-    const score = scoreRestField(field, queryLower)
+  for (let i = 0; i < texts.length; i++) {
+    const score = scoreRestField(
+      texts[i],
+      words ? words[i] : splitWords(texts[i]),
+      queryLower,
+    )
     if (score > best) {
       best = score
+      if (best === MAX_REST_SCORE) {
+        break
+      }
     }
   }
 
@@ -138,7 +215,11 @@ export const scoreEntry = (
   queryLower: string,
   usageRank: Map<string, number>,
 ): number => {
-  const name = scoreName(entry.nameLower, queryLower)
+  const name = scoreName(
+    entry.nameLower,
+    entry.nameWords ?? splitWords(entry.nameLower),
+    queryLower,
+  )
   const rest = scoreRest(entry, queryLower)
 
   if (name.score === 0 && rest === 0) {

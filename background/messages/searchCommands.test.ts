@@ -194,6 +194,62 @@ describe("root search", () => {
   })
 })
 
+describe("incremental narrowing", () => {
+  const ids = (response: { results: Array<{ id: string }> }): string[] =>
+    response.results.map((item) => item.id).sort()
+
+  it("returns the same results whether typed incrementally or scored fresh", async () => {
+    // Typed character-by-character: each step narrows from the previous match
+    // set held in module state.
+    await search("n")
+    await search("ne")
+    const narrowed = await search("new")
+
+    // A rebuild produces a fresh visible-entry array, so the next query's base
+    // identity differs and the handler falls back to a full scan.
+    invalidateSearchIndex()
+    const fresh = await search("new")
+
+    expect(ids(narrowed)).toEqual(ids(fresh))
+    expect(narrowed.results.map((item: { id: string }) => item.id)).toContain(
+      "open-new-tab",
+    )
+  })
+
+  it("keeps deep-search matches when narrowing across a flattened source", async () => {
+    await search("d")
+    const narrowed = await search("docs")
+
+    invalidateSearchIndex()
+    const fresh = await search("docs")
+
+    expect(ids(narrowed)).toEqual(ids(fresh))
+    expect(ids(narrowed)).toContain("open-tab-2")
+  })
+
+  it("falls back to a full scan when the query is not a prefix extension", async () => {
+    // Prime the cache with an unrelated query, then jump to a non-extending
+    // one. Narrowing must not leak the prior candidate set.
+    await search("new tab")
+    const switched = await search("docs")
+
+    expect(switched.results.map((item: { id: string }) => item.id)).toContain(
+      "open-tab-2",
+    )
+  })
+
+  it("rescans after the query is cleared to empty", async () => {
+    await search("new")
+    const cleared = await search("")
+    expect(cleared.results).toEqual([])
+
+    const reentered = await search("new")
+    expect(reentered.results.map((item: { id: string }) => item.id)).toContain(
+      "open-new-tab",
+    )
+  })
+})
+
 describe("child page search", () => {
   it("returns all children in load order for an empty child query", async () => {
     const response = await search("", { parentPath: ["open-tabs"], seq: 5 })

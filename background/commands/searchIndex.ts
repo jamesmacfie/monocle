@@ -33,8 +33,10 @@ import { isCommandVisibleForUrl } from "../utils/urlFilter"
 import { getFavoriteCommandIds } from "./favorites"
 import { getPlatform } from "./platform"
 import { mergePermissions } from "./query"
+import { computeScorableTokens } from "./searchScore"
 import { getAllCommandSettings } from "./settings"
 import { type CommandLoadOptions, loadAllCommands } from "./source"
+import { getRankedCommandIds } from "./usage"
 
 // Source-based ranking multipliers for deep-search entries. Root commands are
 // implicitly 1.0.
@@ -65,6 +67,10 @@ export type IndexEntry = {
   keywordsLower: string[]
   descriptionLower: string
   keybindingLower: string
+  // Build-time tokenization consumed by searchScore (see computeScorableTokens).
+  nameWords: string[]
+  restFields: string[]
+  restWords: string[][]
   // 1.0 for root/favorite entries; DEEP_SEARCH_RANK_WEIGHTS for flattened items
   sourceWeight: number
   dedupeKey?: string
@@ -82,12 +88,34 @@ export type SearchIndex = {
   entries: IndexEntry[]
   builtAt: number
   contextKey: string
+  // Command settings read once at build time so the per-keystroke query path
+  // doesn't re-read storage for URL filtering. Refreshed on rebuild, which the
+  // invalidation listener triggers on any monocle-settings change.
+  commandSettings: Record<string, CommandSettings>
 }
 
 let cachedIndex: SearchIndex | null = null
 let inflightBuild: {
   contextKey: string
   promise: Promise<SearchIndex>
+} | null = null
+
+// Memoized URL-filtered view of the current index. The URL doesn't change
+// between keystrokes, so the full rule-chain scan runs once per (index, url)
+// rather than every query. Keyed by index identity + url; a rebuild produces a
+// new index object and drops this cache implicitly.
+let visibleCache: {
+  index: SearchIndex
+  url: string
+  entries: IndexEntry[]
+} | null = null
+
+// Module-cached usage rank map. Usage is a ranking tie-breaker, so a ~30s TTL
+// backstop plus monocle-commandUsage storage invalidation keeps it off the
+// per-keystroke path without meaningfully staling results.
+let cachedUsageRank: {
+  map: Map<string, number>
+  builtAt: number
 } | null = null
 
 const getContextKey = (
@@ -158,9 +186,7 @@ const createEntry = async (
 
   const breadcrumbFromName = Array.isArray(name) ? name.slice(1) : []
 
-  return {
-    id: command.id,
-    command,
+  const matchFields = {
     nameLower: toLowerName(name),
     breadcrumbLower: [...breadcrumbFromName, ...params.breadcrumb].map((part) =>
       part.toLowerCase(),
@@ -168,6 +194,15 @@ const createEntry = async (
     keywordsLower: keywords.map((keyword) => keyword.toLowerCase()),
     descriptionLower: (description ?? "").toLowerCase(),
     keybindingLower: resolveEntryKeybinding(command, shared.commandSettings),
+  }
+
+  return {
+    id: command.id,
+    command,
+    ...matchFields,
+    // Tokenize once at build time so the per-keystroke scorer never splits or
+    // allocates field arrays.
+    ...computeScorableTokens(matchFields),
     sourceWeight: params.sourceWeight,
     dedupeKey: params.dedupeKey,
     isFavorite: shared.favoriteCommandIds.includes(command.id),
@@ -388,7 +423,10 @@ const dedupeEntries = (entries: IndexEntry[]): IndexEntry[] => {
 const buildSearchIndex = async (
   context?: Browser.Context,
   options?: CommandLoadOptions,
-): Promise<IndexEntry[]> => {
+): Promise<{
+  entries: IndexEntry[]
+  commandSettings: Record<string, CommandSettings>
+}> => {
   // Hoisted single reads — previously re-read per converted suggestion
   const commandSettings = await getAllCommandSettings()
   const favoriteCommandIds = await getFavoriteCommandIds()
@@ -443,7 +481,7 @@ const buildSearchIndex = async (
     await walkGroups(rootCommands, [], false, [], [], undefined, shared)
   }
 
-  return dedupeEntries(shared.entries)
+  return { entries: dedupeEntries(shared.entries), commandSettings }
 }
 
 export const getSearchIndex = async (
@@ -465,11 +503,15 @@ export const getSearchIndex = async (
   }
 
   const promise = (async (): Promise<SearchIndex> => {
-    const entries = await buildSearchIndex(context, options)
+    const { entries, commandSettings } = await buildSearchIndex(
+      context,
+      options,
+    )
     const index: SearchIndex = {
       entries,
       builtAt: Date.now(),
       contextKey,
+      commandSettings,
     }
     cachedIndex = index
     return index
@@ -489,6 +531,52 @@ export const getSearchIndex = async (
 export const invalidateSearchIndex = (): void => {
   cachedIndex = null
   inflightBuild = null
+  visibleCache = null
+}
+
+// Usage rank as a `commandId -> rank` map, module-cached behind the index TTL.
+// Used by every query path so ranking no longer pays a storage read per
+// keystroke. Invalidated on monocle-commandUsage writes.
+export const getUsageRankMap = async (): Promise<Map<string, number>> => {
+  if (cachedUsageRank && Date.now() - cachedUsageRank.builtAt < INDEX_TTL_MS) {
+    return cachedUsageRank.map
+  }
+
+  const rankedCommandIds = await getRankedCommandIds()
+  const map = new Map<string, number>()
+  rankedCommandIds.forEach((id, index) => map.set(id, index))
+
+  cachedUsageRank = { map, builtAt: Date.now() }
+  return map
+}
+
+const invalidateUsageRank = (): void => {
+  cachedUsageRank = null
+}
+
+// Memoized URL-filtered entry set for the current index. Reuses the index's
+// own commandSettings so the query path needs no extra storage read.
+export const getVisibleEntries = (
+  index: SearchIndex,
+  currentUrl: string,
+): IndexEntry[] => {
+  const url = currentUrl || ""
+
+  if (
+    visibleCache &&
+    visibleCache.index === index &&
+    visibleCache.url === url
+  ) {
+    return visibleCache.entries
+  }
+
+  const entries = filterIndexEntriesByUrl(
+    index.entries,
+    url,
+    index.commandSettings,
+  )
+  visibleCache = { index, url, entries }
+  return entries
 }
 
 // Query-time URL visibility: an entry is visible when every link in its rule
@@ -576,6 +664,12 @@ export const initializeSearchIndexInvalidation = (): void => {
         "monocle-favoriteCommandIds" in changes
       ) {
         invalidateSearchIndex()
+      }
+
+      // Usage rank has its own lighter cache: refresh it without rebuilding the
+      // whole index (usage writes happen on every command execution).
+      if ("monocle-commandUsage" in changes) {
+        invalidateUsageRank()
       }
     },
   )

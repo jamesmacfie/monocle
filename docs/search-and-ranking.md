@@ -41,6 +41,9 @@ document-specific.
 
 - The cache key is `isNewTab|platform` only — **not** the URL. The index is built with a URL-free context, and each entry stores a `urlRuleChain` (its own and every ancestor group's `urlRules`). URL visibility is applied per query via `filterIndexEntriesByUrl`, so the cache survives page navigation and user URL-rule changes take effect immediately.
 - A ~30 s TTL is the staleness backstop; browser events are the primary invalidation.
+- The index reads `getAllCommandSettings()` once at build time and stores the result on the `SearchIndex` (`commandSettings`), so the per-query URL filter needs no storage read.
+- The URL-filtered view is memoized: `getVisibleEntries(index, url)` caches the filtered array keyed by index identity + URL, so the full `urlRuleChain` scan runs once per `(index, url)` rather than on every keystroke. A rebuild produces a new index object, which drops the memo implicitly.
+- Each entry is tokenized at build time (`computeScorableTokens`): word-start tokens for the name and a pre-combined list of non-empty "rest" fields plus their tokens. The per-keystroke scorer consumes these directly, so it never re-runs the word-split regex or allocates a combined field array.
 
 Consequence of the URL-free build: command sources whose `children()` depend on the page URL (e.g. the GitHub website prototype) do not contribute nested entries to root search. Their root-level rows still index normally, and the context-aware `get-commands` favorites path is unaffected.
 
@@ -55,7 +58,7 @@ Consequence of the URL-free build: command sources whose `children()` depend on 
 - `permissions.onAdded/onRemoved`
 - `storage.onChanged` for the `monocle-settings` and `monocle-favoriteCommandIds` keys (this covers settings and favorites mutations without import cycles — both write `chrome.storage.local`, and `storage.onChanged` fires for same-context writes)
 
-Every listener is existence-guarded (`api.x?.onY?.addListener`) for Firefox.
+A `monocle-commandUsage` write does **not** rebuild the index; it only clears the lighter usage-rank cache (below), since usage affects ranking, not membership. `invalidateSearchIndex()` also drops the memoized URL-filtered view. Every listener is existence-guarded (`api.x?.onY?.addListener`) for Firefox.
 
 ## Scoring
 
@@ -83,10 +86,14 @@ Ties break: favorites first → lower usage rank → shorter name → id. Zero-s
 
 `background/messages/searchCommands.ts`:
 
-- **Root** (`parentPath` empty/undefined): scores the URL-filtered index entries. An empty root query returns `[]` (the root empty state is `get-commands`' job).
+- **Root** (`parentPath` empty/undefined): scores the URL-filtered index entries (`getVisibleEntries`). An empty root query returns `[]` (the root empty state is `get-commands`' job).
 - **Child pages**: builds ephemeral entries from `getCommandPageCommands(context, parentPath)` (already URL-filtered) and runs the same scorer. An empty child query returns all children in load order.
 - Top-N (default 40, capped 200) entries are converted via batched `commandsToSuggestions` calls (grouped by inherited-permission set), and deep-search results are stamped with `rankWeight`.
 - The response echoes `seq` and `query` so the UI can drop stale/out-of-order responses.
+
+### Incremental narrowing (root)
+
+Every scoring tier is monotonic under appending — if a query scores zero for an entry, any extension of that query also scores zero. So the match set for `prev + chars` is always a subset of the match set for `prev`. The handler keeps module-scoped state (`lastRootSearch`) holding the prior query and **all** of its matched entries (not the sliced top-N). When the next query extends the prior one against the same visible base (identity check), it re-scores only those candidates instead of the full index; otherwise (backspace, paste, a different prefix, a rebuilt index, or a URL change) it falls back to a full scan. The state is shared across tabs — a mismatch only costs a full scan, never a wrong result. This is what makes character-by-character typing collapse to a tiny candidate set after the first keystroke.
 
 ## Usage-based ranking
 
@@ -121,6 +128,8 @@ Each recording updates the command's `CommandUsageStats`:
 - **EMA smoothing** — `currentScore = frequency * recency * timeBoost`, then `emaScore = 0.2 * currentScore + 0.8 * previousEma` (`EMA_SMOOTHING_FACTOR = 0.2`). To avoid a cold-start penalty, a brand-new command's EMA is seeded to its current score rather than blended against zero.
 
 `getRankedCommandIds()` recomputes scores for every command with `totalUsage > 0` at the *current* hour and returns ids sorted by descending score. This drives both the root empty-state ordering (`sortSuggestionsByUsage` in `query.ts`) and the search-time `usageBoost`, so ordering shifts with time of day and recency, not just raw counts.
+
+For the search path, `searchIndex.ts` wraps this in `getUsageRankMap()` — a module-cached `commandId → rank` map behind the same ~30 s TTL, cleared on `monocle-commandUsage` writes. Both root and child queries read the cached map, so ranking no longer pays a storage read (and full re-rank) on every keystroke.
 
 ### Cleanup
 
@@ -228,7 +237,7 @@ Each navigation page (`Page` in `navigation.slice.ts`) stores its own `searchVal
 - Deep search processes `action` and `submit` children only; `input`/`display` are skipped by design — keep this explicit so form-like groups are not expected to flatten.
 - The CMDK ↔ Redux search sync (`useCommandNavigation`) pokes the DOM input directly; navigation/Escape/Backspace/search-restoration changes need manual regression in both content overlay and new-tab modes.
 - A terminated service worker drops the in-memory index; the first query after a cold start pays the rebuild (mitigated by `warmSearchIndex()` at startup).
-- Automated coverage: `searchScore.test.ts` (tier ordering, weights, tie-breaks), `searchIndex.test.ts` (single-resolve walk, dedupe, TTL/invalidation, query-time URL filtering), `searchCommands.test.ts` (root/child paths, limit, seq/query echo, deep-search execution), `navigation.slice.test.ts` (stale-response guards), and `command-system.test.ts` (context-aware loading, favorites, URL-denied search results).
+- Automated coverage: `searchScore.test.ts` (tier ordering, weights, tie-breaks), `searchIndex.test.ts` (single-resolve walk, dedupe, TTL/invalidation, query-time URL filtering), `searchCommands.test.ts` (root/child paths, limit, seq/query echo, deep-search execution, incremental-narrowing equivalence and full-scan fallback), `navigation.slice.test.ts` (stale-response guards), and `command-system.test.ts` (context-aware loading, favorites, URL-denied search results).
 
 Manual checks (run in **both** content overlay and new-tab modes):
 
