@@ -24,13 +24,14 @@ const iconForTheme = (id: ThemeMode): CommandIcon => {
 /**
  * Theme picker group. Each child applies its theme immediately via
  * `updateThemeSettings`; the content overlay and new-tab page reapply on the
- * resulting storage change. `remainOpenOnSelect` keeps the palette open so the
- * change is visible live and the "current" marker refreshes.
+ * resulting storage change. `remainOpenOnSelect` keeps the palette open on
+ * Enter so the change is visible live and the "current" marker refreshes;
+ * Cmd/Ctrl+Enter applies the theme and closes the palette.
  */
 export const selectTheme: GroupCommandNode = {
   type: "group",
   id: "theme",
-  name: "Theme",
+  name: "Themes",
   description: "Change the color theme",
   icon: { type: "lucide", name: "Palette" },
   color: "purple",

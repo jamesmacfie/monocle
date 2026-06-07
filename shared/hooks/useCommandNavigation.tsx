@@ -270,7 +270,10 @@ export function useCommandNavigation(
    * Handles command selection - navigates to children, shows UI, or executes command
    * Called when user clicks or presses Enter on a command
    */
-  const selectCommand = async (id: string) => {
+  const selectCommand = async (
+    id: string,
+    options?: { forceClose?: boolean },
+  ) => {
     const selectedCommand = findCommandInPage(currentPage, id)
 
     if (!selectedCommand) {
@@ -298,7 +301,11 @@ export function useCommandNavigation(
       await navigateTo(id)
     } else {
       // Leaf command: execute immediately
-      const request = buildCommandExecutionRequest(selectedCommand, currentPage)
+      const request = buildCommandExecutionRequest(
+        selectedCommand,
+        currentPage,
+        options,
+      )
 
       await executeCommand(
         request.id,

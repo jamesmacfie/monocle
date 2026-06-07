@@ -47,7 +47,7 @@ function CommandContent({
   inputRef: React.RefObject<HTMLInputElement | null>
   navigateBack: () => void
   updateSearchValue: (search: string) => void
-  selectCommand: (id: string) => void
+  selectCommand: (id: string, options?: { forceClose?: boolean }) => void
   close: () => void
   onOpenActions: (suggestion: Suggestion) => void
   onCloseActions: (force?: boolean) => void
@@ -86,6 +86,24 @@ function CommandContent({
   const actionLabel = useActionLabel(currentPage)
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Cmd/Ctrl+Enter executes the focused command and closes the palette, even
+    // for commands that would normally stay open (remainOpenOnSelect). Handled
+    // here (a descendant of the cmdk root) with stopPropagation so cmdk's own
+    // Enter handling does not also fire and re-execute.
+    if (
+      e.key === "Enter" &&
+      (e.metaKey || e.ctrlKey) &&
+      !isActionsOpen &&
+      focusedSuggestion &&
+      (focusedSuggestion.type === "action" ||
+        focusedSuggestion.type === "submit")
+    ) {
+      e.preventDefault()
+      e.stopPropagation()
+      selectCommand(focusedSuggestion.id, { forceClose: true })
+      return
+    }
+
     const inputElement = e.currentTarget.querySelector(
       "input[cmdk-input]",
     ) as HTMLInputElement
