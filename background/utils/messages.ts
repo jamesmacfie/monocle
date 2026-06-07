@@ -28,12 +28,12 @@ export async function withErrorHandling<T, R>(
  * @param errorMessage - Error message for failures
  */
 export function createMessageHandler<T, R>(
-  handler: (message: T) => Promise<R>,
+  handler: (message: T, sender?: any) => Promise<R>,
   errorMessage: string,
 ) {
-  return async (message: T): Promise<R | { error: string }> => {
+  return async (message: T, sender?: any): Promise<R | { error: string }> => {
     try {
-      return await handler(message)
+      return await handler(message, sender)
     } catch (error) {
       console.error(`[background] ${errorMessage}:`, error)
       return { error: errorMessage }

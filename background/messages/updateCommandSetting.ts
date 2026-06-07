@@ -9,6 +9,7 @@ import {
   updateCommandSettings,
   updateCommandUrlRules,
 } from "../commands/settings"
+import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { allowsKeybinding } from "../utils/commands"
 import { validateUrlPattern } from "../utils/urlFilter"
@@ -35,8 +36,13 @@ const validateUrlRulesSetting = (urlRules: CommandUrlRulesSetting): void => {
 
 export async function updateCommandSetting(
   message: UpdateCommandSettingMessage,
+  sender?: any,
 ) {
   const { commandId, setting, value } = message
+  const siteSdk = await prepareSiteSdkCommandLoadOptions(
+    sender,
+    message.context,
+  )
 
   if (setting === "keybinding") {
     const settingValue = normalizeKeybinding(String(value ?? ""))
@@ -47,7 +53,9 @@ export async function updateCommandSetting(
       return { success: true }
     }
 
-    const resolved = await resolveCommandById(commandId, message.context)
+    const resolved = await resolveCommandById(commandId, message.context, {
+      siteSdk,
+    })
 
     if (!resolved || !allowsKeybinding(resolved.command)) {
       throw new Error(`Command cannot be assigned a keybinding: ${commandId}`)

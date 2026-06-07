@@ -32,6 +32,8 @@ If you are adding a command, the fast path is
 - [authoring-commands.md](./authoring-commands.md) — Practical guide to adding
   and registering a command: category folders, loaders, conventions,
   form/search patterns, and common pitfalls.
+- [site-sdk.md](./site-sdk.md) — Page-world `window.Monocle` SDK for
+  non-privileged, session-only site commands.
 
 ## Palette behavior
 
@@ -82,7 +84,7 @@ If you are adding a command, the fast path is
   Clock group and visibility toggles.
 - [commands/websites.md](./commands/websites.md) — Website contextual
   commands: the GitHub prototype (urlRules-scoped repo/PR/issue actions,
-  Toggle Star workflow).
+  Toggle Star workflow) and how that differs from the page-owned SDK.
 
 ## Conventions used in these docs
 

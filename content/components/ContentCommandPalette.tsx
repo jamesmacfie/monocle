@@ -15,6 +15,7 @@ import {
   loadPermissions,
   loadSettings,
 } from "../../shared/store/slices/settings.slice"
+import { subscribeSiteSdkCommandsChanged } from "../siteSdkBridge"
 
 // Store is provided by ContentCommandPaletteWithState at the root
 
@@ -46,6 +47,12 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
       fetchCommands()
     }
   }, [isOpen, fetchCommands])
+
+  useEffect(() => {
+    return subscribeSiteSdkCommandsChanged(() => {
+      fetchCommands()
+    })
+  }, [fetchCommands])
 
   // Execute command via background script (with parentNames support)
   const executeCommand = useCallback(

@@ -1,6 +1,7 @@
 // Background/content script communication types
 import type { Browser } from "./browser"
 import type { CommandUrlRulesSetting } from "./settings"
+import type { SiteSdkRegistration } from "./siteSdk"
 import type { Suggestion } from "./ui"
 import type { Workflow, WorkflowResult } from "./workflow"
 
@@ -137,6 +138,12 @@ export interface ExecuteWorkflowResponse {
   result: WorkflowResult
 }
 
+export type SiteSdkSyncMessage = {
+  type: "site-sdk-sync"
+  context: Browser.Context
+  registrations: SiteSdkRegistration[]
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
@@ -153,6 +160,7 @@ export type Message =
   | RequestPermissionMessage
   | OpenPermissionGrantPageMessage
   | ExecuteWorkflowMessage
+  | SiteSdkSyncMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

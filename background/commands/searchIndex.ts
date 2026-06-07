@@ -94,7 +94,10 @@ const getContextKey = (
   context?: Browser.Context,
   options?: CommandLoadOptions,
 ): string => {
-  return `${context?.isNewTab ? "newtab" : "page"}|${getPlatform(options)}`
+  const siteSdkKey = options?.siteSdk
+    ? `|site:${options.siteSdk.scopeKey}:${options.siteSdk.revision}:${context?.url ?? ""}`
+    : ""
+  return `${context?.isNewTab ? "newtab" : "page"}|${getPlatform(options)}${siteSdkKey}`
 }
 
 const toLowerName = (name: string | string[] | undefined): string => {
@@ -392,12 +395,19 @@ const buildSearchIndex = async (
 
   // Build with a URL-free context so the cache survives page navigation; URL
   // visibility is applied at query time from each entry's rule chain.
-  const buildContext: Browser.Context = {
-    url: "",
-    title: "",
-    modifierKey: null,
-    isNewTab: context?.isNewTab,
-  }
+  const buildContext: Browser.Context = options?.siteSdk
+    ? {
+        url: context?.url ?? "",
+        title: context?.title ?? "",
+        modifierKey: null,
+        isNewTab: context?.isNewTab,
+      }
+    : {
+        url: "",
+        title: "",
+        modifierKey: null,
+        isNewTab: context?.isNewTab,
+      }
 
   const shared: BuildShared = {
     context: buildContext,

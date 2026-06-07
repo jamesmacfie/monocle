@@ -43,6 +43,8 @@ Use the feature docs as the source of truth before editing related code:
   search, input, display) with rendering and selection behavior.
 - `docs/authoring-commands.md`: how to add and register a command: category
   folders, loaders, conventions, form/search patterns, and pitfalls.
+- `docs/site-sdk.md`: page-world `window.Monocle` SDK for non-privileged,
+  session-only site commands.
 - `docs/search-and-ranking.md`: palette search, keywords, usage ranking,
   favorites, and deep search.
 - `docs/execution-and-actions.md`: execution flow, enter vs modifier-enter,
@@ -76,7 +78,7 @@ Current feature status:
 | Browser commands | Working with review notes | Permission inheritance and high-risk keybinding policy have focused tests; manual Chrome/Firefox validation is still needed. |
 | Keybindings | Working with review notes | Canonicalization, context-aware registry coverage, custom conflicts, and scoped sequence state have focused tests; manual browser smoke is still needed. |
 | Permissions and settings | Working with review notes | Optional permission requests, command-setting compatibility, update validation, and URL-rule management have focused tests; manual Chrome/Firefox permission prompts still need smoke checks. |
-| URL filtering and website plugins | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. |
+| URL filtering, website commands, and site SDK | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. `window.Monocle` supports non-privileged session-only site commands. |
 | Workflow automation | Partial | Click workflows and focused wait conditions work; validation/routing/debug feedback have focused tests, and most operations remain unsupported. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
 
@@ -280,6 +282,9 @@ In progress:
 - `websiteCommands` is loaded by `background/commands/source.ts`, but website
   commands are still command arrays with URL rules rather than a first-class
   plugin registry.
+- `background/commands/siteSdk/` stores page-owned SDK registrations per
+  tab/document/origin and converts validated declarations into background-owned
+  `CommandNode` wrappers.
 
 Before broadening website commands, decide whether they are just command arrays
 with `urlRules` or a first-class registry with metadata, activation policy, and

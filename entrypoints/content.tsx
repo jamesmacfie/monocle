@@ -3,6 +3,7 @@ import "../content/styles.css"
 import { createShadowRootUi } from "wxt/utils/content-script-ui/shadow-root"
 import { defineContentScript } from "wxt/utils/define-content-script"
 import { renderContentCommandPalette } from "../content/scripts"
+import { initializeSiteSdkBridge } from "../content/siteSdkBridge"
 import type { Settings } from "../shared/types"
 import { getBrowserAPI } from "../shared/utils/extension-api"
 import { applyThemeToHost } from "../shared/utils/theme"
@@ -14,6 +15,7 @@ export default defineContentScript({
   registration: "manifest",
   cssInjectionMode: "ui",
   async main(ctx) {
+    initializeSiteSdkBridge()
     await waitForBody()
 
     const ui = await createShadowRootUi<MountedPalette>(ctx, {

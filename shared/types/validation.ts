@@ -1,5 +1,6 @@
 // Runtime validation schemas for message types
 import { z } from "zod"
+import { SiteSdkRegistrationsSchema } from "./siteSdk"
 import type { Selector } from "./workflow"
 
 // Browser context validation schema
@@ -237,6 +238,12 @@ export const ExecuteWorkflowMessageSchema = z.object({
   tabId: z.number().int().positive().optional(),
 })
 
+export const SiteSdkSyncMessageSchema = z.object({
+  type: z.literal("site-sdk-sync"),
+  context: BrowserContextSchema,
+  registrations: SiteSdkRegistrationsSchema,
+})
+
 // Union schema for all message types
 export const MessageSchema = z.discriminatedUnion("type", [
   ExecuteCommandMessageSchema,
@@ -254,6 +261,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
   RequestPermissionMessageSchema,
   OpenPermissionGrantPageMessageSchema,
   ExecuteWorkflowMessageSchema,
+  SiteSdkSyncMessageSchema,
 ])
 
 // Validation result types

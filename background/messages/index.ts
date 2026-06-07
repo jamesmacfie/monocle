@@ -14,6 +14,7 @@ import { requestPermission } from "./requestPermission"
 import { requestToast } from "./requestToast"
 import { searchCommands } from "./searchCommands"
 import { showToast } from "./showToast"
+import { siteSdkSync } from "./siteSdkSync"
 import { updateCommandSetting } from "./updateCommandSetting"
 
 export const handleMessage = async (rawMessage: unknown, sender?: any) => {
@@ -55,22 +56,22 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
   // Route validated message to appropriate handler
   return await match(message)
     .with({ type: "get-commands" }, async (msg) => {
-      return await getCommands(msg)
+      return await getCommands(msg, sender)
     })
     .with({ type: "search-commands" }, async (msg) => {
-      return await searchCommands(msg)
+      return await searchCommands(msg, sender)
     })
     .with({ type: "get-children-commands" }, async (msg) => {
-      return await getChildrenCommands(msg)
+      return await getChildrenCommands(msg, sender)
     })
     .with({ type: "execute-command" }, async (msg) => {
-      return await executeCommand(msg)
+      return await executeCommand(msg, sender)
     })
     .with({ type: "execute-keybinding" }, async (msg) => {
       return await executeKeybinding(msg, sender)
     })
     .with({ type: "get-keybinding-state" }, async (msg) => {
-      return await getKeybindingState(msg)
+      return await getKeybindingState(msg, sender)
     })
     .with({ type: "show-toast" }, async (msg) => {
       return await showToast(msg)
@@ -79,10 +80,10 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
       return await requestToast(msg)
     })
     .with({ type: "update-command-setting" }, async (msg) => {
-      return await updateCommandSetting(msg)
+      return await updateCommandSetting(msg, sender)
     })
     .with({ type: "check-keybinding-conflict" }, async (msg) => {
-      return await checkKeybindingConflict(msg)
+      return await checkKeybindingConflict(msg, sender)
     })
     .with({ type: "get-unsplash-background" }, async (msg) => {
       return await getUnsplashBackground(msg)
@@ -98,6 +99,9 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "execute-workflow" }, async (msg) => {
       return await executeWorkflow(msg, sender)
+    })
+    .with({ type: "site-sdk-sync" }, async (msg) => {
+      return await siteSdkSync(msg, sender)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${message.type}`)

@@ -14,6 +14,7 @@ import {
 } from "../commands/searchIndex"
 import { rankEntries } from "../commands/searchScore"
 import { getAllCommandSettings } from "../commands/settings"
+import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import { getRankedCommandIds } from "../commands/usage"
 import { createMessageHandler } from "../utils/messages"
 
@@ -82,8 +83,10 @@ const entriesToSuggestions = async (
 
 const handleSearchCommands = async (
   message: SearchCommandsMessage,
+  sender?: any,
 ): Promise<SearchCommandsResponse> => {
   const context = normalizeContext(message.context)
+  const siteSdk = await prepareSiteSdkCommandLoadOptions(sender, context)
   const queryLower = message.query.trim().toLowerCase()
   const limit = message.limit ?? DEFAULT_RESULT_LIMIT
   const isRootSearch = !message.parentPath || message.parentPath.length === 0
@@ -97,7 +100,7 @@ const handleSearchCommands = async (
     }
 
     const [index, commandSettings] = await Promise.all([
-      getSearchIndex(context),
+      getSearchIndex(context, { siteSdk }),
       getAllCommandSettings(),
     ])
 
@@ -107,7 +110,14 @@ const handleSearchCommands = async (
       commandSettings,
     )
   } else {
-    const page = await getCommandPageCommands(context, message.parentPath)
+    const page = await getCommandPageCommands(
+      context,
+      message.parentPath,
+      undefined,
+      {
+        siteSdk,
+      },
+    )
 
     // Empty child query: all children in load order
     if (!queryLower) {

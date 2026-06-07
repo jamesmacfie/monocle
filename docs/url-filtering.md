@@ -26,6 +26,8 @@ Both lists are optional arrays of pattern strings. The same shape is reused for
 user-persisted rules through `CommandSettings.urlRules` in
 `shared/types/settings.ts`, and updates flow through the partial type
 `CommandUrlRulesSetting = Partial<NonNullable<CommandSettings["urlRules"]>>`.
+The page-world SDK accepts the same shape on public commands after validation
+in `shared/types/siteSdk.ts`.
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -263,13 +265,20 @@ declare `urlRules` allow lists so they only appear on matching sites.
 plugin registry, lifecycle, enablement policy, or plugin-owned hooks. See
 [commands/websites.md](./commands/websites.md) for the GitHub prototype.
 
+Page-owned SDK commands are a separate mechanism. They may also declare
+`urlRules`, and generated Hide from Domain rules still work, but their
+registrations are scoped to the current tab/document/origin and are not loaded
+from `background/commands/websites/`. See [site-sdk.md](./site-sdk.md).
+
 **Open design question:** whether website commands should remain command arrays
 filtered by `urlRules`, or become a first-class plugin registry with metadata,
 activation policy, scoped settings, and plugin hooks. Treat `urlRules` as the
 current visibility layer that a future plugin model could build on, not as the
 plugin system itself. One concrete risk: user URL rules are keyed by command id,
 so a plugin that generates many dynamic command ids could fragment settings
-storage.
+storage. SDK command ids are internally prefixed with a `site:` origin and
+registration path, so stable public ids matter if a site wants user URL-rule
+settings to keep applying across reloads.
 
 ## Known issues / review notes
 

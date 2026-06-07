@@ -4,6 +4,13 @@ Every command in Monocle is a typed `CommandNode` value defined in `shared/types
 
 For how to register and place a command, see [authoring-commands.md](authoring-commands.md). For the six types in narrative depth, see [command-types.md](command-types.md). For the executor flow and generated action menus, see [execution-and-actions.md](execution-and-actions.md).
 
+Page-owned site commands use a validated public subset of this model exposed as
+`window.Monocle`. That schema lives in `shared/types/siteSdk.ts` and is
+documented in [site-sdk.md](site-sdk.md). It supports the same six node
+families, but does not expose `permissions`, `supportedBrowsers`, default
+`keybinding`, or custom-keybinding fields; SDK wrappers are background-owned
+`CommandNode`s after validation.
+
 ## The `AsyncValue<T>` model
 
 ```ts
@@ -95,13 +102,16 @@ Source: `shared/types/commands.ts`, `CommandIcon`.
 | Lucide | `{ type: "lucide", name: "Bookmark" }` | Named [Lucide](https://lucide.dev) icon. `name` is the PascalCase Lucide component name and must be a registered `IconName`. |
 | URL | `{ type: "url", url: faviconUrl }` | Remote image, typically a favicon (`getFaviconUrl` / `getFaviconIcon` in `background/utils/`). |
 
-`IconName` is the closed set of Lucide icons Monocle ships, defined in
-`shared/types/icons.ts` (`ICON_NAMES`). Only registered icons are bundled —
-a namespace import of `lucide-react` would ship the entire icon library
-(~560 KB per bundle), so the palette UI resolves icons through the explicit
-map in `shared/components/iconRegistry.ts`. To use a new Lucide icon, add its
-name to `ICON_NAMES` and its component import to `ICON_MAP`; `tsc` enforces
-that the two stay in sync and that every command references a registered icon.
+`IconName` is the curated, closed set of Lucide icons Monocle ships, defined in
+`shared/types/icons.ts` (`ICON_NAMES`). Only registered icons are bundled, so the
+palette UI resolves icons through the explicit map in
+`shared/components/iconRegistry.ts` instead of a namespace import that would ship
+the entire icon library. The bundled set covers common browser, document,
+commerce, communication, analytics, developer, and generic site-command
+concepts. Use `{ type: "url" }` for site logos, brand marks, or highly specific
+imagery. To use a new Lucide icon, add its name to `ICON_NAMES` and its component
+import to `ICON_MAP`; `tsc` enforces that the two stay in sync and that every
+command references a registered icon.
 
 ### `CommandColor`
 
@@ -435,6 +445,9 @@ These exist on the node but are **background-only** and are never serialized ont
 - `urlRules`, `supportedBrowsers` — consumed during loading/filtering before conversion, not surfaced to the UI.
 - `dedupeKey`, `doNotAddToRecents`, `allowCustomKeybinding`, `enableDeepSearch` — consumed by ranking/usage/keybinding/deep-search logic in the background, not placed on the suggestion.
 - The raw `keybinding` string from settings is used to compute the suggestion `keybinding`, but `allowCustomKeybinding` itself is not exposed.
+- Site SDK commands force `allowCustomKeybinding: false`, so they receive
+  Favorite and Hide from Domain generated actions but not Set/Reset Keybinding
+  actions.
 
 ### Generated actions (`actions[]`)
 

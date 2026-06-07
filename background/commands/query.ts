@@ -12,6 +12,7 @@ import { checkPermissions } from "../utils/permissions"
 import { filterCommandsByUrl } from "../utils/urlFilter"
 import { getFavoriteCommandIds } from "./favorites"
 import { getAllCommandSettings } from "./settings"
+import { isSiteSdkCommandId } from "./siteSdk"
 import { type CommandLoadOptions, loadAllCommands } from "./source"
 import { getRankedCommandIds } from "./usage"
 
@@ -186,13 +187,24 @@ const sortSuggestionsByUsage = async (
     rankingMap.set(id, index)
   })
 
-  return commands
-    .filter((command) => !excludedCommandIds.has(command.id))
-    .sort((a, b) => {
+  const visibleCommands = commands.filter(
+    (command) => !excludedCommandIds.has(command.id),
+  )
+  const siteSdkCommands = visibleCommands.filter((command) =>
+    isSiteSdkCommandId(command.id),
+  )
+  const nativeCommands = visibleCommands.filter(
+    (command) => !isSiteSdkCommandId(command.id),
+  )
+
+  return [
+    ...siteSdkCommands,
+    ...nativeCommands.sort((a, b) => {
       const rankA = rankingMap.get(a.id) ?? Number.MAX_SAFE_INTEGER
       const rankB = rankingMap.get(b.id) ?? Number.MAX_SAFE_INTEGER
       return rankA - rankB
-    })
+    }),
+  ]
 }
 
 export const getCommandCollections = async (

@@ -3,12 +3,14 @@ import { browserCommands, firefoxCommands } from "./browser"
 import { clearFavoritesCommand } from "./favorites"
 import { newTabCommands } from "./newTab"
 import { getPlatform, supportsPlatform } from "./platform"
+import { loadSiteSdkCommands, type SiteSdkCommandLoadOptions } from "./siteSdk"
 import { toolCommands } from "./tools"
 import { uiCommands } from "./ui"
 import { websiteCommands } from "./websites"
 
 export type CommandLoadOptions = {
   platform?: Browser.Platform
+  siteSdk?: SiteSdkCommandLoadOptions
 }
 
 export const loadAllCommands = (
@@ -17,6 +19,7 @@ export const loadAllCommands = (
 ): CommandNode[] => {
   const platform = getPlatform(options)
   const commands: CommandNode[] = [
+    ...loadSiteSdkCommands(options?.siteSdk),
     ...browserCommands,
     ...toolCommands,
     ...uiCommands,

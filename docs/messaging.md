@@ -38,6 +38,7 @@ Every entry below is registered in `handleMessage`. "Direction" is always UI -> 
 | `show-toast` | UI -> bg | `{ level, message }` | `{ success: true, rateLimited? }` | `background/messages/showToast.ts`, `showToast` | Rate-limited toast; pushes a `monocle-toast` message to the active tab. |
 | `get-unsplash-background` | UI -> bg | `{ context }` | `UnsplashBackgroundResponse` | `background/messages/getUnsplashBackground.ts`, `getUnsplashBackground` | Fetch a random Unsplash landscape photo for the new-tab background. |
 | `execute-workflow` | UI -> bg | `{ workflow, context, tabId? }` | `{ result: WorkflowResult }` | `background/messages/executeWorkflow.ts`, `executeWorkflow` | Resolve the target tab and forward the workflow to that tab's content script. |
+| `site-sdk-sync` | content -> bg | `{ context, registrations }` | `{ success: true }` or `{ success: false, error }` | `background/messages/siteSdkSync.ts`, `siteSdkSync` | Sync validated page-owned SDK registrations for the sender tab/document/origin. |
 
 Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMessage`):
 
@@ -48,6 +49,8 @@ Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMess
 | `toggle-ui` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, plus `debugWorkflow`/`github` command executors | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
 | `show-ui` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, `toggleContentPalette` | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
 | `monocle-newTab` | bg -> tab | `{ url }` | command executors (e.g. `background/commands/browser/history.ts`, `bookmarks.ts`) | `shared/components/Listeners/NewTabListener.tsx` (`window.open(url, "_blank")` for http(s) only) |
+| `monocle-sdk-sync-request` | bg -> content bridge | `{}` | `{ registrations }` | `background/commands/siteSdk/index.ts`, `prepareSiteSdkCommandLoadOptions` | Ask the isolated content bridge to replay current page SDK registrations after service-worker restart. |
+| `monocle-sdk-invoke` | bg -> content bridge | `{ request }` | `{ success: true, commands? }` or `{ success: false, error }` | `background/commands/siteSdk/commands.ts`, SDK wrappers | Invoke a page-world SDK callback for execute, dynamic group children, or dynamic search results. |
 
 > **Deep-search items are delivered through `search-commands`.** They are flattened into the background search index (`background/commands/searchIndex.ts`) and arrive inline in `results` with a `rankWeight` stamp. `get-commands` no longer returns a `deepSearchItems` field.
 
@@ -106,6 +109,13 @@ See [search-and-ranking.md](search-and-ranking.md) for the index, scoring tiers,
 `children` are `Suggestion[]` produced by `commandsToSuggestions(targetPage.commands, context, parentName, inheritedPermissions)`. The `dynamicChildren` flag tells the navigation slice whether typing in the page should re-request children. See [palette-ui-and-navigation.md](palette-ui-and-navigation.md).
 
 **`execute-command`** — `executeCommand` delegates to `executeCommand(id, context, formValues ?? {}, parentNames, executionScope)` from `background/commands` and returns `{ success: true }`. Permission checks, executor dispatch, and usage recording all happen inside that call. See [execution-and-actions.md](execution-and-actions.md). `formValues` is `Record<string, string | string[]>`; multi-value fields are normalized downstream.
+
+**`site-sdk-sync`** — sent only by `content/siteSdkBridge.ts` after validating
+page-world declarations from `window.Monocle`. The handler derives the SDK
+scope from `sender.tab.id`, `sender.frameId`, `sender.documentId`, and the
+message `context`; only top-frame senders are accepted. Successful sync updates
+the in-memory site SDK registry and invalidates the search index. See
+[site-sdk.md](site-sdk.md).
 
 ### Keybindings
 
@@ -231,6 +241,9 @@ The background reaches a specific tab through `tabs.sendMessage`, never `runtime
 - `background/utils/runtime.ts` (`sendMessageToActiveTab`) is a generic helper that resolves the active tab and calls `sendTabMessage`.
 - `background/messages/showToast.ts` and various command executors target the active tab with `monocle-toast`.
 - `background/workflows/execution.ts` targets a resolved tab with `execute-workflow-content`.
+- `background/commands/siteSdk/` targets the sender tab with
+  `monocle-sdk-sync-request` and `monocle-sdk-invoke`; these are handled by the
+  early isolated bridge in `content/siteSdkBridge.ts`, not by the React palette.
 
 Content-side receivers live in the shared UI so both overlay and new-tab modes handle them: `useCommandPaletteStateRedux.tsx` (`toggle-ui`, `show-ui`, `execute-workflow-content`), `ToastContainer.tsx` (`monocle-toast`), and `NewTabListener.tsx` (`monocle-newTab`).
 
@@ -246,7 +259,7 @@ Content-side receivers live in the shared UI so both overlay and new-tab modes h
 
 ## Known Issues / Notes
 
-- The `Message` union in `shared/types/messaging.ts`, the `MessageSchema` discriminated union in `shared/types/validation.ts`, and the `match` chain in `handleMessage` all enumerate the same 15 message types. `MessageSchema` and `handleMessage` are the runtime source of truth (validation rejects anything not in the union before it reaches a handler); the `Message` union is the type-level mirror. Note that `useSendMessage`'s `SendableMessage` union is deliberately narrower — it omits `ShowToastMessage` and `GetUnsplashBackgroundMessage` (sent from stores / non-hook paths rather than the hook) and uses context-stripped variants for the command/keybinding/search messages.
+- The `Message` union in `shared/types/messaging.ts`, the `MessageSchema` discriminated union in `shared/types/validation.ts`, and the `match` chain in `handleMessage` all enumerate the same message types. `MessageSchema` and `handleMessage` are the runtime source of truth (validation rejects anything not in the union before it reaches a handler); the `Message` union is the type-level mirror. Note that `useSendMessage`'s `SendableMessage` union is deliberately narrower — it omits `ShowToastMessage`, `GetUnsplashBackgroundMessage`, and the content-bridge-only `SiteSdkSyncMessage`, and uses context-stripped variants for the command/keybinding/search messages.
 - `executeKeybinding` and `checkKeybindingConflict` are not wrapped by `createMessageHandler`; their error contracts differ (they return domain-shaped fallbacks, not `{ error: <generic> }`).
 - Keybinding sequence state is global to the service worker; multi-tab chord interactions can interfere. See [keybindings.md](keybindings.md).
 

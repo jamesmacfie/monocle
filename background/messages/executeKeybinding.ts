@@ -1,5 +1,6 @@
 import type { Browser, ExecuteKeybindingMessage } from "../../shared/types"
 import { executeCommand as executeCommandById } from "../commands"
+import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import {
   getCommandIdFromSnapshot,
   getKeybindingRegistrySnapshot,
@@ -68,9 +69,13 @@ const executeNow = async (
   scopeKey: string,
   id: string,
   context: Browser.Context,
+  sender?: any,
 ) => {
   try {
-    await executeCommandById(id, context, {})
+    const siteSdk = await prepareSiteSdkCommandLoadOptions(sender, context)
+    await executeCommandById(id, context, {}, undefined, undefined, {
+      siteSdk,
+    })
     resetSequence(scopeKey)
     return { success: true, executed: true }
   } catch (error) {
@@ -88,6 +93,7 @@ const schedulePendingSingle = (
   state: SequenceState,
   commandId: string,
   context: Browser.Context,
+  sender?: any,
 ): void => {
   state.pendingSingle = { commandId, context }
   state.sequenceTimer = setTimeout(async () => {
@@ -104,6 +110,14 @@ const schedulePendingSingle = (
         pendingSingle.commandId,
         pendingSingle.context,
         {},
+        undefined,
+        undefined,
+        {
+          siteSdk: await prepareSiteSdkCommandLoadOptions(
+            sender,
+            pendingSingle.context,
+          ),
+        },
       )
     } catch (error) {
       console.error(
@@ -120,18 +134,20 @@ const evaluateSequence = async (
   scopeKey: string,
   state: SequenceState,
   context: Browser.Context,
+  sender?: any,
 ) => {
-  const snapshot = await getKeybindingRegistrySnapshot(context)
+  const siteSdk = await prepareSiteSdkCommandLoadOptions(sender, context)
+  const snapshot = await getKeybindingRegistrySnapshot(context, { siteSdk })
   const prefix = state.currentSequence.join(", ")
   const exactId = getCommandIdFromSnapshot(snapshot, prefix)
   const hasLonger = snapshotHasKeybindingStartingWith(snapshot, prefix)
 
   if (exactId && !hasLonger) {
-    return await executeNow(scopeKey, exactId, context)
+    return await executeNow(scopeKey, exactId, context, sender)
   }
 
   if (exactId && hasLonger) {
-    schedulePendingSingle(scopeKey, state, exactId, context)
+    schedulePendingSingle(scopeKey, state, exactId, context, sender)
     return { success: true, executed: false, pending: true }
   }
 
@@ -169,6 +185,7 @@ const handleExecuteKeybinding = async (
     scopeKey,
     state,
     message.context,
+    sender,
   )
 
   if (sequenceResult) {
@@ -177,7 +194,12 @@ const handleExecuteKeybinding = async (
 
   state.currentSequence = [stroke]
 
-  const singleResult = await evaluateSequence(scopeKey, state, message.context)
+  const singleResult = await evaluateSequence(
+    scopeKey,
+    state,
+    message.context,
+    sender,
+  )
 
   if (singleResult) {
     return singleResult

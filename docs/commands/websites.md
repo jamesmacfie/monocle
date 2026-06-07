@@ -1,8 +1,8 @@
 # Website (Contextual) Commands
 
-Website commands are contextual commands scoped to a particular site via `urlRules`. They live in `background/commands/websites/` and are aggregated by `background/commands/websites/index.ts` into `websiteCommands`, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set like any other category. Today there is exactly one website command: a GitHub prototype that surfaces contextual repo/PR/issue actions only on GitHub pages.
+Website commands are built-in contextual commands scoped to a particular site via `urlRules`. They live in `background/commands/websites/` and are aggregated by `background/commands/websites/index.ts` into `websiteCommands`, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set like any other category. Today there is exactly one built-in website command: a GitHub prototype that surfaces contextual repo/PR/issue actions only on GitHub pages.
 
-This is a prototype, not a plugin system. Website commands are ordinary command arrays with `urlRules`, loaded through the normal command source; there is no plugin registry, lifecycle, enablement policy, or plugin-owned hooks. See the open design question at the end of this doc.
+This is a prototype, not a plugin system. Website commands are ordinary command arrays with `urlRules`, loaded through the normal command source; there is no plugin registry, lifecycle, enablement policy, or plugin-owned hooks. This is also distinct from the page-owned `window.Monocle` site SDK, which lets the current page register non-privileged session commands at runtime. See [../site-sdk.md](../site-sdk.md).
 
 ## Summary
 
@@ -109,13 +109,14 @@ For `type: "pull"`, `createPullRequestNavigationCommands` adds actions (each `id
 - The star workflow depends on GitHub DOM selectors and should be treated as best-effort.
 - GitHub URL parsing relies on a hand-maintained reserved-slug list; GitHub routing changes can require updates.
 
-`urlRules` is the current command-visibility layer and a reasonable foundation for contextual commands, but it is not the plugin model. Treat the two as distinct.
+`urlRules` is the current command-visibility layer and a reasonable foundation for contextual commands, but it is not the plugin model. The site SDK is now the first runtime page-owned command source, but it is session-only and non-privileged rather than a packaged plugin registry. Treat all three concepts as distinct: built-in website commands, page-owned SDK registrations, and any future installable plugin system.
 
 ---
 
 ## Related docs
 
 - [../url-filtering.md](../url-filtering.md) - `urlRules` allow/deny matching that scopes the GitHub group.
+- [../site-sdk.md](../site-sdk.md) - page-owned `window.Monocle` commands.
 - [../workflow-automation.md](../workflow-automation.md) - the workflow executor used by Toggle Star and what is implemented.
 - [../command-types.md](../command-types.md) - `group` and `action` node behavior, dynamic children, and NoOp rows.
 - [../execution-and-actions.md](../execution-and-actions.md) - action labels and execution flow.

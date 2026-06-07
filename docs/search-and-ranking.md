@@ -32,6 +32,11 @@ All pages search through the background — root and child group pages alike. Th
 
 Suggestions are **not** built at index time — `commandsToSuggestions` (with its eager action menus) runs only against the top-N entries returned per query.
 
+Site SDK commands are included only when the request sender has a scoped
+registration. The SDK scope/revision is part of the cache key, and SDK entries
+are built with the real page URL/title so page-owned labels and URL rules stay
+document-specific.
+
 ### Cache key, TTL, and URL filtering
 
 - The cache key is `isNewTab|platform` only — **not** the URL. The index is built with a URL-free context, and each entry stores a `urlRuleChain` (its own and every ancestor group's `urlRules`). URL visibility is applied per query via `filterIndexEntriesByUrl`, so the cache survives page navigation and user URL-rule changes take effect immediately.
@@ -68,6 +73,8 @@ final   = textual * sourceWeight * usageBoost
 ```
 
 - `sourceWeight` is `1.0` for root commands and favorites, or the deep-search weight (below).
+- Site SDK root commands and SDK deep-search descendants use the native
+  `1.0` source weight by default.
 - `usageBoost = 1 + 0.15 * (1 - rank/rankedCount)` for commands present in `getRankedCommandIds()`, else `1`. Usage is a tie-breaker, not a dominator — it cannot lift a substring match above a prefix match.
 
 Ties break: favorites first → lower usage rank → shorter name → id. Zero-score entries are dropped; the scorer is never called with an empty query.
@@ -132,6 +139,10 @@ For the root empty state, `getCommandCollections` calls `findFavoritedCommands`,
 
 For search, the index flags entries as `isFavorite`, which gives them tie-break priority and `sourceWeight` 1.0.
 
+Root empty-state ordering is Favorites first, then SDK commands that declared
+`placement: "root"`, then the generated site group when grouped SDK commands
+exist, then native suggestions sorted by usage.
+
 Child pages do not inherit favorites — `navigateToCommand` sets `favorites: []` on any non-root page (`shared/store/slices/navigation.slice.ts`).
 
 ## Deep search
@@ -141,6 +152,9 @@ Deep search lets descendants of opted-in groups appear in **root** search result
 ### Opting in
 
 A `group` node opts in with `enableDeepSearch: true`. Children groups inherit the flag: `shouldDeepSearch = enableFlag === true || (inheritedDeepSearch && enableFlag !== false)`. So a nested group is flattened automatically once an ancestor enabled deep search, unless it explicitly sets `enableDeepSearch: false`.
+
+SDK groups invert the default at conversion time: grouped site commands are
+deep-searchable unless the public command sets `enableDeepSearch: false`.
 
 ### Which descendants are flattened
 

@@ -1,8 +1,10 @@
 import { getBrowserAPI } from "../shared/utils/extension-api"
 import {
   initializeSearchIndexInvalidation,
+  invalidateSearchIndex,
   warmSearchIndex,
 } from "./commands/searchIndex"
+import { clearSiteSdkScopesForTab } from "./commands/siteSdk"
 import { initializeKeybindingRegistry } from "./keybindings/registry"
 import { handleMessage } from "./messages"
 import { toggleContentPalette } from "./utils/contentPalette"
@@ -21,6 +23,20 @@ export function initializeBackground() {
   // palette query after a cold start doesn't pay the full tree resolve
   initializeSearchIndexInvalidation()
   warmSearchIndex()
+
+  browserAPI.tabs?.onRemoved?.addListener((tabId: number) => {
+    if (clearSiteSdkScopesForTab(tabId)) {
+      invalidateSearchIndex()
+    }
+  })
+
+  browserAPI.tabs?.onUpdated?.addListener(
+    (tabId: number, changeInfo: { url?: string }) => {
+      if (changeInfo.url && clearSiteSdkScopesForTab(tabId)) {
+        invalidateSearchIndex()
+      }
+    },
+  )
 
   addRuntimeListener(
     createCrossBrowserMessageHandler((message, sender) =>

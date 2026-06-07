@@ -30,5 +30,20 @@ export type ToastEvent = {
   message: string
 }
 
-export type Event = AlertEvent | CopyToClipboardEvent | NewTabEvent | ToastEvent
+export type SiteSdkSyncRequestEvent = {
+  type: "monocle-sdk-sync-request"
+}
+
+export type SiteSdkInvokeEvent = {
+  type: "monocle-sdk-invoke"
+  request: import("./siteSdk").SiteSdkInvokeRequest
+}
+
+export type Event =
+  | AlertEvent
+  | CopyToClipboardEvent
+  | NewTabEvent
+  | ToastEvent
+  | SiteSdkSyncRequestEvent
+  | SiteSdkInvokeEvent
 export type BrowserEvent = Event

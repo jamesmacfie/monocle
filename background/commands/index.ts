@@ -37,6 +37,7 @@ import {
   removeCommandSetting,
   updateCommandUrlRules,
 } from "./settings"
+import type { CommandLoadOptions } from "./source"
 import { allCommands, loadAllCommands } from "./source"
 import { recordCommandUsage } from "./usage"
 
@@ -44,11 +45,12 @@ export { allCommands, loadAllCommands }
 
 export const getCommands = async (
   context?: Browser.Context,
+  options?: CommandLoadOptions,
 ): Promise<{
   favorites: CommandNode[]
   suggestions: CommandNode[]
 }> => {
-  return await getCommandCollections(context)
+  return await getCommandCollections(context, options)
 }
 
 export const findCommand = async (
@@ -146,11 +148,13 @@ const resolveGeneratedActionTarget = async (
   action: GeneratedCommandAction,
   context: Browser.Context,
   executionScope?: CommandExecutionScope,
+  options?: CommandLoadOptions,
 ): Promise<ResolvedCommand> => {
   const resolved = await resolveCommandInPage(
     action.targetCommandId,
     context,
     executionScope,
+    options,
   )
 
   if (!resolved) {
@@ -166,11 +170,13 @@ const executeGeneratedAction = async (
   formValues: Record<string, string | string[]>,
   parentNames?: string[],
   executionScope?: CommandExecutionScope,
+  options?: CommandLoadOptions,
 ): Promise<void> => {
   const resolved = await resolveGeneratedActionTarget(
     action,
     context,
     executionScope,
+    options,
   )
 
   if (action.type === "favorite") {
@@ -241,6 +247,7 @@ export const executeCommand = async (
   formValues: Record<string, string | string[]>,
   parentNames?: string[],
   executionScope?: CommandExecutionScope,
+  options?: CommandLoadOptions,
 ): Promise<void> => {
   const normalizedContext = normalizeContext(context)
   const generatedAction = parseGeneratedCommandAction(id)
@@ -252,13 +259,14 @@ export const executeCommand = async (
       formValues,
       parentNames,
       executionScope,
+      options,
     )
     return
   }
 
   const resolved = executionScope
-    ? await resolveCommandInPage(id, normalizedContext, executionScope)
-    : await resolveCommandById(id, normalizedContext)
+    ? await resolveCommandInPage(id, normalizedContext, executionScope, options)
+    : await resolveCommandById(id, normalizedContext, options)
 
   if (!resolved) {
     console.error(`[ExecuteCommand] Command not found: ${id}`)

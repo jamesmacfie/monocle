@@ -41,6 +41,7 @@ WXT generates the manifest and bundles three entrypoints under `entrypoints/`:
 | --- | --- | --- |
 | `entrypoints/background.ts` | `defineBackground` | Calls `initializeBackground()` from `background/index.ts`. |
 | `entrypoints/content.tsx` | `defineContentScript` | Injects the shadow-DOM overlay on `<all_urls>`. |
+| `entrypoints/site-sdk.content.ts` | `defineContentScript` | Runs at `document_start` in the main world and installs `window.Monocle` for page-owned site commands. |
 | `entrypoints/newtab/` (`index.html` + `main.tsx`) | HTML page | Browser new-tab override; mounts the React new-tab app. |
 
 `background/index.ts` `initializeBackground()` is the service worker's startup: it initializes the keybinding registry (`initializeKeybindingRegistry`), wires search-index invalidation events and warms the search index (`initializeSearchIndexInvalidation` / `warmSearchIndex` from `background/commands/searchIndex.ts`), registers a cross-browser runtime message listener that routes everything through `handleMessage`, and wires the toolbar `action.onClicked` to `toggleContentPalette`.
@@ -52,6 +53,10 @@ The background service worker is the single authority for everything privileged.
 The background owns:
 
 - **Command definitions** — typed `CommandNode` trees loaded and assembled in `background/commands/`. See [command-schema.md](./command-schema.md) and [command-types.md](./command-types.md).
+- **Site command wrappers** — non-privileged page declarations synced through
+  `content/siteSdkBridge.ts` are stored per tab/document/origin in
+  `background/commands/siteSdk/` and converted into background-owned
+  `CommandNode` wrappers. See [site-sdk.md](./site-sdk.md).
 - **Browser API access** — all `tabs`, `bookmarks`, `history`, `cookies`, etc. calls go through background utilities.
 - **Settings persistence** — stored under `monocle-settings` in `chrome.storage.local`, routed through `background/commands/settings.ts`. See [settings.md](./settings.md).
 - **Permissions** — required and optional permission checks and requests. See [permissions.md](./permissions.md).
@@ -150,9 +155,10 @@ All UI→background communication is a single typed message channel routed in `b
 ### Command load and search
 
 1. The UI sends `get-commands` with current browser context (new-tab mode includes `{ isNewTab: true }`).
-2. `getCommands` (`background/messages/getCommands.ts`) loads command nodes, applies browser/context compatibility, applies URL filtering, ranks suggestions, and computes favorites — the root empty state.
-3. Nodes are converted to UI-facing `Suggestion` values and the shared palette renders them with CMDK (`shouldFilter={false}` — CMDK never filters).
-4. Typing debounces ~200 ms and sends `search-commands`; `searchCommands` (`background/messages/searchCommands.ts`) scores entries from the in-memory search index (`background/commands/searchIndex.ts` — module-scoped cache, ~30 s TTL plus browser-event invalidation, URL rules applied at query time) and returns the top-N suggestions, deep-search matches inline. Child group pages search the same way via `parentPath`; form pages bypass search.
+2. For content-overlay senders, `getCommands` first prepares the sender's site SDK scope. If the service worker has no registration for that tab/document/origin, it asks the content bridge to replay current registrations with `monocle-sdk-sync-request`.
+3. `getCommands` (`background/messages/getCommands.ts`) loads command nodes, including any scoped site SDK wrappers, applies browser/context compatibility, applies URL filtering, ranks suggestions, and computes favorites — the root empty state.
+4. Nodes are converted to UI-facing `Suggestion` values and the shared palette renders them with CMDK (`shouldFilter={false}` — CMDK never filters).
+5. Typing debounces ~200 ms and sends `search-commands`; `searchCommands` (`background/messages/searchCommands.ts`) scores entries from the in-memory search index (`background/commands/searchIndex.ts` — module-scoped cache, ~30 s TTL plus browser-event invalidation, URL rules applied at query time) and returns the top-N suggestions, deep-search matches inline. Child group pages search the same way via `parentPath`; form pages bypass search.
 
 See [search-and-ranking.md](./search-and-ranking.md), [url-filtering.md](./url-filtering.md), and [command-types.md](./command-types.md).
 
@@ -168,7 +174,7 @@ See [palette-ui-and-navigation.md](./palette-ui-and-navigation.md).
 ### Execution
 
 1. The UI sends `execute-command` with id, form values, optional `parentNames`, and an optional `executionScope` (the modifier path, e.g. enter vs modifier-enter).
-2. The background resolves the command, checks permissions, runs the executor, and records usage.
+2. The background resolves the command, checks permissions, runs the executor, and records usage. Site SDK executors are wrappers that send `monocle-sdk-invoke` to the sender tab's isolated bridge, which calls the page-world callback and returns success/error.
 3. On success the palette may refresh commands and close (overlay) or reset.
 
 See [execution-and-actions.md](./execution-and-actions.md).
@@ -210,7 +216,8 @@ Only `click` and `wait` steps are meaningfully implemented and accepted by valid
 
 - [messaging.md](./messaging.md) — full background message protocol
 - [command-schema.md](./command-schema.md) and [command-types.md](./command-types.md) — command model
-- [authoring-commands.md](./authoring-commands.md) — adding commands
+- [authoring-commands.md](./authoring-commands.md) — adding background-owned commands
+- [site-sdk.md](./site-sdk.md) — page-owned site commands through `window.Monocle`
 - [search-and-ranking.md](./search-and-ranking.md), [execution-and-actions.md](./execution-and-actions.md)
 - [keybindings.md](./keybindings.md), [url-filtering.md](./url-filtering.md), [permissions.md](./permissions.md), [settings.md](./settings.md)
 - [palette-ui-and-navigation.md](./palette-ui-and-navigation.md), [new-tab-and-theme.md](./new-tab-and-theme.md)
