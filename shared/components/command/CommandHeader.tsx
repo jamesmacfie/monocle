@@ -2,6 +2,7 @@ import { Command } from "cmdk"
 import { ChevronLeft } from "lucide-react"
 import type { RefObject } from "react"
 import type { Page } from "../../store/slices/navigation.slice"
+import { MonocleMark } from "../MonocleMark"
 import { getDisplayName } from "./CommandName"
 
 export interface CommandHeaderProps {
@@ -38,6 +39,12 @@ export function CommandHeader({
               ? "Search for commands..."
               : `Search in ${currentPage.parent ? getDisplayName(currentPage.parent.name) : currentPage.id}`
           }
+        />
+        <MonocleMark
+          variant="glyph"
+          size={18}
+          className="cmdk-input-monocle"
+          title="Monocle"
         />
       </div>
       <hr cmdk-raycast-loader="" />

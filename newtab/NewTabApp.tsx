@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react"
 import { Provider } from "react-redux"
+import { MonocleMark } from "../shared/components/MonocleMark"
 import { ToastContainer } from "../shared/components/ToastContainer"
 import { createAppStore } from "../shared/store"
 import { useAppDispatch, useAppSelector } from "../shared/store/hooks"
@@ -77,6 +78,10 @@ function NewTabAppContent() {
       <div className="relative z-10 p-6 flex items-center justify-center min-h-screen">
         <div className="max-w-2xl mx-auto">
           {showClock && <Clock className="mb-12" />}
+
+          <div className="flex justify-center mb-8">
+            <MonocleMark variant="full" size={72} title="Monocle" />
+          </div>
 
           {grantPermission && (
             <PermissionGrantPanel permission={grantPermission} />

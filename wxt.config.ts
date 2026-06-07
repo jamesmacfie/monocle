@@ -93,11 +93,17 @@ export default defineConfig({
     description:
       "A browser extension that adds a command palette interface to any webpage, similar to VS Code's Command Palette or macOS Spotlight.",
     icons: {
+      "16": "images/extension_16.png",
+      "32": "images/extension_32.png",
       "48": "images/extension_48.png",
+      "128": "images/extension_128.png",
     },
     action: {
       default_icon: {
+        "16": "images/extension_16.png",
+        "32": "images/extension_32.png",
         "48": "images/extension_48.png",
+        "128": "images/extension_128.png",
       },
       default_title: "Toggle Monocle Command Palette",
     },
