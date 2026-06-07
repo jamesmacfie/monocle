@@ -126,6 +126,7 @@ export const ICON_NAMES = [
   "Newspaper",
   "Option",
   "Package",
+  "Palette",
   "PanelsTopLeft",
   "Paperclip",
   "Pen",

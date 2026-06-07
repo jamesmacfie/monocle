@@ -60,7 +60,7 @@ Source: `background/commands/ui/selectTheme.ts`, exported as `selectTheme` (`Gro
 A `group` whose `children` are generated (async) from `THEME_OPTIONS` in `shared/utils/themes.ts` — the OS-aware trio (`system`, `light`, `dark`) followed by the always-on named themes (`solarized-light`, `solarized-dark`, `monokai`, `nord`, the four `catppuccin-*`, `one-dark`, `dracula`). Each child is an `action`:
 
 - `name` is the theme label; `id` is `theme-<mode>`.
-- The currently active theme (read via `getThemeSettings()`) shows a `Check` icon and the description "Current theme"; others show `Monitor`/`Sun`/`Moon` (the trio) or `Sparkles` (named themes) and "Switch to <label>".
+- The currently active theme (read via `getThemeSettings()`) shows a `Check` icon and the description "Current theme"; others show `Monitor`/`Sun`/`Moon` (the trio) or `Palette` (named themes) and "Switch to <label>".
 - `execute` persists the theme with `updateThemeSettings({ mode })`. `remainOpenOnSelect: true` keeps the palette open, so the overlay/new-tab reapply live (via the `storage.onChanged` listeners) and the `Check` marker moves on the automatic refresh.
 
 Whereas Toggle Theme cycles the trio, this command exposes every theme directly. Both write only the `mode` setting; application is covered in [../new-tab-and-theme.md](../new-tab-and-theme.md).
