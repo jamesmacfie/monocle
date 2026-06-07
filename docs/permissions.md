@@ -73,12 +73,13 @@ These declarations live on the command nodes themselves (`permissions: [...]`).
 | --- | --- |
 | `bookmarks` | `browser/bookmarks.ts` |
 | `browsingData`, `history`, `cookies`, `sessions` | `browser/clearBrowserData.ts` (declares all four together) |
+| `cookies` | also `browser/firefox/openContainerTab.tsx` and `browser/firefox/openCurrentTabInContainer.tsx` (Firefox `tabs.create({cookieStoreId})` requires it) |
 | `tabs` | `browser/closeOtherTabs.ts`, `browser/closeTabsToLeft.ts`, `browser/closeTabsToRight.ts`, `browser/copyTabUrl.ts`, `browser/gotoTab.ts`, `browser/moveCurrentTabToANewWindow.ts`, `browser/moveCurrentTabToPopupWindow.ts`, `browser/openTabs.ts` |
 | `downloads` | `browser/downloads.ts` |
 | `history` | `browser/history.ts` |
 | `sessions` | `browser/recentlyClosed.ts`, `browser/reopenLastClosedTab.ts` |
-| `contextualIdentities` | `browser/firefox/openContainerTab.tsx` |
-| `tabs` + `contextualIdentities` | `browser/firefox/openCurrentTabInContainer.tsx` |
+| `contextualIdentities` + `cookies` | `browser/firefox/openContainerTab.tsx` |
+| `tabs` + `contextualIdentities` + `cookies` | `browser/firefox/openCurrentTabInContainer.tsx` |
 
 For full per-command detail see [commands/browser.md](commands/browser.md). The
 list above is the authoritative summary of permission-bearing commands at the

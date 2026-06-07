@@ -10,7 +10,7 @@ export const openContainerTab: CommandNode = {
   description: "Open a new tab in a container profile",
   icon: { type: "lucide", name: "Box" },
   color: "green",
-  permissions: ["contextualIdentities"],
+  permissions: ["contextualIdentities", "cookies"],
   keywords: ["container", "tab", "profile"],
   children: async (): Promise<CommandNode[]> => {
     try {

@@ -10,7 +10,7 @@ export const openCurrentTabInContainer: CommandNode = {
   description: "Reopen the current tab in a container profile",
   icon: { type: "lucide", name: "RefreshCw" },
   color: "blue",
-  permissions: ["tabs", "contextualIdentities"],
+  permissions: ["tabs", "contextualIdentities", "cookies"],
   keywords: ["container", "tab", "profile", "reopen", "current"],
   children: async (): Promise<CommandNode[]> => {
     try {

@@ -52,8 +52,8 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `reopen-last-closed-tab` | Reopen Last Closed Tab | action | `sessions` | — | all | Most recent closed tab only |
 | `scroll-to-top` | Scroll to top | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
 | `scroll-to-bottom` | Scroll to bottom | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
-| `open-container-tab` | Open container tab | group | `contextualIdentities` | — | firefox | Per-container children |
-| `open-current-tab-in-container` | Open current tab in container | group | `tabs`, `contextualIdentities` | — | firefox | Reopens current URL, closes original |
+| `open-container-tab` | Open container tab | group | `contextualIdentities`, `cookies` | — | firefox | Per-container children |
+| `open-current-tab-in-container` | Open current tab in container | group | `tabs`, `contextualIdentities`, `cookies` | — | firefox | Reopens current URL, closes original |
 | `toggle-reader-mode` | Toggle Reader Mode | action | — | `<alt-cmd-R>` | firefox | |
 
 "Browsers: all" means the command is in `browserCommands` with no `supportedBrowsers` restriction. The browser command files do not declare `urlRules`; none of these are URL-scoped.
@@ -202,10 +202,10 @@ Every leaf action sets `confirmAction: true`, so the palette requires confirmati
 
 Loaded only when the resolved platform is Firefox. All declare `supportedBrowsers: ["firefox"]` and live under `background/commands/browser/firefox/`. Container commands use `queryContainers` / `createTab({ cookieStoreId })` from `background/utils/firefox.ts`.
 
-### `open-container-tab` (group, `contextualIdentities`)
-Lists one child per contextual identity from `queryContainers({})`. Each child is named after the container, colored from its `colorCode` (with `toolbar`→gray and default→lightBlue normalization) and icon-ed from `container.iconUrl`. Action label "New tab →"; modifier **cmd** "New tab ←" (creates at index 0). Executing calls `createTab({ cookieStoreId, index })`. On query failure it returns an empty array (no NoOp row).
+### `open-container-tab` (group, `contextualIdentities` + `cookies`)
+Lists one child per contextual identity from `queryContainers({})`. Each child is named after the container, colored from its `colorCode` (with `toolbar`→gray and default→lightBlue normalization) and icon-ed from `container.iconUrl`. Action label "New tab →"; modifier **cmd** "New tab ←" (creates at index 0). Executing calls `createTab({ cookieStoreId, index })`. Firefox requires the `cookies` permission (in addition to `contextualIdentities`) to pass `cookieStoreId` to `tabs.create`; without it the group surfaces a "Permission Required" grant row. On query failure it returns an empty array (no NoOp row).
 
-### `open-current-tab-in-container` (group, `tabs` + `contextualIdentities`)
+### `open-current-tab-in-container` (group, `tabs` + `contextualIdentities` + `cookies`)
 Same container listing, but executing reopens the **current tab's URL** in the chosen container (`createTab({ url, cookieStoreId })`) and then closes the original tab (`removeTab(currentTab.id)`). On query failure returns an empty array.
 
 ### `toggle-reader-mode` (action, no extra permission)
