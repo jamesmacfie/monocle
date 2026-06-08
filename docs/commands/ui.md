@@ -7,6 +7,7 @@ UI commands are palette commands that change Monocle's own configuration rather 
 | Command | Id | Node type | Purpose | Notes |
 | --- | --- | --- | --- | --- |
 | Toggle Theme | `toggle-theme` | `action` | Cycle the palette theme system -> light -> dark -> system | Dynamic name/description/icon reflect current mode |
+| Theme | `theme` | `group` | Pick any theme; applies immediately | Children from `THEME_OPTIONS`; Check marks the current one |
 | Manage Command Allow List | `manage-allow-list` | `group` | Edit per-command allow URL patterns | One subgroup per user-configurable command |
 | Manage Command Deny List | `manage-deny-list` | `group` | Edit per-command deny URL patterns | Mirror of the allow-list command |
 | Clear favorites | `clear-favorites` | `action` | Remove all favorited commands | Defined in `favorites.ts`, registered directly in `source.ts` |
@@ -15,7 +16,12 @@ Registration:
 
 ```ts
 // background/commands/ui/index.ts
-export const uiCommands = [toggleTheme, manageAllowList, manageDenyList]
+export const uiCommands = [
+  toggleTheme,
+  selectTheme,
+  manageAllowList,
+  manageDenyList,
+]
 
 // background/commands/source.ts (loadAllCommands)
 const commands: CommandNode[] = [
@@ -44,6 +50,20 @@ A single `action` that cycles the persisted theme mode. Its `name`, `description
 On execute it computes the next mode (`system -> light -> dark -> system`) and persists it with `updateThemeSettings({ mode: nextMode })`. Keywords: `theme`, `dark`, `light`, `system`, `appearance`, `mode`.
 
 This command only writes the `mode` setting. The actual theme application (how the mode resolves against the OS preference and is applied to the overlay shadow DOM and the new-tab DOM, plus the picker structure used in the new-tab settings UI) is documented in [../new-tab-and-theme.md](../new-tab-and-theme.md). Settings persistence shape lives in [../settings.md](../settings.md).
+
+---
+
+## Theme
+
+Source: `background/commands/ui/selectTheme.ts`, exported as `selectTheme` (`GroupCommandNode`). Id `theme`, `supportedBrowsers: ["chrome", "firefox"]`, `enableDeepSearch: true`.
+
+A `group` whose `children` are generated (async) from `THEME_OPTIONS` in `shared/utils/themes.ts` — the OS-aware trio (`system`, `light`, `dark`) followed by the always-on named themes (`solarized-light`, `solarized-dark`, `monokai`, `nord`, the four `catppuccin-*`, `one-dark`, `dracula`). Each child is an `action`:
+
+- `name` is the theme label; `id` is `theme-<mode>`.
+- The currently active theme (read via `getThemeSettings()`) shows a `Check` icon and the description "Current theme"; others show `Monitor`/`Sun`/`Moon` (the trio) or `Sparkles` (named themes) and "Switch to <label>".
+- `execute` persists the theme with `updateThemeSettings({ mode })`. `remainOpenOnSelect: true` keeps the palette open, so the overlay/new-tab reapply live (via the `storage.onChanged` listeners) and the `Check` marker moves on the automatic refresh.
+
+Whereas Toggle Theme cycles the trio, this command exposes every theme directly. Both write only the `mode` setting; application is covered in [../new-tab-and-theme.md](../new-tab-and-theme.md).
 
 ---
 

@@ -1,4 +1,5 @@
 import type { Settings, ThemeSettings } from "../types"
+import { getThemeOption, THEME_IDS } from "./themes"
 
 /**
  * Theme management utilities
@@ -22,11 +23,13 @@ type ThemeSettingsSource =
   | null
   | undefined
 
-const THEME_CLASSES: ThemeMode[] = ["light", "dark", "system"]
+// Every selectable theme class, so applyThemeClass can clear whichever one is
+// currently applied before adding the new one.
+const THEME_CLASSES: ThemeMode[] = THEME_IDS
 const DEFAULT_THEME_MODE: ThemeMode = "system"
 
 const isThemeMode = (mode: unknown): mode is ThemeMode => {
-  return mode === "light" || mode === "dark" || mode === "system"
+  return typeof mode === "string" && (THEME_IDS as string[]).includes(mode)
 }
 
 const getThemeClassTarget = (
@@ -53,21 +56,22 @@ export function getThemeModeFromSettings(
  * Gets the effective theme based on mode and system preference
  */
 export function getEffectiveTheme(mode: ThemeMode): "light" | "dark" {
-  if (mode !== "system") {
-    return mode
+  if (mode === "system") {
+    const browserWindow =
+      typeof globalThis.window === "undefined" ? undefined : globalThis.window
+    const canReadSystemTheme = browserWindow?.matchMedia
+
+    if (canReadSystemTheme) {
+      return browserWindow.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light"
+    }
+
+    return "light"
   }
 
-  const browserWindow =
-    typeof globalThis.window === "undefined" ? undefined : globalThis.window
-  const canReadSystemTheme = browserWindow?.matchMedia
-
-  if (canReadSystemTheme) {
-    return browserWindow.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light"
-  }
-
-  return "light"
+  // Named themes are fixed; classify via their declared scheme.
+  return getThemeOption(mode)?.scheme ?? "light"
 }
 
 /**
@@ -140,6 +144,6 @@ export function setupSystemThemeListener(
 /**
  * Applies theme to document root for new tab page
  */
-export function applyThemeToDocument(mode: "light" | "dark" | "system"): void {
+export function applyThemeToDocument(mode: ThemeMode): void {
   applyThemeClass(document.documentElement, mode)
 }

@@ -3,6 +3,7 @@ import type {
   NewTabSettings,
   PermissionSettings,
   Settings,
+  ThemeMode,
   ThemeSettings,
 } from "../../../shared/types"
 import { getBrowserAPI } from "../../utils/extension-api"
@@ -117,7 +118,7 @@ export const refreshPermissions = createAsyncThunk(
 // Async thunk to update theme preference and sync to storage
 export const updateThemeMode = createAsyncThunk(
   "settings/updateThemeMode",
-  async (mode: "light" | "dark" | "system", { rejectWithValue }) => {
+  async (mode: ThemeMode, { rejectWithValue }) => {
     try {
       // Get current settings from storage
       const result = await browserAPI.storage.local.get(STORAGE_KEY)

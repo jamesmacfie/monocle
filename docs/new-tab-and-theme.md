@@ -282,9 +282,12 @@ permission model.
 
 ## Theme system
 
-Theme state is a single `mode: "light" | "dark" | "system"` stored under
-`settings.theme` (`ThemeSettings` in `shared/types/settings.ts`). The mechanics
-live in `shared/utils/theme.ts` and apply to both runtime modes.
+Theme state is a single `mode` stored under `settings.theme` (`ThemeSettings` in
+`shared/types/settings.ts`). The `ThemeMode` union is the OS-aware trio
+(`light` / `dark` / `system`) plus the always-on named themes (`solarized-light`,
+`solarized-dark`, `monokai`, `nord`, the four `catppuccin-*`, `one-dark`,
+`dracula`). The value is applied verbatim as a class on the palette root. The
+mechanics live in `shared/utils/theme.ts` and apply to both runtime modes.
 
 ### Color tokens (CSS structure)
 
@@ -343,8 +346,8 @@ scoped per-tree, so the class must land on the right root.
 | New-tab page | `document.documentElement` | `applyThemeToDocument(mode)` |
 | Content overlay | The shadow host element | `applyThemeToHost(hostElement, settings)` |
 
-Both ultimately call `applyThemeClass(element, mode)`, which removes all three
-theme classes (`light`, `dark`, `system`) and adds the current one. Existing
+Both ultimately call `applyThemeClass(element, mode)`, which removes every known
+theme class (`THEME_CLASSES`, derived from `THEME_IDS`) and adds the current one. Existing
 non-theme classes on the element are preserved (verified in
 `shared/utils/theme.test.ts`). `getThemeClassTarget` transparently unwraps a
 `ShadowRoot` to its `.host`, so callers may pass either the host or the root.
@@ -370,6 +373,17 @@ registered through `background/commands/ui/index.ts`. It is a single action that
 `system→light`, `light→dark`, default→`system`). Its `name`, `description`, and
 `icon` are dynamic and reflect the current mode (Sun / Moon / Monitor). On
 execute it calls `updateThemeSettings({ mode: nextMode })`.
+
+`background/commands/ui/selectTheme.ts` exports `selectTheme` (`id: "theme"`), a
+group command also registered through `ui/index.ts`. Its children are generated
+from `THEME_OPTIONS` (`shared/utils/themes.ts`, the DOM-free single source of
+truth for selectable themes) — the OS-aware trio plus the always-on named
+themes. Each child applies its theme immediately via
+`updateThemeSettings({ mode })`; the content overlay and new-tab page reapply on
+the resulting `storage.onChanged` event, so no extra wiring is needed.
+`remainOpenOnSelect` keeps the palette open so the change is visible live and the
+"current" marker (a Check icon) refreshes. `enableDeepSearch` lets a theme name
+match from the root palette.
 
 `updateThemeSettings` (`background/commands/settings.ts`) shallow-merges into
 `settings.theme` and saves. Because `ThemeSettings` is flat (`{ mode }`), the
