@@ -71,6 +71,18 @@ export const useCommandPaletteStateRedux = () => {
       } else if (message.type === "show-ui") {
         show()
         sendResponse({ received: true })
+      } else if (message.type === "hide-ui") {
+        // Hide the palette and only acknowledge once the overlay has actually
+        // been removed from the screen. Two animation frames ensures React has
+        // committed the unmount and the browser has painted the result, so a
+        // follow-up screenshot capture won't include the palette.
+        hide()
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            sendResponse({ received: true })
+          })
+        })
+        return true
       } else if (message.type === "execute-workflow-content") {
         console.log("[Content] Received workflow execution request:", {
           name: message.workflow?.name,
@@ -113,7 +125,7 @@ export const useCommandPaletteStateRedux = () => {
     return () => {
       browserAPI.runtime.onMessage.removeListener(handleBackgroundMessage)
     }
-  }, [toggle, show])
+  }, [toggle, show, hide])
 
   return { isOpen, showUI: show, hideUI: hide, toggleUI: toggle }
 }

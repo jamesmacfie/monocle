@@ -36,6 +36,16 @@ export async function getActiveTab(): Promise<any | null> {
   return activeTab?.id ? activeTab : null
 }
 
+// Capture the visible area of a window and return a PNG data URL. Pass the
+// window id explicitly so the options object isn't misread as the first
+// positional argument in either Chrome or Firefox. Relies on the `activeTab`
+// permission, which is granted whenever the palette is invoked.
+export async function captureVisibleTab(windowId?: number): Promise<string> {
+  return callBrowserAPI("tabs", "captureVisibleTab", windowId, {
+    format: "png",
+  })
+}
+
 export async function sendSuccessToastToActiveTab(
   message: string,
   event?: Partial<Event>,

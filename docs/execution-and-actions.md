@@ -148,6 +148,7 @@ Executors run in the background service worker and cannot touch the page DOM or 
 | --- | --- | --- | --- |
 | Copy to clipboard | `monocle-copyToClipboard` | `shared/components/Listeners/CopyToClipboardListener.tsx` | Calls `useCopyToClipboard().copy(message)` (`navigator.clipboard.writeText`) |
 | Open new tab | `monocle-newTab` | `shared/components/Listeners/NewTabListener.tsx` | `window.open(url, "_blank")`, but only for `http:`/`https:` URLs; other schemes are blocked |
+| Screenshot | `monocle-screenshot` | `shared/components/Listeners/ScreenshotListener.tsx` | Converts the PNG `dataUrl` to a Blob; `mode: "clipboard"` writes it via `navigator.clipboard.write([new ClipboardItem(...)])`, `mode: "download"` triggers a blob-URL `<a download>` with `filename`. Emitted by `capture-screenshot` |
 | Toast | `monocle-toast` | `ToastContainer` | Renders a transient toast |
 | Alert | `monocle-alert` | (no listener mounted) | Type is defined in `events.ts` and emitted by some commands (history, downloads, etc.), but no UI component currently handles it; it carries `message`, optional `icon`, and `copyText` |
 

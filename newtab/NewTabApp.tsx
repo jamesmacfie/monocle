@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react"
 import { Provider } from "react-redux"
+import ScreenshotListener from "../shared/components/Listeners/ScreenshotListener"
 import { MonocleMark } from "../shared/components/MonocleMark"
 import { ToastContainer } from "../shared/components/ToastContainer"
 import { createAppStore } from "../shared/store"
@@ -102,6 +103,7 @@ function NewTabAppContent() {
           </div>
         </div>
       </div>
+      <ScreenshotListener />
       <ToastContainer />
     </div>
   )

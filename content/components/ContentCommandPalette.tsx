@@ -4,6 +4,7 @@ import type { CommandExecutionScope } from "../../shared/types"
 const { useEffect, useCallback } = React
 
 import { CommandPalette } from "../../shared/components/Command"
+import ScreenshotListener from "../../shared/components/Listeners/ScreenshotListener"
 import { ToastContainer } from "../../shared/components/ToastContainer"
 import { shouldRefreshCommandsAfterExecution } from "../../shared/hooks/commandExecution"
 import { useCommandPaletteStateRedux } from "../../shared/hooks/useCommandPaletteStateRedux"
@@ -112,6 +113,8 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
           />
         </>
       )}
+      {/* Always mounted so screenshot capture works after the palette hides. */}
+      <ScreenshotListener />
       <ToastContainer />
     </>
   )

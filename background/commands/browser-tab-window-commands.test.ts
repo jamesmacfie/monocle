@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
 import type { Browser, BrowserPermission } from "../../shared/types"
+import { captureScreenshot } from "./browser/captureScreenshot"
 import { closeCurrentTab } from "./browser/closeCurrentTab"
 import { closeCurrentWindow } from "./browser/closeCurrentWindow"
 import { duplicateCurrentTab } from "./browser/duplicateCurrentTab"
@@ -178,6 +179,14 @@ const installChromeStubs = () => {
         }
         return Promise.resolve()
       }),
+      captureVisibleTab: vi.fn((...args: unknown[]) => {
+        const callback = args[args.length - 1]
+        const dataUrl = "data:image/png;base64,AAAA"
+        if (typeof callback === "function") {
+          callback(dataUrl)
+        }
+        return Promise.resolve(dataUrl)
+      }),
       goBack: vi.fn((_tabId: number, callback?: Function) => {
         callback?.()
         return Promise.resolve()
@@ -349,6 +358,46 @@ describe("representative browser tab commands", () => {
     await executeCommand(goForwardCommand.id, normalContext, {})
     expect(chromeApi.tabs.goForward).toHaveBeenCalledWith(
       1,
+      expect.any(Function),
+    )
+  })
+
+  it("captures a screenshot to the clipboard on Enter and to a download on Cmd", async () => {
+    await executeCommand(captureScreenshot.id, normalContext, {})
+    // Palette is hidden before the visible-area capture so it isn't in the shot.
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      { type: "hide-ui" },
+      expect.any(Function),
+    )
+    expect(chromeApi.tabs.captureVisibleTab).toHaveBeenCalledWith(
+      10,
+      { format: "png" },
+      expect.any(Function),
+    )
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-screenshot",
+        mode: "clipboard",
+        dataUrl: "data:image/png;base64,AAAA",
+      }),
+      expect.any(Function),
+    )
+
+    await executeCommand(
+      captureScreenshot.id,
+      { ...normalContext, modifierKey: "cmd" },
+      {},
+    )
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-screenshot",
+        mode: "download",
+        dataUrl: "data:image/png;base64,AAAA",
+        filename: expect.stringMatching(/^screenshot-example\.com-.*\.png$/),
+      }),
       expect.any(Function),
     )
   })

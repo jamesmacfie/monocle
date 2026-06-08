@@ -48,8 +48,10 @@ Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMess
 | `monocle-toast` | bg -> tab | `{ level, message }` | `background/messages/showToast.ts` and several command executors (e.g. `background/utils/browserTabs.ts`) | `shared/components/ToastContainer.tsx` |
 | `toggle-ui` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, plus `debugWorkflow`/`github` command executors | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
 | `show-ui` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, `toggleContentPalette` | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
+| `hide-ui` | bg -> tab | `{}` | `background/commands/browser/captureScreenshot.ts` (hide overlay before capture) | `shared/hooks/useCommandPaletteStateRedux.tsx` (hides, then responds `{ received: true }` after two `requestAnimationFrame`s so the overlay is painted out) |
 | `monocle-newTab` | bg -> tab | `{ url }` | command executors (e.g. `background/commands/browser/history.ts`, `bookmarks.ts`) | `shared/components/Listeners/NewTabListener.tsx` (`window.open(url, "_blank")` for http(s) only) |
 | `monocle-scroll` | bg -> tab | `{ direction: "top" \| "bottom" }` | `background/commands/browser/scrollToTop.ts`, `scrollToBottom.ts` | `shared/components/Listeners/ScrollListener.tsx` (`window.scrollTo` with smooth behavior) |
+| `monocle-screenshot` | bg -> tab | `{ mode: "clipboard" \| "download", dataUrl, filename? }` | `background/commands/browser/captureScreenshot.ts` | `shared/components/Listeners/ScreenshotListener.tsx` (Blob → clipboard `ClipboardItem` or blob-URL `<a download>`) |
 | `monocle-sdk-sync-request` | bg -> content bridge | `{}` | `{ registrations }` | `background/commands/siteSdk/index.ts`, `prepareSiteSdkCommandLoadOptions` | Ask the isolated content bridge to replay current page SDK registrations after service-worker restart. |
 | `monocle-sdk-invoke` | bg -> content bridge | `{ request }` | `{ success: true, commands? }` or `{ success: false, error }` | `background/commands/siteSdk/commands.ts`, SDK wrappers | Invoke a page-world SDK callback for execute, dynamic group children, or dynamic search results. |
 
@@ -246,7 +248,7 @@ The background reaches a specific tab through `tabs.sendMessage`, never `runtime
   `monocle-sdk-sync-request` and `monocle-sdk-invoke`; these are handled by the
   early isolated bridge in `content/siteSdkBridge.ts`, not by the React palette.
 
-Content-side receivers live in the shared UI so both overlay and new-tab modes handle them: `useCommandPaletteStateRedux.tsx` (`toggle-ui`, `show-ui`, `execute-workflow-content`), `ToastContainer.tsx` (`monocle-toast`), and `NewTabListener.tsx` (`monocle-newTab`).
+Content-side receivers live in the shared UI so both overlay and new-tab modes handle them: `useCommandPaletteStateRedux.tsx` (`toggle-ui`, `show-ui`, `hide-ui`, `execute-workflow-content`), `ToastContainer.tsx` (`monocle-toast`), `NewTabListener.tsx` (`monocle-newTab`), and `ScreenshotListener.tsx` (`monocle-screenshot`). `ScreenshotListener` and `ToastContainer` are mounted outside the palette-visibility gate so they keep receiving messages after the palette hides.
 
 ## Adding A New Message Type End To End
 

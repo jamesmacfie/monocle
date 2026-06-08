@@ -21,6 +21,7 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | Command id | Name | Type | Permissions | Default keybinding | Browsers | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `bookmarks` | Bookmarks | group | `bookmarks` | — | all | Deep search; recursive folder tree |
+| `capture-screenshot` | Capture screenshot | action | — | — | all | Visible-area `captureVisibleTab` (activeTab). Enter → copy to clipboard; Cmd → download. Page-side via `monocle-screenshot` |
 | `clear-browser-data` | Clear Browser Data | group | `browsingData`, `history`, `cookies`, `sessions` | — | all | 11 data types × 5 time spans; leaf actions `confirmAction` |
 | `close-current-tab` | Close current tab | action | — | `<cmd-w>` (inert) | all | `confirmAction`; keybinding suppressed |
 | `close-current-window` | Close current window | action | — | `<cmd-shift-w>` (inert) | all | `confirmAction`; keybinding suppressed |
@@ -99,6 +100,9 @@ Toggle `muted` on the active tab via `updateTab({ muted })`. Two separate comman
 
 ### `reload-current-tab` (action)
 On plain Enter, `callBrowserAPI("tabs", "reload")` with no tab id (reloads the active tab). Keybinding `<cmd-r>`. Declares `modifierActionLabel.cmd = "Hard reload (bypass cache)"`; the Cmd modifier action resolves the active tab and calls `callBrowserAPI("tabs", "reload", tabId, { bypassCache: true })` (tab id passed explicitly so the reloadProperties object is correct in both Chrome and Firefox).
+
+### `capture-screenshot` (action)
+Captures the visible area of the active tab. The background first sends a `hide-ui` message and awaits its acknowledgement so the palette overlay is painted out **before** the capture (otherwise `captureVisibleTab` would include the palette); the content `useCommandPaletteStateRedux` handler hides the palette and acks after two `requestAnimationFrame`s. The send is best-effort — surfaces without that handler (e.g. the new tab page) simply don't respond. It then resolves the active tab and calls `captureVisibleTab(windowId)` (`callBrowserAPI("tabs", "captureVisibleTab", windowId, { format: "png" })`), which relies on the `activeTab` permission (always granted when the palette is invoked) — no `downloads` permission is required. Finally it sends a `monocle-screenshot` event to the active tab; the page-side `ScreenshotListener` converts the PNG data URL to a Blob (without `fetch`, so a page CSP can't block it) and either writes it to the clipboard via `navigator.clipboard.write([new ClipboardItem(...)])` or triggers a blob-URL `<a download>`, then a success toast confirms the result. `ScreenshotListener` is mounted alongside `ToastContainer` (always mounted, outside the palette-visibility gate) so it still receives the event after the palette hides. Declares `actionLabel = "Copy to clipboard"` and `modifierActionLabel.cmd = "Download"`: plain Enter copies to the clipboard; Cmd downloads to the browser's downloads folder with filename `screenshot-<host>-<timestamp>.png`. The clipboard path requires a secure context (https) and document focus.
 
 ### `goto-tab` (group, `tabs`)
 Lists one child action per tab in the **current window** (`queryTabs({currentWindow})`, filtered to tabs with a title). Each child's name resolves to the tab title and its icon resolves via `getFaviconIcon`. Executing a child activates the tab (`updateTab({active:true})`) and focuses its window. Children set `allowCustomKeybinding: false`. No explicit empty-state row (an empty window simply yields no children).

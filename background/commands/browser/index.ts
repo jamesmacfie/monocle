@@ -1,4 +1,5 @@
 import { bookmarks } from "./bookmarks"
+import { captureScreenshot } from "./captureScreenshot"
 import { clearBrowserData } from "./clearBrowserData"
 import { closeCurrentTab } from "./closeCurrentTab"
 import { closeCurrentWindow } from "./closeCurrentWindow"
@@ -36,6 +37,7 @@ export { firefoxCommands } from "./firefox"
 
 export const browserCommands = [
   bookmarks,
+  captureScreenshot,
   clearBrowserData,
   closeCurrentTab,
   closeCurrentWindow,

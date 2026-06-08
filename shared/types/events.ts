@@ -29,6 +29,16 @@ export type ScrollEvent = {
   direction: "top" | "bottom"
 }
 
+export type ScreenshotEvent = {
+  type: "monocle-screenshot"
+  // "clipboard" writes the image to the clipboard; "download" saves it to the
+  // browser's downloads folder. Both run page-side because clipboard image
+  // writes and anchor downloads need a DOM/document context.
+  mode: "clipboard" | "download"
+  dataUrl: string
+  filename?: string
+}
+
 export type ToastEvent = {
   type: "monocle-toast"
   level: "info" | "warning" | "success" | "error"
@@ -49,6 +59,7 @@ export type Event =
   | CopyToClipboardEvent
   | NewTabEvent
   | ScrollEvent
+  | ScreenshotEvent
   | ToastEvent
   | SiteSdkSyncRequestEvent
   | SiteSdkInvokeEvent
