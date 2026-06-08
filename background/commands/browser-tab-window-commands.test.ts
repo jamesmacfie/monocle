@@ -8,6 +8,7 @@ import { closeDuplicateTabs } from "./browser/closeDuplicateTabs"
 import { duplicateCurrentTab } from "./browser/duplicateCurrentTab"
 import { goBackCommand } from "./browser/goBack"
 import { goForwardCommand } from "./browser/goForward"
+import { internalPages } from "./browser/internalPages"
 import { moveCurrentTabToANewWindow } from "./browser/moveCurrentTabToANewWindow"
 import { moveCurrentTabToPopupWindow } from "./browser/moveCurrentTabToPopupWindow"
 import { moveTabLeft } from "./browser/moveTabLeft"
@@ -19,6 +20,7 @@ import { reloadCurrentTab } from "./browser/reloadCurrentTab"
 import { toggleMuteCurrentTab } from "./browser/toggleMuteCurrentTab"
 import { togglePinCurrentTab } from "./browser/togglePinCurrentTab"
 import { executeCommand } from "./index"
+import { supportsPlatform } from "./platform"
 
 type TestTab = {
   id: number
@@ -459,6 +461,37 @@ describe("representative browser tab commands", () => {
       }),
       expect.any(Function),
     )
+  })
+
+  it("opens internal browser pages via createTab and is Chrome-only", async () => {
+    if (internalPages.type !== "group") {
+      throw new Error("Expected internalPages to be a group")
+    }
+
+    // Firefox cannot open privileged about: pages from an extension, so the
+    // whole group is hidden there and offered only on Chrome.
+    expect(supportsPlatform(internalPages, "chrome")).toBe(true)
+    expect(supportsPlatform(internalPages, "firefox")).toBe(false)
+
+    const children = await internalPages.children(normalContext)
+
+    const settings = children.find(
+      (child) => child.id === "open-browser-page-settings",
+    )
+    if (!settings || settings.type !== "action") {
+      throw new Error("Expected settings page action")
+    }
+    await settings.execute(normalContext, {})
+    expect(chromeApi.tabs.create).toHaveBeenCalledWith(
+      { url: "chrome://settings" },
+      expect.any(Function),
+    )
+
+    // Every defined page is exposed as a child action.
+    expect(children.length).toBe(9)
+    expect(
+      children.some((child) => child.id === "open-browser-page-history"),
+    ).toBe(true)
   })
 })
 

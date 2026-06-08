@@ -37,6 +37,7 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `go-forward` | Go Forward | action | — | `<alt-right>` | all | Dynamic name; heuristic availability |
 | `goto-tab` | Go to tab | group | `tabs` | — | all | One child per tab in current window |
 | `history` | History | group | `history` | — | all | Time-period subgroups; deep search |
+| `open-browser-page` | Browser Management | group | — | — | chrome | Deep search; opens 9 internal `chrome://` pages via `createTab` (no permission). Chrome-only: Firefox rejects `tabs.create` for privileged `about:` pages |
 | `move-current-tab-to-a-new-window` | Move this tab to a new window | action | `tabs` | — | all | |
 | `move-current-tab-to-popup-window` | Move current tab to popup window | action | `tabs` | — | all | |
 | `move-tab-left` | Move tab left | action | — | — | all | Wraps to end at index 0 |

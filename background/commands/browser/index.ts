@@ -16,6 +16,7 @@ import { goBackCommand } from "./goBack"
 import { goForwardCommand } from "./goForward"
 import { gotoTab } from "./gotoTab"
 import { browsingHistory } from "./history"
+import { internalPages } from "./internalPages"
 import { moveCurrentTabToANewWindow } from "./moveCurrentTabToANewWindow"
 import { moveCurrentTabToPopupWindow } from "./moveCurrentTabToPopupWindow"
 import { moveTabLeft } from "./moveTabLeft"
@@ -53,6 +54,7 @@ export const browserCommands = [
   goForwardCommand,
   gotoTab,
   browsingHistory,
+  internalPages,
   moveCurrentTabToANewWindow,
   moveCurrentTabToPopupWindow,
   moveTabLeft,
