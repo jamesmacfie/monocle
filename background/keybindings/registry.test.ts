@@ -24,8 +24,10 @@ const newTabContext: Browser.Context = {
 }
 
 const githubContext: Browser.Context = {
-  url: "https://github.com/acme/widgets/pull/42",
-  title: "Pull Request",
+  // A repo-level page: github-toggle-star only renders where the repo star
+  // button exists (not on pull/issue detail pages — see websites/github).
+  url: "https://github.com/acme/widgets",
+  title: "acme/widgets",
   modifierKey: null,
 }
 

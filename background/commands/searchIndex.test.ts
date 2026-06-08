@@ -149,6 +149,27 @@ describe("dedupe at index build", () => {
     expect(ids).not.toContain("hist-a")
     expect(ids).toContain("hist-b")
   })
+
+  it("folds a dropped same-URL entry's name into the survivor's keywords so it stays findable", async () => {
+    // Same URL, different names: the open tab wins on weight, but the history
+    // entry's distinct name must still reach the surviving row.
+    openTabsGroup.children = async () => [
+      makeAction("tab-a", "Pull requests · GitHub", "https://github.com/pulls"),
+    ]
+    historyGroup.children = async () => [
+      makeAction("hist-a", "My Saved Search", "https://github.com/pulls"),
+    ]
+
+    const index = await getSearchIndex(normalContext)
+    const survivor = index.entries.find((entry) => entry.id === "tab-a")
+
+    expect(survivor).toBeDefined()
+    expect(index.entries.map((entry) => entry.id)).not.toContain("hist-a")
+    // The dropped name is searchable on the survivor.
+    expect(survivor?.keywordsLower).toContain("my saved search")
+    // Tokens were recomputed so the per-keystroke scorer sees the merged terms.
+    expect(survivor?.restFields).toContain("my saved search")
+  })
 })
 
 describe("cache lifecycle", () => {

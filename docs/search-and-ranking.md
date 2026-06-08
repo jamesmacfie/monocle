@@ -182,20 +182,20 @@ Deep-search entries carry a source multiplier in `DEEP_SEARCH_RANK_WEIGHTS` (`se
 
 | Root group id | Weight |
 | --- | --- |
+| `bookmarks` | 0.97 |
 | `open-tabs` | 0.95 |
-| `bookmarks` | 0.85 |
 | `recently-closed` | 0.8 |
 | `history` | 0.7 |
 | (any other) | 1.0 (`DEFAULT_DEEP_SEARCH_WEIGHT`) |
 
-The scorer multiplies the weight into the final score, so root commands outrank equally-relevant history/bookmark hits.
+The scorer multiplies the weight into the final score, so root commands outrank equally-relevant history/bookmark hits. The ordering also decides same-URL dedupe winners (Pass B below): `bookmarks` sits above `open-tabs` so a bookmarked page that is also open surfaces under its user-given bookmark name rather than the transient tab title — opening it still focuses the existing tab.
 
 ### Deduplication and `dedupeKey`
 
 `dedupeEntries` runs two passes at index-build time:
 
 - **Pass A — by entry id.** Collapses identical ids (e.g. a `chrome.history` item that appears in several time-period groups), keeping the highest-weight entry and merging the favorite flag.
-- **Pass B — by `dedupeKey`.** For entries that set a `dedupeKey` (typically a URL normalized via `normalizeUrlForDedupe`), only entries from the **highest-weight source** for that key survive. Entries with no `dedupeKey` pass through untouched, and two entries from the *same* source (same weight) with the same key are both kept. This is how the same URL open in tabs vs. present in history collapses to the tab (higher weight) result. Authors of website/history-style commands should set `dedupeKey` to a normalized URL to participate.
+- **Pass B — by `dedupeKey`.** For entries that set a `dedupeKey` (typically a URL normalized via `normalizeUrlForDedupe`), only entries from the **highest-weight source** for that key survive. Entries with no `dedupeKey` pass through untouched, and two entries from the *same* source (same weight) with the same key are both kept. This is how the same URL open in tabs vs. present in history collapses to a single row. The survivor **absorbs the dropped entries' name and keywords into its own keywords** (re-tokenized), so the destination stays findable by *every* source's name — e.g. a row kept for a bookmark's name is still matched by the open tab's title, and vice versa. Without this, the losing source's name would become unsearchable. Authors of website/history-style commands should set `dedupeKey` to a normalized URL to participate.
 
 ### How deep-search items render
 
