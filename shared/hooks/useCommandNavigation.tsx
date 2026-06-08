@@ -307,6 +307,16 @@ export function useCommandNavigation(
         request.parentNames,
         request.executionScope,
       )
+
+      // Commands that keep the palette open (remainOpenOnSelect) may be
+      // state-aware: executing them can change their resolved label/icon
+      // (e.g. "Hide Clock" -> "Show Clock"). The current child page holds a
+      // frozen suggestion snapshot, so re-fetch it to re-resolve those async
+      // values. refreshCurrentPage no-ops on root, which is refreshed
+      // separately via fetchCommands/setInitialCommands.
+      if (!request.shouldNavigateBack) {
+        await refreshCurrentPage()
+      }
     }
   }
 

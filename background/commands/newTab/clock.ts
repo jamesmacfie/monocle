@@ -18,6 +18,9 @@ const toggleClockVisibility: CommandNode = {
   },
   icon: { type: "lucide", name: "Clock" },
   color: "blue",
+  // Keep the palette open after toggling so the state-aware label flips in
+  // place ("Hide Clock" -> "Show Clock"). selectCommand re-resolves the page.
+  remainOpenOnSelect: true,
   execute: async () => {
     const currentSettings = await getNewTabClockSettings()
     const isCurrentlyVisible = currentSettings.show ?? true // Default to true if undefined

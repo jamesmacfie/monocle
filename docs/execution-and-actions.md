@@ -134,7 +134,12 @@ Confirmation is enforced purely in the UI; the background does not re-check it. 
 
 ## remainOpenOnSelect
 
-`remainOpenOnSelect` (on `action`/`submit`) keeps the palette open after execution. It drives `shouldNavigateBack` in `buildCommandExecutionRequest`: when set, `shouldNavigateBack` is `false`, the palette does not navigate back, and `shouldRefreshCommandsAfterExecution` returns `true` so the current page re-fetches. Generated favorite/set-keybinding/hide-domain actions set `remainOpenOnSelect: true` to keep the action menu context stable; reset-keybinding uses `false`.
+`remainOpenOnSelect` (on `action`/`submit`) keeps the palette open after execution. It drives `shouldNavigateBack` in `buildCommandExecutionRequest`: when set, `shouldNavigateBack` is `false` and the palette does not navigate back. Two refresh paths then re-resolve labels so state-aware commands (async `name`/`icon`/`description`) don't show stale text after toggling their own state:
+
+- Root page: `shouldRefreshCommandsAfterExecution` returns `true`, so the palette calls `fetchCommands()` (`get-commands` → `setInitialCommands`), replacing the root suggestions.
+- Child page: `selectCommand` (in `useCommandNavigation`) calls `refreshCurrentPage()` after a remain-open leaf executes, re-fetching that page's children via `get-children-commands` (`refreshCurrentPage` no-ops on root). Without this, the child page keeps its frozen suggestion snapshot and a toggle like `toggle-clock-visibility` would still read "Hide Clock" after hiding the clock.
+
+Generated favorite/set-keybinding/hide-domain actions set `remainOpenOnSelect: true` to keep the action menu context stable; reset-keybinding uses `false`.
 
 ## executionPayload and SuggestionExecutionPayload
 
