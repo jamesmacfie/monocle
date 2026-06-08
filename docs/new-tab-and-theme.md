@@ -310,6 +310,15 @@ The OS-aware trio:
   `:root.system` re-applies the dark theme; OS-light falls through to the light
   defaults.
 
+**Always-on named themes** are fixed schemes that do not follow the OS (no
+light/dark variant). They live in `content/styles.css` after the system block,
+each defined once with a combined `:host(.<id>), :root.<id>` selector (the
+new-tab page sees them via the `@import`) and setting only the `--color-*`
+tokens with concrete values — no primitive scale needed. Available ids:
+`solarized-light`, `solarized-dark`, `monokai`, `nord`, `catppuccin-latte`,
+`catppuccin-frappe`, `catppuccin-macchiato`, `catppuccin-mocha`, `one-dark`,
+`dracula`.
+
 To add a theme, add a block of the same variables keyed on its own root class.
 
 ### Values and normalization

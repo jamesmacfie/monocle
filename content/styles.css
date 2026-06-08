@@ -312,6 +312,516 @@
   }
 }
 
+/* ============================================================
+   Always-on named themes
+   Fixed color schemes that do not follow the OS (no light/dark
+   variant). Each block sets only the semantic --color-* tokens with
+   concrete values, so it is fully self-contained and needs no
+   primitive scale. Defined once with a combined selector so it works
+   both in the content overlay (:host) and the new-tab page (:root,
+   which sees this file via @import).
+   ============================================================ */
+
+/* ---------- Solarized Light ---------- */
+:host(.solarized-light),
+:root.solarized-light {
+  --color-bg-page: #fdf6e3;
+  --color-surface: #fdf6e3;
+  --color-surface-elevated: #eee8d5;
+  --color-bg-hover: #eee8d5;
+  --color-bg-selected: #eee8d5;
+  --color-bg-overlay: rgba(0, 0, 0, 0.2);
+  --color-bg-input: #eee8d5;
+  --color-bg-menu: #fdf6e3;
+
+  --color-fg: #657b83;
+  --color-fg-muted: #93a1a1;
+  --color-fg-inverse: #fdf6e3;
+  --color-fg-placeholder: #93a1a1;
+  --color-link: #268bd2;
+  --color-link-hover: #2aa198;
+
+  --color-border: #93a1a1;
+  --color-border-strong: #657b83;
+  --color-divider: #eee8d5;
+
+  --color-accent: #268bd2;
+  --color-accent-contrast: #ffffff;
+  --color-accent-hover: #2aa198;
+  --color-focus-ring: #268bd2;
+  --color-favorite: #b58900;
+  --color-icon-accent-start: #268bd2;
+  --color-icon-accent-end: #2aa198;
+
+  --color-info-bg: #eee8d5;
+  --color-info-border: #268bd2;
+  --color-info-fg: #268bd2;
+  --color-success-bg: #eee8d5;
+  --color-success-border: #859900;
+  --color-success-fg: #859900;
+  --color-warning-bg: #eee8d5;
+  --color-warning-border: #b58900;
+  --color-warning-fg: #b58900;
+  --color-error-bg: #eee8d5;
+  --color-error-border: #dc322f;
+  --color-error-fg: #dc322f;
+
+  --color-hero-start: #268bd2;
+  --color-hero-end: #2aa198;
+  --color-hero-overlay: rgba(0, 0, 0, 0.2);
+  --color-hero-kbd-border: rgba(0, 0, 0, 0.2);
+}
+
+/* ---------- Solarized Dark ---------- */
+:host(.solarized-dark),
+:root.solarized-dark {
+  --color-bg-page: #002b36;
+  --color-surface: #002b36;
+  --color-surface-elevated: #073642;
+  --color-bg-hover: #073642;
+  --color-bg-selected: #073642;
+  --color-bg-overlay: rgba(0, 0, 0, 0.45);
+  --color-bg-input: #073642;
+  --color-bg-menu: #073642;
+
+  --color-fg: #839496;
+  --color-fg-muted: #586e75;
+  --color-fg-inverse: #002b36;
+  --color-fg-placeholder: #586e75;
+  --color-link: #268bd2;
+  --color-link-hover: #2aa198;
+
+  --color-border: #073642;
+  --color-border-strong: #586e75;
+  --color-divider: #073642;
+
+  --color-accent: #268bd2;
+  --color-accent-contrast: #002b36;
+  --color-accent-hover: #2aa198;
+  --color-focus-ring: #268bd2;
+  --color-favorite: #b58900;
+  --color-icon-accent-start: #268bd2;
+  --color-icon-accent-end: #2aa198;
+
+  --color-info-bg: #073642;
+  --color-info-border: #268bd2;
+  --color-info-fg: #268bd2;
+  --color-success-bg: #073642;
+  --color-success-border: #859900;
+  --color-success-fg: #859900;
+  --color-warning-bg: #073642;
+  --color-warning-border: #b58900;
+  --color-warning-fg: #b58900;
+  --color-error-bg: #073642;
+  --color-error-border: #dc322f;
+  --color-error-fg: #dc322f;
+
+  --color-hero-start: #268bd2;
+  --color-hero-end: #2aa198;
+  --color-hero-overlay: rgba(0, 0, 0, 0.3);
+  --color-hero-kbd-border: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Monokai ---------- */
+:host(.monokai),
+:root.monokai {
+  --color-bg-page: #272822;
+  --color-surface: #272822;
+  --color-surface-elevated: #3e3d32;
+  --color-bg-hover: #49483e;
+  --color-bg-selected: #49483e;
+  --color-bg-overlay: rgba(0, 0, 0, 0.45);
+  --color-bg-input: #3e3d32;
+  --color-bg-menu: #3e3d32;
+
+  --color-fg: #f8f8f2;
+  --color-fg-muted: #75715e;
+  --color-fg-inverse: #272822;
+  --color-fg-placeholder: #75715e;
+  --color-link: #66d9ef;
+  --color-link-hover: #a6e22e;
+
+  --color-border: #49483e;
+  --color-border-strong: #75715e;
+  --color-divider: #3e3d32;
+
+  --color-accent: #f92672;
+  --color-accent-contrast: #272822;
+  --color-accent-hover: #ae81ff;
+  --color-focus-ring: #f92672;
+  --color-favorite: #e6db74;
+  --color-icon-accent-start: #f92672;
+  --color-icon-accent-end: #ae81ff;
+
+  --color-info-bg: #3e3d32;
+  --color-info-border: #66d9ef;
+  --color-info-fg: #66d9ef;
+  --color-success-bg: #3e3d32;
+  --color-success-border: #a6e22e;
+  --color-success-fg: #a6e22e;
+  --color-warning-bg: #3e3d32;
+  --color-warning-border: #e6db74;
+  --color-warning-fg: #e6db74;
+  --color-error-bg: #3e3d32;
+  --color-error-border: #f92672;
+  --color-error-fg: #f92672;
+
+  --color-hero-start: #f92672;
+  --color-hero-end: #ae81ff;
+  --color-hero-overlay: rgba(0, 0, 0, 0.3);
+  --color-hero-kbd-border: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Nord ---------- */
+:host(.nord),
+:root.nord {
+  --color-bg-page: #2e3440;
+  --color-surface: #2e3440;
+  --color-surface-elevated: #3b4252;
+  --color-bg-hover: #434c5e;
+  --color-bg-selected: #434c5e;
+  --color-bg-overlay: rgba(0, 0, 0, 0.45);
+  --color-bg-input: #3b4252;
+  --color-bg-menu: #3b4252;
+
+  --color-fg: #d8dee9;
+  --color-fg-muted: #616e88;
+  --color-fg-inverse: #2e3440;
+  --color-fg-placeholder: #616e88;
+  --color-link: #88c0d0;
+  --color-link-hover: #81a1c1;
+
+  --color-border: #434c5e;
+  --color-border-strong: #4c566a;
+  --color-divider: #3b4252;
+
+  --color-accent: #88c0d0;
+  --color-accent-contrast: #2e3440;
+  --color-accent-hover: #81a1c1;
+  --color-focus-ring: #88c0d0;
+  --color-favorite: #ebcb8b;
+  --color-icon-accent-start: #88c0d0;
+  --color-icon-accent-end: #5e81ac;
+
+  --color-info-bg: #3b4252;
+  --color-info-border: #81a1c1;
+  --color-info-fg: #81a1c1;
+  --color-success-bg: #3b4252;
+  --color-success-border: #a3be8c;
+  --color-success-fg: #a3be8c;
+  --color-warning-bg: #3b4252;
+  --color-warning-border: #ebcb8b;
+  --color-warning-fg: #ebcb8b;
+  --color-error-bg: #3b4252;
+  --color-error-border: #bf616a;
+  --color-error-fg: #bf616a;
+
+  --color-hero-start: #88c0d0;
+  --color-hero-end: #5e81ac;
+  --color-hero-overlay: rgba(0, 0, 0, 0.3);
+  --color-hero-kbd-border: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Catppuccin Latte ---------- */
+:host(.catppuccin-latte),
+:root.catppuccin-latte {
+  --color-bg-page: #eff1f5;
+  --color-surface: #eff1f5;
+  --color-surface-elevated: #ccd0da;
+  --color-bg-hover: #bcc0cc;
+  --color-bg-selected: #bcc0cc;
+  --color-bg-overlay: rgba(0, 0, 0, 0.2);
+  --color-bg-input: #e6e9ef;
+  --color-bg-menu: #e6e9ef;
+
+  --color-fg: #4c4f69;
+  --color-fg-muted: #6c6f85;
+  --color-fg-inverse: #ffffff;
+  --color-fg-placeholder: #8c8fa1;
+  --color-link: #1e66f5;
+  --color-link-hover: #179299;
+
+  --color-border: #bcc0cc;
+  --color-border-strong: #acb0be;
+  --color-divider: #ccd0da;
+
+  --color-accent: #1e66f5;
+  --color-accent-contrast: #ffffff;
+  --color-accent-hover: #8839ef;
+  --color-focus-ring: #1e66f5;
+  --color-favorite: #df8e1d;
+  --color-icon-accent-start: #1e66f5;
+  --color-icon-accent-end: #8839ef;
+
+  --color-info-bg: #ccd0da;
+  --color-info-border: #1e66f5;
+  --color-info-fg: #1e66f5;
+  --color-success-bg: #ccd0da;
+  --color-success-border: #40a02b;
+  --color-success-fg: #40a02b;
+  --color-warning-bg: #ccd0da;
+  --color-warning-border: #df8e1d;
+  --color-warning-fg: #df8e1d;
+  --color-error-bg: #ccd0da;
+  --color-error-border: #d20f39;
+  --color-error-fg: #d20f39;
+
+  --color-hero-start: #1e66f5;
+  --color-hero-end: #8839ef;
+  --color-hero-overlay: rgba(0, 0, 0, 0.2);
+  --color-hero-kbd-border: rgba(0, 0, 0, 0.2);
+}
+
+/* ---------- Catppuccin Frappé ---------- */
+:host(.catppuccin-frappe),
+:root.catppuccin-frappe {
+  --color-bg-page: #303446;
+  --color-surface: #303446;
+  --color-surface-elevated: #414559;
+  --color-bg-hover: #51576d;
+  --color-bg-selected: #51576d;
+  --color-bg-overlay: rgba(0, 0, 0, 0.4);
+  --color-bg-input: #292c3c;
+  --color-bg-menu: #292c3c;
+
+  --color-fg: #c6d0f5;
+  --color-fg-muted: #a5adce;
+  --color-fg-inverse: #303446;
+  --color-fg-placeholder: #838ba7;
+  --color-link: #8caaee;
+  --color-link-hover: #81c8be;
+
+  --color-border: #51576d;
+  --color-border-strong: #626880;
+  --color-divider: #414559;
+
+  --color-accent: #8caaee;
+  --color-accent-contrast: #303446;
+  --color-accent-hover: #ca9ee6;
+  --color-focus-ring: #8caaee;
+  --color-favorite: #e5c890;
+  --color-icon-accent-start: #8caaee;
+  --color-icon-accent-end: #ca9ee6;
+
+  --color-info-bg: #414559;
+  --color-info-border: #8caaee;
+  --color-info-fg: #8caaee;
+  --color-success-bg: #414559;
+  --color-success-border: #a6d189;
+  --color-success-fg: #a6d189;
+  --color-warning-bg: #414559;
+  --color-warning-border: #e5c890;
+  --color-warning-fg: #e5c890;
+  --color-error-bg: #414559;
+  --color-error-border: #e78284;
+  --color-error-fg: #e78284;
+
+  --color-hero-start: #8caaee;
+  --color-hero-end: #ca9ee6;
+  --color-hero-overlay: rgba(0, 0, 0, 0.3);
+  --color-hero-kbd-border: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Catppuccin Macchiato ---------- */
+:host(.catppuccin-macchiato),
+:root.catppuccin-macchiato {
+  --color-bg-page: #24273a;
+  --color-surface: #24273a;
+  --color-surface-elevated: #363a4f;
+  --color-bg-hover: #494d64;
+  --color-bg-selected: #494d64;
+  --color-bg-overlay: rgba(0, 0, 0, 0.4);
+  --color-bg-input: #1e2030;
+  --color-bg-menu: #1e2030;
+
+  --color-fg: #cad3f5;
+  --color-fg-muted: #a5adcb;
+  --color-fg-inverse: #24273a;
+  --color-fg-placeholder: #8087a2;
+  --color-link: #8aadf4;
+  --color-link-hover: #8bd5ca;
+
+  --color-border: #494d64;
+  --color-border-strong: #5b6078;
+  --color-divider: #363a4f;
+
+  --color-accent: #8aadf4;
+  --color-accent-contrast: #24273a;
+  --color-accent-hover: #c6a0f6;
+  --color-focus-ring: #8aadf4;
+  --color-favorite: #eed49f;
+  --color-icon-accent-start: #8aadf4;
+  --color-icon-accent-end: #c6a0f6;
+
+  --color-info-bg: #363a4f;
+  --color-info-border: #8aadf4;
+  --color-info-fg: #8aadf4;
+  --color-success-bg: #363a4f;
+  --color-success-border: #a6da95;
+  --color-success-fg: #a6da95;
+  --color-warning-bg: #363a4f;
+  --color-warning-border: #eed49f;
+  --color-warning-fg: #eed49f;
+  --color-error-bg: #363a4f;
+  --color-error-border: #ed8796;
+  --color-error-fg: #ed8796;
+
+  --color-hero-start: #8aadf4;
+  --color-hero-end: #c6a0f6;
+  --color-hero-overlay: rgba(0, 0, 0, 0.4);
+  --color-hero-kbd-border: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Catppuccin Mocha ---------- */
+:host(.catppuccin-mocha),
+:root.catppuccin-mocha {
+  --color-bg-page: #1e1e2e;
+  --color-surface: #1e1e2e;
+  --color-surface-elevated: #313244;
+  --color-bg-hover: #45475a;
+  --color-bg-selected: #45475a;
+  --color-bg-overlay: rgba(0, 0, 0, 0.45);
+  --color-bg-input: #181825;
+  --color-bg-menu: #181825;
+
+  --color-fg: #cdd6f4;
+  --color-fg-muted: #a6adc8;
+  --color-fg-inverse: #1e1e2e;
+  --color-fg-placeholder: #7f849c;
+  --color-link: #89b4fa;
+  --color-link-hover: #94e2d5;
+
+  --color-border: #45475a;
+  --color-border-strong: #585b70;
+  --color-divider: #313244;
+
+  --color-accent: #89b4fa;
+  --color-accent-contrast: #1e1e2e;
+  --color-accent-hover: #cba6f7;
+  --color-focus-ring: #89b4fa;
+  --color-favorite: #f9e2af;
+  --color-icon-accent-start: #89b4fa;
+  --color-icon-accent-end: #cba6f7;
+
+  --color-info-bg: #313244;
+  --color-info-border: #89b4fa;
+  --color-info-fg: #89b4fa;
+  --color-success-bg: #313244;
+  --color-success-border: #a6e3a1;
+  --color-success-fg: #a6e3a1;
+  --color-warning-bg: #313244;
+  --color-warning-border: #f9e2af;
+  --color-warning-fg: #f9e2af;
+  --color-error-bg: #313244;
+  --color-error-border: #f38ba8;
+  --color-error-fg: #f38ba8;
+
+  --color-hero-start: #89b4fa;
+  --color-hero-end: #cba6f7;
+  --color-hero-overlay: rgba(0, 0, 0, 0.45);
+  --color-hero-kbd-border: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- One Dark ---------- */
+:host(.one-dark),
+:root.one-dark {
+  --color-bg-page: #282c34;
+  --color-surface: #282c34;
+  --color-surface-elevated: #21252b;
+  --color-bg-hover: #3e4451;
+  --color-bg-selected: #3e4451;
+  --color-bg-overlay: rgba(0, 0, 0, 0.45);
+  --color-bg-input: #1b1d23;
+  --color-bg-menu: #21252b;
+
+  --color-fg: #abb2bf;
+  --color-fg-muted: #5c6370;
+  --color-fg-inverse: #282c34;
+  --color-fg-placeholder: #5c6370;
+  --color-link: #61afef;
+  --color-link-hover: #56b6c2;
+
+  --color-border: #3e4451;
+  --color-border-strong: #5c6370;
+  --color-divider: #21252b;
+
+  --color-accent: #61afef;
+  --color-accent-contrast: #282c34;
+  --color-accent-hover: #c678dd;
+  --color-focus-ring: #61afef;
+  --color-favorite: #e5c07b;
+  --color-icon-accent-start: #61afef;
+  --color-icon-accent-end: #c678dd;
+
+  --color-info-bg: #21252b;
+  --color-info-border: #61afef;
+  --color-info-fg: #61afef;
+  --color-success-bg: #21252b;
+  --color-success-border: #98c379;
+  --color-success-fg: #98c379;
+  --color-warning-bg: #21252b;
+  --color-warning-border: #e5c07b;
+  --color-warning-fg: #e5c07b;
+  --color-error-bg: #21252b;
+  --color-error-border: #e06c75;
+  --color-error-fg: #e06c75;
+
+  --color-hero-start: #61afef;
+  --color-hero-end: #c678dd;
+  --color-hero-overlay: rgba(0, 0, 0, 0.45);
+  --color-hero-kbd-border: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Dracula ---------- */
+:host(.dracula),
+:root.dracula {
+  --color-bg-page: #282a36;
+  --color-surface: #282a36;
+  --color-surface-elevated: #44475a;
+  --color-bg-hover: #44475a;
+  --color-bg-selected: #44475a;
+  --color-bg-overlay: rgba(0, 0, 0, 0.45);
+  --color-bg-input: #21222c;
+  --color-bg-menu: #21222c;
+
+  --color-fg: #f8f8f2;
+  --color-fg-muted: #6272a4;
+  --color-fg-inverse: #282a36;
+  --color-fg-placeholder: #6272a4;
+  --color-link: #8be9fd;
+  --color-link-hover: #bd93f9;
+
+  --color-border: #44475a;
+  --color-border-strong: #6272a4;
+  --color-divider: #44475a;
+
+  --color-accent: #bd93f9;
+  --color-accent-contrast: #282a36;
+  --color-accent-hover: #ff79c6;
+  --color-focus-ring: #bd93f9;
+  --color-favorite: #f1fa8c;
+  --color-icon-accent-start: #bd93f9;
+  --color-icon-accent-end: #ff79c6;
+
+  --color-info-bg: #21222c;
+  --color-info-border: #8be9fd;
+  --color-info-fg: #8be9fd;
+  --color-success-bg: #21222c;
+  --color-success-border: #50fa7b;
+  --color-success-fg: #50fa7b;
+  --color-warning-bg: #21222c;
+  --color-warning-border: #f1fa8c;
+  --color-warning-fg: #f1fa8c;
+  --color-error-bg: #21222c;
+  --color-error-border: #ff5555;
+  --color-error-fg: #ff5555;
+
+  --color-hero-start: #bd93f9;
+  --color-hero-end: #ff79c6;
+  --color-hero-overlay: rgba(0, 0, 0, 0.45);
+  --color-hero-kbd-border: rgba(255, 255, 255, 0.2);
+}
+
 .ff {
   font-family: var(
     --ff-default-font-family,
