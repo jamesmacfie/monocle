@@ -25,6 +25,7 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `clear-browser-data` | Clear Browser Data | group | `browsingData`, `history`, `cookies`, `sessions` | — | all | 11 data types × 5 time spans; leaf actions `confirmAction` |
 | `close-current-tab` | Close current tab | action | — | `<cmd-w>` (inert) | all | `confirmAction`; keybinding suppressed |
 | `close-current-window` | Close current window | action | — | `<cmd-shift-w>` (inert) | all | `confirmAction`; keybinding suppressed |
+| `close-duplicate-tabs` | Close duplicate tabs | action | `tabs` | — | all | `confirmAction`; closes duplicate-URL tabs across all windows, keeping one per URL (prefers pinned, then active, then current window); never closes pinned tabs |
 | `close-other-tabs` | Close other tabs | action | `tabs` | — | all | `confirmAction`; closes all non-active tabs in window |
 | `close-tabs-to-left` | Close tabs to the left | action | `tabs` | — | all | `confirmAction` |
 | `close-tabs-to-right` | Close tabs to the right | action | `tabs` | — | all | `confirmAction` |
@@ -82,6 +83,9 @@ Duplicates the active tab. Prefers the native `tabs.duplicate` API (preserves hi
 
 ### `close-current-tab` (action)
 Closes the active tab in the current window (`queryTabs({active, currentWindow}) → removeTab`). `confirmAction: true`. Declares `<cmd-w>` but the keybinding is suppressed by the high-risk policy.
+
+### `close-duplicate-tabs` (action)
+Closes tabs that share a URL with another tab, keeping exactly one tab per unique URL. Looks across **all** windows (`queryTabs({})`), since a duplicate is a duplicate regardless of window. To choose which tab in each URL group to keep, it sorts candidates by a keeper score — pinned (highest), then active, then in the user's current window (so it doesn't favour a background window just because its per-window `index` is lower) — and keeps the first one seen. Pinned tabs are never closed, even when they duplicate another tab. Requires `tabs`. `confirmAction: true`. Toasts the count closed.
 
 ### `close-other-tabs` (action)
 Closes every tab in the current window except the active tab. It does **not** spare pinned tabs — it only checks `tab.id !== activeTab.id`. Requires `tabs`. `confirmAction: true`. Toasts the count closed.

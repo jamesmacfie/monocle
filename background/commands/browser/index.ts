@@ -3,6 +3,7 @@ import { captureScreenshot } from "./captureScreenshot"
 import { clearBrowserData } from "./clearBrowserData"
 import { closeCurrentTab } from "./closeCurrentTab"
 import { closeCurrentWindow } from "./closeCurrentWindow"
+import { closeDuplicateTabs } from "./closeDuplicateTabs"
 import { closeOtherTabs } from "./closeOtherTabs"
 import { closeTabsToLeft } from "./closeTabsToLeft"
 import { closeTabsToRight } from "./closeTabsToRight"
@@ -41,6 +42,7 @@ export const browserCommands = [
   clearBrowserData,
   closeCurrentTab,
   closeCurrentWindow,
+  closeDuplicateTabs,
   closeOtherTabs,
   closeTabsToLeft,
   closeTabsToRight,

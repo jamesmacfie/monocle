@@ -4,6 +4,7 @@ import type { Browser, BrowserPermission } from "../../shared/types"
 import { captureScreenshot } from "./browser/captureScreenshot"
 import { closeCurrentTab } from "./browser/closeCurrentTab"
 import { closeCurrentWindow } from "./browser/closeCurrentWindow"
+import { closeDuplicateTabs } from "./browser/closeDuplicateTabs"
 import { duplicateCurrentTab } from "./browser/duplicateCurrentTab"
 import { goBackCommand } from "./browser/goBack"
 import { goForwardCommand } from "./browser/goForward"
@@ -256,6 +257,55 @@ describe("representative browser tab commands", () => {
 
     await executeCommand(closeCurrentTab.id, normalContext, {})
     expect(chromeApi.tabs.remove).toHaveBeenCalledWith(1, expect.any(Function))
+  })
+
+  it("closes duplicate tabs while keeping one tab per URL across windows", async () => {
+    tabs = [
+      {
+        id: 1,
+        title: "Example",
+        url: "https://example.com/page",
+        windowId: 10,
+        active: true,
+        currentWindow: true,
+        index: 0,
+      },
+      {
+        id: 2,
+        title: "Docs",
+        url: "https://docs.example.com/",
+        windowId: 10,
+        active: false,
+        currentWindow: true,
+        index: 1,
+      },
+      {
+        id: 3,
+        title: "Example duplicate",
+        url: "https://example.com/page",
+        windowId: 10,
+        active: false,
+        currentWindow: true,
+        index: 2,
+      },
+      {
+        id: 4,
+        title: "Docs duplicate in another window",
+        url: "https://docs.example.com/",
+        windowId: 11,
+        active: false,
+        currentWindow: false,
+        index: 0,
+      },
+    ]
+
+    await executeCommand(closeDuplicateTabs.id, normalContext, {})
+
+    // One duplicate per URL group is closed; the kept tabs stay open.
+    expect(chromeApi.tabs.remove).toHaveBeenCalledWith(3, expect.any(Function))
+    expect(chromeApi.tabs.remove).toHaveBeenCalledWith(4, expect.any(Function))
+    expect(chromeApi.tabs.remove).toHaveBeenCalledTimes(2)
+    expect(tabs.map((tab) => tab.id).sort()).toEqual([1, 2])
   })
 
   it("duplicates the active tab with native duplicate and modifier behavior", async () => {
