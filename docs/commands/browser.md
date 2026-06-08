@@ -48,7 +48,7 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `pin-current-tab` | Pin current tab | action | — | — | all | |
 | `unpin-current-tab` | Unpin current tab | action | — | — | all | TODO: always shown |
 | `recently-closed` | Recently Closed | group | `sessions` | — | all | Closed tabs and windows; deep search |
-| `reload-current-tab` | Reload current tab | action | — | `<cmd-r>` | all | |
+| `reload-current-tab` | Reload current tab | action | — | `<cmd-r>` | all | Cmd modifier action: hard reload (bypass cache) |
 | `reopen-last-closed-tab` | Reopen Last Closed Tab | action | `sessions` | — | all | Most recent closed tab only |
 | `scroll-to-top` | Scroll to top | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
 | `scroll-to-bottom` | Scroll to bottom | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
@@ -98,7 +98,7 @@ Toggle `pinned` on the active tab via `updateTab`. Two separate commands; neithe
 Toggle `muted` on the active tab via `updateTab({ muted })`. Two separate commands, no state guard. Success toast.
 
 ### `reload-current-tab` (action)
-`callBrowserAPI("tabs", "reload")` with no tab id (reloads the active tab). Keybinding `<cmd-r>`.
+On plain Enter, `callBrowserAPI("tabs", "reload")` with no tab id (reloads the active tab). Keybinding `<cmd-r>`. Declares `modifierActionLabel.cmd = "Hard reload (bypass cache)"`; the Cmd modifier action resolves the active tab and calls `callBrowserAPI("tabs", "reload", tabId, { bypassCache: true })` (tab id passed explicitly so the reloadProperties object is correct in both Chrome and Firefox).
 
 ### `goto-tab` (group, `tabs`)
 Lists one child action per tab in the **current window** (`queryTabs({currentWindow})`, filtered to tabs with a title). Each child's name resolves to the tab title and its icon resolves via `getFaviconIcon`. Executing a child activates the tab (`updateTab({active:true})`) and focuses its window. Children set `allowCustomKeybinding: false`. No explicit empty-state row (an empty window simply yields no children).

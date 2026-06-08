@@ -171,8 +171,11 @@ const installChromeStubs = () => {
         callback?.(duplicated)
         return Promise.resolve(duplicated)
       }),
-      reload: vi.fn((callback?: Function) => {
-        callback?.()
+      reload: vi.fn((...args: unknown[]) => {
+        const callback = args[args.length - 1]
+        if (typeof callback === "function") {
+          callback()
+        }
         return Promise.resolve()
       }),
       goBack: vi.fn((_tabId: number, callback?: Function) => {
@@ -328,6 +331,17 @@ describe("representative browser tab commands", () => {
 
     await executeCommand(reloadCurrentTab.id, normalContext, {})
     expect(chromeApi.tabs.reload).toHaveBeenCalledWith(expect.any(Function))
+
+    await executeCommand(
+      reloadCurrentTab.id,
+      { ...normalContext, modifierKey: "cmd" },
+      {},
+    )
+    expect(chromeApi.tabs.reload).toHaveBeenCalledWith(
+      1,
+      { bypassCache: true },
+      expect.any(Function),
+    )
 
     await executeCommand(goBackCommand.id, normalContext, {})
     expect(chromeApi.tabs.goBack).toHaveBeenCalledWith(1, expect.any(Function))
