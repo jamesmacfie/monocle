@@ -12,9 +12,7 @@ required.
 
 Works in **Chrome** and **Firefox** (both Manifest V3).
 
-<p align="center">
-  <img src="docs/images/hero.jpg" width="50%">
-</p>
+![Monocle command palette](docs/images/hero.jpg)
 
 ---
 
@@ -42,9 +40,7 @@ run a command, or `Cmd/Ctrl+Enter` for its alternate action (for example, "open
 in a new tab"). Groups expand into nested pages, and forms let you pass input
 inline.
 
-<p align="center">
-  <img src="docs/images/command-palette.jpg" width="50%">
-</p>
+![Command palette](docs/images/command-palette.jpg)
 
 ### 🗂️ New tab page
 
@@ -53,9 +49,7 @@ clock, a daily background photo with photographer credit, and the command
 palette front and center. The clock can be toggled on or off, and the whole
 experience shares the same commands as the overlay.
 
-<p align="center">
-  <img src="docs/images/new-tab.jpg" width="50%">
-</p>
+![New tab page](docs/images/new-tab.jpg)
 
 ### 🎨 Themes
 
@@ -64,9 +58,7 @@ Monokai, Nord, the Catppuccin family, One Dark, Dracula, and more. Open the
 **Themes** command, browse them in a searchable list, and watch the palette
 update live as you move through the options.
 
-<p align="center">
-  <img src="docs/images/themes.jpg" width="50%">
-</p>
+![Themes](docs/images/themes.jpg)
 
 ### 🕘 History
 
@@ -99,9 +91,7 @@ Star" action — and they only appear on `github.com`. Visibility is driven by
 per-command URL rules, and you can manage your own allow/deny lists with the
 **Manage Command Allow List** and **Manage Command Deny List** commands.
 
-<p align="center">
-  <img src="docs/images/webpage-commands.jpg" width="50%">
-</p>
+![Webpage specific commands](docs/images/webpage-commands.jpg)
 
 ---
 
