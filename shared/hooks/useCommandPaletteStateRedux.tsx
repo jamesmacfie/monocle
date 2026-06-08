@@ -7,6 +7,7 @@ import {
   showUI,
   toggleUI,
 } from "../store/slices/commandPaletteState.slice"
+import { selectIsCapturing } from "../store/slices/keybinding.slice"
 import type { Workflow } from "../types/workflow"
 import { getBrowserAPI } from "../utils/extension-api"
 
@@ -17,6 +18,7 @@ const browserAPI = getBrowserAPI()
 export const useCommandPaletteStateRedux = () => {
   const dispatch = useAppDispatch()
   const isOpen = useAppSelector(selectIsOpen)
+  const isCapturing = useAppSelector(selectIsCapturing)
 
   const show = useCallback(() => {
     dispatch(showUI())
@@ -46,8 +48,9 @@ export const useCommandPaletteStateRedux = () => {
 
       // Stop propagation of alphabetic keys when modal is open. This is to
       // prevent the webpages from having their own keyboard handlers fire off
-      // when the cmdk modal is open
-      if (isOpen && /^[a-zA-Z]$/.test(event.key)) {
+      // when the cmdk modal is open. Skip this while a keybinding is being
+      // captured, otherwise the capture UI never receives letter keystrokes.
+      if (isOpen && !isCapturing && /^[a-zA-Z]$/.test(event.key)) {
         event.stopImmediatePropagation()
       }
     }
@@ -56,7 +59,7 @@ export const useCommandPaletteStateRedux = () => {
     window.addEventListener("keydown", handleKeyDown, { capture: true })
     return () =>
       window.removeEventListener("keydown", handleKeyDown, { capture: true })
-  }, [toggle, isOpen])
+  }, [toggle, isOpen, isCapturing])
 
   // Handle background messages
   useEffect(() => {
