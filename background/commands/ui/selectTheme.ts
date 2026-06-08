@@ -17,7 +17,7 @@ const iconForTheme = (id: ThemeMode): CommandIcon => {
     case "dark":
       return { type: "lucide", name: "Moon" }
     default:
-      return { type: "lucide", name: "Sparkles" }
+      return { type: "lucide", name: "Palette" }
   }
 }
 
@@ -32,7 +32,7 @@ export const selectTheme: GroupCommandNode = {
   id: "theme",
   name: "Theme",
   description: "Change the color theme",
-  icon: { type: "lucide", name: "Sparkles" },
+  icon: { type: "lucide", name: "Palette" },
   color: "purple",
   keywords: [
     "theme",
