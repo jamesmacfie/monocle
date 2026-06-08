@@ -41,19 +41,17 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `move-current-tab-to-popup-window` | Move current tab to popup window | action | `tabs` | — | all | |
 | `move-tab-left` | Move tab left | action | — | — | all | Wraps to end at index 0 |
 | `move-tab-right` | Move tab right | action | — | — | all | Wraps to start at last index |
-| `mute-current-tab` | Mute current tab | action | — | — | all | No paired-state guard |
-| `unmute-current-tab` | Unmute current tab | action | — | — | all | No paired-state guard |
 | `open-new-private-window` | Open new private window | action | — | `<cmd-shift-n>` | all | `incognito: true` |
 | `open-new-tab` | Open new tab | action | — | `<cmd-t>` | all | Modifier label: shift |
 | `open-new-window` | Open new window | action | — | `<cmd-n>` | all | |
 | `open-tabs` | Open Tabs | group | `tabs` | — | all | All windows; deep search; rich modifiers |
-| `pin-current-tab` | Pin current tab | action | — | — | all | |
-| `unpin-current-tab` | Unpin current tab | action | — | — | all | TODO: always shown |
 | `recently-closed` | Recently Closed | group | `sessions` | — | all | Closed tabs and windows; deep search |
 | `reload-current-tab` | Reload current tab | action | — | `<cmd-r>` | all | Cmd modifier action: hard reload (bypass cache) |
 | `reopen-last-closed-tab` | Reopen Last Closed Tab | action | `sessions` | — | all | Most recent closed tab only |
 | `scroll-to-top` | Scroll to top | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
 | `scroll-to-bottom` | Scroll to bottom | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
+| `toggle-mute-current-tab` | Mute / Unmute current tab | action | — | — | all | State-aware label/icon from `mutedInfo.muted` |
+| `toggle-pin-current-tab` | Pin / Unpin current tab | action | — | — | all | State-aware label/icon from `pinned` |
 | `open-container-tab` | Open container tab | group | `contextualIdentities`, `cookies` | — | firefox | Per-container children |
 | `open-current-tab-in-container` | Open current tab in container | group | `tabs`, `contextualIdentities`, `cookies` | — | firefox | Reopens current URL, closes original |
 | `toggle-reader-mode` | Toggle Reader Mode | action | — | `<alt-cmd-R>` | firefox | |
@@ -96,11 +94,11 @@ Close tabs whose `index` is `< activeTab.index` (left) or `> activeTab.index` (r
 ### `move-tab-left` / `move-tab-right` (actions)
 Move the active tab one position via `tabs.move`. Wrap-around: moving left from index 0 jumps to the last index ("Tab moved to end"); moving right from the last index jumps to 0 ("Tab moved to beginning"). No permission declared.
 
-### `pin-current-tab` / `unpin-current-tab` (actions)
-Toggle `pinned` on the active tab via `updateTab`. Two separate commands; neither checks the current pinned state first (`unpin-current-tab` has a TODO noting it should only show when pinned). Success toast on each.
+### `toggle-pin-current-tab` (action)
+A single state-aware command (modelled on `toggle-theme` / `toggle-clock-visibility`). Reads the active tab's `pinned` flag to render the label ("Pin current tab" vs "Unpin current tab") and icon (`Pin` vs `PinOff`), then flips `pinned` via `updateTab`. Success toast reflects the resulting state.
 
-### `mute-current-tab` / `unmute-current-tab` (actions)
-Toggle `muted` on the active tab via `updateTab({ muted })`. Two separate commands, no state guard. Success toast.
+### `toggle-mute-current-tab` (action)
+A single state-aware command. Mute state is **read** from `mutedInfo.muted` (the browser-API shape) but **set** via `updateTab({ muted })`. Renders "Mute current tab"/"Unmute current tab" with `VolumeX`/`Volume2` icons accordingly. Success toast reflects the resulting state.
 
 ### `reload-current-tab` (action)
 On plain Enter, `callBrowserAPI("tabs", "reload")` with no tab id (reloads the active tab). Keybinding `<cmd-r>`. Declares `modifierActionLabel.cmd = "Hard reload (bypass cache)"`; the Cmd modifier action resolves the active tab and calls `callBrowserAPI("tabs", "reload", tabId, { bypassCache: true })` (tab id passed explicitly so the reloadProperties object is correct in both Chrome and Firefox).
@@ -221,7 +219,6 @@ Calls `toggleReaderMode(tabId)` from `background/utils/firefox.ts` against the a
 
 ## Known issues / review notes
 
-- `unpin-current-tab` (and the mute/unmute/pin pairs) are always shown regardless of the tab's current state — there is no state-aware filtering. A TODO is present in `unpin-current-tab`.
 - `downloads` and `recently-closed` sort alphabetically even though comments imply newest-first; timestamp data is not threaded through to the sort.
 - `go-back` / `go-forward` availability is heuristic (URL-pattern based), not a true navigation-state check, so the dynamic name can be wrong.
 - `close-current-tab` and `close-current-window` declare default keybindings that never fire because of the `confirmAction` policy; the declarations are misleading.

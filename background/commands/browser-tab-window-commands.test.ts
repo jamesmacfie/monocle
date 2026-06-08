@@ -12,13 +12,12 @@ import { moveCurrentTabToANewWindow } from "./browser/moveCurrentTabToANewWindow
 import { moveCurrentTabToPopupWindow } from "./browser/moveCurrentTabToPopupWindow"
 import { moveTabLeft } from "./browser/moveTabLeft"
 import { moveTabRight } from "./browser/moveTabRight"
-import { muteCurrentTab } from "./browser/muteCurrentTab"
 import { openNewPrivateWindow } from "./browser/openNewPrivateWindow"
 import { openNewTab } from "./browser/openNewTab"
 import { openNewWindow } from "./browser/openNewWindow"
-import { pinCurrentTab } from "./browser/pinCurrentTab"
 import { reloadCurrentTab } from "./browser/reloadCurrentTab"
-import { unmuteCurrentTab } from "./browser/unmuteCurrentTab"
+import { toggleMuteCurrentTab } from "./browser/toggleMuteCurrentTab"
+import { togglePinCurrentTab } from "./browser/togglePinCurrentTab"
 import { executeCommand } from "./index"
 
 type TestTab = {
@@ -29,6 +28,8 @@ type TestTab = {
   active?: boolean
   currentWindow?: boolean
   index?: number
+  pinned?: boolean
+  mutedInfo?: { muted?: boolean }
 }
 
 const normalContext: Browser.Context = {
@@ -248,7 +249,7 @@ describe("representative browser tab commands", () => {
       expect.any(Function),
     )
 
-    await executeCommand(pinCurrentTab.id, normalContext, {})
+    await executeCommand(togglePinCurrentTab.id, normalContext, {})
     expect(chromeApi.tabs.update).toHaveBeenCalledWith(
       1,
       { pinned: true },
@@ -374,14 +375,22 @@ describe("representative browser tab commands", () => {
   })
 
   it("mutes, unmutes, reloads, and navigates the active tab", async () => {
-    await executeCommand(muteCurrentTab.id, normalContext, {})
+    // Unmuted active tab toggles to muted.
+    await executeCommand(toggleMuteCurrentTab.id, normalContext, {})
     expect(chromeApi.tabs.update).toHaveBeenCalledWith(
       1,
       { muted: true },
       expect.any(Function),
     )
 
-    await executeCommand(unmuteCurrentTab.id, normalContext, {})
+    // Already-muted active tab toggles back to unmuted. Mute state is read from
+    // `mutedInfo.muted` (browser API shape), so set that rather than `muted`.
+    const activeTab = tabs.find((tab) => tab.id === 1)
+    if (activeTab) {
+      activeTab.mutedInfo = { muted: true }
+    }
+
+    await executeCommand(toggleMuteCurrentTab.id, normalContext, {})
     expect(chromeApi.tabs.update).toHaveBeenCalledWith(
       1,
       { muted: false },
