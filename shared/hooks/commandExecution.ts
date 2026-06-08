@@ -42,11 +42,16 @@ export function extractParentNames(
 export function buildCommandExecutionRequest(
   selectedCommand: Suggestion,
   currentPage: Page,
+  options?: { forceClose?: boolean },
 ): CommandExecutionRequest {
-  const shouldNavigateBack =
+  const baseShouldNavigateBack =
     selectedCommand.type === "action" || selectedCommand.type === "submit"
       ? !selectedCommand.remainOpenOnSelect
       : true
+
+  // forceClose (Cmd/Ctrl+Enter) closes the palette even for commands that
+  // would otherwise stay open via remainOpenOnSelect.
+  const shouldNavigateBack = options?.forceClose ? true : baseShouldNavigateBack
 
   return {
     id: selectedCommand.id,

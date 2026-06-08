@@ -34,7 +34,7 @@ This document describes what happens when a user acts on a command in the Monocl
 
 ## Plain Enter vs modifier-Enter
 
-Modifier execution is delivered through `context.modifierKey`, not through any special Enter-key interception in the palette. The mechanism has three parts.
+Modifier *execution* (running a command with `context.modifierKey` set, e.g. "open in new tab on Cmd") is delivered through generated modifier actions selected from the action menu — see below. It is distinct from the **Cmd/Ctrl+Enter "execute and close" shortcut**, which `CommandContent` (in `shared/components/Command/CommandPalette.tsx`) intercepts directly: when a focused `action`/`submit` row is Cmd/Ctrl+Entered (and the action menu is closed), it `selectCommand(id, { forceClose: true })`, which forces `shouldNavigateBack` true in `buildCommandExecutionRequest` so the command runs and the palette closes even if it declares `remainOpenOnSelect`. It runs the base command and does **not** set `modifierKey`. The handler `stopPropagation`s so cmdk's own Enter does not also fire. The generated-modifier-action mechanism below has three parts.
 
 ### Modifier tracking and the footer label
 
@@ -134,7 +134,7 @@ Confirmation is enforced purely in the UI; the background does not re-check it. 
 
 ## remainOpenOnSelect
 
-`remainOpenOnSelect` (on `action`/`submit`) keeps the palette open after execution. It drives `shouldNavigateBack` in `buildCommandExecutionRequest`: when set, `shouldNavigateBack` is `false` and the palette does not navigate back. Two refresh paths then re-resolve labels so state-aware commands (async `name`/`icon`/`description`) don't show stale text after toggling their own state:
+`remainOpenOnSelect` (on `action`/`submit`) keeps the palette open after execution. It drives `shouldNavigateBack` in `buildCommandExecutionRequest`: when set, `shouldNavigateBack` is `false` and the palette does not navigate back (unless the user forces it with Cmd/Ctrl+Enter — `buildCommandExecutionRequest`'s `forceClose` option overrides `remainOpenOnSelect` and closes). Two refresh paths then re-resolve labels so state-aware commands (async `name`/`icon`/`description`) don't show stale text after toggling their own state:
 
 - Root page: `shouldRefreshCommandsAfterExecution` returns `true`, so the palette calls `fetchCommands()` (`get-commands` → `setInitialCommands`), replacing the root suggestions.
 - Child page: `selectCommand` (in `useCommandNavigation`) calls `refreshCurrentPage()` after a remain-open leaf executes, re-fetching that page's children via `get-children-commands` (`refreshCurrentPage` no-ops on root). Without this, the child page keeps its frozen suggestion snapshot and a toggle like `toggle-clock-visibility` would still read "Hide Clock" after hiding the clock.
