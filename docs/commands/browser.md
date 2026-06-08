@@ -22,7 +22,7 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | --- | --- | --- | --- | --- | --- | --- |
 | `bookmarks` | Bookmarks | group | `bookmarks` | — | all | Deep search; recursive folder tree |
 | `capture-screenshot` | Capture screenshot | action | — | — | all | Visible-area `captureVisibleTab` (activeTab). Enter → copy to clipboard; Cmd → download. Page-side via `monocle-screenshot` |
-| `clear-browser-data` | Clear Browser Data | group | `browsingData`, `history`, `cookies`, `sessions` | — | all | 11 data types × 5 time spans; leaf actions `confirmAction` |
+| `clear-browser-data` | Clear Browser Data | group | `browsingData`, `history`, `cookies`, `sessions` | — | all | site-cookies action + 11 data types × 5 time spans; leaf actions `confirmAction` |
 | `close-current-tab` | Close current tab | action | — | `<cmd-w>` (inert) | all | `confirmAction`; keybinding suppressed |
 | `close-current-window` | Close current window | action | — | `<cmd-shift-w>` (inert) | all | `confirmAction`; keybinding suppressed |
 | `close-duplicate-tabs` | Close duplicate tabs | action | `tabs` | — | all | `confirmAction`; closes duplicate-URL tabs across all windows, keeping one per URL (prefers pinned, then active, then current window); never closes pinned tabs |
@@ -188,7 +188,9 @@ Lists one `copy-tab-url-<id>` action per tab in the current window (filtered to 
 ## Clear browser data
 
 ### `clear-browser-data` (group, `browsingData` + `history` + `cookies` + `sessions`)
-Three-level destructive group. The top group lists 11 data types; each data type is itself a group listing five time spans; each time span is an `action` that calls the matching clear helper.
+Destructive group. The top group lists a site-scoped cookie action followed by 11 data types; each data type is itself a group listing five time spans; each time span is an `action` that calls the matching clear helper.
+
+`clear-cookies-this-site` ("This Site's Cookies") is the first child: a single `confirmAction` action that clears every cookie for the active tab's host only. It uses the cookies API (`clearCookiesForUrl` in `background/utils/browserCookies.ts`) rather than `browsingData.remove`, because per-site cookie scoping is not uniform across engines (Chrome `origins` vs Firefox `hostnames`). It reads the active tab via `getActiveTab`, derives the hostname, removes each matching cookie, and toasts the count (e.g. "Cleared 2 cookies for example.com"). Inherits the group's `cookies` permission.
 
 Data types (id → clear helper): `all`→`clearAllBrowserData`, `cookies`→`clearCookies`, `history`→`clearHistory`, `cache`→`clearCache`, `downloads`→`clearDownloads`, `form-data`→`clearFormData`, `local-storage`→`clearLocalStorage`, `indexed-db`→`clearIndexedDB`, `service-workers`→`clearServiceWorkers`, `passwords`→`clearPasswords`, `plugin-data`→`clearPluginData`.
 

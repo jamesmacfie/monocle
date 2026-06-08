@@ -76,6 +76,13 @@ let bookmarkTree: any[] = []
 let downloads: any[] = []
 let historyItems: any[] = []
 let sessions: any[] = []
+let cookieStore: Array<{
+  name: string
+  domain: string
+  path: string
+  secure: boolean
+  storeId?: string
+}> = []
 let chromeApi: any
 
 const grantAllPermissions = (): Record<BrowserPermission, boolean> =>
@@ -281,6 +288,21 @@ const installChromeStubs = () => {
         },
       ),
     },
+    cookies: {
+      getAll: vi.fn((query: { domain?: string }, callback?: Function) => {
+        const result = cookieStore.filter(
+          (cookie) =>
+            query.domain === undefined ||
+            cookie.domain.replace(/^\./, "") === query.domain,
+        )
+        callback?.(result)
+        return Promise.resolve(result)
+      }),
+      remove: vi.fn((_details: unknown, callback?: Function) => {
+        callback?.({})
+        return Promise.resolve({})
+      }),
+    },
   }
 
   ;(fakeBrowser as any).browsingData = {
@@ -360,6 +382,11 @@ beforeEach(() => {
         url: "https://example.com/closed",
       },
     },
+  ]
+  cookieStore = [
+    { name: "session", domain: "example.com", path: "/", secure: true },
+    { name: "prefs", domain: ".example.com", path: "/app", secure: false },
+    { name: "other", domain: "other.com", path: "/", secure: true },
   ]
 
   installChromeStubs()
@@ -523,6 +550,53 @@ describe("high-risk browser commands", () => {
     expect(chromeApi.browsingData.remove).toHaveBeenCalledWith(
       { since: Date.now() - 5 * 60 * 1000 },
       { cache: true },
+    )
+  })
+
+  it("clears only the active site's cookies via the cookies API", async () => {
+    const dataTypeCommands = await (
+      clearBrowserData as Extract<CommandNode, { type: "group" }>
+    ).children(normalContext)
+    const siteCookies = dataTypeCommands.find(
+      (command) => command.id === "clear-cookies-this-site",
+    ) as Extract<CommandNode, { type: "action" }>
+
+    expect(siteCookies).toBeDefined()
+    expect(siteCookies.confirmAction).toBe(true)
+
+    await siteCookies.execute(normalContext)
+
+    // Scopes the lookup to the active tab's host (example.com), so other.com
+    // is never touched.
+    expect(chromeApi.cookies.getAll).toHaveBeenCalledWith(
+      { domain: "example.com" },
+      expect.anything(),
+    )
+    expect(chromeApi.cookies.remove).toHaveBeenCalledTimes(2)
+    expect(chromeApi.cookies.remove).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://example.com/",
+        name: "session",
+      }),
+      expect.anything(),
+    )
+    // Domain cookies (leading dot) build an http URL from the secure flag.
+    expect(chromeApi.cookies.remove).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "http://example.com/app",
+        name: "prefs",
+      }),
+      expect.anything(),
+    )
+
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-toast",
+        level: "success",
+        message: "Cleared 2 cookies for example.com",
+      }),
+      expect.anything(),
     )
   })
 })

@@ -3,6 +3,7 @@ import {
   clearAllBrowserData,
   clearCache,
   clearCookies,
+  clearCookiesForUrl,
   clearDownloads,
   clearFormData,
   clearHistory,
@@ -11,6 +12,7 @@ import {
   clearPasswords,
   clearPluginData,
   clearServiceWorkers,
+  getActiveTab,
   sendErrorToastToActiveTab,
   sendSuccessToastToActiveTab,
 } from "../../utils/browser"
@@ -35,6 +37,47 @@ export const clearBrowserData: CommandNode = {
   ],
 
   children: async () => {
+    // Site-scoped cookie clearing lives alongside the global data-type groups
+    // but is a single action: it always targets every cookie for the active
+    // tab's host rather than offering time spans.
+    const clearSiteCookies: CommandNode = {
+      type: "action",
+      id: "clear-cookies-this-site",
+      name: "This Site's Cookies",
+      description: "Clear all cookies for the current site only",
+      icon: { name: "Cookie", type: "lucide" },
+      color: "red",
+      confirmAction: true,
+      keywords: ["clear", "cookies", "site", "this", "current", "domain"],
+
+      execute: async () => {
+        try {
+          const activeTab = await getActiveTab()
+
+          if (!activeTab?.url) {
+            await sendErrorToastToActiveTab(
+              "No active site to clear cookies for",
+            )
+            return
+          }
+
+          const hostname = new URL(activeTab.url).hostname
+          const count = await clearCookiesForUrl(activeTab.url)
+
+          await sendSuccessToastToActiveTab(
+            count > 0
+              ? `Cleared ${count} cookie${count === 1 ? "" : "s"} for ${hostname}`
+              : `No cookies to clear for ${hostname}`,
+          )
+        } catch (error) {
+          console.error("Failed to clear cookies for site:", error)
+          await sendErrorToastToActiveTab(
+            "Failed to clear cookies for this site",
+          )
+        }
+      },
+    }
+
     const dataTypes: Array<{
       id: string
       name: string
@@ -121,7 +164,7 @@ export const clearBrowserData: CommandNode = {
       },
     ]
 
-    return dataTypes.map(
+    const dataTypeGroups = dataTypes.map(
       (dataType): CommandNode => ({
         type: "group",
         id: `clear-${dataType.id}`,
@@ -230,5 +273,7 @@ export const clearBrowserData: CommandNode = {
         },
       }),
     )
+
+    return [clearSiteCookies, ...dataTypeGroups]
   },
 }

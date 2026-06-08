@@ -8,5 +8,6 @@ export type BrowserAPIObject =
   | "bookmarks"
   | "history"
   | "browsingData"
+  | "cookies"
   | "downloads"
   | "sessions"

@@ -1,6 +1,7 @@
 export * from "./browserApi"
 export * from "./browserBookmarks"
 export * from "./browserBrowsingData"
+export * from "./browserCookies"
 export * from "./browserDownloads"
 export * from "./browserHistory"
 export * from "./browserSessions"
