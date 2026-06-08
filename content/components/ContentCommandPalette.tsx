@@ -12,6 +12,7 @@ import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
 import { useAppDispatch } from "../../shared/store/hooks"
+import { resetNavigation } from "../../shared/store/slices/navigation.slice"
 import {
   loadPermissions,
   loadSettings,
@@ -42,12 +43,14 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
     fetchCommands()
   }, [])
 
-  // Fetch commands when UI is hidden to keep them up to date
+  // When the palette closes, reset navigation to the root page so reopening
+  // starts at home rather than on a deep child page, and refetch commands.
   useEffect(() => {
     if (!isOpen) {
+      dispatch(resetNavigation())
       fetchCommands()
     }
-  }, [isOpen, fetchCommands])
+  }, [isOpen, fetchCommands, dispatch])
 
   useEffect(() => {
     return subscribeSiteSdkCommandsChanged(() => {
