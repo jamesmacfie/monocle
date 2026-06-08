@@ -76,7 +76,7 @@ export function CommandItemColor({
                 borderRadius: 4,
                 background: currentValue,
                 display: "inline-block",
-                border: "1px solid var(--gray6)",
+                border: "1px solid var(--color-border)",
               }}
             />
             {currentValue}

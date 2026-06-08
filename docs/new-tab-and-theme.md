@@ -286,6 +286,32 @@ Theme state is a single `mode: "light" | "dark" | "system"` stored under
 `settings.theme` (`ThemeSettings` in `shared/types/settings.ts`). The mechanics
 live in `shared/utils/theme.ts` and apply to both runtime modes.
 
+### Color tokens (CSS structure)
+
+The actual colors live in CSS as **self-contained named-theme blocks**, keyed by
+a class on the palette root. Each block defines two layers:
+
+- **Primitive scales**: `--gray*`, `--grayA*`, `--blue*`.
+- **Semantic tokens**: `--color-*` (backgrounds, text, border, accent, status,
+  hero). All component rules consume only `--color-*` — never a primitive
+  directly — so any theme is a complete swap of one variable set.
+
+`content/styles.css` defines these on `:host(...)` (the closed shadow host) and
+`newtab/styles.css` defines them on `:root(...)` (the new-tab `<html>`), because
+CSS variables are scoped per tree. The two stylesheets are kept in sync;
+`newtab/styles.css` additionally `@import`s the content stylesheet for the
+shared component rules.
+
+The OS-aware trio:
+
+- **Light** — `:host, :host(.light)` / `:root, :root.light` (also the default).
+- **Dark** — `:host(.dark)` / `:root.dark`.
+- **System** — `@media (prefers-color-scheme: dark) { :host(.system) }` /
+  `:root.system` re-applies the dark theme; OS-light falls through to the light
+  defaults.
+
+To add a theme, add a block of the same variables keyed on its own root class.
+
 ### Values and normalization
 
 - Modes: `light`, `dark`, `system`. `system` resolves to the OS preference.

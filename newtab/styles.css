@@ -3,14 +3,28 @@
 /* Import the content script styles for command palette styling */
 @import "../content/styles.css";
 
-/* Define CSS custom properties for new tab context */
+/* ============================================================
+   Theme system (mirrors content/styles.css). This file targets the
+   regular DOM via :root because the new-tab page is not a shadow tree;
+   the theme class is applied to <html> by shared/utils/theme.ts. The
+   component rules are pulled in from the @import above.
+     - Primitive scales:  --gray*, --grayA*, --blue*
+     - Semantic tokens:   --color-*
+   `system` follows the OS and re-applies the dark theme.
+   ============================================================ */
+
+/* Theme-independent variables */
 :root {
   --font-sans:
     "Inter", --apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
     Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   --app-bg: var(--gray1);
   --cmdk-shadow: 0 16px 70px rgb(0 0 0 / 20%);
+}
 
+/* Light theme (default + explicit .light) */
+:root,
+:root.light {
   --lowContrast: #ffffff;
   --highContrast: #000000;
 
@@ -107,10 +121,8 @@
   --color-hero-kbd-border: rgba(255, 255, 255, 0.3);
 }
 
-/* Dark mode variables */
+/* Dark theme (explicit .dark) */
 :root.dark {
-  --app-bg: var(--gray1);
-
   --lowContrast: #000000;
   --highContrast: #ffffff;
 
@@ -207,11 +219,9 @@
   --color-hero-kbd-border: rgba(0, 0, 0, 0.3);
 }
 
-/* System theme preference support */
+/* System theme: follow the OS; the dark variant re-applies the dark theme */
 @media (prefers-color-scheme: dark) {
   :root.system {
-    --app-bg: var(--gray1);
-
     --lowContrast: #000000;
     --highContrast: #ffffff;
 
