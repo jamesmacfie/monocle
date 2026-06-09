@@ -40,9 +40,15 @@ import { getRankedCommandIds } from "./usage"
 
 // Source-based ranking multipliers for deep-search entries. Root commands are
 // implicitly 1.0.
+//
+// Order matters for same-URL dedupe (see dedupeEntries Pass B): when a URL
+// appears in more than one source, the highest-weight source wins the row and
+// its name is what shows and ranks. Bookmarks sit above open tabs so a
+// bookmarked page surfaces under its user-given name (e.g. "My Pull Requests")
+// rather than a transient tab title; opening it still focuses an existing tab.
 export const DEEP_SEARCH_RANK_WEIGHTS: Record<string, number> = {
+  bookmarks: 0.97,
   "open-tabs": 0.95,
-  bookmarks: 0.85,
   "recently-closed": 0.8,
   history: 0.7,
 }
@@ -402,7 +408,12 @@ const dedupeEntries = (entries: IndexEntry[]): IndexEntry[] => {
   }
   const idDeduped = [...byId.values()]
 
-  // Pass B — by dedupeKey, order-preserving
+  // Pass B — by dedupeKey, order-preserving. Entries without a dedupeKey pass
+  // through untouched; same-weight duplicates are both kept. Survivors absorb
+  // the searchable name/keywords of the same-URL entries they displace, so a
+  // destination stays findable by every source's name (e.g. a bookmark's
+  // user-given name and an open tab's title both reach the surviving row) even
+  // though only one row is shown.
   const maxWeightByKey = new Map<string, number>()
   for (const entry of idDeduped) {
     if (entry.dedupeKey != null) {
@@ -413,11 +424,54 @@ const dedupeEntries = (entries: IndexEntry[]): IndexEntry[] => {
     }
   }
 
-  return idDeduped.filter(
-    (entry) =>
+  // Collect the search terms contributed by the entries that lose their key, so
+  // the survivor for that key can fold them into its keywords.
+  const droppedTermsByKey = new Map<string, string[]>()
+  for (const entry of idDeduped) {
+    if (
       entry.dedupeKey == null ||
-      entry.sourceWeight === maxWeightByKey.get(entry.dedupeKey),
-  )
+      entry.sourceWeight === maxWeightByKey.get(entry.dedupeKey)
+    ) {
+      continue
+    }
+
+    const terms = droppedTermsByKey.get(entry.dedupeKey) ?? []
+    if (entry.nameLower) {
+      terms.push(entry.nameLower)
+    }
+    terms.push(...entry.keywordsLower)
+    droppedTermsByKey.set(entry.dedupeKey, terms)
+  }
+
+  return idDeduped
+    .filter(
+      (entry) =>
+        entry.dedupeKey == null ||
+        entry.sourceWeight === maxWeightByKey.get(entry.dedupeKey),
+    )
+    .map((entry) => {
+      const dropped =
+        entry.dedupeKey != null
+          ? droppedTermsByKey.get(entry.dedupeKey)
+          : undefined
+      if (!dropped || dropped.length === 0) {
+        return entry
+      }
+
+      const keywordsLower = [...entry.keywordsLower]
+      for (const term of dropped) {
+        if (term !== entry.nameLower && !keywordsLower.includes(term)) {
+          keywordsLower.push(term)
+        }
+      }
+
+      // Re-tokenize so the per-keystroke scorer sees the merged keywords.
+      return {
+        ...entry,
+        keywordsLower,
+        ...computeScorableTokens({ ...entry, keywordsLower }),
+      }
+    })
 }
 
 const buildSearchIndex = async (
