@@ -28,13 +28,48 @@ export async function saveAsPDF(options: any): Promise<void> {
   }
 }
 
+// Containers only change when the user edits them in Firefox settings, but
+// queryContainers is called during every keybinding registry rebuild — i.e. on
+// each keystroke, once per container command group. Cache the (in-flight) query
+// briefly so a burst of rebuilds coalesces into a single contextualIdentities
+// call instead of one per keystroke per group. Caching the promise also dedupes
+// concurrent callers. Only the parameterless query (all current callers) is
+// cached; clear it with invalidateContainerCache when freshness matters.
+const CONTAINER_CACHE_TTL_MS = 5_000
+let containerCache: { result: Promise<any[]>; builtAt: number } | null = null
+
+export const invalidateContainerCache = (): void => {
+  containerCache = null
+}
+
 /**
  * Queries container profiles (Firefox only)
  * @param queryInfo - Query parameters for containers
  */
 export async function queryContainers(queryInfo: any): Promise<any[]> {
-  if (isFirefox && browser.contextualIdentities) {
+  if (!(isFirefox && browser.contextualIdentities)) {
+    return []
+  }
+
+  const cacheable = !queryInfo || Object.keys(queryInfo).length === 0
+  if (!cacheable) {
     return browser.contextualIdentities.query(queryInfo)
   }
-  return []
+
+  if (
+    containerCache &&
+    Date.now() - containerCache.builtAt < CONTAINER_CACHE_TTL_MS
+  ) {
+    return containerCache.result
+  }
+
+  const result = browser.contextualIdentities.query(queryInfo)
+  containerCache = { result, builtAt: Date.now() }
+  // Never cache a rejection — let the next call retry.
+  result.catch(() => {
+    if (containerCache?.result === result) {
+      containerCache = null
+    }
+  })
+  return result
 }

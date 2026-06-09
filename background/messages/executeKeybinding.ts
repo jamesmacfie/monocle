@@ -160,6 +160,7 @@ const evaluateSequence = async (
 }
 
 const handleExecuteKeybinding = async (
+  scopeKey: string,
   message: ExecuteKeybindingMessage,
   sender?: any,
 ) => {
@@ -171,7 +172,6 @@ const handleExecuteKeybinding = async (
     }
   }
 
-  const scopeKey = getSequenceScopeKey(message, sender)
   const state = getSequenceState(scopeKey)
 
   if (state.sequenceTimer) {
@@ -212,14 +212,48 @@ const handleExecuteKeybinding = async (
   }
 }
 
+// Each keydown dispatches an independent async execute-keybinding message, and
+// handleExecuteKeybinding mutates shared per-scope sequence state across an
+// awaited registry rebuild. Without serialization, fast multi-stroke sequences
+// interleave and corrupt that state (every overlapping stroke can read the full
+// sequence and execute). Serialize per scope so stroke N fully resolves before
+// N+1 is evaluated, matching the design intent that sequence state is
+// authoritative in the background.
+const scopeQueues = new Map<string, Promise<unknown>>()
+
+const runSerialized = <T>(
+  scopeKey: string,
+  task: () => Promise<T>,
+): Promise<T> => {
+  const previous = scopeQueues.get(scopeKey) ?? Promise.resolve()
+  const run = previous.then(task, task)
+  scopeQueues.set(scopeKey, run)
+
+  // Drop the queue entry once this is the tail and it has settled, so idle
+  // scopes don't accumulate. (`run` never rejects — `task` swallows its own
+  // errors — but handle both settlements defensively.)
+  const cleanup = () => {
+    if (scopeQueues.get(scopeKey) === run) {
+      scopeQueues.delete(scopeKey)
+    }
+  }
+  run.then(cleanup, cleanup)
+
+  return run
+}
+
 export const executeKeybinding = async (
   message: ExecuteKeybindingMessage,
   sender?: any,
 ) => {
-  try {
-    return await handleExecuteKeybinding(message, sender)
-  } catch (error) {
-    console.error("[background] Failed to execute keybinding:", error)
-    return { error: "Failed to execute keybinding" }
-  }
+  const scopeKey = getSequenceScopeKey(message, sender)
+
+  return runSerialized(scopeKey, async () => {
+    try {
+      return await handleExecuteKeybinding(scopeKey, message, sender)
+    } catch (error) {
+      console.error("[background] Failed to execute keybinding:", error)
+      return { error: "Failed to execute keybinding" }
+    }
+  })
 }

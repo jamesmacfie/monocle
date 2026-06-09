@@ -35,6 +35,12 @@ export class RobustKeyCapture {
   }> = []
   private options: RobustKeyCaptureOptions
   private isInstalled = false
+  // We register the same handler on both window and document (capture phase)
+  // for redundancy, so a single keydown invokes handleKeydown twice. Track
+  // events we've already started handling and ignore the second invocation —
+  // otherwise every un-suppressed stroke is sent twice, which corrupts
+  // multi-stroke sequences (e.g. "g, p, r" arrives as "g, p, p, r, r").
+  private handledEvents = new WeakSet<Event>()
 
   constructor(options: RobustKeyCaptureOptions = {}) {
     this.options = options
@@ -109,6 +115,14 @@ export class RobustKeyCapture {
    */
   private handleKeydown = async (event: Event): Promise<void> => {
     const keyboardEvent = event as KeyboardEvent
+
+    // The window and document capture listeners both receive this same event;
+    // only the first invocation should process it.
+    if (this.handledEvents.has(event)) {
+      return
+    }
+    this.handledEvents.add(event)
+
     try {
       // Get the actual target for better debugging
       const actualTarget = getActualEventTarget(keyboardEvent)
