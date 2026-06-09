@@ -12,8 +12,9 @@ required.
 
 Works in **Chrome** and **Firefox** (both Manifest V3).
 
-<!-- TODO: hero screenshot — the palette open over a webpage -->
-![Monocle command palette](docs/images/hero.png)
+<p align="center">
+  <img src="docs/images/hero.jpg" width="50%">
+</p>
 
 ---
 
@@ -41,8 +42,9 @@ run a command, or `Cmd/Ctrl+Enter` for its alternate action (for example, "open
 in a new tab"). Groups expand into nested pages, and forms let you pass input
 inline.
 
-<!-- TODO: screenshot — palette open, mid-search, showing ranked results -->
-![Command palette](docs/images/command-palette.png)
+<p align="center">
+  <img src="docs/images/command-palette.jpg" width="50%">
+</p>
 
 ### 🗂️ New tab page
 
@@ -51,8 +53,9 @@ clock, a daily background photo with photographer credit, and the command
 palette front and center. The clock can be toggled on or off, and the whole
 experience shares the same commands as the overlay.
 
-<!-- TODO: screenshot — new tab page with clock + background image -->
-![New tab page](docs/images/new-tab.png)
+<p align="center">
+  <img src="docs/images/new-tab.jpg" width="50%">
+</p>
 
 ### 🎨 Themes
 
@@ -61,8 +64,9 @@ Monokai, Nord, the Catppuccin family, One Dark, Dracula, and more. Open the
 **Themes** command, browse them in a searchable list, and watch the palette
 update live as you move through the options.
 
-<!-- TODO: screenshot — Themes command group showing the theme list -->
-![Themes](docs/images/themes.png)
+<p align="center">
+  <img src="docs/images/themes.jpg" width="50%">
+</p>
 
 ### 🕘 History
 
@@ -71,9 +75,6 @@ Yesterday, Last Week, Last Month, and Older. Each entry shows its title, URL,
 and visit time with a favicon. `Enter` opens it here; `Cmd/Ctrl+Enter` opens it
 in a new tab. (Requires the `history` permission, granted on demand.)
 
-<!-- TODO: screenshot — history command grouped by time period -->
-![History](docs/images/history.png)
-
 ### 🔖 Bookmarks
 
 Browse your bookmarks by folder, search across them, and open any of them
@@ -81,18 +82,13 @@ without touching the bookmarks bar. Useful for keeping a clean, organized set of
 saved pages within easy keyboard reach. (Requires the `bookmarks` permission,
 granted on demand.)
 
-<!-- TODO: screenshot — browsing bookmarks by folder -->
-![Browse bookmarks](docs/images/browse-bookmarks.png)
-
 ### 🦊 Firefox containers
 
 On Firefox, Monocle works with Multi-Account Containers. Open a fresh tab in any
 container profile, or reopen the page you're on in a different container — all
 from the palette. (Firefox only; requires the `contextualIdentities` and
 `cookies` permissions.)
-
-<!-- TODO: screenshot — container picker in the palette (Firefox) -->
-![Firefox containers](docs/images/firefox-containers.png)
+  
 
 ### 🌐 Webpage-specific commands
 
@@ -103,8 +99,9 @@ Star" action — and they only appear on `github.com`. Visibility is driven by
 per-command URL rules, and you can manage your own allow/deny lists with the
 **Manage Command Allow List** and **Manage Command Deny List** commands.
 
-<!-- TODO: screenshot — GitHub-specific commands on a repo page -->
-![Webpage specific commands](docs/images/webpage-commands.png)
+<p align="center">
+  <img src="docs/images/webpage-commands.jpg" width="50%">
+</p>
 
 ---
 
