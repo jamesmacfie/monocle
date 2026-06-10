@@ -1,4 +1,5 @@
 import { Command, type LucideProps } from "lucide-react"
+import { useState } from "react"
 import type { ColorName, CommandIcon } from "../../shared/types"
 import { darkenColor, lightenColor } from "../utils"
 import { svgIconToDataUri } from "../utils/svg-icon"
@@ -26,6 +27,31 @@ interface IconProps extends LucideProps {
   url?: string
   color?: ColorName | string
   noBackground?: boolean
+}
+
+const UrlImageIcon = ({ src }: { src: string }) => {
+  const [hasError, setHasError] = useState(false)
+
+  if (hasError) {
+    const FallbackIcon = getIconComponent("Globe") ?? Command
+
+    return (
+      <div className="icon-wrapper">
+        <FallbackIcon size={10} className="icon-default" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="icon-wrapper favicon-wrapper">
+      <img
+        src={src}
+        alt="icon"
+        className="url-icon favicon"
+        onError={() => setHasError(true)}
+      />
+    </div>
+  )
 }
 
 // Helper to get Lucide icon component by name
@@ -63,25 +89,13 @@ export const Icon = ({
   // Handle new CommandIcon type first
   if (icon) {
     if (icon.type === "url") {
-      return (
-        <div className="icon-wrapper favicon-wrapper">
-          <img src={icon.url} alt="icon" className="url-icon favicon" />
-        </div>
-      )
+      return <UrlImageIcon src={icon.url} />
     } else if (icon.type === "svg") {
       // Untrusted markup (site SDK): render only as a static <img> data URI,
       // never inline — the browser's secure static image mode disables
       // scripts, event handlers, and external fetches. See
       // shared/utils/svg-icon.ts before changing this.
-      return (
-        <div className="icon-wrapper favicon-wrapper">
-          <img
-            src={svgIconToDataUri(icon.svg)}
-            alt="icon"
-            className="url-icon favicon"
-          />
-        </div>
-      )
+      return <UrlImageIcon src={svgIconToDataUri(icon.svg)} />
     } else if (icon.type === "lucide") {
       const IconComponent = getIconComponent(icon.name) ?? Command
       return (
@@ -94,11 +108,7 @@ export const Icon = ({
 
   // Backward compatibility - handle old interface
   if (url) {
-    return (
-      <div className="icon-wrapper favicon-wrapper">
-        <img src={url} alt="icon" className="url-icon favicon" />
-      </div>
-    )
+    return <UrlImageIcon src={url} />
   }
 
   // Handle Lucide icon type or fallback to default

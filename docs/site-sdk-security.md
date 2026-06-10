@@ -254,11 +254,11 @@ typed into the root search box.
 3. **Decide and document the fingerprinting trade-off (1.2).** Ideally gate
    `window.Monocle` injection behind a setting or per-origin opt-in; the SDK is
    session-only and niche, so most users do not need it live on every site.
-4. **Neutralize remote icon privacy leaks.** For SDK icons (1.3), proxy icons
-   through the extension, restrict URL icons to the registering origin, or at
-   least render them with `referrerPolicy="no-referrer"`. For native
-   bookmark/history favicons (1.6), prefer browser/local favicon APIs or
-   generic icons over third-party favicon lookups.
+4. **Neutralize remote icon privacy leaks.** For SDK icons (1.3), restrict URL
+   icons to the registering origin or at least render them with
+   `referrerPolicy="no-referrer"`; do not add a generic page-controlled proxy.
+   For native bookmark/history favicons (1.6), prefer browser/local favicon APIs
+   or generic icons over third-party favicon lookups.
 5. **Target page-bound messages by document/frame where supported.** SDK invokes
    and workflow messages should match the sender-derived tab/document/frame
    scope, and should ideally re-check current origin before invoking page

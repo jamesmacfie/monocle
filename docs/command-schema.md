@@ -101,7 +101,7 @@ Source: `shared/types/commands.ts`, `CommandIcon`.
 | Variant | Shape | Use |
 | --- | --- | --- |
 | Lucide | `{ type: "lucide", name: "Bookmark" }` | Named [Lucide](https://lucide.dev) icon. `name` is the PascalCase Lucide component name and must be a registered `IconName`. |
-| URL | `{ type: "url", url: faviconUrl }` | Remote image, typically a favicon (`getFaviconUrl` / `getFaviconIcon` in `background/utils/`). |
+| URL | `{ type: "url", url: faviconUrl }` | Remote image, typically a favicon (`getFaviconUrl` / `getFaviconIcon` in `background/utils/`). If the page or network blocks the image, the UI falls back to a generic icon. |
 | SVG | `{ type: "svg", svg: "<svg ...>...</svg>" }` | Inline SVG markup, primarily for site SDK brand icons. Rendered only as a static `<img>` data URI (`svgIconToDataUri` in `shared/utils/svg-icon.ts`), never injected inline, so scripts, event handlers, and external references are inert. Site SDK input is additionally validated by `validateSvgIconMarkup`. |
 
 `IconName` is the curated, closed set of Lucide icons Monocle ships, defined in
