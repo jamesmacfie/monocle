@@ -26,7 +26,7 @@ when done.
 | 004 | Serialize read-modify-write cycles on chrome.storage.local | P2 | M | — | DONE |
 | 005 | Cut redundant work from the per-keystroke search path | P2 | S | — | DONE |
 | 006 | DOM test baseline + CMDK↔Redux characterization tests | P2 | M | — | DONE (8 tests; found+pinned the 100ms post-navigation keystroke-swallow window) |
-| 007 | Cache the keybinding registry snapshot per context | P1 | M | — | TODO |
+| 007 | Cache the keybinding registry snapshot per context | P1 | M | — | DONE (cache implemented by maintainer at the entries level in `keybindings/source.ts` — TTL + inflight dedup + generation guard + permissions/storage invalidation; plan execution added the continuation-stroke snapshot threading) |
 | 008 | Stop ordinary browsing from destroying the search index | P1 | M | — | TODO |
 | 009 | Cache child-page entries across search keystrokes | P2 | M | 008 | TODO |
 | 010 | Stop currentPage prop from defeating CommandItem memo | P2 | M | 006 | TODO |

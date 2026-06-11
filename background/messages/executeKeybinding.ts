@@ -352,11 +352,20 @@ const handleExecuteKeybinding = async (
 
   state.currentSequence.push(stroke)
 
+  // Load once and thread through both evaluations so the continuation and
+  // its single-stroke fallback always see the same registry state, even if
+  // the entries cache is invalidated mid-message.
+  const continuationSnapshot = await loadKeybindingSnapshot(
+    message.context,
+    sender,
+  )
+
   const sequenceResult = await evaluateSequence(
     scopeKey,
     state,
     message.context,
     sender,
+    continuationSnapshot,
   )
 
   if (sequenceResult) {
@@ -370,6 +379,7 @@ const handleExecuteKeybinding = async (
     state,
     message.context,
     sender,
+    continuationSnapshot,
   )
 
   if (singleResult) {
