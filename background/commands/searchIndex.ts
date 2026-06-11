@@ -106,6 +106,13 @@ let inflightBuild: {
   promise: Promise<SearchIndex>
 } | null = null
 
+// Stale-while-revalidate: the last good index, retained across invalidation
+// and TTL expiry so the query that triggers a rebuild can be served
+// immediately from slightly stale data instead of blocking on the rebuild.
+// Bounded by STALE_SERVE_LIMIT_MS; cleared whenever a fresh build lands.
+let staleIndex: SearchIndex | null = null
+const STALE_SERVE_LIMIT_MS = 30_000 * 4
+
 // Memoized URL-filtered view of the current index. The URL doesn't change
 // between keystrokes, so the full rule-chain scan runs once per (index, url)
 // rather than every query. Keyed by index identity + url; a rebuild produces a
@@ -173,7 +180,7 @@ type EntryParams = {
 type BuildShared = {
   context: Browser.Context
   commandSettings: Record<string, CommandSettings>
-  favoriteCommandIds: string[]
+  favoriteCommandIds: ReadonlySet<string>
   entries: IndexEntry[]
 }
 
@@ -211,7 +218,7 @@ const createEntry = async (
     ...computeScorableTokens(matchFields),
     sourceWeight: params.sourceWeight,
     dedupeKey: params.dedupeKey,
-    isFavorite: shared.favoriteCommandIds.includes(command.id),
+    isFavorite: shared.favoriteCommandIds.has(command.id),
     inheritedPermissions: params.inheritedPermissions,
     fromDeepSearch: params.fromDeepSearch,
     urlRuleChain: params.urlRuleChain,
@@ -229,7 +236,7 @@ const walkGroups = async (
   rootWeight: number | undefined,
   shared: BuildShared,
 ): Promise<void> => {
-  const hasFavorites = shared.favoriteCommandIds.length > 0
+  const hasFavorites = shared.favoriteCommandIds.size > 0
 
   for (const command of commands) {
     if (command.type !== "group") {
@@ -325,7 +332,7 @@ const walkGroups = async (
               shared,
             ),
           )
-        } else if (shared.favoriteCommandIds.includes(child.id)) {
+        } else if (shared.favoriteCommandIds.has(child.id)) {
           // Nested favorite that isn't deep-search flattened still needs a
           // searchable entry with its breadcrumb (mirrors the previous
           // findFavoritedCommands naming).
@@ -483,7 +490,7 @@ const buildSearchIndex = async (
 }> => {
   // Hoisted single reads — previously re-read per converted suggestion
   const commandSettings = await getAllCommandSettings()
-  const favoriteCommandIds = await getFavoriteCommandIds()
+  const favoriteCommandIds = new Set(await getFavoriteCommandIds())
 
   // Build with a URL-free context so the cache survives page navigation; URL
   // visibility is applied at query time from each entry's rule chain.
@@ -531,7 +538,7 @@ const buildSearchIndex = async (
   )
 
   // Skip the tree walk entirely when nothing below the root can contribute
-  if (hasDeepSearchRoots || favoriteCommandIds.length > 0) {
+  if (hasDeepSearchRoots || favoriteCommandIds.size > 0) {
     await walkGroups(rootCommands, [], false, [], [], undefined, shared)
   }
 
@@ -552,7 +559,19 @@ export const getSearchIndex = async (
     return cachedIndex
   }
 
+  // TTL-expired cache becomes the stale-serve candidate just like an
+  // invalidated one.
+  if (cachedIndex && cachedIndex.contextKey === contextKey) {
+    staleIndex = cachedIndex
+    cachedIndex = null
+  }
+
   if (inflightBuild && inflightBuild.contextKey === contextKey) {
+    // A rebuild is already running; serve stale instead of blocking on it.
+    const servable = getServableStaleIndex(contextKey)
+    if (servable) {
+      return servable
+    }
     return await inflightBuild.promise
   }
 
@@ -568,24 +587,71 @@ export const getSearchIndex = async (
       commandSettings,
     }
     cachedIndex = index
+    // Fresh data landed — never fall back to the older snapshot again.
+    staleIndex = null
     return index
   })()
 
   inflightBuild = { contextKey, promise }
 
-  try {
-    return await promise
-  } finally {
+  const finalize = () => {
     if (inflightBuild?.promise === promise) {
       inflightBuild = null
     }
   }
+
+  // Stale-while-revalidate: answer this query from the last good index and
+  // let the rebuild finish in the background. One debounce window of
+  // staleness (e.g. a just-closed tab still listed) is the documented
+  // trade-off; suggestions held in an open palette already outlive their
+  // tabs today, so this is not a new failure mode.
+  const servable = getServableStaleIndex(contextKey)
+  if (servable) {
+    promise
+      .catch((error) => {
+        console.error("[SearchIndex] Background rebuild failed:", error)
+      })
+      .finally(finalize)
+    return servable
+  }
+
+  try {
+    return await promise
+  } finally {
+    finalize()
+  }
 }
 
-export const invalidateSearchIndex = (): void => {
+const getServableStaleIndex = (contextKey: string): SearchIndex | null => {
+  if (
+    staleIndex &&
+    staleIndex.contextKey === contextKey &&
+    Date.now() - staleIndex.builtAt < STALE_SERVE_LIMIT_MS
+  ) {
+    return staleIndex
+  }
+  return null
+}
+
+// retainStale opts the invalidation into stale-while-revalidate: the next
+// query is served from the outgoing index while the rebuild runs. That is only
+// safe for browser-data churn (tabs/history/bookmarks/sessions), where one
+// debounce window of staleness is cosmetic. Settings, favorites, permission,
+// and site-SDK invalidations use the default and drop the snapshot — hiding a
+// command or denying a domain must take effect on the very next query.
+export const invalidateSearchIndex = (options?: {
+  retainStale?: boolean
+}): void => {
+  staleIndex = options?.retainStale ? (cachedIndex ?? staleIndex) : null
   cachedIndex = null
   inflightBuild = null
   visibleCache = null
+}
+
+// Full reset including the stale-while-revalidate snapshot; used by tests to
+// guarantee the next query rebuilds from scratch.
+export const dropSearchIndexCaches = (): void => {
+  invalidateSearchIndex()
 }
 
 // Usage rank as a `commandId -> rank` map, module-cached behind the index TTL.
@@ -656,7 +722,7 @@ export const buildEphemeralIndexEntries = async (
   inheritedPermissions: BrowserPermission[],
 ): Promise<IndexEntry[]> => {
   const commandSettings = await getAllCommandSettings()
-  const favoriteCommandIds = await getFavoriteCommandIds()
+  const favoriteCommandIds = new Set(await getFavoriteCommandIds())
 
   const shared: BuildShared = {
     context,
@@ -688,21 +754,37 @@ export const buildEphemeralIndexEntries = async (
 // favorites.ts. Every listener is existence-guarded for Firefox.
 export const initializeSearchIndexInvalidation = (): void => {
   const api = getBrowserAPI()
-  const invalidate = () => invalidateSearchIndex()
+  // Browser-data churn (tabs/history/bookmarks/sessions) retains the outgoing
+  // index for stale-while-revalidate serving; permission and settings changes
+  // alter visibility and must drop it (see invalidateSearchIndex).
+  const invalidateBrowserData = () =>
+    invalidateSearchIndex({ retainStale: true })
+  const invalidateVisibility = () => invalidateSearchIndex()
 
-  api.tabs?.onCreated?.addListener(invalidate)
-  api.tabs?.onRemoved?.addListener(invalidate)
-  api.tabs?.onUpdated?.addListener(invalidate)
-  api.tabs?.onActivated?.addListener(invalidate)
-  api.history?.onVisited?.addListener(invalidate)
-  api.history?.onVisitRemoved?.addListener(invalidate)
-  api.bookmarks?.onCreated?.addListener(invalidate)
-  api.bookmarks?.onRemoved?.addListener(invalidate)
-  api.bookmarks?.onChanged?.addListener(invalidate)
-  api.bookmarks?.onMoved?.addListener(invalidate)
-  api.sessions?.onChanged?.addListener(invalidate)
-  api.permissions?.onAdded?.addListener(invalidate)
-  api.permissions?.onRemoved?.addListener(invalidate)
+  api.tabs?.onCreated?.addListener(invalidateBrowserData)
+  api.tabs?.onRemoved?.addListener(invalidateBrowserData)
+  // onUpdated fires for loading-status and favicon changes too; only URL and
+  // title participate in tab-entry match text, so only those invalidate.
+  api.tabs?.onUpdated?.addListener(
+    (_tabId: number, changeInfo: { url?: string; title?: string }) => {
+      if (changeInfo.url !== undefined || changeInfo.title !== undefined) {
+        invalidateBrowserData()
+      }
+    },
+  )
+  // No onActivated listener: switching tabs changes neither the tab set nor
+  // any match text. The only active-tab-derived index data is the openTabs
+  // rows' color highlight, frozen at build time and bounded by the 30s TTL —
+  // a cosmetic trade-off accepted deliberately.
+  api.history?.onVisited?.addListener(invalidateBrowserData)
+  api.history?.onVisitRemoved?.addListener(invalidateBrowserData)
+  api.bookmarks?.onCreated?.addListener(invalidateBrowserData)
+  api.bookmarks?.onRemoved?.addListener(invalidateBrowserData)
+  api.bookmarks?.onChanged?.addListener(invalidateBrowserData)
+  api.bookmarks?.onMoved?.addListener(invalidateBrowserData)
+  api.sessions?.onChanged?.addListener(invalidateBrowserData)
+  api.permissions?.onAdded?.addListener(invalidateVisibility)
+  api.permissions?.onRemoved?.addListener(invalidateVisibility)
   api.storage?.onChanged?.addListener(
     (changes: Record<string, unknown>, areaName: string) => {
       if (areaName !== "local") {

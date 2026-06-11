@@ -5,8 +5,10 @@ import { browsingHistory } from "./browser/history"
 import { openTabs } from "./browser/openTabs"
 import { toggleFavoriteCommandId } from "./favorites"
 import {
+  dropSearchIndexCaches,
   filterIndexEntriesByUrl,
   getSearchIndex,
+  initializeSearchIndexInvalidation,
   invalidateSearchIndex,
 } from "./searchIndex"
 import { clearAllSettings } from "./settings"
@@ -68,7 +70,9 @@ const originalCalculatorChildren = calculatorGroup.children
 beforeEach(async () => {
   fakeBrowser.reset()
   installChromeStubs()
-  invalidateSearchIndex()
+  // Full reset: plain invalidation retains a stale-while-revalidate snapshot,
+  // which would leak the previous test's index into the next one.
+  dropSearchIndexCaches()
   await clearAllSettings()
 })
 
@@ -109,7 +113,9 @@ describe("index build sharing and skipping", () => {
     await getSearchIndex(normalContext)
     expect(children).not.toHaveBeenCalled()
 
-    invalidateSearchIndex()
+    // Hard reset: this test verifies build behavior with favorites present,
+    // not stale-while-revalidate serving.
+    dropSearchIndexCaches()
     await toggleFavoriteCommandId("uuidv4")
 
     await getSearchIndex(normalContext)
@@ -173,7 +179,7 @@ describe("dedupe at index build", () => {
 })
 
 describe("cache lifecycle", () => {
-  it("serves from cache, rebuilds on invalidate, and rebuilds after the TTL", async () => {
+  it("serves from cache, then serves stale and rebuilds in the background on invalidate and TTL expiry", async () => {
     const children = vi.fn(async () => [
       makeAction("synthetic-tab-1", "Synthetic Tab One"),
     ])
@@ -187,13 +193,25 @@ describe("cache lifecycle", () => {
     expect(second).toBe(first)
     expect(children).toHaveBeenCalledTimes(1)
 
-    invalidateSearchIndex()
-    await getSearchIndex(normalContext)
-    expect(children).toHaveBeenCalledTimes(2)
+    // Stale-while-revalidate: the query that follows a browser-data
+    // invalidation is answered from the previous index while the rebuild
+    // runs in the background.
+    invalidateSearchIndex({ retainStale: true })
+    const staleServed = await getSearchIndex(normalContext)
+    expect(staleServed).toBe(first)
+    await vi.waitFor(() => {
+      expect(children).toHaveBeenCalledTimes(2)
+    })
+    const fresh = await getSearchIndex(normalContext)
+    expect(fresh).not.toBe(first)
 
+    // TTL expiry behaves the same way: stale served, rebuild backgrounded.
     vi.setSystemTime(new Date("2026-06-07T00:00:31Z"))
-    await getSearchIndex(normalContext)
-    expect(children).toHaveBeenCalledTimes(3)
+    const staleAfterTtl = await getSearchIndex(normalContext)
+    expect(staleAfterTtl).toBe(fresh)
+    await vi.waitFor(() => {
+      expect(children).toHaveBeenCalledTimes(3)
+    })
   })
 
   it("rebuilds when switching between page and new-tab contexts", async () => {
@@ -267,5 +285,130 @@ describe("query-time URL filtering", () => {
 
     expect(filtered.map((entry) => entry.id)).not.toContain("synthetic-tab-1")
     expect(filtered.map((entry) => entry.id)).not.toContain("open-tabs")
+  })
+})
+
+describe("stale-while-revalidate bounds", () => {
+  it("serves the stale index immediately while a slow rebuild is in flight", async () => {
+    let release: (() => void) | undefined
+    const fastChildren = vi.fn(async () => [
+      makeAction("synthetic-tab-1", "Synthetic Tab One"),
+    ])
+    openTabsGroup.children = fastChildren
+
+    const first = await getSearchIndex(normalContext)
+
+    invalidateSearchIndex({ retainStale: true })
+    const slowChildren = vi.fn(async () => {
+      await new Promise<void>((resolve) => {
+        release = resolve
+      })
+      return [makeAction("synthetic-tab-2", "Synthetic Tab Two")]
+    })
+    openTabsGroup.children = slowChildren
+
+    // Must resolve without waiting on the deferred rebuild.
+    const staleServed = await getSearchIndex(normalContext)
+    expect(staleServed).toBe(first)
+
+    // The background rebuild reaches the deferred children() only after a few
+    // awaits; wait until the deferred is armed before releasing it.
+    await vi.waitFor(() => {
+      expect(release).toBeDefined()
+    })
+    release?.()
+    await vi.waitFor(async () => {
+      const fresh = await getSearchIndex(normalContext)
+      expect(fresh).not.toBe(first)
+    })
+  })
+
+  it("blocks on the rebuild once the stale index exceeds the serve limit", async () => {
+    const children = vi.fn(async () => [
+      makeAction("synthetic-tab-1", "Synthetic Tab One"),
+    ])
+    openTabsGroup.children = children
+
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-06-07T00:00:00Z"))
+
+    const first = await getSearchIndex(normalContext)
+    invalidateSearchIndex({ retainStale: true })
+
+    // Past the 4x TTL stale-serve ceiling the caller must get fresh data.
+    vi.setSystemTime(new Date("2026-06-07T00:02:01Z"))
+    const fresh = await getSearchIndex(normalContext)
+    expect(fresh).not.toBe(first)
+    expect(children).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe("tab event invalidation scope", () => {
+  const installEventStubs = () => {
+    const updatedListeners: Array<
+      (tabId: number, changeInfo: Record<string, unknown>) => void
+    > = []
+    const onActivatedAddListener = vi.fn()
+
+    vi.stubGlobal("chrome", {
+      runtime: {
+        id: "monocle-test",
+        getURL: () => "chrome-extension://monocle-test/",
+        lastError: null,
+      },
+      permissions: { contains: vi.fn(async () => true) },
+      tabs: {
+        query: vi.fn(
+          (_queryInfo: Record<string, unknown>, callback?: Function) => {
+            callback?.([])
+            return Promise.resolve([])
+          },
+        ),
+        onCreated: { addListener: vi.fn() },
+        onRemoved: { addListener: vi.fn() },
+        onUpdated: {
+          addListener: (
+            listener: (
+              tabId: number,
+              changeInfo: Record<string, unknown>,
+            ) => void,
+          ) => {
+            updatedListeners.push(listener)
+          },
+        },
+        onActivated: { addListener: onActivatedAddListener },
+      },
+    })
+    vi.stubGlobal("browser", undefined)
+
+    return { updatedListeners, onActivatedAddListener }
+  }
+
+  it("ignores loading/favicon-only tab updates and never listens to onActivated", async () => {
+    const children = vi.fn(async () => [
+      makeAction("synthetic-tab-1", "Synthetic Tab One"),
+    ])
+    openTabsGroup.children = children
+
+    const { updatedListeners, onActivatedAddListener } = installEventStubs()
+    initializeSearchIndexInvalidation()
+
+    expect(onActivatedAddListener).not.toHaveBeenCalled()
+    expect(updatedListeners).toHaveLength(1)
+
+    const first = await getSearchIndex(normalContext)
+
+    // Status-only update: index survives untouched.
+    updatedListeners[0](1, { status: "loading" })
+    const afterStatus = await getSearchIndex(normalContext)
+    expect(afterStatus).toBe(first)
+    expect(children).toHaveBeenCalledTimes(1)
+
+    // Title update: invalidates (stale served, rebuild backgrounded).
+    updatedListeners[0](1, { title: "New Title" })
+    await getSearchIndex(normalContext)
+    await vi.waitFor(() => {
+      expect(children).toHaveBeenCalledTimes(2)
+    })
   })
 })
