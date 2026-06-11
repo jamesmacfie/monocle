@@ -17,8 +17,7 @@ context or remove it.
 - [Page scroll shortcuts](./page-scroll-shortcuts.md) — fine-grained page
   scrolling commands and keybindings.
 - [URL navigation and copy commands](./url-navigation-and-copy-commands.md) —
-  URL hierarchy, URL number mutation, view-source, copy variants, and clipboard
-  URL open commands.
+  URL hierarchy, URL number mutation, view-source, and copy variants.
 - [Features we will not build](./wont-do-vim-browser-features.md) — consolidated
   no-go decisions for broad Vim-browser features that do not fit Monocle.
 

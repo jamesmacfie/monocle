@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { SettingsCatalogCommand } from "../../shared/types"
-import {
-  getTemplatePreviewRows,
-  getTemplateSaveOperations,
-} from "./keybindingTemplates"
+import { getTemplateSaveOperations } from "./keybindingTemplates"
 
 const command = (
   id: string,
@@ -35,27 +32,6 @@ const command = (
 })
 
 describe("keybinding templates", () => {
-  it("does not expose clipboard-read commands that are not implemented", () => {
-    const commands = [command("copy-current-url")]
-
-    const previewCommandIds = getTemplatePreviewRows("vim", commands).map(
-      (row) => row.commandId,
-    )
-    const operations = getTemplateSaveOperations({
-      templateId: "vim",
-      commands,
-      overrideCustomKeybindings: true,
-    })
-    const operationCommandIds = operations.map(
-      (operation) => operation.commandId,
-    )
-
-    expect(previewCommandIds).not.toContain("open-url-from-clipboard")
-    expect(previewCommandIds).not.toContain("open-url-from-clipboard-new-tab")
-    expect(operationCommandIds).not.toContain("open-url-from-clipboard")
-    expect(operationCommandIds).not.toContain("open-url-from-clipboard-new-tab")
-  })
-
   it("preserves custom keybindings unless override is checked", () => {
     const commands = [
       command("copy-current-url", {

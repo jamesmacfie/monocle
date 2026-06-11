@@ -119,8 +119,8 @@ Ready rows can include existing commands:
 
 Pending rows should include Add Bookmark, tab next/previous/first/last, audible
 tab, hard reload, stop load, line/page/horizontal scrolling, URL hierarchy,
-URL-number mutation, view source, clipboard URL open, and top-level copy
-variants. Each pending row must link to the proposal that owns the capability.
+URL-number mutation, view source, and top-level copy variants. Each pending row
+must link to the proposal that owns the capability.
 
 ## Success Criteria
 
