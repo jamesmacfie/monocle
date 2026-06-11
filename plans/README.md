@@ -22,7 +22,7 @@ when done.
 |------|-------|----------|--------|------------|--------|
 | 001 | Detect and report keybinding conflicts in the bulk update path | P1 | M | — | DONE |
 | 002 | Make tab activation history survive MV3 worker restarts | P1 | S | — | DONE |
-| 003 | Stop sending a background message for every keystroke | P1 | M | — | TODO |
+| 003 | Stop sending a background message for every keystroke | P1 | M | — | DONE (manual browser smoke still recommended: sequences, unbound keys, palette-open binding after idle) |
 | 004 | Serialize read-modify-write cycles on chrome.storage.local | P2 | M | — | TODO |
 | 005 | Cut redundant work from the per-keystroke search path | P2 | S | — | TODO |
 | 006 | DOM test baseline + CMDK↔Redux characterization tests | P2 | M | — | TODO |
@@ -99,6 +99,9 @@ plan when ready):
 - **`scopeQueues` in `executeKeybinding.ts` never evicts entries for closed
   tabs** — unbounded but tiny (one Map entry per scope). Fold into a future
   keybinding cleanup.
+- **Pre-existing layering violation**: `shared/hooks/useCommandPaletteStateRedux.tsx:2`
+  imports `workflowExecutor` from `content/` — shared code must not import
+  content code (found during plan 003's layering check; not introduced by it).
 
 ## Findings considered and rejected
 

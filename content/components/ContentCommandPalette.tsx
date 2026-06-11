@@ -41,8 +41,18 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
     showPalette: showUI,
   })
 
+  // Site SDK registrations can add keybindings without a settings write, so
+  // the keybinding hook needs this signal to keep its local snapshot fresh.
+  const subscribeToRefreshSignals = useCallback(
+    (refresh: () => void) => subscribeSiteSdkCommandsChanged(refresh),
+    [],
+  )
+
   // Enable global keybindings for content script
-  useGlobalKeybindings({ onOpenPaletteAtCommand: openPaletteAtCommand })
+  useGlobalKeybindings({
+    onOpenPaletteAtCommand: openPaletteAtCommand,
+    subscribeToRefreshSignals,
+  })
 
   // Load permissions, settings and fetch commands on initial render
   useEffect(() => {

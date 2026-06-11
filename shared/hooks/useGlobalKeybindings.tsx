@@ -21,11 +21,34 @@ type ExecuteKeybindingResponse = {
 type GlobalKeybindingOptions = {
   isNewTab?: boolean
   onOpenPaletteAtCommand?: (commandId: string) => void | Promise<void>
+  // Extra refresh signal for keybinding sources that don't write
+  // monocle-settings (e.g. site SDK registrations). Returns an unsubscribe.
+  subscribeToRefreshSignals?: (refresh: () => void) => (() => void) | undefined
 }
 
 const SETTINGS_STORAGE_KEY = "monocle-settings"
 
-const sequenceKey = (strokes: string[]): string => strokes.join(", ")
+const sequenceKey = (strokes: readonly string[]): string => strokes.join(", ")
+
+// Pure predicate for "could this keystroke be (part of) a binding we handle?"
+// — an exact binding, a known sequence prefix, or a continuation of the
+// sequence in progress. Exported for unit tests.
+export const computeKeybindingMatch = (
+  keyString: string,
+  exactKeybindings: ReadonlySet<string>,
+  sequencePrefixes: ReadonlySet<string>,
+  localSequence: readonly string[],
+): boolean => {
+  const isKnown = (key: string) =>
+    exactKeybindings.has(key) || sequencePrefixes.has(key)
+
+  const continuedSequence =
+    localSequence.length > 0
+      ? sequenceKey([...localSequence, keyString])
+      : keyString
+
+  return isKnown(continuedSequence) || isKnown(keyString)
+}
 
 export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
   const sendMessage = useSendMessage()
@@ -71,6 +94,17 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
       sequencePrefixesRef.current.has(keybinding)
     )
   }, [])
+
+  const matchesKnownBinding = useCallback(
+    (keyString: string): boolean =>
+      computeKeybindingMatch(
+        keyString,
+        exactKeybindingsRef.current,
+        sequencePrefixesRef.current,
+        localSequenceRef.current,
+      ),
+    [],
+  )
 
   const updateLocalSequenceForPendingStroke = useCallback(
     (keyString: string) => {
@@ -120,6 +154,19 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
     }
   }, [refreshKeybindingState])
 
+  // The gate below means a stale snapshot silently drops bindings, so any
+  // binding source that doesn't write monocle-settings must push a refresh
+  // signal through this subscription (e.g. site SDK registrations).
+  useEffect(() => {
+    const unsubscribe = options.subscribeToRefreshSignals?.(() => {
+      void refreshKeybindingState()
+    })
+
+    return () => {
+      unsubscribe?.()
+    }
+  }, [options.subscribeToRefreshSignals, refreshKeybindingState])
+
   useEffect(() => {
     const keyCapture = new RobustKeyCapture({
       debug: false,
@@ -128,19 +175,22 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
           return false
         }
 
-        const existingSequence = localSequenceRef.current
-        const continuedSequence =
-          existingSequence.length > 0
-            ? sequenceKey([...existingSequence, keyString])
-            : keyString
-
-        return (
-          isKnownHandledSequence(continuedSequence) ||
-          isKnownHandledSequence(keyString)
-        )
+        return matchesKnownBinding(keyString)
       },
       onKeyPress: async (keyString: string): Promise<boolean> => {
         if (isCapturing) {
+          return false
+        }
+
+        // Only message the background for keystrokes that can match a known
+        // binding or continue the sequence in progress — everything else
+        // stays on the page and never wakes the service worker.
+        if (!matchesKnownBinding(keyString)) {
+          if (localSequenceRef.current.length > 0) {
+            // The key abandoned an in-progress sequence; the background's own
+            // chord timeout clears its copy of the sequence state.
+            resetLocalSequence()
+          }
           return false
         }
 
@@ -189,11 +239,11 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
   }, [
     getContextOverride,
     isCapturing,
-    isKnownHandledSequence,
     options.onOpenPaletteAtCommand,
     refreshKeybindingState,
     resetLocalSequence,
     sendMessage,
     updateLocalSequenceForPendingStroke,
+    matchesKnownBinding,
   ])
 }
