@@ -1,6 +1,7 @@
 import type { ActionCommandNode, Browser } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { getActiveTab } from "../utils/browser"
+import { withStorageLock } from "../utils/storageMutex"
 
 const STORAGE_KEY = "monocle-favoriteCommandIds"
 
@@ -33,44 +34,51 @@ const saveFavoriteCommandIds = async (commandIds: string[]): Promise<void> => {
 // Add a command to favorites
 export const addToFavoriteCommandIds = async (
   commandId: string,
-): Promise<void> => {
-  const favoriteCommandIds = await loadFavoriteCommandIds()
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const favoriteCommandIds = await loadFavoriteCommandIds()
 
-  // Don't add if it already exists
-  if (!favoriteCommandIds.includes(commandId)) {
-    favoriteCommandIds.push(commandId)
-    await saveFavoriteCommandIds(favoriteCommandIds)
-  }
-}
+    // Don't add if it already exists
+    if (!favoriteCommandIds.includes(commandId)) {
+      favoriteCommandIds.push(commandId)
+      await saveFavoriteCommandIds(favoriteCommandIds)
+    }
+  })
 
 // Remove a command from favorites
 export const removeFromFavoriteCommandIds = async (
   commandId: string,
-): Promise<void> => {
-  const favoriteCommandIds = await loadFavoriteCommandIds()
-  const index = favoriteCommandIds.indexOf(commandId)
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const favoriteCommandIds = await loadFavoriteCommandIds()
+    const index = favoriteCommandIds.indexOf(commandId)
 
-  if (index !== -1) {
-    favoriteCommandIds.splice(index, 1)
-    await saveFavoriteCommandIds(favoriteCommandIds)
-  }
-}
+    if (index !== -1) {
+      favoriteCommandIds.splice(index, 1)
+      await saveFavoriteCommandIds(favoriteCommandIds)
+    }
+  })
 
-// Toggle favorite status
+// Toggle favorite status. The whole decide-and-write cycle runs inside one
+// lock (no calls to the locked add/remove helpers — the lock is not
+// re-entrant), so concurrent toggles can't both read the same stale list.
 export const toggleFavoriteCommandId = async (
   commandId: string,
-): Promise<boolean> => {
-  const favoriteCommandIds = await loadFavoriteCommandIds()
-  const isFavorite = favoriteCommandIds.includes(commandId)
+): Promise<boolean> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const favoriteCommandIds = await loadFavoriteCommandIds()
+    const index = favoriteCommandIds.indexOf(commandId)
 
-  if (isFavorite) {
-    await removeFromFavoriteCommandIds(commandId)
-    return false
-  } else {
-    await addToFavoriteCommandIds(commandId)
+    if (index !== -1) {
+      favoriteCommandIds.splice(index, 1)
+      await saveFavoriteCommandIds(favoriteCommandIds)
+      return false
+    }
+
+    favoriteCommandIds.push(commandId)
+    await saveFavoriteCommandIds(favoriteCommandIds)
     return true
-  }
-}
+  })
 
 export const getFavoriteCommandIds = async (): Promise<string[]> => {
   const favoriteIds = await loadFavoriteCommandIds()

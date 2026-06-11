@@ -9,6 +9,7 @@ import type {
   UrlRules,
 } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
+import { withStorageLock } from "../utils/storageMutex"
 
 // Cross-browser compatibility layer
 const browserAPI = getBrowserAPI()
@@ -131,68 +132,75 @@ export const getAllCommandSettings = async (): Promise<
   return settings.commands || {}
 }
 
-// Set settings for a specific command
+// Set settings for a specific command.
+// Every load→mutate→save cycle below runs inside withStorageLock(STORAGE_KEY)
+// so concurrent message handlers can't interleave and lose writes. The lock
+// is NOT re-entrant: delegating helpers (updateCommandUrlRules, the newTab
+// convenience wrappers) must stay unlocked.
 export const setCommandSettings = async (
   commandId: string,
   commandSettings: CommandSettings,
-): Promise<void> => {
-  const settings = await loadSettings()
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const settings = await loadSettings()
 
-  if (!settings.commands) {
-    settings.commands = {}
-  }
+    if (!settings.commands) {
+      settings.commands = {}
+    }
 
-  settings.commands[commandId] = commandSettings
-  await saveSettings(settings)
-}
+    settings.commands[commandId] = commandSettings
+    await saveSettings(settings)
+  })
 
 // Update settings for a specific command (merging with existing)
 export const updateCommandSettings = async (
   commandId: string,
   partialSettings: Partial<CommandSettings>,
-): Promise<void> => {
-  const settings = await loadSettings()
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const settings = await loadSettings()
 
-  if (!settings.commands) {
-    settings.commands = {}
-  }
+    if (!settings.commands) {
+      settings.commands = {}
+    }
 
-  const existingSettings = settings.commands[commandId] || {}
-  const nextSettings = mergeCommandSettings(existingSettings, partialSettings)
+    const existingSettings = settings.commands[commandId] || {}
+    const nextSettings = mergeCommandSettings(existingSettings, partialSettings)
 
-  if (isEmptyObject(nextSettings)) {
-    delete settings.commands[commandId]
-  } else {
-    settings.commands[commandId] = nextSettings
-  }
+    if (isEmptyObject(nextSettings)) {
+      delete settings.commands[commandId]
+    } else {
+      settings.commands[commandId] = nextSettings
+    }
 
-  await saveSettings(settings)
-}
+    await saveSettings(settings)
+  })
 
 export const updateCommandKeybindings = async (
   updates: Array<{ commandId: string; keybinding?: string | null }>,
-): Promise<void> => {
-  const settings = await loadSettings()
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const settings = await loadSettings()
 
-  if (!settings.commands) {
-    settings.commands = {}
-  }
-
-  for (const update of updates) {
-    const existingSettings = settings.commands[update.commandId] || {}
-    const nextSettings = mergeCommandSettings(existingSettings, {
-      keybinding: update.keybinding || undefined,
-    })
-
-    if (isEmptyObject(nextSettings)) {
-      delete settings.commands[update.commandId]
-    } else {
-      settings.commands[update.commandId] = nextSettings
+    if (!settings.commands) {
+      settings.commands = {}
     }
-  }
 
-  await saveSettings(settings)
-}
+    for (const update of updates) {
+      const existingSettings = settings.commands[update.commandId] || {}
+      const nextSettings = mergeCommandSettings(existingSettings, {
+        keybinding: update.keybinding || undefined,
+      })
+
+      if (isEmptyObject(nextSettings)) {
+        delete settings.commands[update.commandId]
+      } else {
+        settings.commands[update.commandId] = nextSettings
+      }
+    }
+
+    await saveSettings(settings)
+  })
 
 // Update URL rules for a command while preserving sibling rule lists
 export const updateCommandUrlRules = async (
@@ -205,44 +213,44 @@ export const updateCommandUrlRules = async (
 }
 
 // Remove settings for a specific command
-export const removeCommandSettings = async (
-  commandId: string,
-): Promise<void> => {
-  const settings = await loadSettings()
+export const removeCommandSettings = async (commandId: string): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const settings = await loadSettings()
 
-  if (settings.commands?.[commandId]) {
-    delete settings.commands[commandId]
-    await saveSettings(settings)
-  }
-}
+    if (settings.commands?.[commandId]) {
+      delete settings.commands[commandId]
+      await saveSettings(settings)
+    }
+  })
 
 // Remove one command setting field while preserving sibling settings
 export const removeCommandSetting = async (
   commandId: string,
   setting: CommandSettingKey,
-): Promise<void> => {
-  const settings = await loadSettings()
-  const existingSettings = settings.commands?.[commandId]
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const settings = await loadSettings()
+    const existingSettings = settings.commands?.[commandId]
 
-  if (!existingSettings) {
-    return
-  }
-
-  const nextSettings: CommandSettings = { ...existingSettings }
-  delete nextSettings[setting]
-
-  const prunedSettings = pruneCommandSettings(nextSettings)
-
-  if (isEmptyObject(prunedSettings)) {
-    if (settings.commands) {
-      delete settings.commands[commandId]
+    if (!existingSettings) {
+      return
     }
-  } else if (settings.commands) {
-    settings.commands[commandId] = prunedSettings
-  }
 
-  await saveSettings(settings)
-}
+    const nextSettings: CommandSettings = { ...existingSettings }
+    delete nextSettings[setting]
+
+    const prunedSettings = pruneCommandSettings(nextSettings)
+
+    if (isEmptyObject(prunedSettings)) {
+      if (settings.commands) {
+        delete settings.commands[commandId]
+      }
+    } else if (settings.commands) {
+      settings.commands[commandId] = prunedSettings
+    }
+
+    await saveSettings(settings)
+  })
 
 // Get theme settings
 export const getThemeSettings = async (): Promise<ThemeSettings> => {
@@ -253,26 +261,28 @@ export const getThemeSettings = async (): Promise<ThemeSettings> => {
 // Set theme settings
 export const setThemeSettings = async (
   themeSettings: ThemeSettings,
-): Promise<void> => {
-  const settings = await loadSettings()
-  settings.theme = themeSettings
-  await saveSettings(settings)
-}
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const settings = await loadSettings()
+    settings.theme = themeSettings
+    await saveSettings(settings)
+  })
 
 // Update theme settings (merging with existing)
 export const updateThemeSettings = async (
   partialSettings: Partial<ThemeSettings>,
-): Promise<void> => {
-  const settings = await loadSettings()
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const settings = await loadSettings()
 
-  const existingTheme = settings.theme || {}
-  settings.theme = {
-    ...existingTheme,
-    ...partialSettings,
-  }
+    const existingTheme = settings.theme || {}
+    settings.theme = {
+      ...existingTheme,
+      ...partialSettings,
+    }
 
-  await saveSettings(settings)
-}
+    await saveSettings(settings)
+  })
 
 // Get new tab settings
 export const getNewTabSettings = async (): Promise<NewTabSettings> => {
@@ -283,23 +293,25 @@ export const getNewTabSettings = async (): Promise<NewTabSettings> => {
 // Set new tab settings
 export const setNewTabSettings = async (
   newTabSettings: NewTabSettings,
-): Promise<void> => {
-  const settings = await loadSettings()
-  settings.newTab = newTabSettings
-  await saveSettings(settings)
-}
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const settings = await loadSettings()
+    settings.newTab = newTabSettings
+    await saveSettings(settings)
+  })
 
 // Update new tab settings (merging with existing)
 export const updateNewTabSettings = async (
   partialSettings: Partial<NewTabSettings>,
-): Promise<void> => {
-  const settings = await loadSettings()
+): Promise<void> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const settings = await loadSettings()
 
-  const existingNewTab = settings.newTab || {}
-  settings.newTab = merge(existingNewTab, partialSettings)
+    const existingNewTab = settings.newTab || {}
+    settings.newTab = merge(existingNewTab, partialSettings)
 
-  await saveSettings(settings)
-}
+    await saveSettings(settings)
+  })
 
 // Clear all settings
 export const clearAllSettings = async (): Promise<void> => {

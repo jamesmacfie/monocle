@@ -1,4 +1,5 @@
 import { getBrowserAPI } from "../../shared/utils/extension-api"
+import { withStorageLock } from "../utils/storageMutex"
 
 interface CommandUsageStats {
   commandId: string
@@ -119,8 +120,18 @@ export const calculateCommandScore = (
   return newEmaScore
 }
 
-// Record a command usage event
+// Record a command usage event. Serialized per storage key: concurrent
+// executions (e.g. the same keybinding fired in two tabs) would otherwise
+// interleave between load and save and drop an increment.
 export const recordCommandUsage = async (
+  commandId: string,
+  parentNames?: string[],
+): Promise<void> =>
+  withStorageLock(USAGE_STORAGE_KEY, async () => {
+    await recordCommandUsageUnlocked(commandId, parentNames)
+  })
+
+const recordCommandUsageUnlocked = async (
   commandId: string,
   parentNames?: string[],
 ): Promise<void> => {

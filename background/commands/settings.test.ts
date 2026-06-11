@@ -227,3 +227,33 @@ describe("command settings merge model", () => {
     })
   })
 })
+
+describe("concurrent write serialization", () => {
+  it("keeps both updates when two commands are updated concurrently", async () => {
+    // Without the storage lock both calls load the same snapshot before
+    // either saves, and the second save silently drops the first update.
+    await Promise.all([
+      updateCommandSettings("command-a", { keybinding: "<cmd-1>" }),
+      updateCommandSettings("command-b", { keybinding: "<cmd-2>" }),
+    ])
+
+    await expect(getCommandSettings("command-a")).resolves.toEqual({
+      keybinding: "<cmd-1>",
+    })
+    await expect(getCommandSettings("command-b")).resolves.toEqual({
+      keybinding: "<cmd-2>",
+    })
+  })
+
+  it("keeps interleaved command and newTab updates", async () => {
+    await Promise.all([
+      updateCommandSettings("command-a", { hidden: true }),
+      updateNewTabSettings({ clock: { show: true } } as never),
+    ])
+
+    await expect(getCommandSettings("command-a")).resolves.toEqual({
+      hidden: true,
+    })
+    await expect(getNewTabClockSettings()).resolves.toEqual({ show: true })
+  })
+})
