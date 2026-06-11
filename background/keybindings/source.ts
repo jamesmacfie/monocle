@@ -5,7 +5,9 @@ import type {
   CommandSettings,
   KeybindingBehavior,
 } from "../../shared/types"
+import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
+import { getPlatform } from "../commands/platform"
 import {
   getFilteredRootCommands,
   mergePermissions,
@@ -164,11 +166,10 @@ const collectCustomSettingEntries = async (
   }
 }
 
-export const loadKeybindingCommandEntries = async (
-  context?: Browser.Context,
+const buildKeybindingCommandEntries = async (
+  normalizedContext: Browser.Context,
   options?: CommandLoadOptions,
 ): Promise<KeybindingCommandEntry[]> => {
-  const normalizedContext = normalizeContext(context)
   const commandSettings = await getAllCommandSettings()
   const rootCommands = await getFilteredRootCommands(normalizedContext, options)
   const entries: KeybindingCommandEntry[] = []
@@ -191,4 +192,133 @@ export const loadKeybindingCommandEntries = async (
   )
 
   return entries
+}
+
+// Module-scoped entries cache (same service-worker lifetime pattern as
+// commands/searchIndex.ts). Unlike the search index, keybinding entries are
+// URL-filtered at build time, so the cache key includes the URL: one rebuild
+// per navigation, while the hot path — every keystroke on one page funnelling
+// through execute-keybinding/get-keybinding-state — is a Map lookup instead of
+// a full command-tree traversal. Invalidation: ~30s TTL backstop plus the
+// events wired in initializeKeybindingEntriesInvalidation(), plus explicit
+// invalidation from settings write paths via refreshKeybindingRegistry().
+const ENTRIES_TTL_MS = 30_000
+const MAX_CACHED_CONTEXTS = 8
+
+type CachedEntries = {
+  entries: KeybindingCommandEntry[]
+  builtAt: number
+}
+
+const entriesCache = new Map<string, CachedEntries>()
+const inflightBuilds = new Map<string, Promise<KeybindingCommandEntry[]>>()
+// Bumped on invalidation so a build that started before the invalidation
+// cannot re-insert its (potentially stale) result.
+let cacheGeneration = 0
+
+const getEntriesCacheKey = (
+  context: Browser.Context,
+  options?: CommandLoadOptions,
+): string => {
+  const siteSdkKey = options?.siteSdk
+    ? `|site:${options.siteSdk.scopeKey}:${options.siteSdk.revision}`
+    : ""
+  return `${context.isNewTab ? "newtab" : "page"}|${context.url || ""}|${getPlatform(options)}${siteSdkKey}`
+}
+
+const storeCachedEntries = (
+  cacheKey: string,
+  entries: KeybindingCommandEntry[],
+): void => {
+  const now = Date.now()
+
+  for (const [key, cached] of entriesCache) {
+    if (now - cached.builtAt >= ENTRIES_TTL_MS) {
+      entriesCache.delete(key)
+    }
+  }
+
+  while (entriesCache.size >= MAX_CACHED_CONTEXTS) {
+    let oldestKey: string | undefined
+    let oldestBuiltAt = Infinity
+    for (const [key, cached] of entriesCache) {
+      if (cached.builtAt < oldestBuiltAt) {
+        oldestBuiltAt = cached.builtAt
+        oldestKey = key
+      }
+    }
+    if (oldestKey === undefined) break
+    entriesCache.delete(oldestKey)
+  }
+
+  entriesCache.set(cacheKey, { entries, builtAt: now })
+}
+
+export const invalidateKeybindingEntriesCache = (): void => {
+  cacheGeneration += 1
+  entriesCache.clear()
+  inflightBuilds.clear()
+}
+
+// Wire browser events that change which commands can carry keybindings.
+// Settings mutations are covered via storage.onChanged, which avoids import
+// cycles with settings.ts. Deliberately NOT wired to tab/history/bookmark
+// events (unlike the search index): those fire constantly and dynamic
+// children almost never carry default keybindings — the TTL covers the rare
+// drift. Every listener is existence-guarded for Firefox.
+export const initializeKeybindingEntriesInvalidation = (): void => {
+  const api = getBrowserAPI()
+  const invalidate = () => invalidateKeybindingEntriesCache()
+
+  api.permissions?.onAdded?.addListener(invalidate)
+  api.permissions?.onRemoved?.addListener(invalidate)
+  api.storage?.onChanged?.addListener(
+    (changes: Record<string, unknown>, areaName: string) => {
+      if (areaName === "local" && "monocle-settings" in changes) {
+        invalidate()
+      }
+    },
+  )
+}
+
+export const loadKeybindingCommandEntries = async (
+  context?: Browser.Context,
+  options?: CommandLoadOptions,
+): Promise<KeybindingCommandEntry[]> => {
+  const normalizedContext = normalizeContext(context)
+  const cacheKey = getEntriesCacheKey(normalizedContext, options)
+
+  const cached = entriesCache.get(cacheKey)
+  if (cached) {
+    if (Date.now() - cached.builtAt < ENTRIES_TTL_MS) {
+      return cached.entries
+    }
+    entriesCache.delete(cacheKey)
+  }
+
+  const inflight = inflightBuilds.get(cacheKey)
+  if (inflight) {
+    return await inflight
+  }
+
+  const generation = cacheGeneration
+  const build = (async (): Promise<KeybindingCommandEntry[]> => {
+    const entries = await buildKeybindingCommandEntries(
+      normalizedContext,
+      options,
+    )
+    if (generation === cacheGeneration) {
+      storeCachedEntries(cacheKey, entries)
+    }
+    return entries
+  })()
+
+  inflightBuilds.set(cacheKey, build)
+  try {
+    return await build
+  } finally {
+    if (inflightBuilds.get(cacheKey) === build) {
+      inflightBuilds.delete(cacheKey)
+    }
+  }
 }

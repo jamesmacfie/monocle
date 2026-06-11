@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
 import type { Browser, ExecuteKeybindingMessage } from "../../shared/types"
 import { clearAllSettings, updateCommandSettings } from "../commands/settings"
+import { invalidateKeybindingEntriesCache } from "../keybindings/source"
 import { executeKeybinding } from "./executeKeybinding"
 
 // Force Firefox so firefoxCommands (container groups) load in loadAllCommands.
@@ -65,6 +66,7 @@ describe("sequential keybinding execution", () => {
     installChromeStubs()
     createSpy.mockClear()
     await clearAllSettings()
+    invalidateKeybindingEntriesCache()
     await updateCommandSettings("open-container-tab-firefox-container-1", {
       keybinding: "c, n, p",
     })
@@ -119,5 +121,85 @@ describe("sequential keybinding execution", () => {
         commandId: "add-bookmark",
       },
     })
+  })
+})
+
+describe("pending single chord timer", () => {
+  beforeEach(async () => {
+    fakeBrowser.reset()
+    installChromeStubs()
+    createSpy.mockClear()
+    await clearAllSettings()
+    invalidateKeybindingEntriesCache()
+    // "c" is both an exact binding (open-new-tab) and a prefix of the
+    // container sequence, so a first "c" arms the pending-single timer.
+    await updateCommandSettings("open-container-tab-firefox-container-1", {
+      keybinding: "c, n, p",
+    })
+    await updateCommandSettings("open-new-tab", {
+      keybinding: "c",
+    })
+  })
+
+  it("executes the pending single exactly once after the chord timeout", async () => {
+    vi.useFakeTimers()
+    try {
+      const first = await press("c")
+      expect(first).toMatchObject({ success: true, pending: true })
+
+      await vi.advanceTimersByTimeAsync(800)
+
+      expect(createSpy).toHaveBeenCalledTimes(1)
+
+      // The sequence state is fully reset: a later "c" arms a fresh timer
+      // rather than resolving against stale state.
+      const again = await press("c")
+      expect(again).toMatchObject({ success: true, pending: true })
+      await vi.advanceTimersByTimeAsync(800)
+      expect(createSpy).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("does not double-execute when the timer fires as continuation strokes arrive", async () => {
+    vi.useFakeTimers()
+    try {
+      await press("c")
+
+      // Fire the chord timer and the continuation strokes without awaiting in
+      // between, so the timer's execution and the stroke handlers overlap.
+      // Regression: when the timer body ran outside the per-scope queue, the
+      // "n"/"p" handlers interleaved with it and BOTH the pending single and
+      // the full sequence executed.
+      const timerFired = vi.advanceTimersByTimeAsync(800)
+      const continuation = Promise.all([press("n"), press("p")])
+      await Promise.all([timerFired, continuation])
+
+      expect(createSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("does not fire the pending single when a continuation arrives in time", async () => {
+    vi.useFakeTimers()
+    try {
+      await press("c")
+      await vi.advanceTimersByTimeAsync(700)
+
+      const second = await press("n")
+      expect(second).toMatchObject({ success: true, pending: true })
+
+      const third = await press("p")
+      expect(third).toMatchObject({ success: true, executed: true })
+
+      // Only the sequence command ran; the superseded pending single must not
+      // fire even after its original deadline passes.
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(createSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

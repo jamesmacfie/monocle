@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
 import { clearAllSettings, getCommandSettings } from "../commands/settings"
+import { invalidateKeybindingEntriesCache } from "../keybindings/source"
 import { handleMessage } from "."
 import { showToast } from "./showToast"
 
@@ -28,6 +29,7 @@ describe("update-command-keybindings", () => {
     installBrowserStubs()
     vi.mocked(showToast).mockClear()
     await clearAllSettings()
+    invalidateKeybindingEntriesCache()
   })
 
   it("updates multiple keybindings in one message without showing toasts", async () => {
@@ -137,6 +139,32 @@ describe("update-command-keybindings", () => {
     await expect(getCommandSettings("reload-current-tab")).resolves.toEqual({
       keybinding: "t",
     })
+  })
+
+  it("skips and reports a sequence shadowed by an existing open-palette binding", async () => {
+    await handleMessage({
+      type: "update-command-keybindings",
+      updates: [{ commandId: "add-bookmark", keybinding: "g" }],
+    })
+
+    const response = await handleMessage({
+      type: "update-command-keybindings",
+      updates: [{ commandId: "open-new-tab", keybinding: "g, x" }],
+    })
+
+    expect(response).toEqual({
+      success: true,
+      updated: 0,
+      conflicts: [
+        {
+          commandId: "open-new-tab",
+          keybinding: "g, x",
+          conflictingCommand: expect.objectContaining({ id: "add-bookmark" }),
+          reason: "shadowed-by-open-palette",
+        },
+      ],
+    })
+    await expect(getCommandSettings("open-new-tab")).resolves.toBeUndefined()
   })
 
   it("clears keybindings without conflict checks and counts them as updated", async () => {

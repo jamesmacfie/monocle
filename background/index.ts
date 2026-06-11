@@ -10,6 +10,7 @@ import {
 } from "./commands/searchIndex"
 import { clearSiteSdkScopesForTab } from "./commands/siteSdk"
 import { initializeKeybindingRegistry } from "./keybindings/registry"
+import { initializeKeybindingEntriesInvalidation } from "./keybindings/source"
 import { handleMessage } from "./messages"
 import { toggleContentPalette } from "./utils/contentPalette"
 import {
@@ -26,6 +27,7 @@ export function initializeBackground() {
   // Wire search-index invalidation events and warm the index so the first
   // palette query after a cold start doesn't pay the full tree resolve
   initializeSearchIndexInvalidation()
+  initializeKeybindingEntriesInvalidation()
   warmSearchIndex()
 
   browserAPI.tabs?.onRemoved?.addListener((tabId: number) => {

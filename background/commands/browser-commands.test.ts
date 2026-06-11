@@ -9,6 +9,7 @@ import {
   getCommandIdForKeybinding,
   initializeKeybindingRegistry,
 } from "../keybindings/registry"
+import { invalidateKeybindingEntriesCache } from "../keybindings/source"
 import { getChildrenCommands } from "../messages/getChildrenCommands"
 import { searchCommands } from "../messages/searchCommands"
 import { getBookmarkTree, getRecentDownloads } from "../utils/browser"
@@ -346,6 +347,7 @@ const getChildren = async (
 beforeEach(() => {
   fakeBrowser.reset()
   vi.useRealTimers()
+  invalidateKeybindingEntriesCache()
 
   tabs = defaultTabs.map((tab) => ({ ...tab }))
   permissionAccess = grantAllPermissions()

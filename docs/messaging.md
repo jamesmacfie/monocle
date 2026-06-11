@@ -29,12 +29,12 @@ Every entry below is registered in `handleMessage`. "Direction" is always UI -> 
 | `execute-command` | UI -> bg | `{ id, context, formValues?, parentNames?, executionScope? }` | `{ success: true }` or `{ error }` | `background/messages/executeCommand.ts`, `executeCommand` | Run a command's executor with form values and execution scope. |
 | `execute-keybinding` | UI -> bg | `{ keybinding, context }` | sequence/exec result (see below) or `{ error }` | `background/messages/executeKeybinding.ts`, `executeKeybinding` | Resolve a key stroke against the registry, handle chords, execute matches. |
 | `get-keybinding-state` | UI -> bg | `{ context }` | `{ exactKeybindings: string[], sequencePrefixes: string[] }` or `{ error }` | `background/messages/getKeybindingState.ts`, `getKeybindingState` | Snapshot the active keybindings so the UI knows which strokes to capture. |
-| `check-keybinding-conflict` | UI -> bg | `{ keybinding, excludeCommandId?, context? }` | `{ hasConflict: boolean, conflictingCommand: { id, name } \| null }` | `background/messages/checkKeybindingConflict.ts`, `checkKeybindingConflict` | Detect whether a proposed custom keybinding collides with an existing one. |
+| `check-keybinding-conflict` | UI -> bg | `{ keybinding, excludeCommandId?, context? }` | `{ hasConflict: boolean, conflictingCommand: { id, name } \| null, conflictType?, warnings? }` | `background/messages/checkKeybindingConflict.ts`, `checkKeybindingConflict` | Detect whether a proposed custom keybinding collides with an existing one, including open-palette prefix shadowing and non-blocking prefix-overlap warnings. |
 | `get-permissions` | UI -> bg | `{}` (no context) | `{ isLoaded: true, access: Record<string, boolean> }` or throws | `background/messages/getPermissions.ts`, `getPermissions` | Report which optional permissions are currently granted. |
 | `request-permission` | UI -> bg | `{ permission }` (no context) | `{ granted: boolean, error? }` (`RequestPermissionResponse`) | `background/messages/requestPermission.ts`, `requestPermission` | Trigger the browser permission prompt and report the result. |
 | `open-permission-grant-page` | UI -> bg | `{ permission }` (no context) | `{ success: true }` | `background/messages/openPermissionGrantPage.ts`, `openPermissionGrantPage` | Open the new-tab page with a `grantPermission` query so the prompt runs in a user-gesture-friendly context. |
 | `update-command-setting` | UI -> bg | discriminated by `setting` (see below) | `{ success: true }` or throws | `background/messages/updateCommandSetting.ts`, `updateCommandSetting` | Persist a per-command `keybinding`, `hidden`, or `urlRules` setting. |
-| `update-command-keybindings` | UI -> bg | `{ updates: { commandId, keybinding? }[], context? }` | `{ success: true, updated: number }` or throws | `background/messages/updateCommandKeybindings.ts`, `updateCommandKeybindings` | Batch-persist keybindings for template application without per-command toasts. |
+| `update-command-keybindings` | UI -> bg | `{ updates: { commandId, keybinding? }[], context? }` | `{ success: true, updated: number, conflicts: UpdateCommandKeybindingsConflict[] }` or throws | `background/messages/updateCommandKeybindings.ts`, `updateCommandKeybindings` | Batch-persist keybindings for template application without per-command toasts; conflicting updates are skipped and reported. |
 | `get-settings-catalog` | UI -> bg | `{ platform? }` | `SettingsCatalogResponse` | `background/messages/getSettingsCatalog.ts`, `getSettingsCatalog` | Return durable command rows for the options Commands page, including metadata, settings, favorite state, usage, and capabilities. |
 | `set-command-favorite` | UI -> bg | `{ commandId, favorite }` | `{ success: true }` | `background/messages/setCommandFavorite.ts`, `setCommandFavorite` | Set favorite state directly, including for hidden commands that no longer expose generated palette actions. |
 | `request-toast` | UI -> bg | `{ level, message }` | `{ success: true, rateLimited? }` | `background/messages/requestToast.ts`, `requestToast` | UI-originated toast request; forwarded to `showToast`. |
@@ -141,7 +141,7 @@ Note this handler is **not** wrapped by `createMessageHandler`; it has its own t
 
 **`get-keybinding-state`** — `getKeybindingState` returns `{ exactKeybindings, sequencePrefixes }` from the registry snapshot. The UI uses this to decide which key events to intercept before passing them to `execute-keybinding`.
 
-**`check-keybinding-conflict`** — `checkKeybindingConflict` normalizes the proposed binding, loads all keybinding-capable command entries for the context, and returns the first non-excluded command with a matching normalized binding as `conflictingCommand`. Errors are swallowed and reported as no conflict. This handler is not wrapped by `createMessageHandler` either.
+**`check-keybinding-conflict`** — `checkKeybindingConflict` normalizes the proposed binding, loads all keybinding-capable command entries for the context, resolves the target command's keybinding behavior, and delegates to `evaluateKeybindingAssignment` (`background/keybindings/conflicts.ts`). Blocking conflicts carry `conflictType: "exact"` (another command holds the same canonical binding) or `conflictType: "shadowed-by-open-palette"` (the assignment puts an open-palette binding on a proper prefix of a sequence in either direction, which would make the sequence unreachable — open-palette matches execute immediately because the chord timer cannot deliver an open-palette response after the message channel closes). Non-blocking prefix overlaps between execute-behavior bindings are returned as `warnings: KeybindingConflictWarning[]` (the shared prefix only resolves after the chord timeout). `conflictType` and `warnings` are omitted when empty. Errors are swallowed and reported as no conflict. This handler is not wrapped by `createMessageHandler` either.
 
 ### Permissions
 
@@ -205,11 +205,16 @@ type UpdateCommandKeybindingsMessage = {
 }
 ```
 
-The handler validates every non-empty keybinding target before writing, updates
-all command settings with one storage save, refreshes the keybinding registry
-once, and returns `{ success: true, updated: number }`. It does **not** emit
-toasts; the per-command `update-command-setting` keybinding path remains the
-toast-producing path for manual edits.
+The handler validates every non-empty keybinding target before writing, skips
+and reports conflicting updates (exact collisions, intra-batch duplicate claims
+where the first claimant wins, and open-palette prefix shadowing — reported
+with `reason: "shadowed-by-open-palette"` on the conflict entry), updates the
+remaining command settings with one storage save, refreshes the keybinding
+registry once, and returns `{ success: true, updated: number, conflicts }`. It
+does **not** emit toasts; the per-command `update-command-setting` keybinding
+path remains the toast-producing path for manual edits. Prefix-overlap
+warnings are deliberately not reported on the batch path (sequence-heavy
+templates would drown in them).
 
 **`get-settings-catalog`** returns the options-page command catalog:
 

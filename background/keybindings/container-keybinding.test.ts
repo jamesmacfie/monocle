@@ -6,6 +6,7 @@ import {
   getCommandIdFromSnapshot,
   getKeybindingRegistrySnapshot,
 } from "./registry"
+import { invalidateKeybindingEntriesCache } from "./source"
 
 // Force the container query to return a fake container regardless of isFirefox,
 // reproducing the runtime where the user has containers available.
@@ -56,6 +57,7 @@ describe("container-tab keybindings", () => {
     fakeBrowser.reset()
     installChromeStubs()
     await clearAllSettings()
+    invalidateKeybindingEntriesCache()
   })
 
   it("registers a c, n, p sequence on a container child", async () => {

@@ -13,6 +13,7 @@ import {
 import { getSettingsCatalogCommandById } from "../commands/settingsCatalog"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import { refreshKeybindingRegistry } from "../keybindings/registry"
+import { invalidateKeybindingEntriesCache } from "../keybindings/source"
 import { allowsKeybinding } from "../utils/commands"
 import { validateUrlPattern } from "../utils/urlFilter"
 import { showToast } from "./showToast"
@@ -93,6 +94,8 @@ export async function updateCommandSetting(
     validateUrlRulesSetting(value)
     await updateCommandUrlRules(commandId, value)
     invalidateSearchIndex()
+    // URL rules change which commands are visible to the keybinding source.
+    invalidateKeybindingEntriesCache()
   }
 
   if (setting === "hidden") {

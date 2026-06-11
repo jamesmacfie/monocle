@@ -7,6 +7,7 @@ import type {
   SubmitCommandNode,
 } from "../../shared/types"
 import { initializeKeybindingRegistry } from "../keybindings/registry"
+import { invalidateKeybindingEntriesCache } from "../keybindings/source"
 import { executeKeybinding } from "../messages/executeKeybinding"
 import { getChildrenCommands } from "../messages/getChildrenCommands"
 import { getCommands as getCommandMessage } from "../messages/getCommands"
@@ -204,6 +205,7 @@ beforeEach(async () => {
   permissionGranted = true
   installChromeStubs()
   invalidateSearchIndex()
+  invalidateKeybindingEntriesCache()
   await clearAllSettings()
 })
 

@@ -1,6 +1,11 @@
 import { Command } from "cmdk"
 import { useEffect, useRef, useState } from "react"
-import type { Suggestion } from "../../../shared/types"
+import type {
+  CheckKeybindingConflictResponse,
+  KeybindingConflictType,
+  KeybindingConflictWarning,
+  Suggestion,
+} from "../../../shared/types"
 import {
   getKeyString,
   normalizeKeybinding,
@@ -31,11 +36,13 @@ function KeybindingCapture({
   // Sequence capture: array of completed canonical strokes.
   const [strokes, setStrokes] = useState<string[]>([])
   const [hasConflict, setHasConflict] = useState(false)
-  // Saving the conflicting command for if we want to display it via a tooltip or something
-  const [_conflictingCommand, setConflictingCommand] = useState<{
+  const [conflictType, setConflictType] =
+    useState<KeybindingConflictType | null>(null)
+  const [conflictingCommand, setConflictingCommand] = useState<{
     id: string
     name: string
   } | null>(null)
+  const [warnings, setWarnings] = useState<KeybindingConflictWarning[]>([])
   const captureRef = useRef<HTMLDivElement>(null)
   const sendMessage = useSendMessage()
 
@@ -49,18 +56,22 @@ function KeybindingCapture({
   // Function to check for keybinding conflicts
   const checkForConflict = async (keybinding: string) => {
     try {
-      const response = await sendMessage({
+      const response = (await sendMessage({
         type: "check-keybinding-conflict",
         keybinding,
         excludeCommandId: commandId,
-      })
+      })) as CheckKeybindingConflictResponse
 
       setHasConflict(response.hasConflict)
       setConflictingCommand(response.conflictingCommand || null)
+      setConflictType(response.conflictType ?? null)
+      setWarnings(response.warnings ?? [])
     } catch (error) {
       console.error("[KeybindingCapture] Failed to check conflict:", error)
       setHasConflict(false)
       setConflictingCommand(null)
+      setConflictType(null)
+      setWarnings([])
     }
   }
 
@@ -152,6 +163,18 @@ function KeybindingCapture({
           </div>
         )}
       </div>
+      {strokes.length > 0 && hasConflict && conflictingCommand && (
+        <div className="mt-1 px-1 text-xs text-[var(--color-error-fg)]">
+          {conflictType === "shadowed-by-open-palette"
+            ? `Blocked: shares a prefix with "${conflictingCommand.name}", whose open-palette binding would make the longer sequence unreachable`
+            : `Already assigned to "${conflictingCommand.name}"`}
+        </div>
+      )}
+      {strokes.length > 0 && !hasConflict && warnings.length > 0 && (
+        <div className="mt-1 px-1 text-xs text-[var(--color-warning-fg)]">
+          {`Overlaps with "${warnings[0].command.name}" — the shared prefix only executes after a short delay`}
+        </div>
+      )}
     </div>
   )
 }

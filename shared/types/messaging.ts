@@ -115,6 +115,37 @@ export type UpdateCommandKeybindingsMessage = {
   context?: Browser.Context
 }
 
+// Blocking conflict categories: "exact" — another command already holds the
+// binding; "shadowed-by-open-palette" — the assignment involves an
+// open-palette binding on a proper prefix of a sequence, which executes
+// immediately on its stroke and makes the longer sequence unreachable.
+export type KeybindingConflictType = "exact" | "shadowed-by-open-palette"
+
+// Non-blocking advisory: the candidate and an existing execute-behavior
+// binding overlap as sequence prefixes, so the shared prefix only resolves
+// after the chord timeout.
+export type KeybindingConflictWarning = {
+  type: "prefix-overlap"
+  direction: "candidate-extends-existing" | "existing-extends-candidate"
+  command: {
+    id: string
+    name: string
+  }
+  keybinding: string
+}
+
+export type CheckKeybindingConflictResponse = {
+  hasConflict: boolean
+  conflictingCommand: {
+    id: string
+    name: string
+  } | null
+  // Present only when hasConflict is true.
+  conflictType?: KeybindingConflictType
+  // Present only when non-empty.
+  warnings?: KeybindingConflictWarning[]
+}
+
 export type UpdateCommandKeybindingsConflict = {
   commandId: string
   keybinding: string
@@ -122,6 +153,8 @@ export type UpdateCommandKeybindingsConflict = {
     id: string
     name: string
   }
+  // Present only for non-exact skips (e.g. open-palette shadowing).
+  reason?: KeybindingConflictType
 }
 
 export type UpdateCommandKeybindingsResponse = {

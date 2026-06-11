@@ -14,6 +14,10 @@ import {
 type SequenceState = {
   currentSequence: string[]
   sequenceTimer: ReturnType<typeof setTimeout> | null
+  // Monotonic guard for chord timers: bumped whenever the armed timer is
+  // superseded, so a fired-but-queued timer task can detect it is stale even
+  // if the state object was deleted and recreated in the meantime.
+  timerEpoch: number
   pendingSingle: {
     entry: KeybindingRegistryEntry
     context: Browser.Context
@@ -21,11 +25,13 @@ type SequenceState = {
 }
 
 const sequenceStates = new Map<string, SequenceState>()
+let nextTimerEpoch = 0
 
 const createSequenceState = (): SequenceState => ({
   currentSequence: [],
   pendingSingle: null,
   sequenceTimer: null,
+  timerEpoch: 0,
 })
 
 const getSequenceScopeKey = (
@@ -64,9 +70,32 @@ const resetSequence = (scopeKey: string) => {
   sequenceStates.delete(scopeKey)
 }
 
+// Disarm the chord timer and drop any pending single match. Bumping the epoch
+// invalidates a timer callback that has already fired but is still waiting in
+// the per-scope serialization queue. Invariant: pendingSingle is non-null only
+// while its timer is armed.
+const clearSequenceTimer = (state: SequenceState): void => {
+  if (state.sequenceTimer) {
+    clearTimeout(state.sequenceTimer)
+  }
+  state.sequenceTimer = null
+  state.pendingSingle = null
+  state.timerEpoch = ++nextTimerEpoch
+}
+
 const scheduleReset = (scopeKey: string, state: SequenceState): void => {
+  const epoch = ++nextTimerEpoch
+  state.timerEpoch = epoch
   state.sequenceTimer = setTimeout(() => {
-    resetSequence(scopeKey)
+    // Serialize with stroke handling so the reset cannot interleave with a
+    // continuation stroke that arrived as the timer fired.
+    void runSerialized(scopeKey, async () => {
+      const latestState = sequenceStates.get(scopeKey)
+      if (!latestState || latestState.timerEpoch !== epoch) {
+        return
+      }
+      resetSequence(scopeKey)
+    })
   }, CHORD_TIMEOUT_MS)
 }
 
@@ -121,42 +150,54 @@ const schedulePendingSingle = (
   context: Browser.Context,
   sender?: any,
 ): void => {
+  const epoch = ++nextTimerEpoch
+  state.timerEpoch = epoch
   state.pendingSingle = { entry, context }
-  state.sequenceTimer = setTimeout(async () => {
-    const latestState = sequenceStates.get(scopeKey)
-    const pendingSingle = latestState?.pendingSingle
-
-    if (!pendingSingle) {
-      resetSequence(scopeKey)
-      return
-    }
-
-    try {
-      if (pendingSingle.entry.behavior === "openPaletteAtCommand") {
+  state.sequenceTimer = setTimeout(() => {
+    // Serialize with stroke handling: without this, a continuation stroke
+    // arriving as the timer fires can interleave with this execution and both
+    // the pending single and the full sequence run. The epoch check makes a
+    // stale fired-but-queued timer a no-op even if the continuation re-armed
+    // a new timer in the meantime.
+    void runSerialized(scopeKey, async () => {
+      const latestState = sequenceStates.get(scopeKey)
+      if (!latestState || latestState.timerEpoch !== epoch) {
         return
       }
 
-      await executeCommandById(
-        pendingSingle.entry.commandId,
-        pendingSingle.context,
-        {},
-        undefined,
-        undefined,
-        {
-          siteSdk: await prepareSiteSdkCommandLoadOptions(
-            sender,
-            pendingSingle.context,
-          ),
-        },
-      )
-    } catch (error) {
-      console.error(
-        `[ExecuteKeybinding] Delayed execute failed for ${pendingSingle.entry.commandId}:`,
-        error,
-      )
-    } finally {
-      resetSequence(scopeKey)
-    }
+      const pendingSingle = latestState.pendingSingle
+      if (!pendingSingle) {
+        resetSequence(scopeKey)
+        return
+      }
+
+      try {
+        if (pendingSingle.entry.behavior === "openPaletteAtCommand") {
+          return
+        }
+
+        await executeCommandById(
+          pendingSingle.entry.commandId,
+          pendingSingle.context,
+          {},
+          undefined,
+          undefined,
+          {
+            siteSdk: await prepareSiteSdkCommandLoadOptions(
+              sender,
+              pendingSingle.context,
+            ),
+          },
+        )
+      } catch (error) {
+        console.error(
+          `[ExecuteKeybinding] Delayed execute failed for ${pendingSingle.entry.commandId}:`,
+          error,
+        )
+      } finally {
+        resetSequence(scopeKey)
+      }
+    })
   }, CHORD_TIMEOUT_MS)
 }
 
@@ -283,10 +324,7 @@ const handleExecuteKeybinding = async (
 
     const state = getSequenceState(scopeKey)
 
-    if (state.sequenceTimer) {
-      clearTimeout(state.sequenceTimer)
-      state.sequenceTimer = null
-    }
+    clearSequenceTimer(state)
 
     state.currentSequence.push(stroke)
     const firstStrokeResult = await evaluateSequence(
@@ -310,10 +348,7 @@ const handleExecuteKeybinding = async (
 
   const state = getSequenceState(scopeKey)
 
-  if (state.sequenceTimer) {
-    clearTimeout(state.sequenceTimer)
-    state.sequenceTimer = null
-  }
+  clearSequenceTimer(state)
 
   state.currentSequence.push(stroke)
 

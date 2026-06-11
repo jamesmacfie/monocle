@@ -9,6 +9,7 @@ import {
   getKeybindingRegistrySnapshot,
   initializeKeybindingRegistry,
 } from "./registry"
+import { invalidateKeybindingEntriesCache } from "./source"
 
 const normalContext: Browser.Context = {
   url: "https://example.com/page",
@@ -106,6 +107,9 @@ describe("keybinding registry", () => {
     fakeBrowser.reset()
     installChromeStubs()
     await clearAllSettings()
+    // Tests mutate settings directly (no message handlers run), so drop the
+    // module-level entries cache between tests.
+    invalidateKeybindingEntriesCache()
   })
 
   it("normalizes default registry insertion and Firefox command aliases", async () => {
@@ -194,6 +198,7 @@ describe("keybinding registry", () => {
         id: "uuidv4",
         name: "Copy UUID v4",
       },
+      conflictType: "exact",
     })
   })
 
@@ -249,6 +254,105 @@ describe("keybinding registry", () => {
         id: "toggle-clock-visibility",
         name: "Hide Clock",
       },
+      conflictType: "exact",
+    })
+  })
+
+  it("blocks a sequence shadowed by an existing open-palette prefix binding", async () => {
+    // add-bookmark is an open-palette binding: it executes immediately on its
+    // stroke, so a longer sequence behind it could never fire.
+    await updateCommandSettings("add-bookmark", {
+      keybinding: "g",
+    })
+
+    await expect(
+      checkKeybindingConflict({
+        type: "check-keybinding-conflict",
+        keybinding: "g, x",
+        excludeCommandId: "uuidv4",
+        context: normalContext,
+      }),
+    ).resolves.toEqual({
+      hasConflict: true,
+      conflictingCommand: {
+        id: "add-bookmark",
+        name: "Add Bookmark",
+      },
+      conflictType: "shadowed-by-open-palette",
+    })
+  })
+
+  it("blocks an open-palette binding that would shadow an existing sequence", async () => {
+    await updateCommandSettings("uuidv4", {
+      keybinding: "g, x",
+    })
+
+    await expect(
+      checkKeybindingConflict({
+        type: "check-keybinding-conflict",
+        keybinding: "g",
+        excludeCommandId: "add-bookmark",
+        context: normalContext,
+      }),
+    ).resolves.toEqual({
+      hasConflict: true,
+      conflictingCommand: {
+        id: "uuidv4",
+        name: "Copy UUID v4",
+      },
+      conflictType: "shadowed-by-open-palette",
+    })
+  })
+
+  it("warns (without blocking) on prefix overlap between execute bindings", async () => {
+    await updateCommandSettings("uuidv4", {
+      keybinding: "g",
+    })
+
+    await expect(
+      checkKeybindingConflict({
+        type: "check-keybinding-conflict",
+        keybinding: "g, x",
+        excludeCommandId: "toggle-theme",
+        context: normalContext,
+      }),
+    ).resolves.toEqual({
+      hasConflict: false,
+      conflictingCommand: null,
+      warnings: [
+        {
+          type: "prefix-overlap",
+          direction: "candidate-extends-existing",
+          command: { id: "uuidv4", name: "Copy UUID v4" },
+          keybinding: "g",
+        },
+      ],
+    })
+  })
+
+  it("warns when an existing sequence extends the candidate binding", async () => {
+    await updateCommandSettings("uuidv4", {
+      keybinding: "g, x",
+    })
+
+    await expect(
+      checkKeybindingConflict({
+        type: "check-keybinding-conflict",
+        keybinding: "g",
+        excludeCommandId: "toggle-theme",
+        context: normalContext,
+      }),
+    ).resolves.toEqual({
+      hasConflict: false,
+      conflictingCommand: null,
+      warnings: [
+        {
+          type: "prefix-overlap",
+          direction: "existing-extends-candidate",
+          command: { id: "uuidv4", name: "Copy UUID v4" },
+          keybinding: "g, x",
+        },
+      ],
     })
   })
 
@@ -261,5 +365,77 @@ describe("keybinding registry", () => {
 
     expect(getCommandIdFromSnapshot(snapshot, "<cmd-w>")).toBeUndefined()
     expect(getCommandIdFromSnapshot(snapshot, "<cmd-shift-x>")).toBeUndefined()
+  })
+
+  it("keeps the first registration and warns when two commands share a binding", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+    try {
+      // Conflict checks normally prevent this; write directly to settings to
+      // simulate a stale or hand-edited duplicate.
+      await updateCommandSettings("uuidv4", {
+        keybinding: "<cmd-shift-u>",
+      })
+      await updateCommandSettings("toggle-theme", {
+        keybinding: "<shift-cmd-U>",
+      })
+
+      const snapshot = await getKeybindingRegistrySnapshot(normalContext)
+
+      const winner = getCommandIdFromSnapshot(snapshot, "<cmd-shift-u>")
+      expect(["uuidv4", "toggle-theme"]).toContain(winner)
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Duplicate binding <cmd-shift-u>"),
+      )
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it("serves cached entries for the same context until explicitly invalidated", async () => {
+    await updateCommandSettings("uuidv4", {
+      keybinding: "<cmd-shift-u>",
+    })
+
+    const first = await getKeybindingRegistrySnapshot(normalContext)
+    expect(getCommandIdFromSnapshot(first, "<cmd-shift-u>")).toBe("uuidv4")
+
+    // Direct settings write without going through a message handler: the
+    // cached entries are intentionally served stale until invalidation.
+    await updateCommandSettings("uuidv4", {
+      keybinding: "<cmd-shift-y>",
+    })
+
+    const cached = await getKeybindingRegistrySnapshot(normalContext)
+    expect(getCommandIdFromSnapshot(cached, "<cmd-shift-u>")).toBe("uuidv4")
+    expect(getCommandIdFromSnapshot(cached, "<cmd-shift-y>")).toBeUndefined()
+
+    invalidateKeybindingEntriesCache()
+
+    const fresh = await getKeybindingRegistrySnapshot(normalContext)
+    expect(getCommandIdFromSnapshot(fresh, "<cmd-shift-u>")).toBeUndefined()
+    expect(getCommandIdFromSnapshot(fresh, "<cmd-shift-y>")).toBe("uuidv4")
+  })
+
+  it("rebuilds cached entries after the TTL expires", async () => {
+    vi.useFakeTimers()
+    try {
+      await updateCommandSettings("uuidv4", {
+        keybinding: "<cmd-shift-u>",
+      })
+
+      const first = await getKeybindingRegistrySnapshot(normalContext)
+      expect(getCommandIdFromSnapshot(first, "<cmd-shift-u>")).toBe("uuidv4")
+
+      await updateCommandSettings("uuidv4", {
+        keybinding: "<cmd-shift-y>",
+      })
+
+      vi.advanceTimersByTime(31_000)
+
+      const fresh = await getKeybindingRegistrySnapshot(normalContext)
+      expect(getCommandIdFromSnapshot(fresh, "<cmd-shift-y>")).toBe("uuidv4")
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -5,7 +5,10 @@ import {
   splitKeybindingSequence,
 } from "../../shared/utils/key-normalizer"
 import type { CommandLoadOptions } from "../commands/source"
-import { loadKeybindingCommandEntries } from "./source"
+import {
+  invalidateKeybindingEntriesCache,
+  loadKeybindingCommandEntries,
+} from "./source"
 
 export { normalizeKeybinding }
 
@@ -41,7 +44,19 @@ const registerBinding = (
   keybinding: string,
 ): void => {
   const normalized = normalizeKeybinding(keybinding)
-  if (!normalized || registry.has(normalized)) {
+  if (!normalized) {
+    return
+  }
+
+  const existing = registry.get(normalized)
+  if (existing) {
+    // First registration wins. Conflict checks at save time should prevent
+    // this; surface it instead of dropping the duplicate silently.
+    if (existing.commandId !== entry.commandId) {
+      console.warn(
+        `[KeybindingRegistry] Duplicate binding ${normalized} — keeping ${existing.commandId}, dropping ${entry.commandId}`,
+      )
+    }
     return
   }
 
@@ -177,5 +192,9 @@ export function getAllKeybindingEntries(): Map<
 }
 
 export async function refreshKeybindingRegistry(): Promise<void> {
+  // Settings write paths call this directly; drop the cached entries first so
+  // the rebuild (and any subsequent snapshot) reads fresh settings without
+  // waiting on the async storage.onChanged event.
+  invalidateKeybindingEntriesCache()
   await initializeKeybindingRegistry()
 }

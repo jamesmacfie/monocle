@@ -103,7 +103,7 @@ Inside an editable element, a combination with a non-shift modifier (Cmd/Ctrl/Al
 - **Preflight suppression.** `shouldPreemptivelySuppress` returns true if the key (or the continued local sequence) is in the cached exact set or sequence-prefix set. Disabled while `isCapturing` (so the capture UI receives raw keys).
 - **Execution.** `onKeyPress` sends `execute-keybinding` with the canonical `keyString` and the context override. On `success`: if the response contains `openPaletteAtCommand`, it calls the surface-provided opener callback (`useOpenPaletteAtCommand`); if the response is `pending` it extends the local sequence buffer (`updateLocalSequenceForPendingStroke`), else it clears it. Non-success clears the buffer and re-refreshes state.
 - **Open-page shortcuts.** `useOpenPaletteAtCommand` fetches fresh root commands, resets navigation to root, and dispatches `navigateToCommand` for the returned command id. Content mode first shows the overlay; new-tab mode reuses the already-mounted palette.
-- **Local sequence buffer.** A UI-side buffer (`localSequenceRef`) tracks in-progress sequences with a **900 ms** idle timeout, used only to decide preemptive suppression of the *next* stroke. Authoritative sequence resolution happens in the background.
+- **Local sequence buffer.** A UI-side buffer (`localSequenceRef`) tracks in-progress sequences with a `UI_SEQUENCE_IDLE_TIMEOUT_MS` idle timeout (`shared/utils/keybinding-timing.ts`: the background chord window plus 100 ms, because the UI timer starts after the round-trip resolves and must strictly outlive the background timer), used only to decide preemptive suppression of the *next* stroke. Authoritative sequence resolution happens in the background.
 
 While capturing (`selectIsCapturing` true), both the preflight and `onKeyPress` short-circuit so global handling never competes with the custom-keybinding capture UI.
 
@@ -126,7 +126,7 @@ type KeybindingRegistrySnapshot = {
 ```
 
 - `getKeybindingRegistrySnapshot(context, options)` is the **context-aware** entry point. It builds a fresh map from `loadKeybindingCommandEntries` and derives sequence prefixes (`createSequencePrefixes` adds every `strokes.slice(0, n)` for `n < length`).
-- `registerBinding` normalizes the keybinding and **first registration wins** — a later command with the same normalized binding is ignored (`registry.has` check), which is the de-facto conflict resolution at registry-build time.
+- `registerBinding` normalizes the keybinding and **first registration wins** — a later command with the same normalized binding is dropped with a `console.warn` naming both commands, which is the de-facto conflict resolution at registry-build time (save-time conflict checks should prevent it from ever firing).
 - A module-level singleton map (`keybindingRegistry`) backs the legacy synchronous helpers `getCommandIdForKeybinding`, `hasKeybindingStartingWith`, `registerSingleCommand`, `registerDynamicCommands`, `getAllKeybindings`. `initializeKeybindingRegistry` / `refreshKeybindingRegistry` rebuild it. These are used in tests and by `resetKeybinding` execution; the live message handlers prefer per-request snapshots.
 
 ### Which commands contribute bindings
@@ -138,6 +138,8 @@ type KeybindingRegistrySnapshot = {
 3. `collectCustomSettingEntries` adds any command that has a custom `keybinding` in settings, resolved by id via `resolveCommandById` even if it was not reached through deep search.
 
 `getCommandKeybinding` returns `""` unless `allowsKeybinding(command)` is true; otherwise it returns `normalizeKeybinding(customKeybinding || command.keybinding || "")`. Custom settings override the command default. `seenEntries` dedupes on `${id}:${keybinding}`.
+
+`loadKeybindingCommandEntries` is cached at module scope (same service-worker lifetime pattern as `background/commands/searchIndex.ts`): entries are keyed by `isNewTab|url|platform` plus the site-SDK `scopeKey:revision` when present, with a ~30s TTL, an ~8-context cap, and inflight-build dedupe. Because entries are URL-filtered at build time the key includes the URL — one rebuild per navigation, while every keystroke funnelling through `execute-keybinding`/`get-keybinding-state` on the same page is a Map lookup instead of a full command-tree traversal. Invalidation: `invalidateKeybindingEntriesCache()` is called synchronously from `refreshKeybindingRegistry()` (all settings write paths) and the `urlRules` update path, and `initializeKeybindingEntriesInvalidation()` (wired in `background/index.ts`) listens to `monocle-settings` storage changes and permission grant/revoke events. Tab/history/bookmark events are deliberately not wired (they fire constantly and dynamic children almost never carry default keybindings); the TTL covers that drift.
 
 Because the snapshot depends on context and visibility settings, the same physical key can be bound in one context and absent in another — the registry test confirms `toggle-clock-visibility` (`<cmd-alt-c>`) resolves only in new-tab context, `github-toggle-star` (`<cmd-alt-g>`) only on a GitHub URL, and hidden commands are omitted even when they have custom bindings.
 
@@ -154,7 +156,9 @@ Because the snapshot depends on context and visibility settings, the same physic
 | no | yes | wait for more strokes, schedule reset, return `{ pending: true }` |
 | no | no (as full sequence) | retry treating the latest stroke as a fresh single; if still nothing, reset and return failure |
 
-The chord timeout is **800 ms** (`CHORD_TIMEOUT_MS`). A second stroke arriving before the timer fires clears `pendingSingle`/the timer and continues the sequence; if the timer fires first, the pending single command executes.
+The chord timeout is **800 ms** (`CHORD_TIMEOUT_MS` in `shared/utils/keybinding-timing.ts`, shared with the UI buffer constant). A second stroke arriving before the timer fires disarms the timer via `clearSequenceTimer` (which also drops `pendingSingle` and bumps the state's `timerEpoch`) and continues the sequence; if the timer fires first, the pending single command executes.
+
+Chord timer callbacks (`schedulePendingSingle`, `scheduleReset`) run **inside the per-scope serialization queue** (`runSerialized`), so a timer firing as a continuation stroke arrives cannot interleave with the stroke handler and double-execute. Each armed timer captures a monotonic `timerEpoch`; the queued callback bails if the state's epoch has moved on (or the state is gone), so a fired-but-queued stale timer is a no-op even after the state is deleted and recreated.
 
 **Scope key** (`getSequenceScopeKey`): when sender tab info is available it is `tab:<tabId>:document:<documentId|frameId|top>`; otherwise it falls back to `context:<newtab|page>:<url>`. This scoping mitigates but does not eliminate the known risk that sequence state lives in the background service worker — concurrent tabs that fall back to the context key (e.g. extension pages without sender tab data) can still interfere.
 
@@ -204,7 +208,12 @@ The keybinding Redux slice (`shared/store/slices/keybinding.slice.ts`) is intent
 
 ### Conflict detection
 
-`background/messages/checkKeybindingConflict.ts` normalizes the candidate, loads `loadKeybindingCommandEntries(context)`, and reports a conflict if any **other** command (`id !== excludeCommandId`) normalizes to the same canonical string. A conflict returns `{ hasConflict: true, conflictingCommand: { id, name } }`. What counts as a conflict:
+`background/messages/checkKeybindingConflict.ts` normalizes the candidate, loads `loadKeybindingCommandEntries(context)`, resolves the target command's keybinding behavior, and delegates to `evaluateKeybindingAssignment` (`background/keybindings/conflicts.ts`). A blocking conflict returns `{ hasConflict: true, conflictingCommand: { id, name }, conflictType }`:
+
+- `conflictType: "exact"` — another command normalizes to the same canonical string.
+- `conflictType: "shadowed-by-open-palette"` — the assignment puts an open-palette binding on a proper prefix of a sequence, in either direction: an existing open-palette binding shadows the candidate sequence, or the candidate (when the target command is open-palette) would shadow an existing sequence. Open-palette bindings execute immediately on exact match even when longer bindings share the prefix — the chord timer cannot deliver an `openPaletteAtCommand` response after the message channel closes — so the shadowed sequence could never fire. (Pushing a background-to-tab "open palette" message from the timer would lift this constraint; until then shadowing is blocked at save time.)
+
+Prefix overlaps between two execute-behavior bindings are **not** blocking: they are returned as `warnings` (`{ type: "prefix-overlap", direction, command, keybinding }`) because the shared prefix still works — it just resolves after the chord timeout. The capture UI shows blocking conflicts in error text (save disabled) and warnings in warning text (save allowed). What counts as a conflict:
 
 - Comparison is **after canonical normalization**, so `<shift-cmd-U>` conflicts with `<cmd-shift-u>` (`registry.test.ts`).
 - It is **context-scoped**: a new-tab-only binding does not conflict in normal page context, and vice versa (`registry.test.ts` "checks new-tab keybinding conflicts only in new-tab context").
@@ -230,7 +239,7 @@ Such commands must be executed through a UI path that can show the confirmation 
 
 Automated coverage is solid for the pure logic and registry behaviour but not for live browser integration:
 
-- Covered by tests: canonical equivalence across modifier order/case/aliases/specials/arrows/punctuation/function keys/events/display/sequences (`shared/utils/key-normalizer.test.ts`); context-aware registry snapshots, sequence prefixes, canonical conflict detection, context-scoped conflicts, and confirmation-required exclusion (`background/keybindings/registry.test.ts`); high-risk policy at registry and suggestion level (`background/commands/browser-commands.test.ts`); message validation for punctuation/arrow/sequence keybindings (`background/utils/validation.test.ts`, per the prior baseline).
+- Covered by tests: canonical equivalence across modifier order/case/aliases/specials/arrows/punctuation/function keys/events/display/sequences (`shared/utils/key-normalizer.test.ts`); context-aware registry snapshots, sequence prefixes, canonical conflict detection, context-scoped conflicts, confirmation-required exclusion, entries-cache hit/invalidate/TTL behavior, duplicate-binding warnings, open-palette shadow blocking, and prefix-overlap warnings (`background/keybindings/registry.test.ts`); sequential and overlapping multi-stroke resolution plus pending-single chord-timer semantics under fake timers (`background/messages/sequence-keybinding.test.ts`); batch conflict/shadow skips (`background/messages/updateCommandKeybindings.test.ts`); the UI/background timing invariant (`shared/utils/keybinding-timing.test.ts`); high-risk policy at registry and suggestion level (`background/commands/browser-commands.test.ts`); message validation for punctuation/arrow/sequence keybindings (`background/utils/validation.test.ts`, per the prior baseline).
 - Not covered (manual / browser-level): real `preventDefault` suppression timing, editable-element passthrough on real sites, page-shortcut passthrough, action-menu capture UX, and full Chrome/Firefox modifier smoke. `platformNormalize`'s Mac ctrl→cmd rewrite is exported but unused in live paths.
 - Architectural risk: background sequence state is per-worker; the sender-scope key mitigates cross-tab interference only when sender tab data is present (context-key fallback can still collide). Registry coverage is more uniform now but UI/new-tab/website command sources are exercised less explicitly than browser/tool/Firefox/deep-search.
 
