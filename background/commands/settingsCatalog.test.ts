@@ -5,6 +5,24 @@ import { clearAllSettings, updateCommandSettings } from "./settings"
 import { getSettingsCatalog } from "./settingsCatalog"
 import { recordCommandUsage } from "./usage"
 
+const firefoxMocks = vi.hoisted(() => ({
+  queryContainers: vi.fn(async () => [
+    {
+      cookieStoreId: "firefox-container-1",
+      name: "Personal",
+      colorCode: "#37adff",
+      iconUrl: "resource://usercontext-content/fingerprint.svg",
+    },
+  ]),
+}))
+
+vi.mock("../utils/firefox", () => ({
+  invalidateContainerCache: vi.fn(),
+  queryContainers: firefoxMocks.queryContainers,
+  saveAsPDF: vi.fn(async () => {}),
+  toggleReaderMode: vi.fn(async () => {}),
+}))
+
 const bookmarkTree = [
   {
     id: "root",
@@ -80,6 +98,7 @@ const installChromeStubs = () => {
 describe("settings catalog", () => {
   beforeEach(async () => {
     fakeBrowser.reset()
+    firefoxMocks.queryContainers.mockClear()
     installChromeStubs()
     await clearAllSettings()
     await fakeBrowser.storage.local.remove([
@@ -100,14 +119,14 @@ describe("settings catalog", () => {
     expect(ids).toContain("open-browser-page-settings")
   })
 
-  it("keeps volatile dynamic rows out of the editable catalog", async () => {
+  it("includes stable dynamic bookmarks and keeps volatile dynamic rows out", async () => {
     const catalog = await getSettingsCatalog({ platform: "chrome" })
     const ids = catalog.commands.map((command) => command.id)
 
     expect(ids).toContain("open-tabs")
     expect(ids).toContain("bookmarks")
+    expect(ids).toContain("bookmark-b1")
     expect(ids).not.toContain("open-tab-1")
-    expect(ids).not.toContain("bookmark-b1")
   })
 
   it("includes Firefox-only durable commands when building the Firefox catalog", async () => {
@@ -116,6 +135,27 @@ describe("settings catalog", () => {
     expect(catalog.commands.map((command) => command.id)).toContain(
       "toggle-reader-mode",
     )
+  })
+
+  it("includes stable Firefox container rows when building the Firefox catalog", async () => {
+    const catalog = await getSettingsCatalog({ platform: "firefox" })
+    const ids = catalog.commands.map((command) => command.id)
+
+    expect(ids).toContain("open-container-tab-firefox-container-1")
+    expect(ids).toContain("open-current-tab-in-container-firefox-container-1")
+
+    const containerCommand = catalog.commands.find(
+      (command) => command.id === "open-container-tab-firefox-container-1",
+    )
+    expect(containerCommand).toMatchObject({
+      name: "Personal",
+      parentNames: ["Open container tab"],
+      capabilities: {
+        canHide: true,
+        canFavorite: true,
+        canSetKeybinding: true,
+      },
+    })
   })
 
   it("resolves persisted settings, favorite state, usage stats, and capabilities", async () => {

@@ -64,8 +64,9 @@ If you are adding a command, the fast path is
 - [settings.md](./settings.md) — Settings storage shape (`monocle-settings`),
   command settings, merge/prune semantics, the `update-command-setting`
   message, and the Redux mirror.
-- [settings-page.md](./settings-page.md) — Options-page MVP, settings catalog,
-  global hidden commands, and future settings-page direction.
+- [settings-page.md](./settings-page.md) — Options-page settings catalog, global
+  hidden commands, favorites, keyboard shortcuts, URL rules, and future
+  settings-page direction.
 
 ## Specialized subsystems
 

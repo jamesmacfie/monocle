@@ -202,8 +202,11 @@ The response is `{ commands: SettingsCatalogCommand[] }`. Each row is durable
 and settings-manageable: resolved display metadata, category, parent path,
 effective settings, favorite state, usage stats, and capability flags. The
 catalog unions normal and new-tab command sources and bypasses hidden/url-rule
-filtering so hidden commands can be unhidden. Session site-SDK rows are omitted
-from the editable MVP catalog.
+filtering so hidden commands can be unhidden. Stable dynamic rows such as
+bookmarks and Firefox container actions are included when their browser APIs are
+available; volatile browser-state rows such as open tabs, history, downloads,
+and recently closed sessions are omitted. Session site-SDK rows are also omitted
+from the editable catalog.
 
 **`set-command-favorite`** sets favorite state without going through generated
 palette actions:

@@ -1,8 +1,9 @@
 import {
   Command,
+  Github,
+  Globe2,
   Image,
   Keyboard,
-  PanelLeft,
   Settings,
   Star,
 } from "lucide-react"
@@ -15,12 +16,10 @@ const navItems = [
   { href: "/", label: "General", icon: Settings },
   { href: "/new-tab", label: "New Tab", icon: Image },
   { href: "/commands", label: "Commands", icon: Command },
-]
-
-const futureItems = [
-  { label: "Favorites", icon: Star },
-  { label: "Keyboard", icon: Keyboard },
-  { label: "More", icon: PanelLeft },
+  { href: "/favorites", label: "Favorites", icon: Star },
+  { href: "/keyboard", label: "Keyboard", icon: Keyboard },
+  { href: "/url-rules", label: "URL Rules", icon: Globe2 },
+  { href: "/about", label: "About", icon: Github },
 ]
 
 export function OptionsShell({ children }: PropsWithChildren) {
@@ -59,25 +58,6 @@ export function OptionsShell({ children }: PropsWithChildren) {
               )
             })}
           </nav>
-          <div className="hidden border-t border-[var(--color-border)] px-3 py-4 md:block">
-            <div className="mb-2 px-3 text-xs font-medium uppercase text-[var(--color-fg-muted)]">
-              Later
-            </div>
-            <div className="space-y-1">
-              {futureItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <div
-                    key={item.label}
-                    className="flex h-9 items-center gap-3 rounded-md px-3 text-sm text-[var(--color-fg-muted)] opacity-70"
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
         </aside>
         <main className="options-scrollbar min-w-0 overflow-y-auto px-4 py-6 md:px-8 lg:px-10">
           {children}

@@ -45,6 +45,7 @@ function processBookmarkNode(
       color: "amber",
       keywords: [node.title?.toLowerCase() || "folder"],
       settingsCatalog: {
+        includeChildren: true,
         configurable: false,
       },
       children: async () => {
@@ -75,9 +76,6 @@ function processBookmarkNode(
         : { type: "lucide", name: "Globe" },
       color: "blue",
       keywords: [node.url.toLowerCase()],
-      settingsCatalog: {
-        configurable: false,
-      },
       actionLabel: "Open",
       modifierActionLabel: {
         cmd: "Open in New Tab",
@@ -306,6 +304,9 @@ export const bookmarks: CommandNode = {
   keywords: ["bookmarks", "favorites", "saved", "links"],
   permissions: ["bookmarks"],
   enableDeepSearch: true,
+  settingsCatalog: {
+    includeChildren: true,
+  },
   children: async () => {
     try {
       const bookmarkTree = await getBookmarkTree()

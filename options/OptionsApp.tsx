@@ -18,9 +18,13 @@ import {
 } from "../shared/utils/theme"
 import { OptionsShell } from "./components/OptionsShell"
 import { TooltipProvider } from "./components/ui"
+import { AboutPage } from "./pages/AboutPage"
 import { CommandsPage } from "./pages/CommandsPage"
+import { FavoritesPage } from "./pages/FavoritesPage"
 import { GeneralPage } from "./pages/GeneralPage"
+import { KeyboardPage } from "./pages/KeyboardPage"
 import { NewTabPage } from "./pages/NewTabPage"
+import { UrlRulesPage } from "./pages/UrlRulesPage"
 
 const browserAPI = getBrowserAPI()
 
@@ -78,6 +82,10 @@ function OptionsAppContent() {
           <Route path="/" component={GeneralPage} />
           <Route path="/new-tab" component={NewTabPage} />
           <Route path="/commands" component={CommandsPage} />
+          <Route path="/favorites" component={FavoritesPage} />
+          <Route path="/keyboard" component={KeyboardPage} />
+          <Route path="/url-rules" component={UrlRulesPage} />
+          <Route path="/about" component={AboutPage} />
           <Route>
             <Redirect to="/" />
           </Route>

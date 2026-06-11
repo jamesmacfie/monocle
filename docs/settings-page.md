@@ -1,8 +1,9 @@
 # Settings Page
 
-> **Status: Phase 1 MVP implemented.** Monocle now has a WXT options page with
-> General, New Tab, and Commands sections. Later sections in this document remain
-> future design unless explicitly described as implemented.
+> **Status: Phase 1 plus management pages implemented.** Monocle now has a WXT
+> options page with General, New Tab, Commands, Favorites, Keyboard, URL Rules,
+> and About sections. Later sections in this document remain future design unless
+> explicitly described as implemented.
 
 Monocle's configuration is split between **palette-native quick actions** and a
 dedicated **settings page**. The palette remains the fastest way to toggle or
@@ -30,15 +31,15 @@ Wouter hash routes, Tailwind, and local shadcn-style primitives.
 
 | Concern | How it's configured today | Source |
 | --- | --- | --- |
-| Options page | General, New Tab, and Commands pages | `entrypoints/options/`, `options/` |
+| Options page | General, New Tab, Commands, Favorites, Keyboard, URL Rules, and About pages | `entrypoints/options/`, `options/` |
 | Open settings | `open-settings` command opens `options.html#/` | `background/commands/ui/openSettings.ts` |
 | Theme (`light`/`dark`/`system`) | General page selector; `toggle-theme` command still exists | `options/pages/GeneralPage.tsx`, `background/commands/ui/theme.ts` |
 | New-tab clock visibility | New Tab page switch; `toggle-clock-visibility` still exists under `new-tab-clock` | `options/pages/NewTabPage.tsx`, `background/commands/newTab/` |
 | New-tab background | Auto-fetched from Unsplash, cached in `localStorage`; options page can preview/refresh cache | `newtab/components/BackgroundImage.tsx`, `newtab/backgroundImageModel.ts`, `options/pages/NewTabPage.tsx` |
 | Global command visibility | Commands page hide toggles; generated **Hide Command** action | `background/commands/settingsCatalog.ts`, `background/commands/index.ts`, `options/pages/CommandsPage.tsx` |
-| Per-command visibility (per domain) | Commands page URL editor; `manage-allow-list` / `manage-deny-list` commands + generated **Hide from Domain** action | `options/components/UrlRulesDialog.tsx`, `background/commands/ui/manageAllowList.ts`, `manageDenyList.ts`, `background/commands/index.ts` |
-| Per-command keybinding | Commands page keybinding dialog; generated **Set / Reset Custom Keybinding** actions in the action menu | `options/components/KeybindingDialog.tsx`, `background/commands/index.ts`, `shared/components/Command/CommandActionsList.tsx` |
-| Favorites | Commands page favorite toggle; inline ♡ toggle action per command; `clear-favorites` command | `background/commands/favorites.ts` |
+| Per-command visibility (per domain) | Commands and URL Rules page editors; `manage-allow-list` / `manage-deny-list` commands + generated **Hide from Domain** action | `options/components/UrlRulesDialog.tsx`, `options/pages/UrlRulesPage.tsx`, `background/commands/ui/manageAllowList.ts`, `manageDenyList.ts`, `background/commands/index.ts` |
+| Per-command keybinding | Commands and Keyboard page keybinding dialogs; generated **Set / Reset Custom Keybinding** actions in the action menu | `options/components/KeybindingDialog.tsx`, `options/pages/KeyboardPage.tsx`, `background/commands/index.ts`, `shared/components/Command/CommandActionsList.tsx` |
+| Favorites | Commands and Favorites page favorite toggles; inline ♡ toggle action per command; `clear-favorites` command | `options/pages/FavoritesPage.tsx`, `background/commands/favorites.ts` |
 | Permissions | Inline grant actions on permission-gated rows; new-tab grant panel | `shared/components/Command/PermissionActions.tsx`, `newtab/components/PermissionGrantPanel.tsx` |
 | Clear browser data | `clear-browser-data` nested group (data type × time span) | `background/commands/browser/clearBrowserData.ts` |
 
@@ -127,12 +128,12 @@ A left sidebar with these sections (Wouter hash routes in parentheses):
 
 | Section | Route | Purpose |
 | --- | --- | --- |
-| **General** | `#/` | Theme, default behaviors, link to keyboard shortcuts. |
+| **General** | `#/` | Theme and default behaviors. |
 | **New Tab** | `#/new-tab` | Clock, greeting, background image controls. |
 | **Commands** | `#/commands` | The core: every command, grouped by category, with hide/favorite/keybinding/URL-rules/per-command settings. |
 | **Favorites** | `#/favorites` | View, remove, and (future) reorder favorites. |
 | **Keyboard Shortcuts** | `#/keyboard` | All bindings in one table, conflicts, reset. |
-| **Sites & URL Rules** | `#/sites` | Domain-centric view of allow/deny rules; read-only session site-SDK registrations. |
+| **URL Rules** | `#/url-rules` | Per-command allow/deny rule overview and bulk clearing. |
 | **Permissions** | `#/permissions` | Grant/revoke optional permissions. |
 | **User Scripts** | `#/user-scripts` | *(Future)* Author/import page-scoped scripts. |
 | **Workflows** | `#/workflows` | *(Future)* Manage and test automation workflows. |
@@ -250,14 +251,16 @@ should render a clean "no configurable settings" state for commands without a
 
 ### 4.3 Favorites management
 
-The implemented Commands page exposes a per-row favorite toggle over the
+The implemented Commands and Favorites pages expose favorite management over the
 **existing** `monocle-favoriteCommandIds` key through the `set-command-favorite`
 message. This is intentionally separate from generated palette actions so
 settings can update favorites even when a command is hidden.
 
-A future Favorites section can build on the same key through `favorites.ts`
+The Favorites page builds on the same key through `favorites.ts`
 (`getFavoriteCommandIds`, `removeFromFavoriteCommandIds`,
-`toggleFavoriteCommandId`) — **no migration, no schema change**.
+`toggleFavoriteCommandId`) — **no migration, no schema change**. It is an
+overview and cleanup surface: search/filter favorites, remove selected
+favorites, and jump to the shared keybinding / URL-rule dialogs.
 
 Reordering favorites would be new (favorites are an unordered `string[]` today);
 if desired, that is an additive change to make the array order-significant plus a
@@ -266,8 +269,8 @@ how favorites feed ranking ([search-and-ranking.md](./search-and-ranking.md)).
 
 ### 4.4 Keybindings, URL rules, permissions
 
-The implemented Commands page provides per-command keybinding and URL-rule
-editors over existing storage/messages:
+The implemented Commands, Keyboard, and URL Rules pages provide per-command
+keybinding and URL-rule editors over existing storage/messages:
 
 - **Commands page keybindings** — per-row set/reset dialogs use the existing
   `update-command-setting` `keybinding` path and conflict checks via
@@ -276,20 +279,19 @@ editors over existing storage/messages:
 - **Commands page URL rules** — per-command allow/deny editors are backed by
   `update-command-setting` `urlRules`; patterns validate through the existing
   `validateUrlPattern`.
+- **Keyboard Shortcuts page** — a searchable/filterable table of commands with
+  default/custom/unbound filtering, set/reset actions, and bulk reset for
+  selected custom bindings.
+- **URL Rules page** — a searchable/filterable per-command overview of allow and
+  deny patterns, shared URL-rule editing, and bulk clearing for selected rules.
 
-Future dedicated pages:
+Future management depth:
 
-- **Keyboard Shortcuts** — a table of every command with its effective binding
-  (default vs custom), conflict highlighting via the existing
-  `checkKeybindingConflict`, and set/reset using the existing
-  `update-command-setting` `keybinding` path. Renders bindings with
-  `KeybindingDisplay`. Honors `allowCustomKeybinding`.
 - **Sites & URL Rules** — the **domain-centric inverse** of the per-command
   allow/deny commands: list domains that have rules and which commands they
-  affect, plus per-command editors backed by `updateCommandUrlRules`. Patterns
-  validate through the existing `validateUrlPattern`. Also shows a **read-only**
-  list of current **session site-SDK registrations** per origin
-  ([site-sdk.md](./site-sdk.md)) if that future read-only surface is wanted.
+  affect. Also shows a **read-only** list of current **session site-SDK
+  registrations** per origin ([site-sdk.md](./site-sdk.md)) if that future
+  read-only surface is wanted.
 - **Permissions** — a grant/revoke table over the optional permissions, reusing
   the `get-permissions` round-trip and the Chrome/Firefox grant flows behind
   `PermissionActions` / `requestPermission` ([permissions.md](./permissions.md)).
@@ -433,9 +435,12 @@ normal and new-tab sources and returns, per command:
 - favorite state (from `favorites.ts`) and usage stats (from `usage.ts`)
 
 Critically, this endpoint **bypasses the query-time `hidden`/`urlRules` filter** so
-hidden commands remain manageable. Session site-SDK commands are omitted from
-the MVP catalog because they are in-memory, document-scoped, and not
-persistently configurable.
+hidden commands remain manageable. The catalog includes stable dynamic browser
+rows that are durable enough to configure, such as bookmarks and Firefox
+container actions, while volatile rows such as open tabs, history, downloads,
+and recently closed sessions remain omitted. Session site-SDK commands are also
+omitted because they are in-memory, document-scoped, and not persistently
+configurable.
 
 ### State
 
@@ -541,13 +546,15 @@ Future changes:
    keybinding, and URL rules. Ships the headline "hide command" value. Includes
    `hidden` field + enforcement, `get-settings-catalog`, `set-command-favorite`,
    and the action-menu `hide-command` action.
-2. **Management depth** — **Keyboard Shortcuts** (conflicts), **Sites & URL Rules**,
-   **Permissions**, **Favorites**.
-3. **Schema-driven settings** — `settingsSchema` + `config` storage (with merge
+2. **Management pages (implemented)** — **Favorites**, **Keyboard Shortcuts**,
+   **URL Rules**, and **About**. These reuse the catalog, settings, favorite,
+   keybinding, and URL-rule messages rather than introducing new storage.
+3. **Permissions** — a dedicated optional-permissions table and revoke flows.
+4. **Schema-driven settings** — `settingsSchema` + `config` storage (with merge
    branch + tests) + validation; adopt in a few commands.
-4. **Data & Privacy** — export/import, granular reset, usage analytics.
-5. **Workflows** — management/test UI (as the executor grows).
-6. **User scripts** — workflows first, then (if approved) `userScripts` JS.
+5. **Data & Privacy** — export/import, granular reset, usage analytics.
+6. **Workflows** — management/test UI (as the executor grows).
+7. **User scripts** — workflows first, then (if approved) `userScripts` JS.
 
 ---
 

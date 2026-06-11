@@ -12,6 +12,9 @@ export const openCurrentTabInContainer: CommandNode = {
   color: "blue",
   permissions: ["tabs", "contextualIdentities", "cookies"],
   keywords: ["container", "tab", "profile", "reopen", "current"],
+  settingsCatalog: {
+    includeChildren: true,
+  },
   children: async (): Promise<CommandNode[]> => {
     try {
       const containers = await queryContainers({})

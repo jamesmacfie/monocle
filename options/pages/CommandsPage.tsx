@@ -1,15 +1,5 @@
-import {
-  Eye,
-  EyeOff,
-  Globe2,
-  Keyboard,
-  RotateCcw,
-  Search,
-  Star,
-} from "lucide-react"
+import { Eye, EyeOff, RotateCcw, Search } from "lucide-react"
 import { useMemo, useState } from "react"
-import { Icon } from "../../shared/components/Icon"
-import { KeybindingDisplay } from "../../shared/components/KeybindingDisplay"
 import { useAppDispatch, useAppSelector } from "../../shared/store/hooks"
 import {
   loadSettingsCatalog,
@@ -19,64 +9,17 @@ import {
   selectSettingsCatalogUpdatingIds,
   setCatalogCommandFavorite,
   setCatalogCommandHidden,
-  setCatalogCommandKeybinding,
-  setCatalogCommandUrlRules,
 } from "../../shared/store/slices/settingsCatalog.slice"
-import type {
-  CommandUrlRulesSetting,
-  SettingsCatalogCommand,
-} from "../../shared/types"
-import { KeybindingDialog } from "../components/KeybindingDialog"
-import { UrlRulesDialog } from "../components/UrlRulesDialog"
+import { CommandCatalogRows } from "../components/CommandCatalogRows"
+import { Button, Checkbox, Input, Panel, Select } from "../components/ui"
+import { useCatalogCommandActions } from "../hooks/useCatalogCommandActions"
 import {
-  Badge,
-  Button,
-  Checkbox,
-  Input,
-  Panel,
-  Select,
-  Switch,
-} from "../components/ui"
-import { cn } from "../lib/cn"
+  getCategoryOptions,
+  groupByCatalogSection,
+  matchesCommandQuery,
+} from "../lib/catalog"
 
 type HiddenFilter = "all" | "visible" | "hidden"
-
-const matchesQuery = (command: SettingsCatalogCommand, query: string) => {
-  if (!query) {
-    return true
-  }
-
-  const haystack = [
-    command.id,
-    command.name,
-    command.description ?? "",
-    command.categoryLabel,
-    ...command.parentNames,
-  ]
-    .join(" ")
-    .toLowerCase()
-
-  return haystack.includes(query)
-}
-
-const getRuleCount = (command: SettingsCatalogCommand) =>
-  (command.settings.urlRules?.allowUrls?.length ?? 0) +
-  (command.settings.urlRules?.denyUrls?.length ?? 0)
-
-const groupByCategory = (commands: SettingsCatalogCommand[]) => {
-  const groups = new Map<string, SettingsCatalogCommand[]>()
-
-  for (const command of commands) {
-    const existing = groups.get(command.categoryLabel)
-    if (existing) {
-      existing.push(command)
-    } else {
-      groups.set(command.categoryLabel, [command])
-    }
-  }
-
-  return [...groups.entries()].map(([label, items]) => ({ label, items }))
-}
 
 export function CommandsPage() {
   const dispatch = useAppDispatch()
@@ -88,24 +31,13 @@ export function CommandsPage() {
   const [category, setCategory] = useState("all")
   const [hiddenFilter, setHiddenFilter] = useState<HiddenFilter>("all")
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [keybindingCommand, setKeybindingCommand] =
-    useState<SettingsCatalogCommand | null>(null)
-  const [urlRulesCommand, setUrlRulesCommand] =
-    useState<SettingsCatalogCommand | null>(null)
+  const [sectionExpansion, setSectionExpansion] = useState<
+    Record<string, boolean>
+  >({})
+  const { dialogs, editKeybinding, editUrlRules } = useCatalogCommandActions()
 
   const normalizedQuery = query.trim().toLowerCase()
-  const categories = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          commands.map((command) => [
-            command.categoryId,
-            command.categoryLabel,
-          ]),
-        ).entries(),
-      ).sort((a, b) => a[1].localeCompare(b[1])),
-    [commands],
-  )
+  const categories = useMemo(() => getCategoryOptions(commands), [commands])
 
   const filteredCommands = useMemo(() => {
     return commands.filter((command) => {
@@ -121,9 +53,13 @@ export function CommandsPage() {
         return false
       }
 
-      return matchesQuery(command, normalizedQuery)
+      return matchesCommandQuery(command, normalizedQuery)
     })
   }, [category, commands, hiddenFilter, normalizedQuery])
+  const sections = useMemo(
+    () => groupByCatalogSection(filteredCommands),
+    [filteredCommands],
+  )
 
   const filteredIds = filteredCommands.map((command) => command.id)
   const selectedFilteredIds = selectedIds.filter((id) =>
@@ -147,16 +83,19 @@ export function CommandsPage() {
     setSelectedIds([])
   }
 
-  const saveUrlRules = (
-    command: SettingsCatalogCommand,
-    urlRules: CommandUrlRulesSetting,
-  ) => {
-    void dispatch(
-      setCatalogCommandUrlRules({
-        commandId: command.id,
-        urlRules,
-      }),
-    )
+  const isSectionExpanded = (section: (typeof sections)[number]) => {
+    if (normalizedQuery) {
+      return true
+    }
+
+    return sectionExpansion[section.id] ?? !section.defaultCollapsed
+  }
+
+  const toggleSection = (section: (typeof sections)[number]) => {
+    setSectionExpansion((current) => ({
+      ...current,
+      [section.id]: !isSectionExpanded(section),
+    }))
   }
 
   return (
@@ -247,7 +186,16 @@ export function CommandsPage() {
 
       <Panel className="overflow-hidden">
         <div className="overflow-x-auto options-scrollbar">
-          <table className="w-full min-w-[980px] border-collapse">
+          <table className="w-full min-w-[980px] table-fixed border-collapse">
+            <colgroup>
+              <col className="w-10" />
+              <col />
+              <col className="w-36" />
+              <col className="w-28" />
+              <col className="w-28" />
+              <col className="w-52" />
+              <col className="w-32" />
+            </colgroup>
             <thead>
               <tr className="border-b border-[var(--color-border)] text-left text-xs font-medium text-[var(--color-fg-muted)]">
                 <th className="w-10 px-4 py-3">
@@ -276,13 +224,15 @@ export function CommandsPage() {
               </tr>
             </thead>
             <tbody>
-              {groupByCategory(filteredCommands).map((group) => (
-                <CommandGroupRows
-                  key={group.label}
-                  groupLabel={group.label}
-                  items={group.items}
+              {sections.map((section) => (
+                <CommandCatalogRows
+                  key={section.id}
+                  expanded={isSectionExpanded(section)}
+                  groupLabel={section.label}
+                  items={section.items}
                   selectedIds={selectedIds}
                   updatingIds={updatingIds}
+                  onToggle={() => toggleSection(section)}
                   onSelect={setSelected}
                   onHiddenChange={(command, hidden) => {
                     void dispatch(
@@ -300,8 +250,8 @@ export function CommandsPage() {
                       }),
                     )
                   }}
-                  onEditKeybinding={setKeybindingCommand}
-                  onEditUrlRules={setUrlRulesCommand}
+                  onEditKeybinding={editKeybinding}
+                  onEditUrlRules={editUrlRules}
                 />
               ))}
             </tbody>
@@ -314,199 +264,7 @@ export function CommandsPage() {
         )}
       </Panel>
 
-      <KeybindingDialog
-        command={keybindingCommand}
-        open={Boolean(keybindingCommand)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setKeybindingCommand(null)
-          }
-        }}
-        onSave={(keybinding) => {
-          if (!keybindingCommand) {
-            return
-          }
-
-          void dispatch(
-            setCatalogCommandKeybinding({
-              commandId: keybindingCommand.id,
-              keybinding,
-            }),
-          )
-        }}
-        onReset={() => {
-          if (!keybindingCommand) {
-            return
-          }
-
-          void dispatch(
-            setCatalogCommandKeybinding({
-              commandId: keybindingCommand.id,
-              keybinding: null,
-            }),
-          )
-          setKeybindingCommand(null)
-        }}
-      />
-
-      <UrlRulesDialog
-        command={urlRulesCommand}
-        open={Boolean(urlRulesCommand)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setUrlRulesCommand(null)
-          }
-        }}
-        onSave={(urlRules) => {
-          if (urlRulesCommand) {
-            saveUrlRules(urlRulesCommand, urlRules)
-          }
-        }}
-      />
+      {dialogs}
     </div>
-  )
-}
-
-type CommandGroupRowsProps = {
-  groupLabel: string
-  items: SettingsCatalogCommand[]
-  selectedIds: string[]
-  updatingIds: string[]
-  onSelect: (commandId: string, selected: boolean) => void
-  onHiddenChange: (command: SettingsCatalogCommand, hidden: boolean) => void
-  onFavoriteChange: (command: SettingsCatalogCommand, favorite: boolean) => void
-  onEditKeybinding: (command: SettingsCatalogCommand) => void
-  onEditUrlRules: (command: SettingsCatalogCommand) => void
-}
-
-function CommandGroupRows({
-  groupLabel,
-  items,
-  selectedIds,
-  updatingIds,
-  onSelect,
-  onHiddenChange,
-  onFavoriteChange,
-  onEditKeybinding,
-  onEditUrlRules,
-}: CommandGroupRowsProps) {
-  return (
-    <>
-      <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)]">
-        <td className="px-4 py-2" />
-        <td
-          className="px-3 py-2 text-xs font-semibold text-[var(--color-fg-muted)]"
-          colSpan={6}
-        >
-          {groupLabel}
-        </td>
-      </tr>
-      {items.map((command) => {
-        const updating = updatingIds.includes(command.id)
-        const ruleCount = getRuleCount(command)
-
-        return (
-          <tr
-            key={command.id}
-            className={cn(
-              "border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-bg-hover)]",
-              command.settings.hidden && "opacity-70",
-            )}
-          >
-            <td className="px-4 py-3 align-middle">
-              <Checkbox
-                aria-label={`Select ${command.name}`}
-                checked={selectedIds.includes(command.id)}
-                onCheckedChange={(checked) =>
-                  onSelect(command.id, checked === true)
-                }
-              />
-            </td>
-            <td className="min-w-0 px-3 py-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <Icon
-                  icon={command.icon}
-                  color={
-                    typeof command.color === "string"
-                      ? command.color
-                      : undefined
-                  }
-                />
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">
-                    {command.name}
-                  </div>
-                  <div className="truncate text-xs text-[var(--color-fg-muted)]">
-                    {command.parentNames.length > 0
-                      ? command.parentNames.join(" / ")
-                      : command.description || command.id}
-                  </div>
-                </div>
-              </div>
-            </td>
-            <td className="px-3 py-3">
-              <Badge>{command.categoryLabel}</Badge>
-            </td>
-            <td className="px-3 py-3">
-              <Switch
-                aria-label={`Hidden ${command.name}`}
-                checked={command.settings.hidden === true}
-                disabled={updating || !command.capabilities.canHide}
-                onCheckedChange={(checked) => onHiddenChange(command, checked)}
-              />
-            </td>
-            <td className="px-3 py-3">
-              <Button
-                aria-label={`Favorite ${command.name}`}
-                disabled={updating || !command.capabilities.canFavorite}
-                size="icon"
-                type="button"
-                variant="ghost"
-                onClick={() => onFavoriteChange(command, !command.isFavorite)}
-              >
-                <Star
-                  className={cn(
-                    "h-4 w-4",
-                    command.isFavorite &&
-                      "fill-[var(--color-favorite)] text-[var(--color-favorite)]",
-                  )}
-                />
-              </Button>
-            </td>
-            <td className="px-3 py-3">
-              <Button
-                className="w-full justify-start"
-                disabled={updating || !command.capabilities.canSetKeybinding}
-                type="button"
-                variant="secondary"
-                onClick={() => onEditKeybinding(command)}
-              >
-                <Keyboard className="h-4 w-4" />
-                {command.effectiveKeybinding ? (
-                  <KeybindingDisplay
-                    className="min-w-0"
-                    keybinding={command.effectiveKeybinding}
-                  />
-                ) : (
-                  "Set"
-                )}
-              </Button>
-            </td>
-            <td className="px-3 py-3">
-              <Button
-                className="w-full justify-start"
-                disabled={updating || !command.capabilities.canEditUrlRules}
-                type="button"
-                variant="secondary"
-                onClick={() => onEditUrlRules(command)}
-              >
-                <Globe2 className="h-4 w-4" />
-                {ruleCount}
-              </Button>
-            </td>
-          </tr>
-        )
-      })}
-    </>
   )
 }

@@ -152,6 +152,8 @@ Reads the full tree via `getBookmarkTree` and recursively flattens it (`processB
 
 Bookmark action label "Open"; modifier **cmd** "Open in New Tab". Default execution uses `focusOrGoToUrl` (switch to an existing tab with that URL, else navigate the current tab); cmd opens via a `monocle-newTab` content message. Empty tree → `no-bookmarks` NoOp; error → `bookmarks-error` NoOp. Top-level results are sorted alphabetically.
 
+The settings catalog traverses the bookmark tree so stable bookmark action rows can be hidden, favorited, rebound, or given URL rules. Bookmark folder rows are traversal-only and are not themselves configurable.
+
 The first child of the group is always the `add-bookmark` form (pinned above the alphabetical list, present even when the tree is empty).
 
 ### `add-bookmark` (group/form, `bookmarks`)
@@ -230,6 +232,8 @@ Lists one child per contextual identity from `queryContainers({})`. Each child i
 
 ### `open-current-tab-in-container` (group, `tabs` + `contextualIdentities` + `cookies`)
 Same container listing, but executing reopens the **current tab's URL** in the chosen container (`createTab({ url, cookieStoreId })`) and then closes the original tab (`removeTab(currentTab.id)`). On query failure returns an empty array.
+
+Both Firefox container groups opt their generated container actions into the settings catalog so favorited containers can be managed from the Commands and Favorites settings pages.
 
 ### `toggle-reader-mode` (action, no extra permission)
 Calls `toggleReaderMode(tabId)` from `background/utils/firefox.ts` against the active tab. Keybinding `<alt-cmd-R>`. Alerts success, or "Reader Mode not available for this page" on failure.
