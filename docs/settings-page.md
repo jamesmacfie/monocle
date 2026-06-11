@@ -38,7 +38,7 @@ Wouter hash routes, Tailwind, and local shadcn-style primitives.
 | New-tab background | Auto-fetched from Unsplash, cached in `localStorage`; options page can preview/refresh cache | `newtab/components/BackgroundImage.tsx`, `newtab/backgroundImageModel.ts`, `options/pages/NewTabPage.tsx` |
 | Global command visibility | Commands page hide toggles; generated **Hide Command** action | `background/commands/settingsCatalog.ts`, `background/commands/index.ts`, `options/pages/CommandsPage.tsx` |
 | Per-command visibility (per domain) | Commands and URL Rules page editors; `manage-allow-list` / `manage-deny-list` commands + generated **Hide from Domain** action | `options/components/UrlRulesDialog.tsx`, `options/pages/UrlRulesPage.tsx`, `background/commands/ui/manageAllowList.ts`, `manageDenyList.ts`, `background/commands/index.ts` |
-| Per-command keybinding | Commands and Keyboard page keybinding dialogs; generated **Set / Reset Custom Keybinding** actions in the action menu | `options/components/KeybindingDialog.tsx`, `options/pages/KeyboardPage.tsx`, `background/commands/index.ts`, `shared/components/Command/CommandActionsList.tsx` |
+| Per-command keybinding | Commands and Keyboard page keybinding dialogs; Keyboard page templates; generated **Set / Reset Custom Keybinding** actions in the action menu | `options/components/KeybindingDialog.tsx`, `options/components/KeybindingTemplateDialog.tsx`, `options/pages/KeyboardPage.tsx`, `options/lib/keybindingTemplates.ts`, `background/commands/index.ts`, `shared/components/Command/CommandActionsList.tsx` |
 | Favorites | Commands and Favorites page favorite toggles; inline ♡ toggle action per command; `clear-favorites` command | `options/pages/FavoritesPage.tsx`, `background/commands/favorites.ts` |
 | Permissions | Inline grant actions on permission-gated rows; new-tab grant panel | `shared/components/Command/PermissionActions.tsx`, `newtab/components/PermissionGrantPanel.tsx` |
 | Clear browser data | `clear-browser-data` nested group (data type × time span) | `background/commands/browser/clearBrowserData.ts` |
@@ -281,7 +281,14 @@ keybinding and URL-rule editors over existing storage/messages:
   `validateUrlPattern`.
 - **Keyboard Shortcuts page** — a searchable/filterable table of commands with
   default/custom/unbound filtering, set/reset actions, and bulk reset for
-  selected custom bindings.
+  selected custom bindings. The **Use Template** modal has a side-panel template
+  list and a preview table of commands/keybindings. `Default` clears custom
+  keybindings only when **Override custom keybindings** is checked, restoring
+  built-in defaults. `Vim` applies Vimium/Tridactyl-style bindings to ready
+  commands; unchecked override preserves commands that already have custom
+  bindings, checked override replaces them. Pending rows are preview-only and
+  are never saved. Template saves use one `update-command-keybindings` batch
+  message, one settings write, one registry refresh, and no per-command toasts.
 - **URL Rules page** — a searchable/filterable per-command overview of allow and
   deny patterns, shared URL-rule editing, and bulk clearing for selected rules.
 

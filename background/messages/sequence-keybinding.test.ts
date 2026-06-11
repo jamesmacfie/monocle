@@ -94,4 +94,30 @@ describe("sequential keybinding execution", () => {
     // handlers see "c, n, p" and each fires executeNow (command runs 3x).
     expect(createSpy).toHaveBeenCalledTimes(1)
   })
+
+  it("executes a standalone first stroke immediately when unrelated sequences exist", async () => {
+    await updateCommandSettings("open-new-tab", {
+      keybinding: "t",
+    })
+
+    await expect(press("t")).resolves.toMatchObject({
+      success: true,
+      executed: true,
+    })
+    expect(createSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it("returns an open-palette instruction for open-page keybindings", async () => {
+    await updateCommandSettings("add-bookmark", {
+      keybinding: "a",
+    })
+
+    await expect(press("a")).resolves.toMatchObject({
+      success: true,
+      executed: false,
+      openPaletteAtCommand: {
+        commandId: "add-bookmark",
+      },
+    })
+  })
 })

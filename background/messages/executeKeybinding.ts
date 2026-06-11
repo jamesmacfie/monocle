@@ -2,8 +2,10 @@ import type { Browser, ExecuteKeybindingMessage } from "../../shared/types"
 import { executeCommand as executeCommandById } from "../commands"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import {
-  getCommandIdFromSnapshot,
+  getKeybindingEntryFromSnapshot,
   getKeybindingRegistrySnapshot,
+  type KeybindingRegistryEntry,
+  type KeybindingRegistrySnapshot,
   normalizeKeybinding,
   snapshotHasKeybindingStartingWith,
 } from "../keybindings/registry"
@@ -11,7 +13,10 @@ import {
 type SequenceState = {
   currentSequence: string[]
   sequenceTimer: ReturnType<typeof setTimeout> | null
-  pendingSingle: { commandId: string; context: Browser.Context } | null
+  pendingSingle: {
+    entry: KeybindingRegistryEntry
+    context: Browser.Context
+  } | null
 }
 
 const sequenceStates = new Map<string, SequenceState>()
@@ -67,19 +72,40 @@ const scheduleReset = (scopeKey: string, state: SequenceState): void => {
 
 const executeNow = async (
   scopeKey: string,
-  id: string,
+  entry: KeybindingRegistryEntry,
   context: Browser.Context,
   sender?: any,
 ) => {
+  if (entry.behavior === "openPaletteAtCommand") {
+    resetSequence(scopeKey)
+    return {
+      success: true,
+      executed: false,
+      openPaletteAtCommand: {
+        commandId: entry.commandId,
+      },
+    }
+  }
+
   try {
     const siteSdk = await prepareSiteSdkCommandLoadOptions(sender, context)
-    await executeCommandById(id, context, {}, undefined, undefined, {
-      siteSdk,
-    })
+    await executeCommandById(
+      entry.commandId,
+      context,
+      {},
+      undefined,
+      undefined,
+      {
+        siteSdk,
+      },
+    )
     resetSequence(scopeKey)
     return { success: true, executed: true }
   } catch (error) {
-    console.error(`[ExecuteKeybinding] Failed to execute ${id}:`, error)
+    console.error(
+      `[ExecuteKeybinding] Failed to execute ${entry.commandId}:`,
+      error,
+    )
     resetSequence(scopeKey)
     return {
       success: false,
@@ -91,11 +117,11 @@ const executeNow = async (
 const schedulePendingSingle = (
   scopeKey: string,
   state: SequenceState,
-  commandId: string,
+  entry: KeybindingRegistryEntry,
   context: Browser.Context,
   sender?: any,
 ): void => {
-  state.pendingSingle = { commandId, context }
+  state.pendingSingle = { entry, context }
   state.sequenceTimer = setTimeout(async () => {
     const latestState = sequenceStates.get(scopeKey)
     const pendingSingle = latestState?.pendingSingle
@@ -106,8 +132,12 @@ const schedulePendingSingle = (
     }
 
     try {
+      if (pendingSingle.entry.behavior === "openPaletteAtCommand") {
+        return
+      }
+
       await executeCommandById(
-        pendingSingle.commandId,
+        pendingSingle.entry.commandId,
         pendingSingle.context,
         {},
         undefined,
@@ -121,7 +151,7 @@ const schedulePendingSingle = (
       )
     } catch (error) {
       console.error(
-        `[ExecuteKeybinding] Delayed execute failed for ${pendingSingle.commandId}:`,
+        `[ExecuteKeybinding] Delayed execute failed for ${pendingSingle.entry.commandId}:`,
         error,
       )
     } finally {
@@ -130,33 +160,88 @@ const schedulePendingSingle = (
   }, CHORD_TIMEOUT_MS)
 }
 
-const evaluateSequence = async (
+const loadKeybindingSnapshot = async (
+  context: Browser.Context,
+  sender?: any,
+): Promise<KeybindingRegistrySnapshot> => {
+  const siteSdk = await prepareSiteSdkCommandLoadOptions(sender, context)
+  return await getKeybindingRegistrySnapshot(context, { siteSdk })
+}
+
+const getPrefixMatch = (
+  snapshot: KeybindingRegistrySnapshot,
+  prefix: string,
+): {
+  exactEntry: KeybindingRegistryEntry | undefined
+  hasLonger: boolean
+} => ({
+  exactEntry: getKeybindingEntryFromSnapshot(snapshot, prefix),
+  hasLonger: snapshotHasKeybindingStartingWith(snapshot, prefix),
+})
+
+const evaluatePrefix = async (
   scopeKey: string,
-  state: SequenceState,
+  state: SequenceState | null,
+  prefix: string,
+  snapshot: KeybindingRegistrySnapshot,
   context: Browser.Context,
   sender?: any,
 ) => {
-  const siteSdk = await prepareSiteSdkCommandLoadOptions(sender, context)
-  const snapshot = await getKeybindingRegistrySnapshot(context, { siteSdk })
-  const prefix = state.currentSequence.join(", ")
-  const exactId = getCommandIdFromSnapshot(snapshot, prefix)
-  const hasLonger = snapshotHasKeybindingStartingWith(snapshot, prefix)
+  const { exactEntry, hasLonger } = getPrefixMatch(snapshot, prefix)
 
-  if (exactId && !hasLonger) {
-    return await executeNow(scopeKey, exactId, context, sender)
+  if (exactEntry && exactEntry.behavior === "openPaletteAtCommand") {
+    return await executeNow(scopeKey, exactEntry, context, sender)
   }
 
-  if (exactId && hasLonger) {
-    schedulePendingSingle(scopeKey, state, exactId, context, sender)
+  if (exactEntry && !hasLonger) {
+    return await executeNow(scopeKey, exactEntry, context, sender)
+  }
+
+  if (!state) {
+    return null
+  }
+
+  if (exactEntry && hasLonger) {
+    schedulePendingSingle(scopeKey, state, exactEntry, context, sender)
     return { success: true, executed: false, pending: true }
   }
 
-  if (!exactId && hasLonger) {
+  if (!exactEntry && hasLonger) {
     scheduleReset(scopeKey, state)
     return { success: true, executed: false, pending: true }
   }
 
   return null
+}
+
+const evaluateSequence = async (
+  scopeKey: string,
+  state: SequenceState,
+  context: Browser.Context,
+  sender?: any,
+  snapshot?: KeybindingRegistrySnapshot,
+) => {
+  const currentSnapshot =
+    snapshot ?? (await loadKeybindingSnapshot(context, sender))
+  return await evaluatePrefix(
+    scopeKey,
+    state,
+    state.currentSequence.join(", "),
+    currentSnapshot,
+    context,
+    sender,
+  )
+}
+
+const canResolveFirstStrokeWithoutSequenceState = (
+  snapshot: KeybindingRegistrySnapshot,
+  stroke: string,
+): boolean => {
+  const { exactEntry, hasLonger } = getPrefixMatch(snapshot, stroke)
+  return Boolean(
+    exactEntry &&
+      (exactEntry.behavior === "openPaletteAtCommand" || !hasLonger),
+  )
 }
 
 const handleExecuteKeybinding = async (
@@ -169,6 +254,57 @@ const handleExecuteKeybinding = async (
     return {
       success: false,
       error: `Invalid keybinding: ${message.keybinding}`,
+    }
+  }
+
+  const existingState = sequenceStates.get(scopeKey)
+
+  if (!existingState || existingState.currentSequence.length === 0) {
+    const snapshot = await loadKeybindingSnapshot(message.context, sender)
+    const { exactEntry, hasLonger } = getPrefixMatch(snapshot, stroke)
+
+    if (canResolveFirstStrokeWithoutSequenceState(snapshot, stroke)) {
+      return await evaluatePrefix(
+        scopeKey,
+        null,
+        stroke,
+        snapshot,
+        message.context,
+        sender,
+      )
+    }
+
+    if (!exactEntry && !hasLonger) {
+      return {
+        success: false,
+        error: `No command registered for keybinding: ${message.keybinding}`,
+      }
+    }
+
+    const state = getSequenceState(scopeKey)
+
+    if (state.sequenceTimer) {
+      clearTimeout(state.sequenceTimer)
+      state.sequenceTimer = null
+    }
+
+    state.currentSequence.push(stroke)
+    const firstStrokeResult = await evaluateSequence(
+      scopeKey,
+      state,
+      message.context,
+      sender,
+      snapshot,
+    )
+
+    if (firstStrokeResult) {
+      return firstStrokeResult
+    }
+
+    resetSequence(scopeKey)
+    return {
+      success: false,
+      error: `No command registered for keybinding: ${message.keybinding}`,
     }
   }
 

@@ -1,6 +1,6 @@
 # Keybindings
 
-Monocle lets commands declare keyboard shortcuts and lets users assign custom ones. Every keybinding — whether typed by a command author, captured from the user, or read off a live keyboard event — is funnelled through a single canonical normalizer so that storage, matching, conflict detection, and display all agree on one string form such as `<cmd-shift-k>`. The UIs (content overlay and new-tab) capture keydown events globally, suppress the ones the background says it handles, and forward the rest to the background as `execute-keybinding` messages. The background owns a context-aware registry that resolves exact matches and multi-stroke sequence prefixes, then executes the matched command through the normal command execution path.
+Monocle lets commands declare keyboard shortcuts and lets users assign custom ones. Every keybinding — whether typed by a command author, captured from the user, or read off a live keyboard event — is funnelled through a single canonical normalizer so that storage, matching, conflict detection, and display all agree on one string form such as `<cmd-shift-k>`. The UIs (content overlay and new-tab) capture keydown events globally, suppress the ones the background says it handles, and forward the rest to the background as `execute-keybinding` messages. The background owns a context-aware registry that resolves exact matches and multi-stroke sequence prefixes, then either executes the matched command through the normal command execution path or tells the UI to open the palette at a command page.
 
 This doc covers the canonical format, normalization rules, event filtering, capture, the background registry, custom user bindings, conflict detection, the high-risk command policy, display, and known coverage gaps.
 
@@ -101,7 +101,8 @@ Inside an editable element, a combination with a non-shift modifier (Cmd/Ctrl/Al
 
 - **State refresh.** On mount and whenever `monocle-settings` changes in `chrome.storage.local`, it sends `get-keybinding-state` and caches `exactKeybindings` and `sequencePrefixes` sets. It also refreshes on any failed/unmatched execution.
 - **Preflight suppression.** `shouldPreemptivelySuppress` returns true if the key (or the continued local sequence) is in the cached exact set or sequence-prefix set. Disabled while `isCapturing` (so the capture UI receives raw keys).
-- **Execution.** `onKeyPress` sends `execute-keybinding` with the canonical `keyString` and the context override. On `success`: if the response is `pending` it extends the local sequence buffer (`updateLocalSequenceForPendingStroke`), else it clears it. Non-success clears the buffer and re-refreshes state.
+- **Execution.** `onKeyPress` sends `execute-keybinding` with the canonical `keyString` and the context override. On `success`: if the response contains `openPaletteAtCommand`, it calls the surface-provided opener callback (`useOpenPaletteAtCommand`); if the response is `pending` it extends the local sequence buffer (`updateLocalSequenceForPendingStroke`), else it clears it. Non-success clears the buffer and re-refreshes state.
+- **Open-page shortcuts.** `useOpenPaletteAtCommand` fetches fresh root commands, resets navigation to root, and dispatches `navigateToCommand` for the returned command id. Content mode first shows the overlay; new-tab mode reuses the already-mounted palette.
 - **Local sequence buffer.** A UI-side buffer (`localSequenceRef`) tracks in-progress sequences with a **900 ms** idle timeout, used only to decide preemptive suppression of the *next* stroke. Authoritative sequence resolution happens in the background.
 
 While capturing (`selectIsCapturing` true), both the preflight and `onKeyPress` short-circuit so global handling never competes with the custom-keybinding capture UI.
@@ -116,7 +117,10 @@ While capturing (`selectIsCapturing` true), both the preflight and `onKeyPress` 
 
 ```ts
 type KeybindingRegistrySnapshot = {
-  bindings: Map<string, string>      // canonical keybinding -> command id
+  bindings: Map<string, {
+    commandId: string
+    behavior: "execute" | "openPaletteAtCommand"
+  }>
   sequencePrefixes: Set<string>      // every proper prefix of a multi-stroke binding
 }
 ```
@@ -139,11 +143,13 @@ Because the snapshot depends on context and visibility settings, the same physic
 
 ### Exact match vs sequence prefix, and sequence state
 
-`background/messages/executeKeybinding.ts` owns sequence resolution. Per request it appends the normalized stroke to a **sender-scoped** sequence buffer and calls `evaluateSequence`, which fetches a snapshot and checks the joined prefix:
+`behavior` defaults to `"execute"`. Commands that set `keybindingBehavior: "openPaletteAtCommand"` are still stored in the same registry, but an exact match returns an open-page instruction instead of calling the executor. `getCommandIdForKeybinding`, `getCommandIdFromSnapshot`, and `getAllKeybindings` remain compatibility helpers that project the richer entry back down to command ids.
+
+`background/messages/executeKeybinding.ts` owns sequence resolution. When there is no active sequence for the sender scope, it first checks the current stroke against the context-aware snapshot. If the stroke is an exact match and no longer binding starts with that same stroke, it executes immediately without creating sequence state. Only ambiguous first strokes (`exact + longer`) or prefix-only first strokes enter the sender-scoped sequence buffer. Once a sequence is active, each request appends the normalized stroke and checks the joined prefix:
 
 | `exactId` | `hasLonger` (a longer binding starts with this) | Result |
 | --- | --- | --- |
-| yes | no | execute immediately (`executeNow`), reset |
+| yes | no | execute immediately, or return `openPaletteAtCommand` for open-page bindings, then reset |
 | yes | yes | schedule the exact command as `pendingSingle` after the timeout, return `{ pending: true }` |
 | no | yes | wait for more strokes, schedule reset, return `{ pending: true }` |
 | no | no (as full sequence) | retry treating the latest stroke as a fresh single; if still nothing, reset and return failure |
@@ -155,19 +161,26 @@ The chord timeout is **800 ms** (`CHORD_TIMEOUT_MS`). A second stroke arriving b
 ### `get-keybinding-state` and `execute-keybinding`
 
 - `background/messages/getKeybindingState.ts` returns `{ exactKeybindings, sequencePrefixes }` straight from the context-scoped snapshot. The UI caches these for preflight suppression.
-- `background/messages/executeKeybinding.ts` returns `{ success, executed }`, `{ success, executed: false, pending: true }`, or `{ success: false, error }`. See [messaging.md](messaging.md) for the full message catalog.
+- `background/messages/executeKeybinding.ts` returns `{ success, executed }`, `{ success, executed: false, pending: true }`, `{ success, executed: false, openPaletteAtCommand: { commandId } }`, or `{ success: false, error }`. See [messaging.md](messaging.md) for the full message catalog.
 
 ## Custom User Keybindings
 
-Authoring side (`shared/types/commands.ts`): `action` and `submit` commands may declare a default `keybinding` (canonical string) and may opt out of user customization with `allowCustomKeybinding: false`. `allowsKeybinding` (`background/utils/commands.ts`) is the gate used everywhere:
+Authoring side (`shared/types/commands.ts`): commands may declare a default `keybinding` (canonical string). `action` and `submit` commands execute by default and may opt out of user customization with `allowCustomKeybinding: false`. `group` and `search` commands can opt into keybinding support by declaring `keybindingBehavior: "openPaletteAtCommand"`; those bindings open the palette at the command page instead of executing anything.
+
+`allowsKeybinding` (`background/utils/commands.ts`) is the gate used everywhere:
 
 ```ts
 export function allowsKeybinding(command: CommandNode): boolean {
-  if (!isExecutableCommandNode(command)) return false   // only action/submit
-  if (command.confirmAction === true) return false        // high-risk policy
+  if (getKeybindingBehavior(command) === "openPaletteAtCommand") {
+    return command.type === "group" || command.type === "search"
+  }
+  if (!isExecutableCommandNode(command)) return false
+  if (command.confirmAction === true) return false
   return command.allowCustomKeybinding !== false
 }
 ```
+
+The `add-bookmark` form group is the first built-in open-page command. It has no default shortcut, but it can receive one from the Keyboard page or the Vim template.
 
 ### Capture UI flow
 

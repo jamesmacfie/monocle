@@ -8,9 +8,6 @@ import { selectIsCapturing } from "../../store/slices/keybinding.slice"
 import type { Page } from "../../store/slices/navigation.slice"
 import type { CommandData } from "../../types"
 import { CommandNavigationError } from "../CommandNavigationError"
-import CopyToClipboardListener from "../Listeners/CopyToClipboardListener"
-import NewTabListener from "../Listeners/NewTabListener"
-import ScrollListener from "../Listeners/ScrollListener"
 import {
   getPrimaryNavigationActionTarget,
   getSuggestionActions,
@@ -302,9 +299,6 @@ export function CommandPalette({
 
   return (
     <div className="raycast">
-      <CopyToClipboardListener />
-      <NewTabListener />
-      <ScrollListener />
       {error && (
         <CommandNavigationError error={error} onClearError={clearError} />
       )}

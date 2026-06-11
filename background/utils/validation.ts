@@ -273,6 +273,46 @@ function validateBusinessLogic(message: ValidatedMessage): {
       break
     }
 
+    case "update-command-keybindings": {
+      const seenCommandIds = new Set<string>()
+
+      for (const update of message.updates) {
+        if (
+          !/^[a-zA-Z0-9\-._:]+$/.test(update.commandId) ||
+          update.commandId.length === 0 ||
+          update.commandId.length > 200
+        ) {
+          return { valid: false, error: "Invalid command ID format" }
+        }
+
+        if (seenCommandIds.has(update.commandId)) {
+          return { valid: false, error: "Duplicate command keybinding update" }
+        }
+        seenCommandIds.add(update.commandId)
+
+        if (
+          update.keybinding === undefined ||
+          update.keybinding === null ||
+          update.keybinding === ""
+        ) {
+          continue
+        }
+
+        const normalizedKeybinding = normalizeKeybinding(update.keybinding)
+        if (
+          !normalizedKeybinding ||
+          normalizedKeybinding !== update.keybinding
+        ) {
+          return {
+            valid: false,
+            error: "Keybinding setting must be canonical keybinding text",
+          }
+        }
+      }
+
+      break
+    }
+
     case "request-permission":
     case "open-permission-grant-page": {
       // Validate permission name against known browser permissions

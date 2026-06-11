@@ -194,6 +194,7 @@ export const addBookmark: CommandNode = {
   color: "green",
   keywords: ["add", "bookmark", "save", "favorite", "star"],
   permissions: ["bookmarks"],
+  keybindingBehavior: "openPaletteAtCommand",
   // The form's inputs and submit must never be flattened into root search —
   // only this group itself should appear, opening the form on selection.
   enableDeepSearch: false,

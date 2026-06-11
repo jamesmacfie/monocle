@@ -133,6 +133,37 @@ export const setCatalogCommandKeybinding = createAsyncThunk<
   },
 )
 
+export const setCatalogCommandKeybindings = createAsyncThunk<
+  { updates: Array<{ commandId: string; keybinding?: string }> },
+  { updates: Array<{ commandId: string; keybinding?: string | null }> },
+  { extra: CatalogThunkApi; rejectValue: string }
+>(
+  "settingsCatalog/setKeybindings",
+  async ({ updates }, { extra, rejectWithValue }) => {
+    try {
+      const response = (await getSendMessage(extra)({
+        type: "update-command-keybindings",
+        updates,
+      })) as { error?: string }
+
+      if (response?.error) {
+        return rejectWithValue(response.error)
+      }
+
+      return {
+        updates: updates.map((update) => ({
+          commandId: update.commandId,
+          keybinding: update.keybinding || undefined,
+        })),
+      }
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : "Failed to update keybindings",
+      )
+    }
+  },
+)
+
 export const setCatalogCommandUrlRules = createAsyncThunk<
   { commandId: string; urlRules: CommandUrlRulesSetting },
   { commandId: string; urlRules: CommandUrlRulesSetting },
@@ -250,6 +281,27 @@ export const settingsCatalogSlice = createSlice({
       .addCase(setCatalogCommandKeybinding.rejected, (state, action) => {
         setUpdating(state, action.meta.arg.commandId, false)
         state.error = action.payload ?? "Failed to update keybinding"
+      })
+      .addCase(setCatalogCommandKeybindings.pending, (state, action) => {
+        for (const update of action.meta.arg.updates) {
+          setUpdating(state, update.commandId, true)
+        }
+      })
+      .addCase(setCatalogCommandKeybindings.fulfilled, (state, action) => {
+        for (const update of action.payload.updates) {
+          setUpdating(state, update.commandId, false)
+          updateCommand(state, update.commandId, (command) => {
+            command.settings.keybinding = update.keybinding
+            command.effectiveKeybinding =
+              update.keybinding || command.defaultKeybinding
+          })
+        }
+      })
+      .addCase(setCatalogCommandKeybindings.rejected, (state, action) => {
+        for (const update of action.meta.arg.updates) {
+          setUpdating(state, update.commandId, false)
+        }
+        state.error = action.payload ?? "Failed to update keybindings"
       })
       .addCase(setCatalogCommandUrlRules.pending, (state, action) => {
         setUpdating(state, action.meta.arg.commandId, true)

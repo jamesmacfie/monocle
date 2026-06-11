@@ -106,6 +106,15 @@ export type UpdateCommandSettingMessage =
   | UpdateUrlRulesSettingMessage
   | UpdateHiddenSettingMessage
 
+export type UpdateCommandKeybindingsMessage = {
+  type: "update-command-keybindings"
+  updates: Array<{
+    commandId: string
+    keybinding?: string | null
+  }>
+  context?: Browser.Context
+}
+
 export type GetSettingsCatalogMessage = {
   type: "get-settings-catalog"
   platform?: Browser.Platform
@@ -177,6 +186,7 @@ export type Message =
   | ShowToastMessage
   | RequestToastMessage
   | UpdateCommandSettingMessage
+  | UpdateCommandKeybindingsMessage
   | GetSettingsCatalogMessage
   | SetCommandFavoriteMessage
   | CheckKeybindingConflictMessage

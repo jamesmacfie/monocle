@@ -50,15 +50,7 @@ const newTabContext: Browser.Context = {
 }
 
 const getDefaultKeybinding = (command: CommandNode): string | undefined => {
-  if (
-    command.type !== "action" &&
-    command.type !== "submit" &&
-    command.type !== "search"
-  ) {
-    return undefined
-  }
-
-  if (command.type === "search") {
+  if (!allowsKeybinding(command)) {
     return undefined
   }
 

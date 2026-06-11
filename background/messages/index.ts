@@ -17,6 +17,7 @@ import { searchCommands } from "./searchCommands"
 import { setCommandFavorite } from "./setCommandFavorite"
 import { showToast } from "./showToast"
 import { siteSdkSync } from "./siteSdkSync"
+import { updateCommandKeybindings } from "./updateCommandKeybindings"
 import { updateCommandSetting } from "./updateCommandSetting"
 
 export const handleMessage = async (rawMessage: unknown, sender?: any) => {
@@ -83,6 +84,9 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "update-command-setting" }, async (msg) => {
       return await updateCommandSetting(msg, sender)
+    })
+    .with({ type: "update-command-keybindings" }, async (msg) => {
+      return await updateCommandKeybindings(msg, sender)
     })
     .with({ type: "get-settings-catalog" }, async (msg) => {
       return await getSettingsCatalog(msg, sender)

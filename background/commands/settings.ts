@@ -169,6 +169,31 @@ export const updateCommandSettings = async (
   await saveSettings(settings)
 }
 
+export const updateCommandKeybindings = async (
+  updates: Array<{ commandId: string; keybinding?: string | null }>,
+): Promise<void> => {
+  const settings = await loadSettings()
+
+  if (!settings.commands) {
+    settings.commands = {}
+  }
+
+  for (const update of updates) {
+    const existingSettings = settings.commands[update.commandId] || {}
+    const nextSettings = mergeCommandSettings(existingSettings, {
+      keybinding: update.keybinding || undefined,
+    })
+
+    if (isEmptyObject(nextSettings)) {
+      delete settings.commands[update.commandId]
+    } else {
+      settings.commands[update.commandId] = nextSettings
+    }
+  }
+
+  await saveSettings(settings)
+}
+
 // Update URL rules for a command while preserving sibling rule lists
 export const updateCommandUrlRules = async (
   commandId: string,

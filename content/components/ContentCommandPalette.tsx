@@ -4,12 +4,16 @@ import type { CommandExecutionScope } from "../../shared/types"
 const { useEffect, useCallback } = React
 
 import { CommandPalette } from "../../shared/components/Command"
+import CopyToClipboardListener from "../../shared/components/Listeners/CopyToClipboardListener"
+import NewTabListener from "../../shared/components/Listeners/NewTabListener"
 import ScreenshotListener from "../../shared/components/Listeners/ScreenshotListener"
+import ScrollListener from "../../shared/components/Listeners/ScrollListener"
 import { ToastContainer } from "../../shared/components/ToastContainer"
 import { shouldRefreshCommandsAfterExecution } from "../../shared/hooks/commandExecution"
 import { useCommandPaletteStateRedux } from "../../shared/hooks/useCommandPaletteStateRedux"
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
+import { useOpenPaletteAtCommand } from "../../shared/hooks/useOpenPaletteAtCommand"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
 import { useAppDispatch } from "../../shared/store/hooks"
 import { resetNavigation } from "../../shared/store/slices/navigation.slice"
@@ -29,12 +33,16 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
   onClose,
 }) => {
   const { data, fetchCommands } = useGetCommands()
-  const { isOpen, hideUI } = useCommandPaletteStateRedux()
+  const { isOpen, showUI, hideUI } = useCommandPaletteStateRedux()
   const sendMessage = useSendMessage()
   const dispatch = useAppDispatch()
+  const openPaletteAtCommand = useOpenPaletteAtCommand({
+    fetchCommands,
+    showPalette: showUI,
+  })
 
   // Enable global keybindings for content script
-  useGlobalKeybindings()
+  useGlobalKeybindings({ onOpenPaletteAtCommand: openPaletteAtCommand })
 
   // Load permissions, settings and fetch commands on initial render
   useEffect(() => {
@@ -117,6 +125,9 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
         </>
       )}
       {/* Always mounted so screenshot capture works after the palette hides. */}
+      <CopyToClipboardListener />
+      <NewTabListener />
+      <ScrollListener />
       <ScreenshotListener />
       <ToastContainer />
     </>

@@ -3,6 +3,7 @@ import type {
   BrowserPermission,
   CommandNode,
   CommandSettings,
+  KeybindingBehavior,
 } from "../../shared/types"
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
 import {
@@ -13,7 +14,11 @@ import {
 } from "../commands/query"
 import { getAllCommandSettings } from "../commands/settings"
 import type { CommandLoadOptions } from "../commands/source"
-import { allowsKeybinding, resolveCommandName } from "../utils/commands"
+import {
+  allowsKeybinding,
+  getKeybindingBehavior,
+  resolveCommandName,
+} from "../utils/commands"
 import { checkPermissions } from "../utils/permissions"
 import { filterCommandsByUrl } from "../utils/urlFilter"
 
@@ -21,6 +26,7 @@ export type KeybindingCommandEntry = {
   id: string
   name: string
   keybinding: string
+  behavior: KeybindingBehavior
 }
 
 const hasRequiredPermissions = async (
@@ -39,10 +45,7 @@ const getCommandKeybinding = (
   }
 
   const configuredKeybinding = commandSettings[command.id]?.keybinding
-  const defaultKeybinding =
-    command.type === "action" || command.type === "submit"
-      ? command.keybinding
-      : undefined
+  const defaultKeybinding = command.keybinding
 
   return normalizeKeybinding(configuredKeybinding || defaultKeybinding || "")
 }
@@ -65,6 +68,7 @@ const addKeybindingEntry = async (
     id: command.id,
     name: await resolveCommandName(command.name, context),
     keybinding,
+    behavior: getKeybindingBehavior(command),
   })
 }
 

@@ -34,6 +34,7 @@ Every entry below is registered in `handleMessage`. "Direction" is always UI -> 
 | `request-permission` | UI -> bg | `{ permission }` (no context) | `{ granted: boolean, error? }` (`RequestPermissionResponse`) | `background/messages/requestPermission.ts`, `requestPermission` | Trigger the browser permission prompt and report the result. |
 | `open-permission-grant-page` | UI -> bg | `{ permission }` (no context) | `{ success: true }` | `background/messages/openPermissionGrantPage.ts`, `openPermissionGrantPage` | Open the new-tab page with a `grantPermission` query so the prompt runs in a user-gesture-friendly context. |
 | `update-command-setting` | UI -> bg | discriminated by `setting` (see below) | `{ success: true }` or throws | `background/messages/updateCommandSetting.ts`, `updateCommandSetting` | Persist a per-command `keybinding`, `hidden`, or `urlRules` setting. |
+| `update-command-keybindings` | UI -> bg | `{ updates: { commandId, keybinding? }[], context? }` | `{ success: true, updated: number }` or throws | `background/messages/updateCommandKeybindings.ts`, `updateCommandKeybindings` | Batch-persist keybindings for template application without per-command toasts. |
 | `get-settings-catalog` | UI -> bg | `{ platform? }` | `SettingsCatalogResponse` | `background/messages/getSettingsCatalog.ts`, `getSettingsCatalog` | Return durable command rows for the options Commands page, including metadata, settings, favorite state, usage, and capabilities. |
 | `set-command-favorite` | UI -> bg | `{ commandId, favorite }` | `{ success: true }` | `background/messages/setCommandFavorite.ts`, `setCommandFavorite` | Set favorite state directly, including for hidden commands that no longer expose generated palette actions. |
 | `request-toast` | UI -> bg | `{ level, message }` | `{ success: true, rateLimited? }` | `background/messages/requestToast.ts`, `requestToast` | UI-originated toast request; forwarded to `showToast`. |
@@ -128,7 +129,8 @@ the in-memory site SDK registry and invalidates the search index. See
 
 | Situation | Returned object |
 | --- | --- |
-| Exact match, no longer sequence possible | `{ success: true, executed: true }` (or `{ success: false, error }` on executor failure) |
+| Exact executable match, no longer sequence possible | `{ success: true, executed: true }` (or `{ success: false, error }` on executor failure) |
+| Exact open-page match | `{ success: true, executed: false, openPaletteAtCommand: { commandId } }` |
 | Exact match but a longer chord exists | `{ success: true, executed: false, pending: true }` (schedules delayed single execution) |
 | No exact match but a chord prefix matches | `{ success: true, executed: false, pending: true }` |
 | Invalid stroke | `{ success: false, error: "Invalid keybinding: ..." }` |
@@ -188,6 +190,26 @@ type UpdateHiddenSettingMessage = {
 - `setting: "hidden"` — writes `commands[id].hidden`, refreshes the keybinding registry, and invalidates the search index. Hidden commands are removed from palette views/search, child pages, execution resolution, keybinding snapshots, and conflict checks.
 
 Returns `{ success: true }`. See [settings.md](settings.md) and [url-filtering.md](url-filtering.md).
+
+**`update-command-keybindings`** batches keybinding updates for template
+application:
+
+```ts
+type UpdateCommandKeybindingsMessage = {
+  type: "update-command-keybindings"
+  updates: Array<{
+    commandId: string
+    keybinding?: string | null
+  }>
+  context?: Browser.Context
+}
+```
+
+The handler validates every non-empty keybinding target before writing, updates
+all command settings with one storage save, refreshes the keybinding registry
+once, and returns `{ success: true, updated: number }`. It does **not** emit
+toasts; the per-command `update-command-setting` keybinding path remains the
+toast-producing path for manual edits.
 
 **`get-settings-catalog`** returns the options-page command catalog:
 

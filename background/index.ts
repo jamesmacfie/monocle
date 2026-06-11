@@ -1,5 +1,9 @@
 import { getBrowserAPI } from "../shared/utils/extension-api"
 import {
+  forgetActivatedTab,
+  recordActivatedTab,
+} from "./commands/browser/tabActivationHistory"
+import {
   initializeSearchIndexInvalidation,
   invalidateSearchIndex,
   warmSearchIndex,
@@ -25,9 +29,15 @@ export function initializeBackground() {
   warmSearchIndex()
 
   browserAPI.tabs?.onRemoved?.addListener((tabId: number) => {
+    forgetActivatedTab(tabId)
+
     if (clearSiteSdkScopesForTab(tabId)) {
       invalidateSearchIndex()
     }
+  })
+
+  browserAPI.tabs?.onActivated?.addListener(({ tabId }: { tabId: number }) => {
+    recordActivatedTab(tabId)
   })
 
   browserAPI.tabs?.onUpdated?.addListener(

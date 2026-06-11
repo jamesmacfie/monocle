@@ -6,6 +6,7 @@ const { useEffect, useCallback } = React
 import { CommandPalette } from "../../shared/components/Command/index"
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
+import { useOpenPaletteAtCommand } from "../../shared/hooks/useOpenPaletteAtCommand"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
 import { useAppDispatch } from "../../shared/store/hooks"
 
@@ -23,6 +24,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
   const { data, fetchCommands, isLoading } = useGetCommands({ isNewTab: true })
   const sendMessage = useSendMessage()
   const _dispatch = useAppDispatch()
+  const openPaletteAtCommand = useOpenPaletteAtCommand({ fetchCommands })
   const sendMessageWithNewTab = React.useCallback(
     (message: any) => {
       return sendMessage(message, { isNewTab: true })
@@ -31,7 +33,10 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
   )
 
   // Enable global keybindings
-  useGlobalKeybindings({ isNewTab: true })
+  useGlobalKeybindings({
+    isNewTab: true,
+    onOpenPaletteAtCommand: openPaletteAtCommand,
+  })
 
   // Fetch commands on initial render
   useEffect(() => {

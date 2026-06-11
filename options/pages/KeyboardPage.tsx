@@ -1,4 +1,10 @@
-import { Keyboard, RotateCcw, Search, Undo2 } from "lucide-react"
+import {
+  Keyboard,
+  LayoutTemplate,
+  RotateCcw,
+  Search,
+  Undo2,
+} from "lucide-react"
 import { useMemo, useState } from "react"
 import { KeybindingDisplay } from "../../shared/components/KeybindingDisplay"
 import { useAppDispatch, useAppSelector } from "../../shared/store/hooks"
@@ -9,8 +15,10 @@ import {
   selectSettingsCatalogLoading,
   selectSettingsCatalogUpdatingIds,
   setCatalogCommandKeybinding,
+  setCatalogCommandKeybindings,
 } from "../../shared/store/slices/settingsCatalog.slice"
 import { CommandIdentity } from "../components/CommandIdentity"
+import { KeybindingTemplateDialog } from "../components/KeybindingTemplateDialog"
 import { Badge, Button, Checkbox, Input, Panel, Select } from "../components/ui"
 import { useCatalogCommandActions } from "../hooks/useCatalogCommandActions"
 import {
@@ -47,6 +55,7 @@ export function KeyboardPage() {
   const [category, setCategory] = useState("all")
   const [bindingFilter, setBindingFilter] = useState<BindingFilter>("all")
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const { dialogs, editKeybinding } = useCatalogCommandActions()
 
   const keybindingCommands = useMemo(
@@ -116,6 +125,15 @@ export function KeyboardPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            disabled={loading}
+            type="button"
+            variant="secondary"
+            onClick={() => setTemplateDialogOpen(true)}
+          >
+            <LayoutTemplate className="h-4 w-4" />
+            Use Template
+          </Button>
           <Button
             disabled={selectedCustomIds.length === 0}
             type="button"
@@ -303,6 +321,18 @@ export function KeyboardPage() {
       </Panel>
 
       {dialogs}
+      <KeybindingTemplateDialog
+        commands={keybindingCommands}
+        open={templateDialogOpen}
+        onOpenChange={setTemplateDialogOpen}
+        onApply={async (operations) => {
+          await dispatch(
+            setCatalogCommandKeybindings({
+              updates: operations,
+            }),
+          ).unwrap()
+        }}
+      />
     </div>
   )
 }

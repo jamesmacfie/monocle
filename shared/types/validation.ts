@@ -105,6 +105,20 @@ export const UpdateCommandSettingMessageSchema = z.discriminatedUnion(
   ],
 )
 
+export const UpdateCommandKeybindingsMessageSchema = z.object({
+  type: z.literal("update-command-keybindings"),
+  updates: z
+    .array(
+      z.object({
+        commandId: z.string().min(1, "Command ID cannot be empty"),
+        keybinding: z.union([z.string(), z.null()]).optional(),
+      }),
+    )
+    .min(1, "At least one keybinding update is required")
+    .max(500, "Too many keybinding updates"),
+  context: BrowserContextSchema.optional(),
+})
+
 export const GetSettingsCatalogMessageSchema = z.object({
   type: z.literal("get-settings-catalog"),
   platform: z.enum(["chrome", "firefox"]).optional(),
@@ -270,6 +284,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
   ShowToastMessageSchema,
   RequestToastMessageSchema,
   UpdateCommandSettingMessageSchema,
+  UpdateCommandKeybindingsMessageSchema,
   GetSettingsCatalogMessageSchema,
   SetCommandFavoriteMessageSchema,
   CheckKeybindingConflictMessageSchema,

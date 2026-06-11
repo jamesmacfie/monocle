@@ -25,13 +25,16 @@ import { openNewPrivateWindow } from "./openNewPrivateWindow"
 import { openNewTab } from "./openNewTab"
 import { openNewWindow } from "./openNewWindow"
 import { openTabs } from "./openTabs"
+import { pageScrollShortcutCommands } from "./pageScrollShortcuts"
 import { recentlyClosed } from "./recentlyClosed"
 import { reloadCurrentTab } from "./reloadCurrentTab"
 import { reopenLastClosedTab } from "./reopenLastClosedTab"
 import { scrollToBottom } from "./scrollToBottom"
 import { scrollToTop } from "./scrollToTop"
+import { tabNavigationShortcutCommands } from "./tabNavigationShortcuts"
 import { toggleMuteCurrentTab } from "./toggleMuteCurrentTab"
 import { togglePinCurrentTab } from "./togglePinCurrentTab"
+import { urlNavigationAndCopyCommands } from "./urlNavigationAndCopy"
 
 export { firefoxCommands } from "./firefox"
 
@@ -64,11 +67,14 @@ export const browserCommands = [
   openNewTab,
   openNewWindow,
   openTabs,
+  ...pageScrollShortcutCommands,
   recentlyClosed,
   reloadCurrentTab,
   reopenLastClosedTab,
   scrollToBottom,
   scrollToTop,
+  ...tabNavigationShortcutCommands,
   toggleMuteCurrentTab,
   togglePinCurrentTab,
+  ...urlNavigationAndCopyCommands,
 ]

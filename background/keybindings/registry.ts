@@ -1,4 +1,4 @@
-import type { Browser } from "../../shared/types"
+import type { Browser, KeybindingBehavior } from "../../shared/types"
 import {
   getKeyString,
   normalizeKeybinding,
@@ -9,12 +9,17 @@ import { loadKeybindingCommandEntries } from "./source"
 
 export { normalizeKeybinding }
 
+export type KeybindingRegistryEntry = {
+  commandId: string
+  behavior: KeybindingBehavior
+}
+
 export type KeybindingRegistrySnapshot = {
-  bindings: Map<string, string>
+  bindings: Map<string, KeybindingRegistryEntry>
   sequencePrefixes: Set<string>
 }
 
-const keybindingRegistry = new Map<string, string>()
+const keybindingRegistry = new Map<string, KeybindingRegistryEntry>()
 
 const createSequencePrefixes = (bindings: Iterable<string>): Set<string> => {
   const prefixes = new Set<string>()
@@ -31,8 +36,8 @@ const createSequencePrefixes = (bindings: Iterable<string>): Set<string> => {
 }
 
 const registerBinding = (
-  registry: Map<string, string>,
-  commandId: string,
+  registry: Map<string, KeybindingRegistryEntry>,
+  entry: KeybindingRegistryEntry,
   keybinding: string,
 ): void => {
   const normalized = normalizeKeybinding(keybinding)
@@ -40,18 +45,22 @@ const registerBinding = (
     return
   }
 
-  registry.set(normalized, commandId)
+  registry.set(normalized, entry)
 }
 
 const buildRegistry = async (
   context?: Browser.Context,
   options?: CommandLoadOptions,
-): Promise<Map<string, string>> => {
-  const registry = new Map<string, string>()
+): Promise<Map<string, KeybindingRegistryEntry>> => {
+  const registry = new Map<string, KeybindingRegistryEntry>()
   const entries = await loadKeybindingCommandEntries(context, options)
 
   for (const entry of entries) {
-    registerBinding(registry, entry.id, entry.keybinding)
+    registerBinding(
+      registry,
+      { commandId: entry.id, behavior: entry.behavior },
+      entry.keybinding,
+    )
   }
 
   return registry
@@ -83,7 +92,7 @@ export function getCommandIdForKeybinding(
   keybinding: string,
 ): string | undefined {
   const normalized = normalizeKeybinding(keybinding)
-  return keybindingRegistry.get(normalized)
+  return keybindingRegistry.get(normalized)?.commandId
 }
 
 export function hasKeybindingStartingWith(prefix: string): boolean {
@@ -93,12 +102,19 @@ export function hasKeybindingStartingWith(prefix: string): boolean {
   return createSequencePrefixes(keybindingRegistry.keys()).has(normalizedPrefix)
 }
 
+export function getKeybindingEntryFromSnapshot(
+  snapshot: KeybindingRegistrySnapshot,
+  keybinding: string,
+): KeybindingRegistryEntry | undefined {
+  const normalized = normalizeKeybinding(keybinding)
+  return snapshot.bindings.get(normalized)
+}
+
 export function getCommandIdFromSnapshot(
   snapshot: KeybindingRegistrySnapshot,
   keybinding: string,
 ): string | undefined {
-  const normalized = normalizeKeybinding(keybinding)
-  return snapshot.bindings.get(normalized)
+  return getKeybindingEntryFromSnapshot(snapshot, keybinding)?.commandId
 }
 
 export function snapshotHasKeybindingStartingWith(
@@ -115,7 +131,11 @@ export function registerSingleCommand(
   commandId: string,
   keybinding: string,
 ): void {
-  registerBinding(keybindingRegistry, commandId, keybinding)
+  registerBinding(
+    keybindingRegistry,
+    { commandId, behavior: "execute" },
+    keybinding,
+  )
 }
 
 export function registerDynamicCommands(
@@ -135,12 +155,24 @@ export async function initializeKeybindingRegistry(
   keybindingRegistry.clear()
 
   const snapshot = await getKeybindingRegistrySnapshot(context, options)
-  for (const [keybinding, commandId] of snapshot.bindings.entries()) {
-    keybindingRegistry.set(keybinding, commandId)
+  for (const [keybinding, entry] of snapshot.bindings.entries()) {
+    keybindingRegistry.set(keybinding, entry)
   }
 }
 
 export function getAllKeybindings(): Map<string, string> {
+  return new Map(
+    [...keybindingRegistry.entries()].map(([keybinding, entry]) => [
+      keybinding,
+      entry.commandId,
+    ]),
+  )
+}
+
+export function getAllKeybindingEntries(): Map<
+  string,
+  KeybindingRegistryEntry
+> {
   return new Map(keybindingRegistry)
 }
 

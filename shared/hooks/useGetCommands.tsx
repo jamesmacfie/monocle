@@ -26,23 +26,28 @@ export function useGetCommands(context?: Partial<Browser.Context>) {
 
       if (response.error) {
         console.error("Error fetching suggestions:", response.error)
-        setData({
+        const emptyData = {
           favorites: [],
           suggestions: [],
-        })
+        }
+        setData(emptyData)
+        return emptyData
       } else {
         const newData = {
           favorites: response.favorites || [],
           suggestions: response.suggestions || [],
         }
         setData(newData)
+        return newData
       }
     } catch (error) {
       console.error("[useGetCommands] Error sending message:", error)
-      setData({
+      const emptyData = {
         favorites: [],
         suggestions: [],
-      })
+      }
+      setData(emptyData)
+      return emptyData
     } finally {
       setIsLoading(false)
     }

@@ -26,8 +26,20 @@ export type NewTabEvent = {
 
 export type ScrollEvent = {
   type: "monocle-scroll"
-  direction: "top" | "bottom"
-}
+} & (
+  | {
+      direction: "top" | "bottom"
+    }
+  | {
+      axis: "x" | "y"
+      amount: number
+      unit: "line" | "viewport" | "pixel"
+    }
+  | {
+      axis: "x" | "y"
+      edge: "start" | "end"
+    }
+)
 
 export type ScreenshotEvent = {
   type: "monocle-screenshot"

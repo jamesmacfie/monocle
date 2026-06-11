@@ -329,16 +329,7 @@ const _createResetKeybindingAction = (
   command: CommandNode,
   settings?: CommandSettings,
 ): Suggestion | null => {
-  // Don't create action for groups
-  if (command.type === "group") {
-    return null
-  }
-
-  // Don't create action if command explicitly opts out
-  if (
-    (command.type === "action" || command.type === "submit") &&
-    command.allowCustomKeybinding === false
-  ) {
+  if (!allowsKeybinding(command)) {
     return null
   }
 
@@ -350,11 +341,9 @@ const _createResetKeybindingAction = (
   return {
     id: `reset-keybinding-${command.id}`,
     name: "Reset Custom Keybinding",
-    description:
-      (command.type === "action" || command.type === "submit") &&
-      command.keybinding
-        ? `Reset to default keybinding: ${normalizeKeybinding(command.keybinding)}`
-        : "Reset to default keybinding",
+    description: command.keybinding
+      ? `Reset to default keybinding: ${normalizeKeybinding(command.keybinding)}`
+      : "Reset to default keybinding",
     icon: { type: "lucide", name: "RotateCcw" },
     color: "orange",
     type: "action",
@@ -490,11 +479,7 @@ export const commandsToSuggestions = async (
         color: (await resolveAsyncProperty(node.color, context)) as any,
         keybinding: allowsKeybinding(node)
           ? normalizeKeybinding(
-              commandSettings[node.id]?.keybinding ||
-                (node.type === "action" || node.type === "submit"
-                  ? node.keybinding
-                  : undefined) ||
-                "",
+              commandSettings[node.id]?.keybinding || node.keybinding || "",
             ) || undefined
           : undefined,
         isFavorite: favoriteCommandIds.includes(node.id),

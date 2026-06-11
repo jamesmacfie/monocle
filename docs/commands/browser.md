@@ -20,7 +20,7 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 
 | Command id | Name | Type | Permissions | Default keybinding | Browsers | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `add-bookmark` | Add Bookmark | group/form | `bookmarks` | — | all | Top-level + first child of `bookmarks`; `enableDeepSearch: false` so form elements never appear in search |
+| `add-bookmark` | Add Bookmark | group/form | `bookmarks` | — | all | Top-level + first child of `bookmarks`; `enableDeepSearch: false`; `keybindingBehavior: "openPaletteAtCommand"` |
 | `bookmarks` | Bookmarks | group | `bookmarks` | — | all | Deep search; recursive folder tree |
 | `capture-screenshot` | Capture screenshot | action | — | — | all | Visible-area `captureVisibleTab` (activeTab). Enter → copy to clipboard; Cmd → download. Page-side via `monocle-screenshot` |
 | `clear-browser-data` | Clear Browser Data | group | `browsingData`, `history`, `cookies`, `sessions` | — | all | site-cookies action + 11 data types × 5 time spans; leaf actions `confirmAction` |
@@ -34,10 +34,21 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `copy-tab-url` | Copy tab URL | group | `tabs` | — | all | One child per open tab in current window |
 | `downloads` | Downloads | group | `downloads` | — | all | Up to 50 recent completed downloads |
 | `duplicate-current-tab` | Duplicate current tab | action | — | — | all | Modifier labels: shift / cmd |
+| `focus-next-tab` | Go to next tab | action | `tabs` | — | all | Vim-template target; wraps within current window |
+| `focus-previous-tab` | Go to previous tab | action | `tabs` | — | all | Vim-template target; wraps within current window |
+| `focus-first-tab` | Go to first tab | action | `tabs` | — | all | Vim-template target |
+| `focus-last-tab` | Go to last tab | action | `tabs` | — | all | Vim-template target |
+| `focus-last-active-tab` | Go to last active tab | action | `tabs` | — | all | Uses background activation history |
+| `focus-audible-tab` | Go to audible tab | action | `tabs` | — | all | Cycles from active tab through audible, unmuted tabs |
 | `go-back` | Go Back | action | — | `<alt-left>` | all | Dynamic name; heuristic availability |
 | `go-forward` | Go Forward | action | — | `<alt-right>` | all | Dynamic name; heuristic availability |
+| `go-to-parent-url` | Go to parent URL | action | — | — | all | Drops one path segment, clears search/hash |
+| `go-to-root-url` | Go to root URL | action | — | — | all | Navigates to origin root |
 | `goto-tab` | Go to tab | group | `tabs` | — | all | One child per tab in current window |
+| `hard-reload-current-tab` | Hard reload current tab | action | `tabs` | — | all | Bypasses cache; separate Vim-template target |
 | `history` | History | group | `history` | — | all | Time-period subgroups; deep search |
+| `increment-url-number` | Increment URL number | action | — | — | all | Increments last number in URL |
+| `decrement-url-number` | Decrement URL number | action | — | — | all | Decrements last number in URL |
 | `open-browser-page` | Browser Management | group | — | — | chrome | Deep search; opens 9 internal `chrome://` pages via `createTab` (no permission). Chrome-only: Firefox rejects `tabs.create` for privileged `about:` pages |
 | `move-current-tab-to-a-new-window` | Move this tab to a new window | action | `tabs` | — | all | |
 | `move-current-tab-to-popup-window` | Move current tab to popup window | action | `tabs` | — | all | |
@@ -50,10 +61,22 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `recently-closed` | Recently Closed | group | `sessions` | — | all | Closed tabs and windows; deep search |
 | `reload-current-tab` | Reload current tab | action | — | `<cmd-r>` | all | Cmd modifier action: hard reload (bypass cache) |
 | `reopen-last-closed-tab` | Reopen Last Closed Tab | action | `sessions` | — | all | Most recent closed tab only |
+| `scroll-line-down` / `scroll-line-up` | Scroll down/up | action | — | — | all | Vim-template targets for `j`/`k` |
+| `scroll-left` / `scroll-right` | Scroll left/right | action | — | — | all | Vim-template targets for `h`/`l` |
+| `scroll-half-page-down` / `scroll-half-page-up` | Scroll half page down/up | action | — | — | all | Viewport-relative |
+| `scroll-full-page-down` / `scroll-full-page-up` | Scroll page down/up | action | — | — | all | Viewport-relative |
+| `scroll-far-left` / `scroll-far-right` | Scroll to horizontal edge | action | — | — | all | Horizontal edge aliases |
 | `scroll-to-top` | Scroll to top | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
 | `scroll-to-bottom` | Scroll to bottom | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
+| `stop-loading-current-tab` | Stop loading current tab | action | `tabs` | — | all | Runs `window.stop()` with required `scripting` permission |
 | `toggle-mute-current-tab` | Mute / Unmute current tab | action | — | — | all | State-aware label/icon from `mutedInfo.muted` |
 | `toggle-pin-current-tab` | Pin / Unpin current tab | action | — | — | all | State-aware label/icon from `pinned` |
+| `view-source-current-tab` | View page source | action | — | — | all | Navigates to `view-source:<url>` |
+| `copy-current-url` | Copy URL | action | — | — | all | Top-level copy action |
+| `copy-clean-current-url` | Copy URL without parameters | action | — | — | all | Clears query/hash |
+| `copy-current-domain` | Copy domain | action | — | — | all | Copies hostname |
+| `copy-current-title` | Copy page title | action | — | — | all | Copies tab title |
+| `copy-canonical-url` | Copy canonical URL | action | — | — | all | Reads `<link rel="canonical">` via `scripting`, falls back to tab URL |
 | `open-container-tab` | Open container tab | group | `contextualIdentities`, `cookies` | — | firefox | Per-container children |
 | `open-current-tab-in-container` | Open current tab in container | group | `tabs`, `contextualIdentities`, `cookies` | — | firefox | Reopens current URL, closes original |
 | `toggle-reader-mode` | Toggle Reader Mode | action | — | `<alt-cmd-R>` | firefox | |
@@ -105,6 +128,29 @@ A single state-aware command. Mute state is **read** from `mutedInfo.muted` (the
 ### `reload-current-tab` (action)
 On plain Enter, `callBrowserAPI("tabs", "reload")` with no tab id (reloads the active tab). Keybinding `<cmd-r>`. Declares `modifierActionLabel.cmd = "Hard reload (bypass cache)"`; the Cmd modifier action resolves the active tab and calls `callBrowserAPI("tabs", "reload", tabId, { bypassCache: true })` (tab id passed explicitly so the reloadProperties object is correct in both Chrome and Firefox).
 
+### Vim-style tab shortcut actions
+`focus-next-tab`, `focus-previous-tab`, `focus-first-tab`, and `focus-last-tab`
+are fixed action commands over `queryTabs({ currentWindow: true })` and
+`updateTab({ active: true })`. They require `tabs` because they inspect and
+focus arbitrary current-window tabs. Next/previous wrap at the window edges.
+
+`focus-last-active-tab` uses `background/commands/browser/tabActivationHistory.ts`,
+which records tab ids from `tabs.onActivated`, drops closed tabs from
+`tabs.onRemoved`, and validates candidates with `tabs.get` before focusing. A
+fresh background service worker has no prior activation history until the user
+switches tabs.
+
+`focus-audible-tab` scans current-window tabs starting after the active tab and
+focuses the first audible, unmuted tab; if none exists it shows an error toast.
+
+`hard-reload-current-tab` is a separate command for template keybindings, even
+though `reload-current-tab` already has a Cmd modifier action. It calls
+`tabs.reload(tabId, { bypassCache: true })`.
+
+`stop-loading-current-tab` resolves the active tab and runs `window.stop()` via
+the required `scripting.executeScript` permission. It is not a page-side message,
+so it can run while the page is still loading.
+
 ### `capture-screenshot` (action)
 Captures the visible area of the active tab. The background first sends a `hide-ui` message and awaits its acknowledgement so the palette overlay is painted out **before** the capture (otherwise `captureVisibleTab` would include the palette); the content `useCommandPaletteStateRedux` handler hides the palette and acks after two `requestAnimationFrame`s. The send is best-effort — surfaces without that handler (e.g. the new tab page) simply don't respond. It then resolves the active tab and calls `captureVisibleTab(windowId)` (`callBrowserAPI("tabs", "captureVisibleTab", windowId, { format: "png" })`), which relies on the `activeTab` permission (always granted when the palette is invoked) — no `downloads` permission is required. Finally it sends a `monocle-screenshot` event to the active tab; the page-side `ScreenshotListener` converts the PNG data URL to a Blob (without `fetch`, so a page CSP can't block it) and either writes it to the clipboard via `navigator.clipboard.write([new ClipboardItem(...)])` or triggers a blob-URL `<a download>`, then a success toast confirms the result. `ScreenshotListener` is mounted alongside `ToastContainer` (always mounted, outside the palette-visibility gate) so it still receives the event after the palette hides. Declares `actionLabel = "Copy to clipboard"` and `modifierActionLabel.cmd = "Download"`: plain Enter copies to the clipboard; Cmd downloads to the browser's downloads folder with filename `screenshot-<host>-<timestamp>.png`. The clipboard path requires a secure context (https) and document focus.
 
@@ -140,6 +186,14 @@ Same as above but `createWindow({ tabId, type: "popup" })` (popup window chrome,
 
 ### `go-back` / `go-forward` (actions)
 `callBrowserAPI("tabs", "goBack"|"goForward", tabId)`. Chrome has no API to read navigation availability, so both use a heuristic: back is "available" unless the URL is a new-tab/extension page; forward additionally excludes `chrome://` and `about:` URLs. The command **name is dynamic** — "Go Back"/"No Back History" and "Go Forward"/"No Forward History". When unavailable, execution shows an info alert instead of navigating. Keybindings `<alt-left>` / `<alt-right>`.
+
+### URL navigation actions
+`go-to-parent-url` parses the active tab URL, removes the final path segment,
+and clears search/hash. `go-to-root-url` navigates to the origin root and also
+clears search/hash. `increment-url-number` and `decrement-url-number` mutate the
+last numeric run in the full URL string, preserving zero padding and refusing to
+decrement below zero. `view-source-current-tab` navigates to `view-source:<url>`
+unless the URL is already a view-source URL.
 
 ## Data library groups
 
@@ -198,6 +252,24 @@ Static group of three copy variants for the active tab, each with its own keybin
 | `copyCurrentTabUrl-copy-domain` | Copy domain only | `<cmd-shift-enter>` | `url.hostname` |
 
 Copying is delegated to the active tab via a `monocle-copyToClipboard` content message (the content script owns clipboard access), followed by a `monocle-toast`. URL parsing failures fall back to copying the raw URL. Because the children are static action ids, their per-child keybindings are registrable.
+
+### Top-level copy actions
+`copy-current-url`, `copy-clean-current-url`, `copy-current-domain`,
+`copy-current-title`, and `copy-canonical-url` are top-level action equivalents
+for template/keybinding use. They delegate clipboard writes to the active tab via
+the always-mounted `CopyToClipboardListener`. `copy-canonical-url` reads
+`<link rel="canonical">` with `scripting.executeScript` and falls back to the
+tab URL when the script cannot run or the page has no canonical link.
+
+### Page scroll actions
+The existing `scroll-to-top` / `scroll-to-bottom` commands and the Vim-style
+scroll additions all send `monocle-scroll` to the active tab. The content-side
+`ScrollListener` is mounted outside the palette visibility gate, so these
+commands also work from closed-overlay keybindings. The event supports:
+
+- legacy vertical edges (`direction: "top" | "bottom"`);
+- line/viewport/pixel deltas on the `x` or `y` axis;
+- horizontal/vertical edge targets.
 
 ### `copy-tab-url` (group, `tabs`)
 Lists one `copy-tab-url-<id>` action per tab in the current window (filtered to titled tabs), each named after the tab title with a resolved favicon. Executing copies that tab's URL via the active tab's clipboard message and toasts.

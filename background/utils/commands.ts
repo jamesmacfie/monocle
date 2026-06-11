@@ -7,6 +7,7 @@ import type {
   Browser,
   CommandIcon,
   CommandNode,
+  KeybindingBehavior,
   SubmitCommandNode,
 } from "../../shared/types"
 
@@ -124,16 +125,24 @@ export function isExecutableCommandNode(
   return command.type === "action" || command.type === "submit"
 }
 
+export function getKeybindingBehavior(
+  command: CommandNode,
+): KeybindingBehavior {
+  return command.keybindingBehavior ?? "execute"
+}
+
 export function allowsKeybinding(command: CommandNode): boolean {
+  if (getKeybindingBehavior(command) === "openPaletteAtCommand") {
+    return command.type === "group" || command.type === "search"
+  }
+
   if (!isExecutableCommandNode(command)) {
     return false
   }
 
-  if (command.confirmAction === true) {
-    return false
-  }
-
-  return command.allowCustomKeybinding !== false
+  return (
+    command.confirmAction !== true && command.allowCustomKeybinding !== false
+  )
 }
 
 export function isSettingsCatalogConfigurable(command: CommandNode): boolean {

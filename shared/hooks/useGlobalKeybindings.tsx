@@ -10,8 +10,17 @@ type KeybindingStateResponse = {
   sequencePrefixes?: string[]
 }
 
+type ExecuteKeybindingResponse = {
+  success?: boolean
+  pending?: boolean
+  openPaletteAtCommand?: {
+    commandId: string
+  }
+}
+
 type GlobalKeybindingOptions = {
   isNewTab?: boolean
+  onOpenPaletteAtCommand?: (commandId: string) => void | Promise<void>
 }
 
 const SETTINGS_STORAGE_KEY = "monocle-settings"
@@ -136,15 +145,21 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
         }
 
         try {
-          const response = await sendMessage(
+          const response = (await sendMessage(
             {
               type: "execute-keybinding",
               keybinding: keyString,
             },
             getContextOverride(),
-          )
+          )) as ExecuteKeybindingResponse
 
           if (response?.success) {
+            if (response.openPaletteAtCommand) {
+              await options.onOpenPaletteAtCommand?.(
+                response.openPaletteAtCommand.commandId,
+              )
+            }
+
             if (response.pending) {
               updateLocalSequenceForPendingStroke(keyString)
             } else {
@@ -175,6 +190,7 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
     getContextOverride,
     isCapturing,
     isKnownHandledSequence,
+    options.onOpenPaletteAtCommand,
     refreshKeybindingState,
     resetLocalSequence,
     sendMessage,

@@ -1,7 +1,10 @@
 import { Settings } from "lucide-react"
 import { useEffect, useMemo } from "react"
 import { Provider } from "react-redux"
+import CopyToClipboardListener from "../shared/components/Listeners/CopyToClipboardListener"
+import NewTabListener from "../shared/components/Listeners/NewTabListener"
 import ScreenshotListener from "../shared/components/Listeners/ScreenshotListener"
+import ScrollListener from "../shared/components/Listeners/ScrollListener"
 import { MonocleMark } from "../shared/components/MonocleMark"
 import { ToastContainer } from "../shared/components/ToastContainer"
 import { createAppStore } from "../shared/store"
@@ -111,10 +114,13 @@ function NewTabAppContent() {
         }}
         aria-label="Open settings"
         title="Settings"
-        className="fixed bottom-4 left-4 z-20 p-2 rounded-full text-[var(--color-fg-inverse)] opacity-70 transition hover:opacity-100 hover:bg-[var(--color-hero-overlay)] drop-shadow-lg"
+        className="fixed bottom-4 left-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(0,0,0,0.45)] text-white shadow-lg ring-1 ring-[rgba(255,255,255,0.25)] backdrop-blur-sm transition hover:bg-[rgba(0,0,0,0.65)] hover:scale-105"
       >
-        <Settings size={20} />
+        <Settings size={18} />
       </button>
+      <CopyToClipboardListener />
+      <NewTabListener />
+      <ScrollListener />
       <ScreenshotListener />
       <ToastContainer />
     </div>

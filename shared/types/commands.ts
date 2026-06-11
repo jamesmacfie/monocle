@@ -54,6 +54,8 @@ export interface UrlRules {
   denyUrls?: string[]
 }
 
+export type KeybindingBehavior = "execute" | "openPaletteAtCommand"
+
 // Common base for all node-based command nodes (minimal surface)
 export interface CommandNodeBase {
   id: string
@@ -68,6 +70,10 @@ export interface CommandNodeBase {
   permissions?: BrowserPermission[]
   // URL rules for filtering commands based on current page
   urlRules?: UrlRules
+  // Defaults to "execute". Container/form commands can opt into opening the
+  // palette at their page when triggered by a keyboard shortcut.
+  keybindingBehavior?: KeybindingBehavior
+  keybinding?: string
   settingsCatalog?: {
     // Root commands are cataloged by default. Children are cataloged only when
     // a parent explicitly opts in so volatile browser data rows do not get
@@ -97,7 +103,6 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
   confirmAction?: boolean
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
-  keybinding?: string
   dedupeKey?: string
 }
 
@@ -122,7 +127,6 @@ export interface SubmitCommandNode extends CommandNodeBase, ActionLabel {
   confirmAction?: boolean
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
-  keybinding?: string
   dedupeKey?: string
 }
 

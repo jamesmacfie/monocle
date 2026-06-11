@@ -74,6 +74,8 @@ Every node extends this base (`shared/types/commands.ts`, `CommandNodeBase`).
 | `urlRules` | `UrlRules` | no | Page-URL allow/deny visibility rules. See [url-filtering.md](url-filtering.md). |
 | `supportedBrowsers` | `Browser.Platform[]` | no | Restricts the command to `"chrome"` and/or `"firefox"`. Omit to support both. |
 | `executionPayload` | `AsyncValue<SuggestionExecutionPayload>` | no | Pre-baked values surfaced on the suggestion and available to dynamic execution paths. See [executionPayload](#executionpayload). |
+| `keybinding` | `string` | no | Author-default keybinding in canonical angle-bracket format, e.g. `<cmd-t>`. User overrides in command settings take precedence. See [keybindings.md](keybindings.md). |
+| `keybindingBehavior` | `"execute" \| "openPaletteAtCommand"` | no | Defaults to `"execute"`. `action`/`submit` commands execute by default; `group`/`search` commands may opt into `"openPaletteAtCommand"` so their shortcut opens the palette at that command page. |
 
 > `permissions` is declared on the base (not just on action nodes) so that groups, inputs, and search nodes can also participate in permission gating and inheritance. Note that `permissions` is **not** an `AsyncValue` — it is a plain static array.
 
@@ -201,7 +203,6 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
   confirmAction?: boolean
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
-  keybinding?: string
   dedupeKey?: string
 }
 ```
@@ -212,7 +213,6 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
 | `confirmAction` | `boolean` | If `true`, the row requires a second Enter ("Are you sure?") before executing (`CommandItem`), and the command is **excluded from custom keybindings** (`allowsKeybinding` in `background/utils/commands.ts`). |
 | `remainOpenOnSelect` | `boolean` | If `true`, the palette stays open after execution instead of closing. |
 | `allowCustomKeybinding` | `boolean` | Defaults to allowed. Set `false` to forbid user-assigned keybindings — used for dynamic commands whose ids churn (e.g. `gotoTab` children, dynamic search results). |
-| `keybinding` | `string` | Author-default keybinding in canonical angle-bracket format, e.g. `<cmd-t>`. User overrides in command settings take precedence. See [keybindings.md](keybindings.md). |
 | `dedupeKey` | `string` | Stable key used to de-duplicate rows that point at the same target across sources (bookmarks use `normalizeUrlForDedupe(node.url)`). Distinct from `id`; see [search-and-ranking.md](search-and-ranking.md). |
 
 Minimal example (`background/commands/browser/openNewTab.ts`):
@@ -243,7 +243,6 @@ export interface SubmitCommandNode extends CommandNodeBase, ActionLabel {
   confirmAction?: boolean
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
-  keybinding?: string
   dedupeKey?: string
 }
 ```
@@ -424,7 +423,7 @@ Resolved into `baseProps` and spread onto the suggestion:
 | `icon` | resolved `node.icon` | |
 | `keywords` | resolved `node.keywords` | |
 | `color` | resolved `node.color` | Coerced to a string. |
-| `keybinding` | settings override → `node.keybinding` → `""` | Only set when `allowsKeybinding(node)` is true; normalized via `normalizeKeybinding`. `allowsKeybinding` returns `false` for any non-`action`/`submit` node, so `group`/`search`/`input`/`display` suggestions always get `undefined` here. |
+| `keybinding` | settings override → `node.keybinding` → `""` | Only set when `allowsKeybinding(node)` is true; normalized via `normalizeKeybinding`. `action`/`submit` commands are allowed unless high-risk or explicitly opted out; `group`/`search` commands are allowed only with `keybindingBehavior: "openPaletteAtCommand"`. |
 | `isFavorite` | favorites store | `favoriteCommandIds.includes(node.id)`. |
 | `permissions` | merged | `mergePermissions(inheritedPermissions, node.permissions)`. |
 
@@ -445,7 +444,7 @@ These exist on the node but are **background-only** and are never serialized ont
 
 - `execute` / `getResults` / `children` — executable functions and resolvers stay in the background. The UI triggers them by sending `execute-command` / `get-children-commands` with the command id; see [messaging.md](messaging.md).
 - `urlRules`, `supportedBrowsers` — consumed during loading/filtering before conversion, not surfaced to the UI.
-- `dedupeKey`, `doNotAddToRecents`, `allowCustomKeybinding`, `enableDeepSearch` — consumed by ranking/usage/keybinding/deep-search logic in the background, not placed on the suggestion.
+- `dedupeKey`, `doNotAddToRecents`, `allowCustomKeybinding`, `keybindingBehavior`, `enableDeepSearch` — consumed by ranking/usage/keybinding/deep-search logic in the background, not placed on the suggestion.
 - The raw `keybinding` string from settings is used to compute the suggestion `keybinding`, but `allowCustomKeybinding` itself is not exposed.
 - Site SDK commands force `allowCustomKeybinding: false`, so they receive
   Favorite and Hide from Domain generated actions but not Set/Reset Keybinding
