@@ -3,6 +3,7 @@ import { useSendMessage } from "../../shared/hooks/useSendMessage"
 import { useAppSelector } from "../store/hooks"
 import { selectIsCapturing } from "../store/slices/keybinding.slice"
 import type { Browser } from "../types"
+import { UI_SEQUENCE_IDLE_TIMEOUT_MS } from "../utils/keybinding-timing"
 import { RobustKeyCapture } from "../utils/robust-key-capture"
 
 type KeybindingStateResponse = {
@@ -124,7 +125,7 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
       clearSequenceTimerRef.current = setTimeout(() => {
         localSequenceRef.current = []
         clearSequenceTimerRef.current = null
-      }, 900)
+      }, UI_SEQUENCE_IDLE_TIMEOUT_MS)
     },
     [isKnownHandledSequence],
   )

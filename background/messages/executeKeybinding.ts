@@ -1,4 +1,5 @@
 import type { Browser, ExecuteKeybindingMessage } from "../../shared/types"
+import { CHORD_TIMEOUT_MS } from "../../shared/utils/keybinding-timing"
 import { executeCommand as executeCommandById } from "../commands"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import {
@@ -20,7 +21,6 @@ type SequenceState = {
 }
 
 const sequenceStates = new Map<string, SequenceState>()
-const CHORD_TIMEOUT_MS = 800
 
 const createSequenceState = (): SequenceState => ({
   currentSequence: [],
