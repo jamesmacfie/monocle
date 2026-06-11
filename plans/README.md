@@ -21,7 +21,7 @@ when done.
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 001 | Detect and report keybinding conflicts in the bulk update path | P1 | M | — | DONE |
-| 002 | Make tab activation history survive MV3 worker restarts | P1 | S | — | TODO |
+| 002 | Make tab activation history survive MV3 worker restarts | P1 | S | — | DONE |
 | 003 | Stop sending a background message for every keystroke | P1 | M | — | TODO |
 | 004 | Serialize read-modify-write cycles on chrome.storage.local | P2 | M | — | TODO |
 | 005 | Cut redundant work from the per-keystroke search path | P2 | S | — | TODO |
