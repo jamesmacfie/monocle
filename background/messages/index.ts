@@ -8,11 +8,13 @@ import { getChildrenCommands } from "./getChildrenCommands"
 import { getCommands } from "./getCommands"
 import { getKeybindingState } from "./getKeybindingState"
 import { getPermissions } from "./getPermissions"
+import { getSettingsCatalog } from "./getSettingsCatalog"
 import { getUnsplashBackground } from "./getUnsplashBackground"
 import { openPermissionGrantPage } from "./openPermissionGrantPage"
 import { requestPermission } from "./requestPermission"
 import { requestToast } from "./requestToast"
 import { searchCommands } from "./searchCommands"
+import { setCommandFavorite } from "./setCommandFavorite"
 import { showToast } from "./showToast"
 import { siteSdkSync } from "./siteSdkSync"
 import { updateCommandSetting } from "./updateCommandSetting"
@@ -81,6 +83,12 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "update-command-setting" }, async (msg) => {
       return await updateCommandSetting(msg, sender)
+    })
+    .with({ type: "get-settings-catalog" }, async (msg) => {
+      return await getSettingsCatalog(msg, sender)
+    })
+    .with({ type: "set-command-favorite" }, async (msg) => {
+      return await setCommandFavorite(msg, sender)
     })
     .with({ type: "check-keybinding-conflict" }, async (msg) => {
       return await checkKeybindingConflict(msg, sender)

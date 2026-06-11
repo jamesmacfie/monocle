@@ -35,6 +35,9 @@ export const clearBrowserData: CommandNode = {
     "cookies",
     "cache",
   ],
+  settingsCatalog: {
+    includeChildren: true,
+  },
 
   children: async () => {
     // Site-scoped cookie clearing lives alongside the global data-type groups
@@ -173,6 +176,9 @@ export const clearBrowserData: CommandNode = {
         icon: dataType.icon,
         color: "red",
         keywords: ["clear", "delete", dataType.name.toLowerCase()],
+        settingsCatalog: {
+          includeChildren: true,
+        },
 
         children: async () => {
           const now = Date.now()

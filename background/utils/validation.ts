@@ -202,6 +202,16 @@ function validateBusinessLogic(message: ValidatedMessage): {
       }
       break
 
+    case "set-command-favorite":
+      if (
+        !/^[a-zA-Z0-9\-._:]+$/.test(message.commandId) ||
+        message.commandId.length === 0 ||
+        message.commandId.length > 200
+      ) {
+        return { valid: false, error: "Invalid command ID format" }
+      }
+      break
+
     case "execute-keybinding": {
       if (!isValidKeybinding(message.keybinding)) {
         return { valid: false, error: "Invalid keybinding format" }
@@ -210,6 +220,14 @@ function validateBusinessLogic(message: ValidatedMessage): {
     }
 
     case "update-command-setting": {
+      if (
+        !/^[a-zA-Z0-9\-._:]+$/.test(message.commandId) ||
+        message.commandId.length === 0 ||
+        message.commandId.length > 200
+      ) {
+        return { valid: false, error: "Invalid command ID format" }
+      }
+
       if (message.setting === "keybinding") {
         if (
           message.value === undefined ||
@@ -226,6 +244,10 @@ function validateBusinessLogic(message: ValidatedMessage): {
             error: "Keybinding setting must be canonical keybinding text",
           }
         }
+        break
+      }
+
+      if (message.setting === "hidden") {
         break
       }
 

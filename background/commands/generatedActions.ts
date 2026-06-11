@@ -18,6 +18,10 @@ export type GeneratedCommandAction =
       targetCommandId: string
     }
   | {
+      type: "hideCommand"
+      targetCommandId: string
+    }
+  | {
       type: "modifier"
       targetCommandId: string
       modifierKey: Browser.ModifierKey
@@ -32,6 +36,7 @@ const generatedPrefixes = [
   { prefix: "set-keybinding-", type: "setKeybinding" as const },
   { prefix: "reset-keybinding-", type: "resetKeybinding" as const },
   { prefix: "hide-from-domain-", type: "hideDomain" as const },
+  { prefix: "hide-command-", type: "hideCommand" as const },
 ]
 
 export const parseGeneratedCommandAction = (

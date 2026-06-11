@@ -89,6 +89,10 @@ export type ActionExecutionContext =
       targetCommandId: string
       domain: string
     }
+  | {
+      type: "hideCommand"
+      targetCommandId: string
+    }
 
 export type SuggestionExecutionPayload = Record<string, string | string[]>
 

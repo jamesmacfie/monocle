@@ -113,6 +113,18 @@ describe("URL rule precedence", () => {
     ])
   })
 
+  it("hides commands globally even when there is no current URL", async () => {
+    const command = createTestCommand("globally-hidden")
+
+    await expect(
+      filterCommandsByUrl([command], "", {
+        [command.id]: {
+          hidden: true,
+        },
+      }),
+    ).resolves.toEqual([])
+  })
+
   it("applies command allow and deny rules, with command deny winning inside command rules", async () => {
     const command = createTestCommand("command-filtered", {
       allowUrls: ["*://*.example.com/*"],

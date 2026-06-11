@@ -111,6 +111,9 @@ export const internalPages: CommandNode = {
     "chrome",
     "navigate",
   ],
+  settingsCatalog: {
+    includeChildren: true,
+  },
   enableDeepSearch: true,
   children: async () => {
     return INTERNAL_PAGES.map(

@@ -85,6 +85,9 @@ export const recentlyClosed: CommandNode = {
             ],
             actionLabel: "Restore Tab",
             allowCustomKeybinding: false, // Dynamic session commands shouldn't have custom keybindings
+            settingsCatalog: {
+              configurable: false,
+            },
             execute: async () => {
               const activeTab = await getActiveTab()
 
@@ -140,6 +143,9 @@ export const recentlyClosed: CommandNode = {
             ],
             actionLabel: "Restore Window",
             allowCustomKeybinding: false, // Dynamic session commands shouldn't have custom keybindings
+            settingsCatalog: {
+              configurable: false,
+            },
             execute: async () => {
               const activeTab = await getActiveTab()
 

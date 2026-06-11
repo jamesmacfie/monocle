@@ -640,10 +640,6 @@ export const filterIndexEntriesByUrl = (
   currentUrl: string,
   commandSettings: Record<string, CommandSettings>,
 ): IndexEntry[] => {
-  if (!currentUrl || currentUrl === "") {
-    return entries
-  }
-
   return entries.filter((entry) =>
     entry.urlRuleChain.every((link) =>
       isCommandVisibleForUrl(link, currentUrl, commandSettings[link.id]),

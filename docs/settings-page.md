@@ -1,19 +1,14 @@
-# Settings Page (Design Proposal)
+# Settings Page
 
-> **Status: design proposal, not current behavior.** Unlike the rest of `docs/`,
-> which describes verified, shipped behavior, this document proposes a feature
-> that does **not exist yet**. Sections are explicitly split into **Exists today**
-> (accurate to the cited source) and **Proposed**. Nothing here is implemented;
-> treat type/message/storage shapes as design intent to be reviewed, not contracts.
+> **Status: Phase 1 MVP implemented.** Monocle now has a WXT options page with
+> General, New Tab, and Commands sections. Later sections in this document remain
+> future design unless explicitly described as implemented.
 
-Monocle's configuration is, today, entirely **palette-native**: you change a
-setting by running a command. That is elegant for quick toggles but has a low
-ceiling — there is no overview, no bulk editing, no way to globally hide a
-command you never want to see, and no place to grow toward richer per-command
-configuration or user scripts. This document designs a **dedicated settings page**:
-a standalone extension page with a sidebar and real sub-pages, built on the
-stack the project already uses, that becomes the long-term home for everything
-configurable in Monocle.
+Monocle's configuration is split between **palette-native quick actions** and a
+dedicated **settings page**. The palette remains the fastest way to toggle or
+run something in context; the options page is the overview and management
+surface for broader command settings such as global hiding, favorites,
+keybindings, and URL rules.
 
 Locked decisions (agreed before writing this doc):
 
@@ -21,25 +16,29 @@ Locked decisions (agreed before writing this doc):
   inside the new-tab app.
 - **Scope:** comprehensive vision — near-term and future capabilities are
   designed at comparable depth.
-- **Tech stack:** **shadcn/ui + Tailwind** for the page chrome, **Redux** for
-  state (already used), and **Wouter** (hash routing) for sidebar navigation.
+- **Tech stack:** local shadcn-style primitives + Tailwind for the page chrome,
+  **Redux** for state (already used), and **Wouter** (hash routing) for sidebar
+  navigation.
 
 ---
 
 ## 1. What exists today
 
-Every configuration surface is a command or a generated action, rendered by the
-same palette used for everything else. There is **no** `options_ui` /
-`options_page` entrypoint — the new-tab override is the only extension page.
+The Phase 1 options page is a standalone WXT options entrypoint at
+`entrypoints/options/`, rendered by `options/OptionsApp.tsx`. It uses Redux,
+Wouter hash routes, Tailwind, and local shadcn-style primitives.
 
 | Concern | How it's configured today | Source |
 | --- | --- | --- |
-| Theme (`light`/`dark`/`system`) | `toggle-theme` command (cycles modes) | `background/commands/ui/theme.ts` |
-| New-tab clock visibility | `toggle-clock-visibility` (under the `new-tab-clock` group) | `background/commands/newTab/` |
-| New-tab background | Auto-fetched from Unsplash, cached in `localStorage`; gradient fallback | `newtab/components/BackgroundImage.tsx`, `newtab/backgroundImageModel.ts` |
-| Per-command visibility (per domain) | `manage-allow-list` / `manage-deny-list` group commands + generated **Hide from Domain** action | `background/commands/ui/manageAllowList.ts`, `manageDenyList.ts`, `background/commands/index.ts` |
-| Per-command keybinding | Generated **Set / Reset Custom Keybinding** actions in the action menu | `background/commands/index.ts`, `shared/components/Command/CommandActionsList.tsx` |
-| Favorites | Inline ♡ toggle action per command; `clear-favorites` command | `background/commands/favorites.ts` |
+| Options page | General, New Tab, and Commands pages | `entrypoints/options/`, `options/` |
+| Open settings | `open-settings` command opens `options.html#/` | `background/commands/ui/openSettings.ts` |
+| Theme (`light`/`dark`/`system`) | General page selector; `toggle-theme` command still exists | `options/pages/GeneralPage.tsx`, `background/commands/ui/theme.ts` |
+| New-tab clock visibility | New Tab page switch; `toggle-clock-visibility` still exists under `new-tab-clock` | `options/pages/NewTabPage.tsx`, `background/commands/newTab/` |
+| New-tab background | Auto-fetched from Unsplash, cached in `localStorage`; options page can preview/refresh cache | `newtab/components/BackgroundImage.tsx`, `newtab/backgroundImageModel.ts`, `options/pages/NewTabPage.tsx` |
+| Global command visibility | Commands page hide toggles; generated **Hide Command** action | `background/commands/settingsCatalog.ts`, `background/commands/index.ts`, `options/pages/CommandsPage.tsx` |
+| Per-command visibility (per domain) | Commands page URL editor; `manage-allow-list` / `manage-deny-list` commands + generated **Hide from Domain** action | `options/components/UrlRulesDialog.tsx`, `background/commands/ui/manageAllowList.ts`, `manageDenyList.ts`, `background/commands/index.ts` |
+| Per-command keybinding | Commands page keybinding dialog; generated **Set / Reset Custom Keybinding** actions in the action menu | `options/components/KeybindingDialog.tsx`, `background/commands/index.ts`, `shared/components/Command/CommandActionsList.tsx` |
+| Favorites | Commands page favorite toggle; inline ♡ toggle action per command; `clear-favorites` command | `background/commands/favorites.ts` |
 | Permissions | Inline grant actions on permission-gated rows; new-tab grant panel | `shared/components/Command/PermissionActions.tsx`, `newtab/components/PermissionGrantPanel.tsx` |
 | Clear browser data | `clear-browser-data` nested group (data type × time span) | `background/commands/browser/clearBrowserData.ts` |
 
@@ -54,12 +53,13 @@ Three independent `chrome.storage.local` keys, deliberately separate (see
 | `monocle-favoriteCommandIds` | `background/commands/favorites.ts` | `string[]` of command ids |
 | `monocle-commandUsage` | `background/commands/usage.ts` | `{ commandStats, lastCleanup }` |
 
-`CommandSettings` (per command, keyed by id) is currently **only**:
+`CommandSettings` (per command, keyed by id) currently persists:
 
 ```ts
 // shared/types/settings.ts (exists today)
 export interface CommandSettings {
   keybinding?: string
+  hidden?: boolean
   urlRules?: UrlRules // { allowUrls?: string[]; denyUrls?: string[] }
 }
 ```
@@ -72,10 +72,10 @@ Four properties of this model matter for the design below:
 2. **`mergeCommandSettings` special-cases `urlRules`** with a second merge level
    so updating `allowUrls` preserves `denyUrls`. **Any new nested setting needs
    its own merge branch and test** — a naive add will be clobbered on update.
-3. **Query-time filtering precedent.** `urlRules` are not baked into the catalog;
-   they are applied *when the palette asks for commands* (root empty-state, search
-   index, children). Management surfaces still see filtered commands. A global
-   "hidden" flag fits this exact stage.
+3. **Query-time filtering.** `hidden` and `urlRules` are not baked into the
+   catalog; they are applied *when the palette asks for commands* (root
+   empty-state, search index, children, execution/keybindings). Management
+   surfaces still see hidden commands so they can be unhidden.
 4. **Favorites and usage are not in `CommandSettings`** — they are separate keys,
    so a settings page that touches them talks to `favorites.ts` / `usage.ts`, not
    the settings document.
@@ -154,55 +154,50 @@ messages — no executable functions, per the background-ownership contract).
 
 ### 4.1 Hide commands globally (headline feature)
 
-The new capability: mark a command as **hidden** so it never appears in the
-palette — root empty-state, search results, or as a child — regardless of URL.
+Mark a command as **hidden** so it is disabled everywhere outside settings:
+root empty-state, search results, child pages, deep-search descendants, direct
+execution, keybinding registry snapshots, and keybinding conflict checks.
 
 **Data model (additive).**
 
 ```ts
-// shared/types/settings.ts (proposed)
+// shared/types/settings.ts
 export interface CommandSettings {
   keybinding?: string
   urlRules?: UrlRules
-  hidden?: boolean // proposed: true => never shown in the palette
+  hidden?: boolean // true => disabled everywhere outside settings
   // config?: Record<string, unknown>   // see 4.2
 }
 ```
 
 `hidden` is a leaf boolean, so the existing shallow merge in
 `mergeCommandSettings` handles it correctly — **no new merge branch needed** (only
-nested structures like `config` need one). `pruneCommandSettings` should drop
+nested structures like `config` need one). `pruneCommandSettings` drops
 `hidden: false` so the default never persists.
 
 **Storage.** Reuses `monocle-settings → commands[id].hidden` via
 `updateCommandSettings(id, { hidden })`.
 
-**Background message.** Extend the `update-command-setting` discriminated union
-with a `"hidden"` variant (`value: boolean`). No business-logic validation beyond
-the boolean. The handler writes the setting and **invalidates the search index**
-(`background/commands/searchIndex.ts`) so a hidden command disappears from search
-immediately, mirroring how the index is event/TTL-invalidated today.
+**Background message.** `update-command-setting` includes a `"hidden"` variant
+(`value: boolean`). The handler writes the setting, refreshes the keybinding
+registry, and **invalidates the search index**
+(`background/commands/searchIndex.ts`) so a hidden command disappears
+immediately.
 
-**Enforcement (query-time, not catalog-time).** Apply `hidden` in the same filter
-stage that applies `urlRules` — `background/commands/query.ts` /
-`background/commands/index.ts` — so it covers root, search index, and children in
-one place. Crucially, the **settings catalog endpoint (§6) must bypass this
-filter**, so hidden commands remain visible *in the settings page* to be un-hidden.
+**Enforcement (query-time, not catalog-time).** `hidden` is enforced in
+`background/utils/urlFilter.ts` before URL-rule checks and before the empty-URL
+"visible by default" shortcut. This makes hidden global, including new-tab
+contexts. The **settings catalog endpoint (§6) bypasses this filter**, so hidden
+commands remain visible *in the settings page* to be unhidden.
 
-**Hide-vs-disable semantics (recommended default + variant).** Recommended:
-hidden = removed from *view and search* only; a custom **keybinding still fires**.
-This lets power users de-clutter the palette without losing muscle-memory
-shortcuts. A stricter variant — `hidden` also removes the command from the
-keybinding registry — is a one-line change at registry-build time if desired.
-This is an open question (§9) to confirm with the user, but the recommended
-default is "hidden from view, keybinding still works".
+**Hide-vs-disable semantics.** Implemented behavior is strict: hidden commands
+are disabled everywhere outside settings, including keyboard shortcuts. This is
+intentional so a command hidden from the catalog does not keep running invisibly.
 
-**Action-menu entry point.** Add a generated `hide-command-<id>` action alongside
-the existing favorite / hide-from-domain / set-keybinding actions in
-`background/commands/index.ts`, plus a `unhide-command-<id>` when already hidden
-(mirroring set/reset-keybinding). This is the in-context quick-hide that
-complements the page's bulk view. (The user noted the Alt-menu addition is a
-follow-up; the design accounts for it now so the data model doesn't change later.)
+**Action-menu entry point.** A generated `hide-command-<id>` action is added
+alongside the existing favorite / hide-from-domain / set-keybinding actions in
+`background/commands/index.ts`. There is no generated unhide action because
+hidden rows disappear from the palette; unhide happens from the Commands page.
 
 ### 4.2 Per-command schema-driven settings
 
@@ -255,20 +250,34 @@ should render a clean "no configurable settings" state for commands without a
 
 ### 4.3 Favorites management
 
-The page's Favorites section reads/writes the **existing**
-`monocle-favoriteCommandIds` key through `favorites.ts` (`getFavoriteCommandIds`,
-`removeFromFavoriteCommandIds`, `toggleFavoriteCommandId`) — **no migration, no
-schema change**. The Commands page also exposes a per-row favorite toggle that
-calls the same path.
+The implemented Commands page exposes a per-row favorite toggle over the
+**existing** `monocle-favoriteCommandIds` key through the `set-command-favorite`
+message. This is intentionally separate from generated palette actions so
+settings can update favorites even when a command is hidden.
+
+A future Favorites section can build on the same key through `favorites.ts`
+(`getFavoriteCommandIds`, `removeFromFavoriteCommandIds`,
+`toggleFavoriteCommandId`) — **no migration, no schema change**.
 
 Reordering favorites would be new (favorites are an unordered `string[]` today);
 if desired, that is an additive change to make the array order-significant plus a
 "set favorites order" message — flagged as an open question (§9) since it touches
 how favorites feed ranking ([search-and-ranking.md](./search-and-ranking.md)).
 
-### 4.4 Keybindings, URL rules, permissions (page equivalents of existing flows)
+### 4.4 Keybindings, URL rules, permissions
 
-These reuse existing storage and messages; the page is a richer UI over them:
+The implemented Commands page provides per-command keybinding and URL-rule
+editors over existing storage/messages:
+
+- **Commands page keybindings** — per-row set/reset dialogs use the existing
+  `update-command-setting` `keybinding` path and conflict checks via
+  `checkKeybindingConflict`. Bindings render with `KeybindingDisplay`. Honors
+  `allowCustomKeybinding`.
+- **Commands page URL rules** — per-command allow/deny editors are backed by
+  `update-command-setting` `urlRules`; patterns validate through the existing
+  `validateUrlPattern`.
+
+Future dedicated pages:
 
 - **Keyboard Shortcuts** — a table of every command with its effective binding
   (default vs custom), conflict highlighting via the existing
@@ -280,10 +289,61 @@ These reuse existing storage and messages; the page is a richer UI over them:
   affect, plus per-command editors backed by `updateCommandUrlRules`. Patterns
   validate through the existing `validateUrlPattern`. Also shows a **read-only**
   list of current **session site-SDK registrations** per origin
-  ([site-sdk.md](./site-sdk.md)) — informational, since those are session-only.
+  ([site-sdk.md](./site-sdk.md)) if that future read-only surface is wanted.
 - **Permissions** — a grant/revoke table over the optional permissions, reusing
   the `get-permissions` round-trip and the Chrome/Firefox grant flows behind
   `PermissionActions` / `requestPermission` ([permissions.md](./permissions.md)).
+
+### 4.5 New-tab background categories (Unsplash) — future
+
+The MVP New Tab page exposes the existing background cache state and a manual
+refresh control. Category preferences remain deferred until the Unsplash fetch
+path actually consumes them.
+
+Future idea: let the user **opt into** which kinds of Unsplash imagery the
+new-tab background draws from, via a grid of **on/off toggles, one per
+category**. This would live **only in the settings page** — deliberately *not* a
+palette command, since it's a multi-value preference, not a quick action.
+
+**Exists today.** `newTab.backgroundCategories?: string[]` is already declared in
+`shared/types/settings.ts` but is **unused** — nothing writes it and the fetch
+ignores it. `getUnsplashBackground` (`background/messages/getUnsplashBackground.ts`)
+requests `https://api.unsplash.com/photos/random?orientation=landscape&w=1920&h=1080`
+with no topic/query filter, so backgrounds are fully random. So this feature is
+mostly **wiring an already-reserved field**, not a new data shape.
+
+**Data model.** Reuse the existing `newTab.backgroundCategories: string[]` —
+the set of *enabled* category keys. **Empty/absent = current behavior** (fully
+random, no filter). No type change required; persisted via the existing
+`updateNewTabSettings` (lodash deep-merge, so it composes with `clock`/`greeting`).
+
+**Category list.** Unsplash's old `/categories` endpoint is deprecated; the modern
+equivalent is **Topics** (stable public slugs). The settings UI shows a curated,
+fixed list mapped to topic slugs, e.g. `wallpapers`, `nature`, `3d-renders`,
+`textures-patterns`, `architecture-interior`, `travel`, `street-photography`,
+`animals`, `experimental`, `people`, `business-work`, `food-drink`. The
+display-name → slug mapping is a constant the settings page and the fetch share.
+
+**Fetch wiring.** `getUnsplashBackground` reads
+`getNewTabSettings().backgroundCategories` and, when non-empty, appends
+`&topics=<comma-separated slugs>` to the random-photo request (the `/photos/random`
+endpoint accepts a `topics` filter; `query` is the fallback if topic slugs prove
+unreliable). Reading from settings in the background keeps a single source of
+truth; alternatively the new-tab UI (which already has the value in Redux) could
+pass the selection in the `get-unsplash-background` message — recommend the
+background-reads-settings approach for consistency with other settings consumers.
+
+**Cache invalidation.** The background is cached under a single `localStorage` key
+(`monocle-unsplash-background`, see `newtab/backgroundImageModel.ts`). Changing the
+enabled categories should **refresh** the background rather than show the stale
+cached image — clear/bypass the cache on a category change (e.g. the settings write
+triggers the new-tab `storage.onChanged` listener, which drops the cache and
+re-requests). A manual "Refresh background now" button on the New Tab page is a
+natural companion control.
+
+**UI.** A `New Tab → Background` group of shadcn `Switch` toggles (or a toggle
+grid), default all-off, with a one-line "leave all off for fully random" hint and
+the manual-refresh button. No palette surface.
 
 ---
 
@@ -352,32 +412,30 @@ How the page physically slots into the codebase.
 
 ### Entrypoint
 
-A new WXT entrypoint `entrypoints/options/` (`index.html` + `main.tsx` shim) that
-renders `options/OptionsApp.tsx` — structured like `newtab/`. WXT auto-detects an
-`options` entrypoint and wires the manifest `options_ui` (Chrome) /
-`options_ui` (Firefox) with `open_in_tab: true`; confirm against the current
-`wxt.config.ts` (which builds the manifest as a function) and add explicit
-`options_ui` config if auto-detection needs a nudge. Add an **`Open Settings`**
-palette command (in `background/commands/ui/`) that calls
-`chrome.runtime.openOptionsPage()`, optionally with a target hash.
+The WXT entrypoint `entrypoints/options/` (`index.html` + `main.tsx` shim)
+renders `options/OptionsApp.tsx` — structured like `newtab/`. The entrypoint is
+marked `openInTab: true`, so WXT wires the manifest options page. The
+**Open Settings** palette command in `background/commands/ui/openSettings.ts`
+opens `options.html#/`.
 
 ### The command-enumeration problem (biggest lift)
 
 The Commands page must list **every** command. But `allCommands` is **context-free
 and misses context-only sources** — new-tab commands (gated on `isNewTab`),
 website commands, and session site-SDK commands (per [CLAUDE.md] known risks).
-The page therefore needs a **new background message — `get-settings-catalog`** —
-that unions all sources and returns, per command:
+The page uses the background message **`get-settings-catalog`**, which unions
+normal and new-tab sources and returns, per command:
 
 - identity + category + icon + `supportedBrowsers`
-- effective settings (`hidden`, `keybinding`, `urlRules`, `config`)
-- capabilities (`allowCustomKeybinding`, whether it accepts `urlRules`, whether it
-  declares a `settingsSchema`)
+- effective settings (`hidden`, `keybinding`, `urlRules`)
+- capabilities (`canHide`, `canFavorite`, `canSetKeybinding`,
+  `canEditUrlRules`, `hasUrlRules`)
 - favorite state (from `favorites.ts`) and usage stats (from `usage.ts`)
 
 Critically, this endpoint **bypasses the query-time `hidden`/`urlRules` filter** so
-hidden commands remain manageable. Session site-SDK commands are included as
-read-only (they can't be persisted-hidden meaningfully since they're ephemeral).
+hidden commands remain manageable. Session site-SDK commands are omitted from
+the MVP catalog because they are in-memory, document-scoped, and not
+persistently configurable.
 
 ### State
 
@@ -393,15 +451,15 @@ Theme, new-tab, and permissions reuse the existing `settings` slice and thunks.
   `tailwind.config.js`). Ensure the options entrypoint's CSS is in scope and that
   **theme tokens are shared with the palette** so light/dark stays consistent.
   `clsx` and `lucide-react` are already installed.
-- **shadcn/ui (new dependency).** Page chrome — sidebar, cards, tabs, switches,
-  inputs, dialogs, tables, tooltips. Copy-in components on **Radix + Tailwind**;
-  adding it pulls in Radix primitives, `class-variance-authority`, `tailwind-merge`
-  and a `components.json` (none present today). shadcn supports Tailwind v4 (note
-  the v4 init step). Renders in the options page's normal DOM, so no shadow-DOM
-  containment concerns (unlike the content overlay). **Consistency risk:** the
-  palette has its own `CommandItem/*` renderers. Rule of thumb — reuse the
-  genuinely shared primitives (`Icon`, `KeybindingDisplay`) and use shadcn for
-  everything else, with shared theme tokens for visual coherence.
+- **Local shadcn-style primitives.** Page chrome uses small local components on
+  Radix + Tailwind (`options/components/ui.tsx`) rather than a generated
+  `components.json` install. Added dependencies include Radix switch/dialog/
+  tooltip/checkbox/slot, `class-variance-authority`, and `tailwind-merge`.
+  Renders in the options page's normal DOM, so no shadow-DOM containment
+  concerns (unlike the content overlay). **Consistency risk:** the palette has
+  its own `CommandItem/*` renderers. Rule of thumb — reuse the genuinely shared
+  primitives (`Icon`, `KeybindingDisplay`) and use the local options primitives
+  for page chrome, with shared theme tokens for visual coherence.
 - **Redux (already used)** for data; route state stays out of Redux. Clean split:
   router = "which page", Redux = "the data".
 - **Wouter (new dependency) for routing.** For ~10 sidebar sections, full
@@ -414,19 +472,29 @@ Theme, new-tab, and permissions reuse the existing `settings` slice and thunks.
 
 ---
 
-## 7. Data-model & message changes (summary)
+## 7. Data-model & message changes
 
-All additive and tolerant of partial documents (no migration framework).
+Implemented Phase 1 changes are additive and tolerant of partial documents (no
+migration framework).
 
 | Change | Where | Notes |
 | --- | --- | --- |
 | `CommandSettings.hidden?: boolean` | `shared/types/settings.ts` | Leaf; shallow merge OK; prune `false`. |
+| `CommandNodeBase.settingsCatalog?: { includeChildren?: boolean; configurable?: boolean }` | `shared/types/commands.ts` | Opt-in traversal for stable nested rows; opt-out for volatile rows. |
+| `update-command-setting` gains `"hidden"` variant | `shared/types/validation.ts`, `background/messages/updateCommandSetting.ts` | Boolean; refreshes keybinding registry and invalidates search. |
+| New `get-settings-catalog` message | `background/messages/`, `docs/messaging.md` | Context-free union of all command sources + settings/usage/favorites; bypasses query-time filter. |
+| New `set-command-favorite` message | `background/messages/`, `docs/messaging.md` | Lets settings update favorites even when a command is hidden. |
+| `hidden` enforcement | `background/utils/urlFilter.ts`, keybinding source | Same stage as `urlRules`; also disables execution/keybindings. |
+| Generated `hide-command-<id>` action | `background/commands/index.ts` | Action-menu quick-hide for durable/configurable rows. |
+
+Future changes:
+
+| Change | Where | Notes |
+| --- | --- | --- |
 | `CommandSettings.config?: Record<string, unknown>` | `shared/types/settings.ts` | **Nested → needs a `config` branch in `mergeCommandSettings` + test.** |
 | `CommandNodeBase.settingsSchema?: FormField[]` | `shared/types/commands.ts` | Declarative; rendered by existing `CommandItem/*`. |
-| `update-command-setting` gains `"hidden"`, `"config"` variants | `shared/types/validation.ts`, `background/messages/updateCommandSetting.ts` | `hidden`: boolean; `config`: validated against `settingsSchema`. |
-| New `get-settings-catalog` message | `background/messages/`, `docs/messaging.md` | Context-free union of all command sources + settings/usage/favorites; bypasses query-time filter. |
-| `hidden` enforcement | `background/commands/query.ts` / `index.ts` | Same stage as `urlRules`; invalidate `searchIndex` on write. |
-| Generated `hide-command-<id>` / `unhide-command-<id>` actions | `background/commands/index.ts` | Action-menu quick-hide. |
+| `update-command-setting` gains `"config"` variant | `shared/types/validation.ts`, `background/messages/updateCommandSetting.ts` | Validate against `settingsSchema`. |
+| Wire `newTab.backgroundCategories` (Unsplash topics) | `background/messages/getUnsplashBackground.ts`, settings UI | **No type change** (field already reserved); fetch reads it and appends `&topics=…`; empty = random; refresh cache on change. |
 | New `monocle-userscripts` key | *(future)* | Separate key, like favorites/usage. |
 
 ---
@@ -448,31 +516,31 @@ All additive and tolerant of partial documents (no migration framework).
 - **Third pure-UI surface** — the options page must stay executable-function-free:
   it renders metadata and sends messages, exactly like the palette. Command
   definitions stay background-owned.
-- **Two component systems** — shadcn vs the palette's `CommandItem/*`; keep them
-  visually coherent via shared theme tokens and reuse shared primitives.
+- **Two component systems** — local options primitives vs the palette's
+  `CommandItem/*`; keep them visually coherent via shared theme tokens and
+  reuse shared primitives.
 
 ---
 
 ## 9. Open questions
 
-1. **Hide vs disable** — does a hidden command's custom keybinding still fire
-   (recommended) or get removed from the registry too?
-2. **Favorites ordering** — keep favorites an unordered set, or make the page
+1. **Favorites ordering** — keep favorites an unordered set, or make the page
    support reordering (requires order-significant storage + a new message)?
-3. **User scripts: workflow-only vs JS** — start with declarative workflows only
+2. **User scripts: workflow-only vs JS** — start with declarative workflows only
    (lower review risk) and defer `chrome.userScripts` JS, or design both now?
-4. **Settings-page-only sources** — should ephemeral session site-SDK commands be
-   listed at all (read-only), or omitted to avoid implying persistence?
+3. **Settings-page-only sources** — should ephemeral session site-SDK commands be
+   listed read-only later, or stay omitted to avoid implying persistence?
 
 ---
 
 ## 10. Phased delivery
 
-1. **MVP** — options entrypoint + shell (sidebar, Wouter, shadcn, store); **General**
-   (theme) + **New Tab** (clock/background) + **Commands** page with **hide**,
-   favorite toggle, keybinding, and URL rules. Ships the headline "hide command"
-   value. Requires: `hidden` field + enforcement, `get-settings-catalog`, the
-   action-menu `hide-command` action.
+1. **MVP (implemented)** — options entrypoint + shell (sidebar, Wouter, local
+   shadcn-style primitives, store); **General** (theme) + **New Tab**
+   (clock/background) + **Commands** page with **hide**, favorite toggle,
+   keybinding, and URL rules. Ships the headline "hide command" value. Includes
+   `hidden` field + enforcement, `get-settings-catalog`, `set-command-favorite`,
+   and the action-menu `hide-command` action.
 2. **Management depth** — **Keyboard Shortcuts** (conflicts), **Sites & URL Rules**,
    **Permissions**, **Favorites**.
 3. **Schema-driven settings** — `settingsSchema` + `config` storage (with merge

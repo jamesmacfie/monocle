@@ -197,6 +197,28 @@ describe("keybinding registry", () => {
     })
   })
 
+  it("omits hidden commands from snapshots and conflict checks", async () => {
+    await updateCommandSettings("uuidv4", {
+      hidden: true,
+      keybinding: "<shift-cmd-U>",
+    })
+
+    const snapshot = await getKeybindingRegistrySnapshot(normalContext)
+    expect(getCommandIdFromSnapshot(snapshot, "<cmd-shift-u>")).toBeUndefined()
+
+    await expect(
+      checkKeybindingConflict({
+        type: "check-keybinding-conflict",
+        keybinding: "<cmd-shift-u>",
+        excludeCommandId: "toggle-theme",
+        context: normalContext,
+      }),
+    ).resolves.toEqual({
+      hasConflict: false,
+      conflictingCommand: null,
+    })
+  })
+
   it("checks new-tab keybinding conflicts only in new-tab context", async () => {
     await updateCommandSettings("toggle-clock-visibility", {
       keybinding: "<cmd-alt-c>",

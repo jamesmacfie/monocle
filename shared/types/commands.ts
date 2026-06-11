@@ -68,6 +68,13 @@ export interface CommandNodeBase {
   permissions?: BrowserPermission[]
   // URL rules for filtering commands based on current page
   urlRules?: UrlRules
+  settingsCatalog?: {
+    // Root commands are cataloged by default. Children are cataloged only when
+    // a parent explicitly opts in so volatile browser data rows do not get
+    // durable settings by accident.
+    includeChildren?: boolean
+    configurable?: boolean
+  }
 }
 
 // Group of children; replaces UI forms composed of multiple fields

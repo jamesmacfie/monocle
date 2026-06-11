@@ -3,6 +3,8 @@ import type {
   UnsplashBackgroundResponse,
   UnsplashPhoto,
 } from "../../shared/types"
+import { getCategoryQueries } from "../../shared/utils/unsplash-categories"
+import { getNewTabSettings } from "../commands/settings"
 
 type UnsplashFetchResponse = {
   ok: boolean
@@ -17,8 +19,25 @@ type UnsplashFetch = (
 
 type FetchUnsplashBackgroundOptions = {
   accessKey?: string
+  // Optional Unsplash search term used to bias the random photo toward an
+  // enabled background category. Omitted means a fully random photo.
+  query?: string
   fetchImpl?: UnsplashFetch
   logger?: Pick<Console, "error">
+}
+
+const buildRandomPhotoUrl = (query?: string): string => {
+  const params = new URLSearchParams({
+    orientation: "landscape",
+    w: "1920",
+    h: "1080",
+  })
+
+  if (query) {
+    params.set("query", query)
+  }
+
+  return `https://api.unsplash.com/photos/random?${params.toString()}`
 }
 
 const getUnsplashAccessKey = (): string | undefined => {
@@ -30,6 +49,7 @@ const getUnsplashAccessKey = (): string | undefined => {
 
 export async function fetchUnsplashBackground({
   accessKey,
+  query,
   fetchImpl = globalThis.fetch as UnsplashFetch,
   logger = console,
 }: FetchUnsplashBackgroundOptions): Promise<UnsplashBackgroundResponse> {
@@ -44,14 +64,11 @@ export async function fetchUnsplashBackground({
   }
 
   try {
-    const response = await fetchImpl(
-      "https://api.unsplash.com/photos/random?orientation=landscape&w=1920&h=1080",
-      {
-        headers: {
-          Authorization: `Client-ID ${accessKey}`,
-        },
+    const response = await fetchImpl(buildRandomPhotoUrl(query), {
+      headers: {
+        Authorization: `Client-ID ${accessKey}`,
       },
-    )
+    })
 
     if (!response.ok) {
       throw new Error(`Unsplash API error: ${response.status}`)
@@ -80,7 +97,17 @@ export async function fetchUnsplashBackground({
 export async function getUnsplashBackground(
   _message: GetUnsplashBackgroundMessage,
 ): Promise<UnsplashBackgroundResponse> {
+  const { backgroundCategories } = await getNewTabSettings()
+  const queries = getCategoryQueries(backgroundCategories)
+  // When several categories are enabled, pick one at random per request so
+  // backgrounds rotate across the user's chosen categories.
+  const query =
+    queries.length > 0
+      ? queries[Math.floor(Math.random() * queries.length)]
+      : undefined
+
   return await fetchUnsplashBackground({
     accessKey: getUnsplashAccessKey(),
+    query,
   })
 }

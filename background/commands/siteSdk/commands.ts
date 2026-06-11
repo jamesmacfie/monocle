@@ -95,6 +95,9 @@ const createBaseCommand = (
   keywords: command.keywords,
   executionPayload: command.executionPayload,
   urlRules: command.urlRules,
+  settingsCatalog: {
+    configurable: false,
+  },
 })
 
 // Convert the serialized public schema into background-owned CommandNode
@@ -265,6 +268,9 @@ const createSiteGroupCommand = (
     icon: registration.icon || { type: "lucide", name: "Globe" },
     color: "gray",
     keywords: ["site", "website", hostLabel, registration.namespace],
+    settingsCatalog: {
+      configurable: false,
+    },
     enableDeepSearch: true,
     children: async () =>
       convertCommands(commands, {

@@ -74,6 +74,29 @@ describe("Unsplash background message model", () => {
     )
   })
 
+  it("biases the request toward an enabled category via the query param", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => photo,
+    }))
+
+    await fetchUnsplashBackground({
+      accessKey: "access-key",
+      query: "nature landscape",
+      fetchImpl,
+    })
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.unsplash.com/photos/random?orientation=landscape&w=1920&h=1080&query=nature+landscape",
+      {
+        headers: {
+          Authorization: "Client-ID access-key",
+        },
+      },
+    )
+  })
+
   it("returns a deterministic error response when Unsplash fails", async () => {
     const logger = createLogger()
     const fetchImpl = vi.fn(async () => ({

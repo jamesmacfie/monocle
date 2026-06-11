@@ -8,10 +8,12 @@ import type {
   GetCommandsMessage,
   GetKeybindingStateMessage,
   GetPermissionsMessage,
+  GetSettingsCatalogMessage,
   OpenPermissionGrantPageMessage,
   RequestPermissionMessage,
   RequestToastMessage,
   SearchCommandsMessage,
+  SetCommandFavoriteMessage,
   UpdateCommandSettingMessage,
 } from "../../shared/types"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
@@ -44,6 +46,8 @@ type SendableMessage =
   | ExecuteKeybindingMessageWithoutContext
   | GetKeybindingStateMessageWithoutContext
   | UpdateCommandSettingMessage
+  | GetSettingsCatalogMessage
+  | SetCommandFavoriteMessage
   | CheckKeybindingConflictMessage
   | GetPermissionsMessage
   | RequestPermissionMessage

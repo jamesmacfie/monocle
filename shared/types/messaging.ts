@@ -1,6 +1,7 @@
 // Background/content script communication types
 import type { Browser } from "./browser"
 import type { CommandUrlRulesSetting } from "./settings"
+import type { SettingsCatalogResponse } from "./settingsCatalog"
 import type { SiteSdkRegistration } from "./siteSdk"
 import type { Suggestion } from "./ui"
 import type { Workflow, WorkflowResult } from "./workflow"
@@ -92,9 +93,31 @@ type UpdateUrlRulesSettingMessage = {
   context?: Browser.Context
 }
 
+type UpdateHiddenSettingMessage = {
+  type: "update-command-setting"
+  commandId: string
+  setting: "hidden"
+  value: boolean
+  context?: Browser.Context
+}
+
 export type UpdateCommandSettingMessage =
   | UpdateKeybindingSettingMessage
   | UpdateUrlRulesSettingMessage
+  | UpdateHiddenSettingMessage
+
+export type GetSettingsCatalogMessage = {
+  type: "get-settings-catalog"
+  platform?: Browser.Platform
+}
+
+export type GetSettingsCatalogResponse = SettingsCatalogResponse
+
+export type SetCommandFavoriteMessage = {
+  type: "set-command-favorite"
+  commandId: string
+  favorite: boolean
+}
 
 export type CheckKeybindingConflictMessage = {
   type: "check-keybinding-conflict"
@@ -154,6 +177,8 @@ export type Message =
   | ShowToastMessage
   | RequestToastMessage
   | UpdateCommandSettingMessage
+  | GetSettingsCatalogMessage
+  | SetCommandFavoriteMessage
   | CheckKeybindingConflictMessage
   | GetUnsplashBackgroundMessage
   | GetPermissionsMessage

@@ -4,11 +4,13 @@ import type {
 } from "../../shared/types"
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
 import { resolveCommandById } from "../commands/query"
+import { invalidateSearchIndex } from "../commands/searchIndex"
 import {
   removeCommandSetting,
   updateCommandSettings,
   updateCommandUrlRules,
 } from "../commands/settings"
+import { getSettingsCatalogCommandById } from "../commands/settingsCatalog"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { allowsKeybinding } from "../utils/commands"
@@ -34,6 +36,23 @@ const validateUrlRulesSetting = (urlRules: CommandUrlRulesSetting): void => {
   }
 }
 
+const canAssignKeybinding = async (
+  commandId: string,
+  message: UpdateCommandSettingMessage,
+  siteSdk: Awaited<ReturnType<typeof prepareSiteSdkCommandLoadOptions>>,
+): Promise<boolean> => {
+  const resolved = await resolveCommandById(commandId, message.context, {
+    siteSdk,
+  })
+
+  if (resolved) {
+    return allowsKeybinding(resolved.command)
+  }
+
+  const catalogCommand = await getSettingsCatalogCommandById(commandId)
+  return catalogCommand?.capabilities.canSetKeybinding === true
+}
+
 export async function updateCommandSetting(
   message: UpdateCommandSettingMessage,
   sender?: any,
@@ -53,11 +72,7 @@ export async function updateCommandSetting(
       return { success: true }
     }
 
-    const resolved = await resolveCommandById(commandId, message.context, {
-      siteSdk,
-    })
-
-    if (!resolved || !allowsKeybinding(resolved.command)) {
+    if (!(await canAssignKeybinding(commandId, message, siteSdk))) {
       throw new Error(`Command cannot be assigned a keybinding: ${commandId}`)
     }
 
@@ -77,6 +92,15 @@ export async function updateCommandSetting(
   if (setting === "urlRules") {
     validateUrlRulesSetting(value)
     await updateCommandUrlRules(commandId, value)
+    invalidateSearchIndex()
+  }
+
+  if (setting === "hidden") {
+    await updateCommandSettings(commandId, {
+      hidden: value,
+    })
+    await refreshKeybindingRegistry()
+    invalidateSearchIndex()
   }
 
   return { success: true }

@@ -135,3 +135,16 @@ export function allowsKeybinding(command: CommandNode): boolean {
 
   return command.allowCustomKeybinding !== false
 }
+
+export function isSettingsCatalogConfigurable(command: CommandNode): boolean {
+  if (command.settingsCatalog?.configurable === false) {
+    return false
+  }
+
+  return (
+    command.type === "action" ||
+    command.type === "submit" ||
+    command.type === "group" ||
+    command.type === "search"
+  )
+}

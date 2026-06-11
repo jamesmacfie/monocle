@@ -93,6 +93,45 @@ describe("updateCommandSetting message handler", () => {
     })
   })
 
+  it("sets keybindings for hidden commands through the settings catalog fallback", async () => {
+    await updateCommandSettings("uuidv4", {
+      hidden: true,
+    })
+
+    await updateCommandSetting({
+      type: "update-command-setting",
+      commandId: "uuidv4",
+      setting: "keybinding",
+      value: "<cmd-shift-u>",
+      context: normalContext,
+    })
+
+    await expect(getCommandSettings("uuidv4")).resolves.toEqual({
+      hidden: true,
+      keybinding: "<cmd-shift-u>",
+    })
+  })
+
+  it("sets keybindings for new-tab catalog commands from the options page context", async () => {
+    await updateCommandSetting({
+      type: "update-command-setting",
+      commandId: "toggle-clock-visibility",
+      setting: "keybinding",
+      value: "<cmd-alt-c>",
+      context: {
+        url: "chrome-extension://monocle-test/options.html#/commands",
+        title: "Monocle Settings",
+        modifierKey: null,
+      },
+    })
+
+    await expect(
+      getCommandSettings("toggle-clock-visibility"),
+    ).resolves.toEqual({
+      keybinding: "<cmd-alt-c>",
+    })
+  })
+
   it("validates URL rules and preserves keybindings during URL-rule updates", async () => {
     await updateCommandSettings("uuidv4", {
       keybinding: "<cmd-shift-u>",
@@ -130,5 +169,45 @@ describe("updateCommandSetting message handler", () => {
         context: normalContext,
       }),
     ).rejects.toThrow("Invalid pattern")
+  })
+
+  it("persists hidden true, prunes hidden false, and preserves sibling settings", async () => {
+    await updateCommandSettings("uuidv4", {
+      keybinding: "<cmd-shift-u>",
+      urlRules: {
+        denyUrls: ["*://blocked.example.com/*"],
+      },
+    })
+
+    await updateCommandSetting({
+      type: "update-command-setting",
+      commandId: "uuidv4",
+      setting: "hidden",
+      value: true,
+      context: normalContext,
+    })
+
+    await expect(getCommandSettings("uuidv4")).resolves.toEqual({
+      hidden: true,
+      keybinding: "<cmd-shift-u>",
+      urlRules: {
+        denyUrls: ["*://blocked.example.com/*"],
+      },
+    })
+
+    await updateCommandSetting({
+      type: "update-command-setting",
+      commandId: "uuidv4",
+      setting: "hidden",
+      value: false,
+      context: normalContext,
+    })
+
+    await expect(getCommandSettings("uuidv4")).resolves.toEqual({
+      keybinding: "<cmd-shift-u>",
+      urlRules: {
+        denyUrls: ["*://blocked.example.com/*"],
+      },
+    })
   })
 })

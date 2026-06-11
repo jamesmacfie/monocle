@@ -38,6 +38,9 @@ export const clockCommand: CommandNode = {
   icon: { type: "lucide", name: "Clock" },
   color: "blue",
   keywords: ["clock", "time", "new tab"],
+  settingsCatalog: {
+    includeChildren: true,
+  },
   children: async () => {
     const children = [toggleClockVisibility]
     return children

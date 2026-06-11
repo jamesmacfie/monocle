@@ -184,4 +184,46 @@ describe("command settings merge model", () => {
       },
     })
   })
+
+  it("persists true hidden settings and prunes false hidden settings", () => {
+    expect(
+      mergeCommandSettings(
+        {
+          keybinding: "<cmd-t>",
+          urlRules: {
+            denyUrls: ["*://blocked.example.com/*"],
+          },
+        },
+        {
+          hidden: true,
+        },
+      ),
+    ).toEqual({
+      keybinding: "<cmd-t>",
+      hidden: true,
+      urlRules: {
+        denyUrls: ["*://blocked.example.com/*"],
+      },
+    })
+
+    expect(
+      mergeCommandSettings(
+        {
+          keybinding: "<cmd-t>",
+          hidden: true,
+          urlRules: {
+            denyUrls: ["*://blocked.example.com/*"],
+          },
+        },
+        {
+          hidden: false,
+        },
+      ),
+    ).toEqual({
+      keybinding: "<cmd-t>",
+      urlRules: {
+        denyUrls: ["*://blocked.example.com/*"],
+      },
+    })
+  })
 })

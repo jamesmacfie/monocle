@@ -1,3 +1,4 @@
+import { Settings } from "lucide-react"
 import { useEffect, useMemo } from "react"
 import { Provider } from "react-redux"
 import ScreenshotListener from "../shared/components/Listeners/ScreenshotListener"
@@ -12,7 +13,7 @@ import {
   selectClockVisibility,
   selectThemeMode,
 } from "../shared/store/slices/settings.slice"
-import { getBrowserAPI } from "../shared/utils/extension-api"
+import { getBrowserAPI, openOptionsPage } from "../shared/utils/extension-api"
 import {
   applyThemeToDocument,
   setupSystemThemeListener,
@@ -103,6 +104,17 @@ function NewTabAppContent() {
           </div>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={() => {
+          void openOptionsPage()
+        }}
+        aria-label="Open settings"
+        title="Settings"
+        className="fixed bottom-4 left-4 z-20 p-2 rounded-full text-[var(--color-fg-inverse)] opacity-70 transition hover:opacity-100 hover:bg-[var(--color-hero-overlay)] drop-shadow-lg"
+      >
+        <Settings size={20} />
+      </button>
       <ScreenshotListener />
       <ToastContainer />
     </div>

@@ -3,6 +3,7 @@ import { commandPaletteStateSlice } from "./slices/commandPaletteState.slice"
 import keybindingSlice from "./slices/keybinding.slice"
 import { navigationSlice } from "./slices/navigation.slice"
 import settingsSlice from "./slices/settings.slice"
+import settingsCatalogSlice from "./slices/settingsCatalog.slice"
 
 // Define extra argument type for thunks
 export interface ThunkApi {
@@ -19,6 +20,7 @@ export const createAppStore = (
       navigation: navigationSlice.reducer,
       commandPalette: commandPaletteStateSlice.reducer,
       keybinding: keybindingSlice,
+      settingsCatalog: settingsCatalogSlice,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
@@ -59,6 +61,12 @@ export const createAppStore = (
       keybinding: {
         isCapturing: false,
         targetCommandId: null,
+      },
+      settingsCatalog: {
+        commands: [],
+        loading: false,
+        error: null,
+        updatingIds: [],
       },
     },
   })

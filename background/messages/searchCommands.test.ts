@@ -192,6 +192,30 @@ describe("root search", () => {
       "open-new-tab",
     )
   })
+
+  it("removes hidden root commands from root search", async () => {
+    await updateCommandSettings("open-new-tab", {
+      hidden: true,
+    })
+
+    const response = await search("new tab")
+
+    expect(
+      response.results.map((item: { id: string }) => item.id),
+    ).not.toContain("open-new-tab")
+  })
+
+  it("removes descendants of hidden groups from root deep search", async () => {
+    await updateCommandSettings("open-tabs", {
+      hidden: true,
+    })
+
+    const response = await search("docs")
+
+    expect(
+      response.results.map((item: { id: string }) => item.id),
+    ).not.toContain("open-tab-2")
+  })
 })
 
 describe("incremental narrowing", () => {
@@ -266,5 +290,16 @@ describe("child page search", () => {
 
     expect(ids).toContain("open-tab-2")
     expect(ids).not.toContain("open-tab-1")
+  })
+
+  it("removes hidden children from child page search", async () => {
+    await updateCommandSettings("open-tab-2", {
+      hidden: true,
+    })
+
+    const response = await search("docs", { parentPath: ["open-tabs"] })
+    const ids = response.results.map((item: { id: string }) => item.id)
+
+    expect(ids).not.toContain("open-tab-2")
   })
 })

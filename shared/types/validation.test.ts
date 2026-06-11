@@ -102,6 +102,61 @@ describe("update command setting schema validation", () => {
       }).success,
     ).toBe(false)
   })
+
+  it("validates hidden command setting updates", () => {
+    expect(
+      validateMessage({
+        type: "update-command-setting",
+        commandId: "open-new-tab",
+        setting: "hidden",
+        value: true,
+        context,
+      }).success,
+    ).toBe(true)
+
+    expect(
+      validateMessage({
+        type: "update-command-setting",
+        commandId: "open-new-tab",
+        setting: "hidden",
+        value: "true",
+        context,
+      }).success,
+    ).toBe(false)
+  })
+})
+
+describe("settings catalog schema validation", () => {
+  it("accepts catalog and favorite messages", () => {
+    expect(
+      validateMessage({
+        type: "get-settings-catalog",
+      }).success,
+    ).toBe(true)
+
+    expect(
+      validateMessage({
+        type: "get-settings-catalog",
+        platform: "firefox",
+      }).success,
+    ).toBe(true)
+
+    expect(
+      validateMessage({
+        type: "set-command-favorite",
+        commandId: "open-new-tab",
+        favorite: true,
+      }).success,
+    ).toBe(true)
+
+    expect(
+      validateMessage({
+        type: "set-command-favorite",
+        commandId: "",
+        favorite: true,
+      }).success,
+    ).toBe(false)
+  })
 })
 
 describe("permission grant page schema validation", () => {

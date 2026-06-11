@@ -5,6 +5,7 @@ import type { UrlRules } from "./commands"
 export interface CommandSettings {
   keybinding?: string
   urlRules?: UrlRules
+  hidden?: boolean
 }
 
 export type CommandSettingKey = keyof CommandSettings

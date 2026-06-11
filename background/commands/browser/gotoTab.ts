@@ -25,6 +25,9 @@ export const gotoTab: CommandNode = {
             })
           },
           allowCustomKeybinding: false, // Dynamic tab commands shouldn't have custom keybindings
+          settingsCatalog: {
+            configurable: false,
+          },
           execute: async () => {
             try {
               await updateTab(tab.id, { active: true })

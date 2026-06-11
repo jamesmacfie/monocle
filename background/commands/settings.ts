@@ -26,11 +26,11 @@ const pruneUrlRules = (urlRules?: UrlRules): UrlRules | undefined => {
 
   const nextRules: UrlRules = {}
 
-  if (urlRules.allowUrls !== undefined) {
+  if (urlRules.allowUrls !== undefined && urlRules.allowUrls.length > 0) {
     nextRules.allowUrls = urlRules.allowUrls
   }
 
-  if (urlRules.denyUrls !== undefined) {
+  if (urlRules.denyUrls !== undefined && urlRules.denyUrls.length > 0) {
     nextRules.denyUrls = urlRules.denyUrls
   }
 
@@ -44,6 +44,10 @@ const pruneCommandSettings = (
 
   if (commandSettings.keybinding !== undefined) {
     nextSettings.keybinding = commandSettings.keybinding
+  }
+
+  if (commandSettings.hidden === true) {
+    nextSettings.hidden = true
   }
 
   const urlRules = pruneUrlRules(commandSettings.urlRules)

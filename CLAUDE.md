@@ -25,7 +25,9 @@ It runs in two primary modes:
 The background service worker owns command definitions, browser API access,
 settings persistence, permissions, keybinding execution, and workflow message
 forwarding. Content and new-tab UIs fetch UI-safe command suggestions from the
-background and execute commands through message handlers.
+background and execute commands through message handlers. The options UI fetches
+durable command catalog rows from the background and sends settings/favorite
+messages; it does not receive executable command functions.
 
 ## Documentation Map
 
@@ -61,6 +63,8 @@ Use the feature docs as the source of truth before editing related code:
   inheritance, and execution-time checks.
 - `docs/settings.md`: settings storage shape, command settings, merge/prune
   semantics, and the Redux mirror.
+- `docs/settings-page.md`: options-page MVP, command catalog, global hidden
+  commands, and future settings-page direction.
 - `docs/workflow-automation.md`: workflow type model, background-to-content
   execution path, implemented click behavior, and unsupported operations.
 - `docs/new-tab-and-theme.md`: new-tab override, new-tab-only commands,
@@ -82,7 +86,7 @@ Current feature status:
 | Palette UI and navigation | Working with review notes | Content overlay and new-tab mode share command palette components and Redux navigation. |
 | Browser commands | Working with review notes | Permission inheritance and high-risk keybinding policy have focused tests; manual Chrome/Firefox validation is still needed. |
 | Keybindings | Working with review notes | Canonicalization, context-aware registry coverage, custom conflicts, and scoped sequence state have focused tests; manual browser smoke is still needed. |
-| Permissions and settings | Working with review notes | Optional permission requests, command-setting compatibility, update validation, and URL-rule management have focused tests; manual Chrome/Firefox permission prompts still need smoke checks. |
+| Permissions and settings | Working with review notes | Optional permission requests, command-setting compatibility, global hidden command behavior, settings catalog, update validation, and URL-rule management have focused tests; manual Chrome/Firefox permission prompts and options-page smoke still need checks. |
 | URL filtering, website commands, and site SDK | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. `window.Monocle` supports non-privileged session-only site commands. |
 | Workflow automation | Partial | Click workflows and focused wait conditions work; validation/routing/debug feedback have focused tests, and most operations remain unsupported. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
@@ -108,6 +112,7 @@ monocle/
 ├── background/          # Service worker, commands, messages, keybindings
 ├── content/             # Content-script overlay and workflow executor
 ├── newtab/              # Browser new-tab replacement
+├── options/             # Browser options/settings page
 ├── shared/              # Shared React components, hooks, store, types, utils
 ├── docs/                # Feature and subsystem reference docs
 ├── server/              # Local support server

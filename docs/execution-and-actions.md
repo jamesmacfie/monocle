@@ -93,8 +93,9 @@ The action menu is the secondary "Actions" surface (footer button labelled `Acti
 2. **Modifier** actions (`<id>-<modifier>-enter-action`) — only for `action`/`submit` that declare `modifierActionLabel`, iterated in fixed order `cmd`, `shift`, `alt`, `ctrl`; each gets a `<modifier-enter>` display keybinding.
 3. **Favorite toggle** (`toggle-favorite-<id>`) — always added.
 4. **Hide from domain** (`hide-from-domain-<id>`) — only when there is a real page URL (not new tab).
-5. **Set custom keybinding** (`set-keybinding-<id>`) — only when `allowsKeybinding(command)`.
-6. **Reset custom keybinding** (`reset-keybinding-<id>`) — only when a custom keybinding setting exists (and the command is not a group / does not opt out via `allowCustomKeybinding === false`).
+5. **Hide command** (`hide-command-<id>`) — for durable/configurable command rows.
+6. **Set custom keybinding** (`set-keybinding-<id>`) — only when `allowsKeybinding(command)`.
+7. **Reset custom keybinding** (`reset-keybinding-<id>`) — only when a custom keybinding setting exists (and the command is not a group / does not opt out via `allowCustomKeybinding === false`).
 
 ### Rendering and interaction
 
@@ -117,6 +118,7 @@ Generated actions are synthetic `Suggestion`s whose ids encode a target command 
 | `primary` | `<id>-enter-action` | action/submit/search/group | For groups, no-op (UI navigates instead); otherwise re-runs the target command normally |
 | `modifier` | `<id>-<cmd\|shift\|alt\|ctrl>-enter-action` | action/submit with `modifierActionLabel[key]` | Re-runs the target with `context.modifierKey = key` |
 | `favorite` | `toggle-favorite-<id>` | always | `toggleFavoriteCommandId(targetId)` |
+| `hideCommand` | `hide-command-<id>` | when the row is settings-catalog configurable | `updateCommandSettings(targetId, { hidden: true })` + registry/search invalidation |
 | `setKeybinding` | `set-keybinding-<id>` | when `allowsKeybinding` | Handled in the UI (capture flow); background only warns if it ever reaches it |
 | `resetKeybinding` | `reset-keybinding-<id>` | when a custom keybinding setting exists | `removeCommandSetting(targetId, "keybinding")` + `refreshKeybindingRegistry()` |
 | `hideDomain` | `hide-from-domain-<id>` | when a real page URL exists | Adds a deny-URL rule for the current domain via `updateCommandUrlRules` (see [url-filtering.md](url-filtering.md)) |
@@ -139,7 +141,7 @@ Confirmation is enforced purely in the UI; the background does not re-check it. 
 - Root page: `shouldRefreshCommandsAfterExecution` returns `true`, so the palette calls `fetchCommands()` (`get-commands` → `setInitialCommands`), replacing the root suggestions.
 - Child page: `selectCommand` (in `useCommandNavigation`) calls `refreshCurrentPage()` after a remain-open leaf executes, re-fetching that page's children via `get-children-commands` (`refreshCurrentPage` no-ops on root). Without this, the child page keeps its frozen suggestion snapshot and a toggle like `toggle-clock-visibility` would still read "Hide Clock" after hiding the clock.
 
-Generated favorite/set-keybinding/hide-domain actions set `remainOpenOnSelect: true` to keep the action menu context stable; reset-keybinding uses `false`.
+Generated favorite/set-keybinding/hide-domain/hide-command actions set `remainOpenOnSelect: true` to keep the action menu context stable; reset-keybinding uses `false`.
 
 ## executionPayload and SuggestionExecutionPayload
 
@@ -189,7 +191,7 @@ Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram,
 
 ## Known issues and review notes
 
-- Every `action`/`submit`/`group`/`search` suggestion inherits the favorite and (when on a page) hide-from-domain actions unconditionally. There is no per-command opt-out for these generated actions, so they appear even where they make little sense.
+- Every `action`/`submit`/`group`/`search` suggestion inherits the favorite action; durable/configurable rows also inherit hide-command, and page contexts add hide-from-domain. There is no per-command opt-out for favorite or hide-from-domain actions, so they can appear even where they make little sense.
 - `confirmAction` is enforced only in the UI (twice, once per surface). The background does not re-check it, so a direct `execute-command` message bypasses confirmation.
 - `useIsModifierKeyPressed` tracks a single modifier and resolves it by priority (`shift` first), so combined modifiers map to one key; modifier-Enter execution itself runs through generated modifier actions rather than direct key interception.
 - The toast rate limiter and active-tab targeting mean toasts can be silently dropped (duplicate within 500ms, or no eligible active tab).
@@ -200,7 +202,7 @@ Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram,
 - Hold Cmd over a command with a `cmd` `modifierActionLabel` and confirm the footer label changes; open the action menu and run the modifier action; confirm the executor saw the modifier (e.g. history "Open in New Tab").
 - Trigger a `confirmAction` command and confirm the first press shows "Are you sure?" and the second executes, in both the main list and the action menu.
 - Run a command that copies to clipboard and one that opens a new tab; confirm the clipboard contents and that non-http(s) URLs are blocked.
-- Favorite/unfavorite from the action menu and confirm the list refreshes; reset a custom keybinding and confirm the action disappears.
+- Favorite/unfavorite from the action menu and confirm the list refreshes; hide a command and confirm it disappears until unhidden from Settings; reset a custom keybinding and confirm the action disappears.
 - Run a command with missing permissions and confirm the error toast and `PermissionActions` path appear instead of silent failure.
 
 ## Related docs
@@ -210,6 +212,6 @@ Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram,
 - [command-schema.md](command-schema.md) and [command-types.md](command-types.md) — `CommandNode` fields including `actionLabel`, `modifierActionLabel`, `confirmAction`, `remainOpenOnSelect`, `executionPayload`
 - [search-and-ranking.md](search-and-ranking.md) — usage recording and ranking
 - [keybindings.md](keybindings.md) — custom keybinding capture/reset actions
-- [url-filtering.md](url-filtering.md) — hide-from-domain action
+- [url-filtering.md](url-filtering.md) — hide-command and hide-from-domain actions
 - [permissions.md](permissions.md) — execution-time permission checks
 - [palette-ui-and-navigation.md](palette-ui-and-navigation.md) — navigation hook and footer UI

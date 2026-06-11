@@ -106,6 +106,53 @@ describe("message business validation", () => {
     ).toBe(true)
   })
 
+  it("accepts hidden updates and settings catalog messages", () => {
+    expect(
+      validateIncomingMessage(
+        {
+          type: "update-command-setting",
+          commandId: "open-new-tab",
+          setting: "hidden",
+          value: true,
+          context,
+        },
+        {},
+      ).success,
+    ).toBe(true)
+
+    expect(
+      validateIncomingMessage(
+        {
+          type: "get-settings-catalog",
+          platform: "chrome",
+        },
+        {},
+      ).success,
+    ).toBe(true)
+
+    expect(
+      validateIncomingMessage(
+        {
+          type: "set-command-favorite",
+          commandId: "open-new-tab",
+          favorite: false,
+        },
+        {},
+      ).success,
+    ).toBe(true)
+
+    expect(
+      validateIncomingMessage(
+        {
+          type: "set-command-favorite",
+          commandId: "../open-new-tab",
+          favorite: true,
+        },
+        {},
+      ).success,
+    ).toBe(false)
+  })
+
   it("validates permission grant page messages with the permission allowlist", () => {
     expect(
       validateIncomingMessage(

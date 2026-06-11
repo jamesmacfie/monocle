@@ -129,13 +129,13 @@ type KeybindingRegistrySnapshot = {
 
 `background/keybindings/source.ts` `loadKeybindingCommandEntries`:
 
-1. Loads command settings and the **filtered root commands for the given context** (`getFilteredRootCommands`) — so URL filtering and new-tab/Firefox context already apply.
+1. Loads command settings and the **filtered root commands for the given context** (`getFilteredRootCommands`) — so global hidden settings, URL filtering, and new-tab/Firefox context already apply.
 2. `collectDeepSearchEntries` walks roots and recurses into `group` children only when deep search is enabled (`enableDeepSearch === true`, or inherited and not explicitly disabled), checking merged permissions (`hasRequiredPermissions`) and URL-filtering children before recursing. This is how nested commands (e.g. a specific bookmark) can carry a binding.
 3. `collectCustomSettingEntries` adds any command that has a custom `keybinding` in settings, resolved by id via `resolveCommandById` even if it was not reached through deep search.
 
 `getCommandKeybinding` returns `""` unless `allowsKeybinding(command)` is true; otherwise it returns `normalizeKeybinding(customKeybinding || command.keybinding || "")`. Custom settings override the command default. `seenEntries` dedupes on `${id}:${keybinding}`.
 
-Because the snapshot depends on context, the same physical key can be bound in one context and absent in another — the registry test confirms `toggle-clock-visibility` (`<cmd-alt-c>`) resolves only in new-tab context and `github-toggle-star` (`<cmd-alt-g>`) only on a GitHub URL.
+Because the snapshot depends on context and visibility settings, the same physical key can be bound in one context and absent in another — the registry test confirms `toggle-clock-visibility` (`<cmd-alt-c>`) resolves only in new-tab context, `github-toggle-star` (`<cmd-alt-g>`) only on a GitHub URL, and hidden commands are omitted even when they have custom bindings.
 
 ### Exact match vs sequence prefix, and sequence state
 
@@ -195,6 +195,7 @@ The keybinding Redux slice (`shared/store/slices/keybinding.slice.ts`) is intent
 
 - Comparison is **after canonical normalization**, so `<shift-cmd-U>` conflicts with `<cmd-shift-u>` (`registry.test.ts`).
 - It is **context-scoped**: a new-tab-only binding does not conflict in normal page context, and vice versa (`registry.test.ts` "checks new-tab keybinding conflicts only in new-tab context").
+- It is **visibility-scoped**: hidden commands are omitted from conflict checks, matching registry snapshot behavior.
 - The candidate command itself is excluded via `excludeCommandId`.
 
 The capture UI calls this per stroke and disables save while a conflict exists. Note the registry's own first-wins behaviour means an unchecked duplicate would simply not register, but conflict detection surfaces the collision in the UI before saving.

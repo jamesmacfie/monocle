@@ -228,6 +228,10 @@ function shouldShowCommand(
   currentUrl: string,
   userSettings?: CommandSettings,
 ): boolean {
+  if (userSettings?.hidden === true) {
+    return false
+  }
+
   const commandRules = command.urlRules
   const userRules = userSettings?.urlRules
 
@@ -271,6 +275,10 @@ export function isCommandVisibleForUrl(
   currentUrl: string,
   userSettings?: CommandSettings,
 ): boolean {
+  if (userSettings?.hidden === true) {
+    return false
+  }
+
   // If no URL provided (e.g., new tab page), don't filter
   if (!currentUrl || currentUrl === "") {
     return true
@@ -287,12 +295,16 @@ export async function filterCommandsByUrl(
   currentUrl: string,
   allUserSettings: Record<string, CommandSettings>,
 ): Promise<CommandNode[]> {
+  const visibleCommands = commands.filter(
+    (command) => allUserSettings[command.id]?.hidden !== true,
+  )
+
   // If no URL provided (e.g., new tab page), don't filter
   if (!currentUrl || currentUrl === "") {
-    return commands
+    return visibleCommands
   }
 
-  return commands.filter((command) => {
+  return visibleCommands.filter((command) => {
     const userSettings = allUserSettings[command.id]
     return shouldShowCommand(command, currentUrl, userSettings)
   })

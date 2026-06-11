@@ -184,6 +184,40 @@ export const updateClockVisibility = createAsyncThunk(
   },
 )
 
+// Async thunk to update new-tab background categories and sync to storage
+export const updateBackgroundCategories = createAsyncThunk(
+  "settings/updateBackgroundCategories",
+  async (categories: string[], { rejectWithValue }) => {
+    try {
+      // Get current settings from storage
+      const result = await browserAPI.storage.local.get(STORAGE_KEY)
+      const currentSettings: Settings = result[STORAGE_KEY] || {}
+
+      // Update the background categories setting
+      const updatedSettings: Settings = {
+        ...currentSettings,
+        newTab: {
+          ...currentSettings.newTab,
+          backgroundCategories: categories,
+        },
+      }
+
+      // Save to storage
+      await browserAPI.storage.local.set({
+        [STORAGE_KEY]: updatedSettings,
+      })
+
+      return categories
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error
+          ? error.message
+          : "Failed to update background categories",
+      )
+    }
+  },
+)
+
 // Settings slice
 export const settingsSlice = createSlice({
   name: "settings",
@@ -257,6 +291,21 @@ export const settingsSlice = createSlice({
         state.error = action.payload as string
       })
 
+      // Update background categories
+      .addCase(updateBackgroundCategories.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(updateBackgroundCategories.fulfilled, (state, action) => {
+        state.loading = false
+        state.error = null
+        state.newTab.backgroundCategories = action.payload
+      })
+      .addCase(updateBackgroundCategories.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.payload as string
+      })
+
       // Load permissions
       .addCase(loadPermissions.pending, (state) => {
         state.loading = true
@@ -298,6 +347,10 @@ export const selectThemeMode = (state: { settings: SettingsState }) =>
 
 export const selectClockVisibility = (state: { settings: SettingsState }) =>
   state.settings.newTab.clock?.show ?? true
+
+export const selectBackgroundCategories = (state: {
+  settings: SettingsState
+}) => state.settings.newTab.backgroundCategories ?? []
 
 export const selectPermissions = (state: { settings: SettingsState }) =>
   state.settings.permissions

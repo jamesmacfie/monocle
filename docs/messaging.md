@@ -33,7 +33,9 @@ Every entry below is registered in `handleMessage`. "Direction" is always UI -> 
 | `get-permissions` | UI -> bg | `{}` (no context) | `{ isLoaded: true, access: Record<string, boolean> }` or throws | `background/messages/getPermissions.ts`, `getPermissions` | Report which optional permissions are currently granted. |
 | `request-permission` | UI -> bg | `{ permission }` (no context) | `{ granted: boolean, error? }` (`RequestPermissionResponse`) | `background/messages/requestPermission.ts`, `requestPermission` | Trigger the browser permission prompt and report the result. |
 | `open-permission-grant-page` | UI -> bg | `{ permission }` (no context) | `{ success: true }` | `background/messages/openPermissionGrantPage.ts`, `openPermissionGrantPage` | Open the new-tab page with a `grantPermission` query so the prompt runs in a user-gesture-friendly context. |
-| `update-command-setting` | UI -> bg | discriminated by `setting` (see below) | `{ success: true }` or throws | `background/messages/updateCommandSetting.ts`, `updateCommandSetting` | Persist a per-command `keybinding` or `urlRules` setting. |
+| `update-command-setting` | UI -> bg | discriminated by `setting` (see below) | `{ success: true }` or throws | `background/messages/updateCommandSetting.ts`, `updateCommandSetting` | Persist a per-command `keybinding`, `hidden`, or `urlRules` setting. |
+| `get-settings-catalog` | UI -> bg | `{ platform? }` | `SettingsCatalogResponse` | `background/messages/getSettingsCatalog.ts`, `getSettingsCatalog` | Return durable command rows for the options Commands page, including metadata, settings, favorite state, usage, and capabilities. |
+| `set-command-favorite` | UI -> bg | `{ commandId, favorite }` | `{ success: true }` | `background/messages/setCommandFavorite.ts`, `setCommandFavorite` | Set favorite state directly, including for hidden commands that no longer expose generated palette actions. |
 | `request-toast` | UI -> bg | `{ level, message }` | `{ success: true, rateLimited? }` | `background/messages/requestToast.ts`, `requestToast` | UI-originated toast request; forwarded to `showToast`. |
 | `show-toast` | UI -> bg | `{ level, message }` | `{ success: true, rateLimited? }` | `background/messages/showToast.ts`, `showToast` | Rate-limited toast; pushes a `monocle-toast` message to the active tab. |
 | `get-unsplash-background` | UI -> bg | `{ context }` | `UnsplashBackgroundResponse` | `background/messages/getUnsplashBackground.ts`, `getUnsplashBackground` | Fetch a random Unsplash landscape photo for the new-tab background. |
@@ -169,14 +171,53 @@ type UpdateUrlRulesSettingMessage = {
   value: CommandUrlRulesSetting
   context?: Browser.Context
 }
+
+type UpdateHiddenSettingMessage = {
+  type: "update-command-setting"
+  commandId: string
+  setting: "hidden"
+  value: boolean
+  context?: Browser.Context
+}
 ```
 
 `updateCommandSetting` behavior:
 
 - `setting: "keybinding"` — normalizes the value. Empty/invalid removes the stored keybinding and refreshes the registry. Otherwise it resolves the command, rejects (`throw`) if the command does not allow keybindings, persists via `updateCommandSettings`, refreshes the registry, and emits a success `show-toast`.
-- `setting: "urlRules"` — runs custom `validateUrlRulesSetting` (each field must be an array of valid URL patterns; invalid patterns `throw`), then `updateCommandUrlRules`.
+- `setting: "urlRules"` — runs custom `validateUrlRulesSetting` (each field must be an array of valid URL patterns; invalid patterns `throw`), then `updateCommandUrlRules` and invalidates the search index.
+- `setting: "hidden"` — writes `commands[id].hidden`, refreshes the keybinding registry, and invalidates the search index. Hidden commands are removed from palette views/search, child pages, execution resolution, keybinding snapshots, and conflict checks.
 
 Returns `{ success: true }`. See [settings.md](settings.md) and [url-filtering.md](url-filtering.md).
+
+**`get-settings-catalog`** returns the options-page command catalog:
+
+```ts
+type GetSettingsCatalogMessage = {
+  type: "get-settings-catalog"
+  platform?: "chrome" | "firefox"
+}
+```
+
+The response is `{ commands: SettingsCatalogCommand[] }`. Each row is durable
+and settings-manageable: resolved display metadata, category, parent path,
+effective settings, favorite state, usage stats, and capability flags. The
+catalog unions normal and new-tab command sources and bypasses hidden/url-rule
+filtering so hidden commands can be unhidden. Session site-SDK rows are omitted
+from the editable MVP catalog.
+
+**`set-command-favorite`** sets favorite state without going through generated
+palette actions:
+
+```ts
+type SetCommandFavoriteMessage = {
+  type: "set-command-favorite"
+  commandId: string
+  favorite: boolean
+}
+```
+
+It writes the existing `monocle-favoriteCommandIds` key, invalidates the search
+index, and returns `{ success: true }`.
 
 ### Workflows
 
@@ -272,6 +313,7 @@ Content-side receivers live in the shared UI so both overlay and new-tab modes h
 - Navigate into a `group` and a `search` node; confirm `get-children-commands` returns `openPage: true` and that `search` recomputes as you type (`dynamicChildren: true`); typing on a plain group page filters its children through `search-commands`.
 - Execute a command with enter and with the modifier held; confirm the modifier reaches the background (visible in execution behavior / usage).
 - Set, change, and clear a custom keybinding; confirm `check-keybinding-conflict` flags collisions and `update-command-setting` shows the success toast and refreshes the registry.
+- Hide and unhide a command from the options Commands page; confirm `get-settings-catalog` still returns the hidden row while `get-commands`, `search-commands`, child pages, and keybinding conflict checks omit it.
 - Trigger a permission-gated command in Chrome and Firefox; confirm `request-permission` / `open-permission-grant-page` flows and that `get-permissions` reflects the grant.
 - Run a `click` workflow from a normal tab and confirm `execute-workflow` -> `execute-workflow-content` round-trips a `WorkflowResult`; confirm a new-tab-origin page workflow is rejected.
 - Fire duplicate toasts within 500 ms and confirm rate limiting.

@@ -68,6 +68,9 @@ export const calculator: CommandNode = {
   name: "Calculator",
   icon: { type: "lucide", name: "Calculator" },
   color: "teal",
+  settingsCatalog: {
+    includeChildren: true,
+  },
   async children() {
     return [
       {

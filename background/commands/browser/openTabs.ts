@@ -66,6 +66,9 @@ function createTabCommand(tab: TabInfo, _windowTitle: string): CommandNode {
         .with({ audible: true }, () => "orange")
         .otherwise(() => "gray")
     },
+    settingsCatalog: {
+      configurable: false,
+    },
     actionLabel: "Go to Tab",
     modifierActionLabel: {
       cmd: "Duplicate Tab",
@@ -123,6 +126,9 @@ function createWindowCommand(windowInfo: WindowInfo): CommandNode {
       name: windowInfo.focused ? "AppWindow" : "Monitor",
     },
     color: windowInfo.focused ? "green" : "blue",
+    settingsCatalog: {
+      configurable: false,
+    },
     children: async () => {
       return windowInfo.tabs
         .sort((a, b) => a.index - b.index) // Sort by tab order

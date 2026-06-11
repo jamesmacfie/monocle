@@ -64,12 +64,13 @@ Consumed by the new-tab page; see [new-tab-and-theme.md](./new-tab-and-theme.md)
 
 ### `commands: Record<string, CommandSettings>`
 
-Per-command settings keyed by command id. Only two fields are persisted today:
+Per-command settings keyed by command id. Three fields are persisted today:
 
 ```ts
 // shared/types/settings.ts
 export interface CommandSettings {
   keybinding?: string
+  hidden?: boolean
   urlRules?: UrlRules // { allowUrls?: string[]; denyUrls?: string[] }
 }
 ```
@@ -77,6 +78,7 @@ export interface CommandSettings {
 | Field | Type | Notes |
 | --- | --- | --- |
 | `keybinding` | `string` (optional) | Canonical keybinding text such as `<cmd-shift-u>`. See [keybindings.md](./keybindings.md). |
+| `hidden` | `boolean` (optional) | `true` disables the command everywhere outside settings; `false` is pruned. |
 | `urlRules.allowUrls` | `string[]` (optional) | User-defined allow patterns for command visibility. See [url-filtering.md](./url-filtering.md). |
 | `urlRules.denyUrls` | `string[]` (optional) | User-defined deny patterns for command visibility. |
 
@@ -86,7 +88,7 @@ are user overrides layered on top of the command's own declared rules.
 
 > Favorites and usage stats are **not** in `CommandSettings`. The prior
 > review baseline mentioned "favorites, custom keybindings, urlRules, usage
-> data" together, but only keybinding and urlRules actually live in
+> data" together, but only keybinding, hidden, and urlRules actually live in
 > `monocle-settings`. Favorites and usage are separate keys (see table above).
 
 ## Background settings API
@@ -136,7 +138,7 @@ why `updateNewTabClockSettings({ show: false })` preserves a sibling
 | `updateCommandSettings(commandId, partial)` | Merges via `mergeCommandSettings`, prunes empty results, deletes the command entry if nothing remains. |
 | `updateCommandUrlRules(commandId, urlRules)` | Thin wrapper: `updateCommandSettings(commandId, { urlRules })`. Preserves sibling keybinding and the other allow/deny list. |
 | `removeCommandSettings(commandId)` | Deletes the command entry entirely. |
-| `removeCommandSetting(commandId, setting)` | Removes a single field (`keybinding` or `urlRules`), prunes, and deletes the command entry if it becomes empty. |
+| `removeCommandSetting(commandId, setting)` | Removes a single field (`keybinding`, `hidden`, or `urlRules`), prunes, and deletes the command entry if it becomes empty. |
 
 ## Shallow-merge semantics and the urlRules hazard
 
@@ -172,6 +174,9 @@ Consequences and rules:
 - **Empty settings are pruned, not stored.** If a merge/removal leaves a
   command with no fields, the command's entry is deleted from `commands`. This
   keeps the document from accumulating empty `{}` records.
+- **`hidden: false` is pruned.** Only the non-default `hidden: true` value is
+  persisted. Setting `hidden` back to `false` preserves sibling `keybinding` and
+  `urlRules` settings, then drops the `hidden` field.
 - **`removeCommandSetting('keybinding')` does not touch `urlRules`** (and vice
   versa). Resetting a keybinding leaves URL rules intact (verified).
 - **Old documents without nested `urlRules` are forward-compatible.** A
@@ -198,6 +203,7 @@ message is a discriminated union on `setting`, validated in two layers.
 | `setting` | `value` schema | Notes |
 | --- | --- | --- |
 | `"keybinding"` | `string \| null`, optional | Any string accepted at the schema layer. |
+| `"hidden"` | `boolean` | Global command hide toggle. |
 | `"urlRules"` | `{ allowUrls?: string[]; denyUrls?: string[] }` `.strict()` | Rejects unknown keys; lists must be arrays of strings. |
 
 `commandId` must be a non-empty string; `context` (a `BrowserContext`) is
@@ -213,6 +219,7 @@ optional. The strict object on `urlRules` means any field other than
   `normalizeKeybinding(value)` must succeed *and* equal the original value, or
   the message is rejected with "Keybinding setting must be canonical keybinding
   text".
+- **hidden**: boolean only; no additional business validation.
 - **urlRules**: each present list must be an array, and every pattern must pass
   `validateUrlPattern` (see [url-filtering.md](./url-filtering.md)). Invalid
   patterns are rejected with `Invalid <field> pattern "<pattern>": <reason>`.
@@ -237,11 +244,15 @@ storage:
   and shows a success toast.
 - **urlRules**: runs `validateUrlRulesSetting` (mirrors the business-logic
   pattern check), then `updateCommandUrlRules(commandId, value)`, which
-  preserves the sibling allow/deny list and the command's keybinding.
+  preserves the sibling allow/deny list and the command's keybinding, then
+  invalidates the search index.
+- **hidden**: calls `updateCommandSettings(commandId, { hidden })`, refreshes
+  the keybinding registry, and invalidates the search index.
 
-All paths return `{ success: true }`. Updating a keybinding triggers a
-keybinding registry refresh so the new binding is live without an extension
-reload; updating URL rules does not.
+All paths return `{ success: true }`. Updating a keybinding or hidden state
+triggers a keybinding registry refresh so the new behavior is live without an
+extension reload. Updating URL rules and hidden state invalidates the search
+index so visibility changes apply immediately.
 
 ## Redux mirror (`shared/store/slices/settings.slice.ts`)
 
@@ -258,8 +269,8 @@ permission state. It is intentionally narrower than the persisted document.
 | `loading: boolean` / `error: string \| null` | thunk lifecycle | `false` / `null` |
 
 Note the slice mirrors only `theme`, `newTab`, and `permissions`. It does
-**not** mirror `commands` (per-command keybindings/urlRules); those are read on
-demand from the background, not from the store.
+**not** mirror `commands` (per-command keybindings/hidden/urlRules); those are
+read on demand from the background, not from this slice.
 
 ### Thunks
 
@@ -283,6 +294,26 @@ because they touch a single leaf each, but it means they do not benefit from
 the background pruning/merge helpers. All other settings writes go through the
 background API or the `update-command-setting` message.
 
+## Settings catalog mirror (`shared/store/slices/settingsCatalog.slice.ts`)
+
+The options page has a separate `settingsCatalog` slice for command-management
+data. It loads rows through `get-settings-catalog`, not through direct storage,
+because the catalog needs background-owned command metadata, effective settings,
+favorite state, usage stats, and capabilities.
+
+The slice owns thunks for:
+
+- `loadSettingsCatalog`
+- `setCatalogCommandHidden`
+- `setCatalogCommandFavorite`
+- `setCatalogCommandKeybinding`
+- `setCatalogCommandUrlRules`
+
+Those thunks send `update-command-setting` or `set-command-favorite` messages
+and update the local row optimistically after the background confirms success.
+This keeps per-command settings out of the narrower `settings` slice while still
+giving the options page responsive controls.
+
 ### Staleness rules vs storage truth
 
 - **Theme and new-tab**: storage is the truth; the slice is a cache loaded on
@@ -296,8 +327,9 @@ background API or the `update-command-setting` message.
   permission is revoked from the browser's extension settings while Monocle is
   open. UI paths re-fetch (`refreshPermissions`) to recover. See
   [permissions.md](./permissions.md).
-- **Command settings**: not in the slice at all, so there is no staleness
-  concern there — consumers fetch current values from the background.
+- **Command settings**: not in the `settings` slice. The options page mirrors
+  them through `settingsCatalog`; other consumers fetch current values from the
+  background.
 
 ### Selectors
 
@@ -314,6 +346,7 @@ background API or the `update-command-setting` message.
 | Theme | `getThemeSettings` (background) / `selectThemeMode` (Redux) | [new-tab-and-theme.md](./new-tab-and-theme.md) |
 | New tab (clock, greeting, background) | `getNewTabSettings` + convenience getters / `selectClockVisibility` | [new-tab-and-theme.md](./new-tab-and-theme.md) |
 | Keybindings | `getAllCommandSettings`/`getCommandSettings` for the `keybinding` field; registry refresh on update | [keybindings.md](./keybindings.md) |
+| Hidden commands | `getAllCommandSettings`/`getCommandSettings` for the `hidden` field; enforced before URL-rule checks | [url-filtering.md](./url-filtering.md) |
 | URL rules | `getCommandSettings` for `urlRules`, layered over command-declared rules during filtering | [url-filtering.md](./url-filtering.md) |
 | Favorites | separate `monocle-favoriteCommandIds` key (not settings) | [search-and-ranking.md](./search-and-ranking.md) |
 | Usage / ranking | separate `monocle-commandUsage` key (not settings) | [search-and-ranking.md](./search-and-ranking.md) |
@@ -345,6 +378,11 @@ background API or the `update-command-setting` message.
   persists and is live without a full reload (registry refresh).
 - Reset that keybinding (empty value) and confirm the `keybinding` field is
   removed while any URL rules for the same command survive.
+- Hide a command, reload the extension, and confirm the row remains visible in
+  Settings but disappears from palette suggestions/search/children and its
+  shortcut no longer fires.
+- Unhide the command in Settings and confirm its palette visibility and shortcut
+  behavior return.
 - Use Manage Command Allow List / Deny List (or Hide from Domain) to add a
   pattern, reload the page, and confirm URL rules persist and merge with
   sibling lists rather than overwriting them.

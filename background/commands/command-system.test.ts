@@ -335,12 +335,20 @@ describe("generated actions", () => {
       expect(actions.map((action) => action.id)).toContain(
         `hide-from-domain-${suggestion.id}`,
       )
+      expect(actions.map((action) => action.id)).toContain(
+        `hide-command-${suggestion.id}`,
+      )
     }
   })
 
   it("executes generated actions from root, child, dynamic search, and deep-search scopes", async () => {
     await executeCommand("uuidv4-enter-action", normalContext, {})
     expect((await getCommandUsageStats("uuidv4")).totalUsage).toBe(1)
+
+    await executeCommand("hide-command-uuidv4", normalContext, {})
+    await expect(getCommandSettings("uuidv4")).resolves.toEqual({
+      hidden: true,
+    })
 
     const calculatorGroup = calculator as GroupCommandNode
     const originalCalculatorChildren = calculatorGroup.children
@@ -483,6 +491,22 @@ describe("URL-filtered execution", () => {
     )
   })
 
+  it("filters hidden root commands from suggestions and favorites", async () => {
+    await toggleFavoriteCommandId("open-new-tab")
+    await updateCommandSettings("open-new-tab", {
+      hidden: true,
+    })
+
+    const commands = await getCommands(normalContext)
+
+    expect(commands.suggestions.map((command) => command.id)).not.toContain(
+      "open-new-tab",
+    )
+    expect(commands.favorites.map((command) => command.id)).not.toContain(
+      "open-new-tab",
+    )
+  })
+
   it("filters URL-denied child commands from child pages and deep search", async () => {
     await updateCommandSettings("open-tab-2", {
       urlRules: { denyUrls: ["*://example.com/*"] },
@@ -512,9 +536,58 @@ describe("URL-filtered execution", () => {
     ).not.toContain("open-tab-2")
   })
 
+  it("filters hidden child commands from child pages and deep search", async () => {
+    await updateCommandSettings("open-tab-2", {
+      hidden: true,
+    })
+
+    const childResponse = await _getChildren("open-tabs")
+    expect(
+      childResponse.children.map((item: { id: string }) => item.id),
+    ).toContain("open-tab-1")
+    expect(
+      childResponse.children.map((item: { id: string }) => item.id),
+    ).not.toContain("open-tab-2")
+
+    const searchResponse = (await searchCommands({
+      type: "search-commands",
+      context: normalContext,
+      query: "tab",
+      seq: 1,
+    })) as any
+
+    expect(
+      searchResponse.results.map((item: { id: string }) => item.id),
+    ).toContain("open-tab-1")
+    expect(
+      searchResponse.results.map((item: { id: string }) => item.id),
+    ).not.toContain("open-tab-2")
+  })
+
   it("blocks URL-denied commands through direct execution and keybindings", async () => {
     await updateCommandSettings("open-new-tab", {
       urlRules: { denyUrls: ["*://example.com/*"] },
+    })
+
+    await expect(
+      executeCommand("open-new-tab", normalContext, {}),
+    ).rejects.toThrow("Command not found")
+    expect(createdTabs).toHaveLength(0)
+
+    await initializeKeybindingRegistry()
+    const response = await executeKeybinding({
+      type: "execute-keybinding",
+      keybinding: "<cmd-t>",
+      context: normalContext,
+    })
+
+    expect(response).toMatchObject({ success: false })
+    expect(createdTabs).toHaveLength(0)
+  })
+
+  it("blocks hidden commands through direct execution and keybindings", async () => {
+    await updateCommandSettings("open-new-tab", {
+      hidden: true,
     })
 
     await expect(

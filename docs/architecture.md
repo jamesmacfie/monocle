@@ -1,6 +1,6 @@
 # Architecture
 
-Monocle is a WXT-built browser extension that adds a VS Code-style command palette to the browser. It runs in two UI surfaces — a content-script overlay injected into every page inside a closed shadow DOM, and a new-tab page replacement — both backed by a single background service worker that owns all privileged behavior. The UI surfaces are deliberately thin: they fetch UI-safe `Suggestion` values from the background, render them with CMDK, and send typed messages back to execute. This document maps the runtime modes, the entrypoints, the background ownership model, the Redux store layout, the build system, and the core data flows, with pointers into the deep-dive docs for each subsystem.
+Monocle is a WXT-built browser extension that adds a VS Code-style command palette to the browser. The palette runs in two UI surfaces — a content-script overlay injected into every page inside a closed shadow DOM, and a new-tab page replacement — both backed by a single background service worker that owns all privileged behavior. Monocle also has a WXT options page for settings management. The UI surfaces are deliberately thin: they fetch UI-safe data from the background, render it, and send typed messages back for privileged work. This document maps the runtime modes, the entrypoints, the background ownership model, the Redux store layout, the build system, and the core data flows, with pointers into the deep-dive docs for each subsystem.
 
 ## Runtime modes
 
@@ -10,6 +10,8 @@ Monocle presents the same palette in two distinct DOM/runtime contexts. The shar
 | --- | --- | --- | --- | --- |
 | Content overlay | Closed shadow DOM injected into any page (`<all_urls>`) | `entrypoints/content.tsx` → `content/scripts.tsx` | `createAppStore` (full app store) | none (default page context) |
 | New-tab | Extension page replacing the browser new-tab page | `entrypoints/newtab/main.tsx` → `newtab/NewTabApp.tsx` | `createAppStore` (full app store) | `{ isNewTab: true }` |
+
+The options page is a third extension page surface, but it is not a palette runtime mode. It renders settings-management views from `entrypoints/options/main.tsx` → `options/OptionsApp.tsx`, using the same store factory plus a settings catalog slice.
 
 ### Content overlay boot
 
@@ -35,7 +37,7 @@ See [palette-ui-and-navigation.md](./palette-ui-and-navigation.md) for the share
 
 ## WXT entrypoints
 
-WXT generates the manifest and bundles three entrypoints under `entrypoints/`:
+WXT generates the manifest and bundles these entrypoints under `entrypoints/`:
 
 | Entrypoint | Type | Registers |
 | --- | --- | --- |
@@ -43,6 +45,7 @@ WXT generates the manifest and bundles three entrypoints under `entrypoints/`:
 | `entrypoints/content.tsx` | `defineContentScript` | Injects the shadow-DOM overlay on `<all_urls>`. |
 | `entrypoints/site-sdk.content.ts` | `defineContentScript` | Runs at `document_start` in the main world and installs `window.Monocle` for page-owned site commands. |
 | `entrypoints/newtab/` (`index.html` + `main.tsx`) | HTML page | Browser new-tab override; mounts the React new-tab app. |
+| `entrypoints/options/` (`index.html` + `main.tsx`) | HTML page | Browser options page (`openInTab: true`); mounts the React settings app. |
 
 `background/index.ts` `initializeBackground()` is the service worker's startup: it initializes the keybinding registry (`initializeKeybindingRegistry`), wires search-index invalidation events and warms the search index (`initializeSearchIndexInvalidation` / `warmSearchIndex` from `background/commands/searchIndex.ts`), registers a cross-browser runtime message listener that routes everything through `handleMessage`, and wires the toolbar `action.onClicked` to `toggleContentPalette`.
 
@@ -76,7 +79,7 @@ Monocle uses Redux Toolkit. There are two store factories in `shared/store/`:
 
 | Factory | File | Slices | Used by |
 | --- | --- | --- | --- |
-| `createAppStore(sendMessage?)` | `shared/store/index.ts` | `settings`, `navigation`, `commandPalette`, `keybinding` | Content overlay and new-tab — the actual stores in use. |
+| `createAppStore(sendMessage?)` | `shared/store/index.ts` | `settings`, `settingsCatalog`, `navigation`, `commandPalette`, `keybinding` | Content overlay, new-tab, and options page. |
 | `createCommandPaletteStore(initialIsOpen?)` | `shared/store/commandPaletteStore.ts` | `commandPalette` only | A minimal palette-only store factory. |
 
 The full app store is instantiated **per mode** (one per content overlay mount, one per new-tab app) inside a React `useMemo`, so each surface has its own isolated store. The `sendMessage` function is injected as the thunk `extraArgument` (`ThunkApi`), giving async thunks access to background messaging without importing it directly.
@@ -86,6 +89,7 @@ Slices (`shared/store/slices/`):
 | Slice | File | Responsibility |
 | --- | --- | --- |
 | `settings` | `settings.slice.ts` | Theme mode, new-tab/clock prefs, permission access mirror, loading/error. Has `loadSettings`/`loadPermissions` thunks. |
+| `settingsCatalog` | `settingsCatalog.slice.ts` | Options-page command catalog rows and mutations for hidden/favorite/keybinding/URL-rule management. |
 | `navigation` | `navigation.slice.ts` | Palette page stack, search values, dynamic child pages, inline form values, loading/errors. |
 | `commandPalette` | `commandPaletteState.slice.ts` | Overlay visibility (`isOpen`). |
 | `keybinding` | `keybinding.slice.ts` | Keybinding capture state (`isCapturing`, `targetCommandId`). |
@@ -99,7 +103,8 @@ monocle/
 ├── entrypoints/         # WXT background, content, and new-tab entrypoints
 │   ├── background.ts
 │   ├── content.tsx
-│   └── newtab/          # index.html + main.tsx
+│   ├── newtab/          # index.html + main.tsx
+│   └── options/         # index.html + main.tsx
 ├── background/          # Service worker: commands, messages, keybindings, utils
 │   ├── index.ts         # initializeBackground()
 │   ├── commands/        # command sources, settings, websites prototype
@@ -108,6 +113,7 @@ monocle/
 │   └── utils/           # privileged browser API helpers, contentPalette
 ├── content/             # Content overlay rendering and workflow executor
 ├── newtab/              # Browser new-tab replacement app
+├── options/             # Browser options/settings app
 ├── shared/              # Shared React components, hooks, store, types, utils
 │   ├── components/
 │   ├── hooks/
@@ -184,7 +190,8 @@ See [execution-and-actions.md](./execution-and-actions.md).
 1. Settings live under `monocle-settings` in `chrome.storage.local`, routed through `background/commands/settings.ts`.
 2. Redux mirrors settings and permission state for responsive UI (`settings.slice.ts`).
 3. Browser permission APIs remain authoritative — Redux is only a mirror.
-4. UI sends `get-permissions`, `request-permission`, `open-permission-grant-page`, and `update-command-setting`; Chrome routes permission requests through the background, while Firefox can request directly where supported.
+4. UI sends `get-permissions`, `request-permission`, `open-permission-grant-page`, `update-command-setting`, `get-settings-catalog`, and `set-command-favorite`; Chrome routes permission requests through the background, while Firefox can request directly where supported.
+5. Hidden command settings are enforced through the shared command visibility filter, so hidden commands are omitted from palette views, search, execution resolution, and keybinding registries while remaining visible in the settings catalog.
 
 See [settings.md](./settings.md) and [permissions.md](./permissions.md).
 

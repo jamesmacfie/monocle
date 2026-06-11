@@ -44,6 +44,9 @@ function processBookmarkNode(
       icon: { type: "lucide", name: "Folder" },
       color: "amber",
       keywords: [node.title?.toLowerCase() || "folder"],
+      settingsCatalog: {
+        configurable: false,
+      },
       children: async () => {
         // Process children and return as commands
         const childCommands: CommandNode[] = []
@@ -72,6 +75,9 @@ function processBookmarkNode(
         : { type: "lucide", name: "Globe" },
       color: "blue",
       keywords: [node.url.toLowerCase()],
+      settingsCatalog: {
+        configurable: false,
+      },
       actionLabel: "Open",
       modifierActionLabel: {
         cmd: "Open in New Tab",

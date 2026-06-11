@@ -120,6 +120,9 @@ function createHistoryItemCommand(item: HistoryItem): CommandNode {
       cmd: "Open in New Tab",
     },
     allowCustomKeybinding: false, // Dynamic history commands shouldn't have custom keybindings
+    settingsCatalog: {
+      configurable: false,
+    },
     execute: async (context) => {
       if (item.url) {
         try {
@@ -187,6 +190,9 @@ function createTimePeriodCommands(): CommandNode[] {
       icon: { type: "lucide", name: period.icon },
       color: "blue",
       keywords: [period.name.toLowerCase(), "history"],
+      settingsCatalog: {
+        configurable: false,
+      },
       enableDeepSearch: period.deepSearch ? undefined : false,
       children: async () => {
         try {

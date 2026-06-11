@@ -12,6 +12,7 @@ import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { showToast } from "../messages/showToast"
 import {
   allowsKeybinding,
+  isSettingsCatalogConfigurable,
   resolveActionLabel,
   resolveAsyncProperty,
   resolveModifierActionLabels,
@@ -31,10 +32,12 @@ import {
   resolveCommandById,
   resolveCommandInPage,
 } from "./query"
+import { invalidateSearchIndex } from "./searchIndex"
 import {
   getAllCommandSettings,
   getCommandSettings,
   removeCommandSetting,
+  updateCommandSettings,
   updateCommandUrlRules,
 } from "./settings"
 import type { CommandLoadOptions } from "./source"
@@ -218,6 +221,19 @@ const executeGeneratedAction = async (
       })
     }
 
+    return
+  }
+
+  if (action.type === "hideCommand") {
+    if (!isSettingsCatalogConfigurable(resolved.command)) {
+      return
+    }
+
+    await updateCommandSettings(action.targetCommandId, {
+      hidden: true,
+    })
+    await refreshKeybindingRegistry()
+    invalidateSearchIndex()
     return
   }
 
@@ -414,6 +430,30 @@ const _createHideFromDomainAction = async (
       type: "hideDomain",
       targetCommandId: command.id,
       domain: domain,
+    },
+  }
+}
+
+const _createHideCommandAction = (command: CommandNode): Suggestion | null => {
+  if (!isSettingsCatalogConfigurable(command)) {
+    return null
+  }
+
+  return {
+    id: `hide-command-${command.id}`,
+    name: "Hide Command",
+    description: "Hide this command from Monocle",
+    icon: { type: "lucide", name: "EyeOff" },
+    color: "red",
+    type: "action",
+    actionLabel: "Hide",
+    keywords: ["hide", "command", "disable"],
+    isFavorite: false,
+    actions: undefined,
+    remainOpenOnSelect: true,
+    executionContext: {
+      type: "hideCommand",
+      targetCommandId: command.id,
     },
   }
 }
@@ -619,6 +659,8 @@ export const commandsToSuggestions = async (
       actions.push(await createFavoriteToggleAction(node, favoriteCommandIds))
       const hideFromDomain = await _createHideFromDomainAction(node, context)
       if (hideFromDomain) actions.push(hideFromDomain)
+      const hideCommand = _createHideCommandAction(node)
+      if (hideCommand) actions.push(hideCommand)
       const setKB = await _createSetKeybindingAction(node)
       const resetKB = _createResetKeybindingAction(
         node,

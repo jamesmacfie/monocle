@@ -39,7 +39,7 @@ document-specific.
 
 ### Cache key, TTL, and URL filtering
 
-- The cache key is `isNewTab|platform` only — **not** the URL. The index is built with a URL-free context, and each entry stores a `urlRuleChain` (its own and every ancestor group's `urlRules`). URL visibility is applied per query via `filterIndexEntriesByUrl`, so the cache survives page navigation and user URL-rule changes take effect immediately.
+- The cache key is `isNewTab|platform` only — **not** the URL. The index is built with a URL-free context, and each entry stores a `urlRuleChain` (its own and every ancestor group's `urlRules`). URL visibility and global hidden settings are applied per query via `filterIndexEntriesByUrl`, so the cache survives page navigation and user visibility changes take effect immediately.
 - A ~30 s TTL is the staleness backstop; browser events are the primary invalidation.
 - The index reads `getAllCommandSettings()` once at build time and stores the result on the `SearchIndex` (`commandSettings`), so the per-query URL filter needs no storage read.
 - The URL-filtered view is memoized: `getVisibleEntries(index, url)` caches the filtered array keyed by index identity + URL, so the full `urlRuleChain` scan runs once per `(index, url)` rather than on every keystroke. A rebuild produces a new index object, which drops the memo implicitly.
@@ -57,6 +57,10 @@ Consequence of the URL-free build: command sources whose `children()` depend on 
 - `sessions.onChanged`
 - `permissions.onAdded/onRemoved`
 - `storage.onChanged` for the `monocle-settings` and `monocle-favoriteCommandIds` keys (this covers settings and favorites mutations without import cycles — both write `chrome.storage.local`, and `storage.onChanged` fires for same-context writes)
+
+Hidden and URL-rule writes also invalidate the index directly from their message
+handlers; the storage listener remains the backstop for external or same-key
+updates.
 
 A `monocle-commandUsage` write does **not** rebuild the index; it only clears the lighter usage-rank cache (below), since usage affects ranking, not membership. `invalidateSearchIndex()` also drops the memoized URL-filtered view. Every listener is existence-guarded (`api.x?.onY?.addListener`) for Firefox.
 

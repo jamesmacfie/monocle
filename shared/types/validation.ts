@@ -98,8 +98,23 @@ export const UpdateCommandSettingMessageSchema = z.discriminatedUnion(
       setting: z.literal("urlRules"),
       value: UrlRulesSettingValueSchema,
     }),
+    CommandSettingBaseSchema.extend({
+      setting: z.literal("hidden"),
+      value: z.boolean(),
+    }),
   ],
 )
+
+export const GetSettingsCatalogMessageSchema = z.object({
+  type: z.literal("get-settings-catalog"),
+  platform: z.enum(["chrome", "firefox"]).optional(),
+})
+
+export const SetCommandFavoriteMessageSchema = z.object({
+  type: z.literal("set-command-favorite"),
+  commandId: z.string().min(1, "Command ID cannot be empty"),
+  favorite: z.boolean(),
+})
 
 export const CheckKeybindingConflictMessageSchema = z.object({
   type: z.literal("check-keybinding-conflict"),
@@ -255,6 +270,8 @@ export const MessageSchema = z.discriminatedUnion("type", [
   ShowToastMessageSchema,
   RequestToastMessageSchema,
   UpdateCommandSettingMessageSchema,
+  GetSettingsCatalogMessageSchema,
+  SetCommandFavoriteMessageSchema,
   CheckKeybindingConflictMessageSchema,
   GetUnsplashBackgroundMessageSchema,
   GetPermissionsMessageSchema,

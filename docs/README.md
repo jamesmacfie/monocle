@@ -45,7 +45,7 @@ If you are adding a command, the fast path is
   and deep search.
 - [execution-and-actions.md](./execution-and-actions.md) — Execution flow,
   plain Enter vs modifier-Enter, action labels, the action menu, and generated
-  actions (favorite / hide-from-domain / custom keybinding).
+  actions (favorite / hide-command / hide-from-domain / custom keybinding).
 - [palette-ui-and-navigation.md](./palette-ui-and-navigation.md) — Shared
   palette component tree, the navigation page stack, inline inputs/forms,
   CMDK↔Redux sync, and overlay vs new-tab differences.
@@ -64,6 +64,8 @@ If you are adding a command, the fast path is
 - [settings.md](./settings.md) — Settings storage shape (`monocle-settings`),
   command settings, merge/prune semantics, the `update-command-setting`
   message, and the Redux mirror.
+- [settings-page.md](./settings-page.md) — Options-page MVP, settings catalog,
+  global hidden commands, and future settings-page direction.
 
 ## Specialized subsystems
 

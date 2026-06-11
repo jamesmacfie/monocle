@@ -5,10 +5,12 @@ palette is opened on. Each command may carry `urlRules` (allow/deny pattern
 lists), and users can persist their own allow/deny rules per command through the
 settings layer. Before suggestions are built, the background filters every
 command source against the current page URL using the matcher in
-`background/utils/urlFilter.ts`. This is the only command-visibility mechanism
-today — it is not yet a plugin system. This document describes the rule shape,
-the exact matching and precedence semantics, where filtering runs, and the
-management surfaces (Hide from Domain, Manage Allow List, Manage Deny List).
+`background/utils/urlFilter.ts`. The same filter also enforces the global
+`CommandSettings.hidden` flag before any URL-rule checks. This is the command
+visibility layer today — it is not yet a plugin system. This document describes
+the rule shape, the exact matching and precedence semantics, where filtering
+runs, and the management surfaces (Hide Command, Hide from Domain, Manage Allow
+List, Manage Deny List).
 
 ## The `UrlRules` shape
 
@@ -94,9 +96,9 @@ These examples are taken from `background/utils/urlFilter.test.ts`.
 There is no special handling for `about:`, `chrome://`, or other non-HTTP
 schemes inside the matcher — they are matched literally by the regex like any
 other URL string. The important guard is upstream: when the current URL is empty
-(`""`), `filterCommandsByUrl` returns **all** commands unfiltered. This is how
-new-tab mode keeps allow-listed commands visible — the new-tab context supplies
-no page URL, so URL filtering is effectively skipped. See
+(`""`), `filterCommandsByUrl` skips URL-rule matching but still removes commands
+with `CommandSettings.hidden === true`. This is how new-tab mode keeps
+allow-listed commands visible while still respecting global hides. See
 [new-tab-and-theme.md](./new-tab-and-theme.md).
 
 ## Precedence: command rules vs user rules
@@ -105,11 +107,14 @@ no page URL, so URL filtering is effectively skipped. See
 command against the current URL and that command's persisted user settings.
 Precedence, highest first:
 
-1. **User deny list** — if the URL matches any user `denyUrls`, hide. (Highest priority; cannot be overridden.)
-2. **User allow list** — if the user has a non-empty `allowUrls`, the command is shown **only** if the URL matches it, and command-defined rules below are ignored.
-3. **Command deny list** — if the URL matches any command `denyUrls`, hide.
-4. **Command allow list** — if the command has a non-empty `allowUrls`, show only if the URL matches it.
-5. **Default** — no rules apply: show.
+1. **Global hidden flag** — if `CommandSettings.hidden === true`, hide before
+   considering the URL or any rules.
+2. **Empty URL guard** — if there is no current URL, show unless hidden.
+3. **User deny list** — if the URL matches any user `denyUrls`, hide. (Highest priority; cannot be overridden.)
+4. **User allow list** — if the user has a non-empty `allowUrls`, the command is shown **only** if the URL matches it, and command-defined rules below are ignored.
+5. **Command deny list** — if the URL matches any command `denyUrls`, hide.
+6. **Command allow list** — if the command has a non-empty `allowUrls`, show only if the URL matches it.
+7. **Default** — no rules apply: show.
 
 Behavioral consequences, all covered by tests in `urlFilter.test.ts`:
 
@@ -126,8 +131,8 @@ Behavioral consequences, all covered by tests in `urlFilter.test.ts`:
 
 `filterCommandsByUrl(commands, currentUrl, allUserSettings)` looks up each
 command's persisted settings by `command.id` from the `allUserSettings` map and
-applies `shouldShowCommand`. If `currentUrl` is empty it short-circuits and
-returns the input unchanged.
+applies `shouldShowCommand`. If `currentUrl` is empty it still filters hidden
+commands, then treats all non-hidden commands as visible.
 
 ## Where filtering is applied
 
@@ -144,10 +149,24 @@ invoked for:
   which filters before converting to suggestions).
 
 Because filtering is centralized here, it also guards favorites, deep-search
-descendants, direct command execution, and keybinding execution — anything that
-resolves through the shared query path. See
+descendants, direct command execution, keybinding registry snapshots, and
+keybinding conflict checks — anything that resolves through the shared query
+path. See
 [search-and-ranking.md](./search-and-ranking.md) and
 [execution-and-actions.md](./execution-and-actions.md).
+
+## Hide Command (generated action)
+
+The suggestion builder in `background/commands/index.ts` attaches a generated
+**Hide Command** action to durable/configurable command rows. Its suggestion id
+is `hide-command-${command.id}` and it carries an `executionContext` of type
+`hideCommand` with the target command id.
+
+When invoked, the `hideCommand` branch writes
+`commands[targetCommandId].hidden = true`, refreshes the keybinding registry,
+and invalidates the search index. There is no generated unhide action because
+hidden rows disappear from the palette; unhide happens through the options
+Commands page.
 
 ## Hide from Domain (generated action)
 
@@ -289,8 +308,9 @@ settings to keep applying across reloads.
   [commands/websites.md](./commands/websites.md).
 - GitHub URL parsing uses a reserved top-level slug list that can require updates
   when GitHub routing changes.
-- Non-HTTP schemes are matched literally; rely on the empty-URL short-circuit
-  (new-tab) rather than scheme-specific handling.
+- Non-HTTP schemes are matched literally; rely on the empty-URL URL-rule
+  shortcut (new-tab) rather than scheme-specific handling. Hidden still applies
+  with an empty URL.
 
 ## Manual test checklist
 
@@ -299,14 +319,17 @@ settings to keep applying across reloads.
 - Use **Hide from Domain** on a visible command; after refresh it should be gone
   on the current domain. Then remove the deny pattern via **Manage Command Deny
   List** and confirm it returns.
+- Use **Hide Command** on a visible durable command; confirm it disappears from
+  root suggestions, search, child pages, and keybindings, then unhide it from
+  Settings.
 - Add an allow list for a command and confirm it appears only on matching URLs.
 - Add both allow and deny rules for the same command and confirm deny wins
   within command rules; add a user allow rule over a command deny and confirm
   the user allow wins; add a user deny over a user allow and confirm deny wins.
 - Test wildcard subdomain patterns (`*://*.github.com/*`) and local patterns
   (`*://localhost:3000/*`, including a non-matching port).
-- Confirm allow-listed commands still appear in new-tab mode (empty URL
-  short-circuit).
+- Confirm allow-listed commands still appear in new-tab mode while globally
+  hidden commands remain hidden.
 - Enter an invalid pattern (e.g. `ftp://example.com/*`) in a manage list and
   confirm the save is rejected with an error.
 
