@@ -362,9 +362,9 @@ const _createResetKeybindingAction = (
 // Helper to create toggle favorite action
 const createFavoriteToggleAction = async (
   command: CommandNode,
-  favoriteCommandIds: string[],
+  favoriteCommandIds: ReadonlySet<string>,
 ): Promise<Suggestion> => {
-  const isFavorite = favoriteCommandIds.includes(command.id)
+  const isFavorite = favoriteCommandIds.has(command.id)
   return {
     id: `toggle-favorite-${command.id}`,
     name: isFavorite ? "Remove from Favorites" : "Add to Favorites",
@@ -452,9 +452,18 @@ export const commandsToSuggestions = async (
   context: Browser.Context,
   _parentName?: string,
   inheritedPermissions: BrowserPermission[] = [],
+  // Callers converting several batches per request (search result groups)
+  // load favorites/settings once and pass them in; everyone else gets the
+  // self-loading default.
+  preloaded?: {
+    favoriteCommandIds: ReadonlySet<string>
+    commandSettings: Record<string, CommandSettings>
+  },
 ): Promise<Suggestion[]> => {
-  const favoriteCommandIds = await getFavoriteCommandIds()
-  const commandSettings = await getAllCommandSettings()
+  const favoriteCommandIds =
+    preloaded?.favoriteCommandIds ?? new Set(await getFavoriteCommandIds())
+  const commandSettings =
+    preloaded?.commandSettings ?? (await getAllCommandSettings())
 
   return await Promise.all(
     commands.map(async (command) => {
@@ -482,7 +491,7 @@ export const commandsToSuggestions = async (
               commandSettings[node.id]?.keybinding || node.keybinding || "",
             ) || undefined
           : undefined,
-        isFavorite: favoriteCommandIds.includes(node.id),
+        isFavorite: favoriteCommandIds.has(node.id),
         permissions: effectivePermissions,
       }
 

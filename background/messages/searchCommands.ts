@@ -5,6 +5,7 @@ import type {
   Suggestion,
 } from "../../shared/types"
 import { commandsToSuggestions } from "../commands"
+import { getFavoriteCommandIds } from "../commands/favorites"
 import { getCommandPageCommands, normalizeContext } from "../commands/query"
 import {
   buildEphemeralIndexEntries,
@@ -14,6 +15,7 @@ import {
   type IndexEntry,
 } from "../commands/searchIndex"
 import { rankEntries } from "../commands/searchScore"
+import { getAllCommandSettings } from "../commands/settings"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import { createMessageHandler } from "../utils/messages"
 
@@ -40,12 +42,22 @@ let lastRootSearch: {
 
 // Converts entries to suggestions while preserving entry order. Entries are
 // grouped by their inherited-permission set so conversion stays batched (one
-// commandsToSuggestions call per distinct permission set, each doing its own
-// settings/favorites reads) instead of one call per entry.
+// commandsToSuggestions call per distinct permission set). Favorites and
+// settings are read once here and threaded into every batch instead of each
+// batch paying its own storage reads.
 const entriesToSuggestions = async (
   entries: IndexEntry[],
   context: Browser.Context,
 ): Promise<Suggestion[]> => {
+  const [favoriteCommandIds, commandSettings] = await Promise.all([
+    getFavoriteCommandIds(),
+    getAllCommandSettings(),
+  ])
+  const preloaded = {
+    favoriteCommandIds: new Set(favoriteCommandIds),
+    commandSettings,
+  }
+
   const groups = new Map<
     string,
     { permissions: IndexEntry["inheritedPermissions"]; indexes: number[] }
@@ -73,6 +85,7 @@ const entriesToSuggestions = async (
         context,
         undefined,
         permissions,
+        preloaded,
       )
 
       suggestions.forEach((suggestion, position) => {

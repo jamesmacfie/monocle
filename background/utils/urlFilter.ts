@@ -167,8 +167,21 @@ export function validateUrlPattern(pattern: string): true | string {
  * - *://example.com/* (matches any protocol)
  * - example.com (exact domain match)
  */
+// patternToRegex is pure (pattern string in, RegExp out), so compiled regexes
+// are cached without invalidation; the size cap is a runaway guard far above
+// any real pattern count. Failures are not cached so error behavior is
+// unchanged. Without this, URL filtering recompiled every pattern for every
+// entry on every search keystroke.
+const regexCache = new Map<string, RegExp>()
+const MAX_REGEX_CACHE = 500
+
 function patternToRegex(pattern: string): RegExp {
   const normalizedPattern = pattern.trim()
+
+  const cached = regexCache.get(normalizedPattern)
+  if (cached) {
+    return cached
+  }
 
   // Escape special regex characters except *
   let regexStr = normalizedPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&")
@@ -189,7 +202,14 @@ function patternToRegex(pattern: string): RegExp {
     regexStr = `${regexStr}(/.*)?`
   }
 
-  return new RegExp(`^${regexStr}$`, "i")
+  const regex = new RegExp(`^${regexStr}$`, "i")
+
+  if (regexCache.size >= MAX_REGEX_CACHE) {
+    regexCache.clear()
+  }
+  regexCache.set(normalizedPattern, regex)
+
+  return regex
 }
 
 /**

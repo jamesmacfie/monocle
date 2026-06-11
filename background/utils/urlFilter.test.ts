@@ -182,3 +182,34 @@ describe("URL rule precedence", () => {
     ).resolves.toEqual([])
   })
 })
+
+describe("pattern regex caching", () => {
+  it("returns consistent results for repeated matches of the same pattern", () => {
+    for (let i = 0; i < 3; i += 1) {
+      expect(
+        matchesUrlPattern("https://github.com/owner/repo", ["*.github.com/*"]),
+      ).toBe(true)
+      expect(
+        matchesUrlPattern("https://example.com/", ["*.github.com/*"]),
+      ).toBe(false)
+    }
+  })
+
+  it("keeps matching correctly past the cache size cap", () => {
+    // 600 distinct patterns exceed the 500-entry cap and exercise the flush
+    // path; matching behavior must be unaffected.
+    for (let i = 0; i < 600; i += 1) {
+      expect(
+        matchesUrlPattern(`https://site-${i}.com/`, [`site-${i}.com`]),
+      ).toBe(true)
+    }
+    expect(
+      matchesUrlPattern("https://github.com/owner", ["*.github.com/*"]),
+    ).toBe(true)
+  })
+
+  it("does not let an empty pattern poison subsequent valid patterns", () => {
+    expect(matchesUrlPattern("https://github.com/x", [""])).toBe(false)
+    expect(matchesUrlPattern("https://github.com/x", ["github.com"])).toBe(true)
+  })
+})
