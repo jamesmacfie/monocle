@@ -49,16 +49,6 @@ const links: LinkItem[] = [
   },
 ]
 
-const formatAuthor = (
-  author: ReturnType<typeof chrome.runtime.getManifest>["author"],
-) => {
-  if (typeof author === "string") {
-    return author
-  }
-
-  return author?.email ?? "James Macfie"
-}
-
 function ExternalLinkRow({ item }: { item: LinkItem }) {
   const Icon = item.icon
 
@@ -117,14 +107,6 @@ export function AboutPage() {
                     Version
                   </div>
                   <div className="mt-1 text-sm">{manifest.version}</div>
-                </div>
-                <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-3">
-                  <div className="text-xs font-medium uppercase text-[var(--color-fg-muted)]">
-                    Author
-                  </div>
-                  <div className="mt-1 text-sm">
-                    {formatAuthor(manifest.author)}
-                  </div>
                 </div>
               </div>
             </div>
