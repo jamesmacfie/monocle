@@ -2,10 +2,15 @@
 
 This folder is the reference documentation for Monocle: how the extension is
 built, how every subsystem behaves, the full command schema, and catalogs of
-every shipped command. The docs describe **verified, current behavior** — each
-doc was written against the source it cites, and anywhere the type model is
-broader than the implementation (workflow automation especially), the doc says
-explicitly what is and is not implemented.
+every shipped command. Unless a file lives under `docs/proposals/`, the docs
+describe **verified, current behavior** — each doc was written against the
+source it cites, and anywhere the type model is broader than the implementation
+(workflow automation especially), the doc says explicitly what is and is not
+implemented.
+
+Proposal docs under `docs/proposals/` are different: they describe future design
+direction and must not be treated as shipped behavior until the relevant feature
+has been implemented and the verified docs below have been updated.
 
 Read [architecture.md](./architecture.md) first if you are new to the codebase.
 If you are adding a command, the fast path is
@@ -76,6 +81,12 @@ If you are adding a command, the fast path is
 - [workflow-automation.md](./workflow-automation.md) — The workflow type model
   vs the implemented executor (`click` + `wait` only), target-tab routing,
   public validation, and the debug command.
+
+## Future proposals
+
+- [proposals/README.md](./proposals/README.md) — Future-design proposals. These
+  are intentionally not current behavior; promote details into the verified docs
+  only after implementation.
 
 ## Publishing
 
