@@ -3,6 +3,7 @@ import { Loader2, SearchX } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useToast } from "../../hooks/useToast"
 import type { Page } from "../../store/slices/navigation.slice"
+import type { Suggestion } from "../../types"
 import {
   collectInputFieldsFromSuggestions,
   validateFormValues,
@@ -65,28 +66,55 @@ export function CommandList({
     }
   })
 
+  // Rows are memoized and must receive identity-stable callbacks — a callback
+  // recreated per keystroke re-renders every row. Refs keep the callbacks
+  // stable while always reading the current page state at call time.
+  const onSelectRef = useRef(onSelect)
+  onSelectRef.current = onSelect
+  const suggestionsRef = useRef(currentPage.commands.suggestions)
+  suggestionsRef.current = currentPage.commands.suggestions
+  const formValuesRef = useRef(currentPage.formValues)
+  formValuesRef.current = currentPage.formValues
+
+  const stableOnSelect = useCallback((id: string) => {
+    onSelectRef.current(id)
+  }, [])
+
+  // Validates the page's inline inputs, then executes the given submit
+  // command. Owned here (not in the row) so rows don't need page-level state.
+  const handleSubmitForm = useCallback(
+    (id: string) => {
+      const fields = collectInputFieldsFromSuggestions(
+        suggestionsRef.current || [],
+      )
+      const result = validateFormValues(formValuesRef.current || {}, fields)
+      if (!result.isValid) {
+        toast("error", "Form is invalid. Check inputs.")
+        return
+      }
+      onSelectRef.current(id)
+    },
+    [toast],
+  )
+
+  // Enter in an inline input submits via the page's first submit command.
   const handleInputSubmit = useCallback(() => {
-    // Validate form inputs before triggering first submit
-    const fields = collectInputFieldsFromSuggestions(
-      currentPage.commands.suggestions || [],
-    )
-    const result = validateFormValues(currentPage.formValues || {}, fields)
-    if (!result.isValid) {
-      toast("error", "Form is invalid. Check inputs.")
-      return
-    }
-    const firstSubmitCommand = currentPage.commands.suggestions?.find(
+    const firstSubmitCommand = (suggestionsRef.current || []).find(
       (cmd) => cmd.type === "submit",
     )
     if (firstSubmitCommand) {
-      onSelect(firstSubmitCommand.id)
+      handleSubmitForm(firstSubmitCommand.id)
     }
-  }, [
-    currentPage.commands.suggestions,
-    currentPage.formValues,
-    onSelect,
-    toast,
-  ])
+  }, [handleSubmitForm])
+
+  const hasParent = Boolean(currentPage.parent)
+  const formValues = currentPage.formValues
+
+  // Input rows get exactly their own stored value; Immer's structural sharing
+  // keeps untouched values reference-stable, so editing one field only
+  // re-renders that field's row.
+  const formValueFor = (item: Suggestion): string | string[] | undefined =>
+    item.type === "input" ? formValues?.[item.inputField.id] : undefined
 
   const showSpinner =
     isLoading || isTyping || currentPage.searchLoading === true
@@ -119,8 +147,10 @@ export function CommandList({
               <CommandItem
                 key={item.id}
                 suggestion={item}
-                onSelect={onSelect}
-                currentPage={currentPage}
+                onSelect={stableOnSelect}
+                hasParent={hasParent}
+                onSubmitForm={handleSubmitForm}
+                formValue={formValueFor(item)}
               />
             ))}
           </Command.Group>
@@ -133,8 +163,10 @@ export function CommandList({
                 <CommandItem
                   key={item.id}
                   suggestion={item}
-                  onSelect={onSelect}
-                  currentPage={currentPage}
+                  onSelect={stableOnSelect}
+                  hasParent={hasParent}
+                  onSubmitForm={handleSubmitForm}
+                  formValue={formValueFor(item)}
                 />
               ))}
             </Command.Group>
@@ -145,8 +177,10 @@ export function CommandList({
                 <CommandItem
                   key={item.id}
                   suggestion={item}
-                  onSelect={onSelect}
-                  currentPage={currentPage}
+                  onSelect={stableOnSelect}
+                  hasParent={hasParent}
+                  onSubmitForm={handleSubmitForm}
+                  formValue={formValueFor(item)}
                   onInputSubmit={handleInputSubmit}
                 />
               ))}

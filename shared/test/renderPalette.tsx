@@ -101,7 +101,7 @@ export const renderPalette = (
   const sendMessage = options.sendMessage ?? createMockSendMessage()
   const store = createAppStore(sendMessage)
   const items = options.items ?? defaultItems()
-  const executeCommand = vi.fn(async () => {})
+  const executeCommand = vi.fn(async (..._args: unknown[]) => {})
   const close = vi.fn()
   const onRefreshCommands = vi.fn(async () => {})
   const user = userEvent.setup()

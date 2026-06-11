@@ -5,7 +5,6 @@ import type { FormField, InputSuggestion } from "../../../../shared/types"
 import { useInlineInputKeys } from "../../../hooks/useInlineInputKeys"
 import { useToast } from "../../../hooks/useToast"
 import { useAppDispatch } from "../../../store/hooks"
-import type { Page } from "../../../store/slices/navigation.slice"
 import { setFormValue } from "../../../store/slices/navigation.slice"
 import { validateWithJsonSchema } from "../../../utils/validation"
 
@@ -13,7 +12,9 @@ type TextListField = Extract<FormField, { type: "text-list" }>
 
 interface CommandItemTextListProps {
   suggestion: InputSuggestion & { inputField: TextListField }
-  currentPage: Page
+  // The stored form value for this field (narrow prop — whole-page objects in
+  // row props defeat the CommandItem memo).
+  storedValue: string | string[] | undefined
   inputRef: RefObject<HTMLInputElement | null>
   onInputSubmit?: () => void
 }
@@ -46,7 +47,7 @@ const normalizeList = (values: readonly string[]): string[] => {
 
 export function CommandItemTextList({
   suggestion,
-  currentPage,
+  storedValue,
   inputRef,
   onInputSubmit,
 }: CommandItemTextListProps) {
@@ -56,7 +57,7 @@ export function CommandItemTextList({
   const toast = useToast()
 
   const listId = suggestion.inputField.id
-  const stored = currentPage.formValues?.[listId]
+  const stored = storedValue
 
   const baseValues = useMemo(() => {
     if (Array.isArray(stored)) {

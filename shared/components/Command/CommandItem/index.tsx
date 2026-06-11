@@ -3,12 +3,7 @@ import { memo, type ReactNode, useEffect, useRef, useState } from "react"
 import { match } from "ts-pattern"
 import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
-import type { Page } from "../../../store/slices/navigation.slice"
 import type { FormField, InputSuggestion, Suggestion } from "../../../types"
-import {
-  collectInputFieldsFromSuggestions,
-  validateFormValues,
-} from "../../../utils/forms"
 import { CommandItemAction } from "./CommandItemAction"
 import { CommandItemColor } from "./CommandItemColor"
 import { CommandItemDisplay } from "./CommandItemDisplay"
@@ -22,10 +17,22 @@ import { CommandItemTextList } from "./CommandItemTextList"
 type TextListField = Extract<FormField, { type: "text-list" }>
 type TextListSuggestion = InputSuggestion & { inputField: TextListField }
 
+// Row contract: primitives and stable callbacks only. The component is
+// memoized and rendered ~40x per page; any per-render object prop (like the
+// whole page) silently defeats the memo and re-renders every row on every
+// keystroke. Page-level data rows need is narrowed to hasParent, the row's
+// own form value, and parent-owned callbacks.
 export interface CommandItemProps {
   suggestion: Suggestion
   onSelect: (id: string) => void
-  currentPage: Page
+  // Whether the current page is a child page (collapses "Parent > Child"
+  // display names to just "Child").
+  hasParent: boolean
+  // Submit rows delegate validation up to CommandList, which owns the page's
+  // form state.
+  onSubmitForm: (id: string) => void
+  // The stored form value for this row's input field (input rows only).
+  formValue?: string | string[]
   onInputSubmit?: () => void // Called when input needs to submit form
 }
 
@@ -36,7 +43,9 @@ interface Props extends CommandItemProps {
 function CommandItemComponent({
   suggestion,
   onSelect,
-  currentPage,
+  hasParent,
+  onSubmitForm,
+  formValue,
   onInputSubmit,
   children,
 }: Props) {
@@ -91,7 +100,7 @@ function CommandItemComponent({
     return (
       <CommandItemTextList
         suggestion={textListSuggestion}
-        currentPage={currentPage}
+        storedValue={formValue}
         inputRef={inputRef}
         onInputSubmit={onInputSubmit}
       />
@@ -132,7 +141,7 @@ function CommandItemComponent({
   const getContextualDisplayName = (name: string | string[]) => {
     // If we're viewing children of a parent and the name is an array (parent > child format),
     // only show the child name (first element) since the parent context is already clear
-    if (currentPage.parent && Array.isArray(name)) {
+    if (hasParent && Array.isArray(name)) {
       return name[0] // Just show the command name, not "parent > child"
     }
     return name // Show as-is for top-level views
@@ -238,21 +247,9 @@ function CommandItemComponent({
               suggestion.type === "submit" ? suggestion.actionLabel : "Submit"
             }
             inputRef={submitRef}
-            onSubmit={() => {
-              // Validate all inline inputs on the current page before submitting
-              const fields = collectInputFieldsFromSuggestions(
-                currentPage.commands.suggestions || [],
-              )
-              const result = validateFormValues(
-                currentPage.formValues || {},
-                fields,
-              )
-              if (!result.isValid) {
-                toast("error", "Form is invalid. Check inputs.")
-                return
-              }
-              onSelect(suggestion.id)
-            }}
+            // Validation lives in CommandList, which owns the page's form
+            // state; the row only reports which submit was pressed.
+            onSubmit={() => onSubmitForm(suggestion.id)}
           />
         ))
         .with("display", () => (
