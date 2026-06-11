@@ -32,7 +32,7 @@ import { checkPermissions } from "../utils/permissions"
 import { isCommandVisibleForUrl } from "../utils/urlFilter"
 import { getFavoriteCommandIds } from "./favorites"
 import { getPlatform } from "./platform"
-import { mergePermissions } from "./query"
+import { getCommandPageCommands, mergePermissions } from "./query"
 import { computeScorableTokens } from "./searchScore"
 import { getAllCommandSettings } from "./settings"
 import { type CommandLoadOptions, loadAllCommands } from "./source"
@@ -646,6 +646,10 @@ export const invalidateSearchIndex = (options?: {
   cachedIndex = null
   inflightBuild = null
   visibleCache = null
+  // Child pages never serve stale: their fetches are cheap relative to a full
+  // index rebuild, and dynamic children (tabs, history) should refresh on the
+  // events that land here.
+  childPageCache.clear()
 }
 
 // Full reset including the stale-while-revalidate snapshot; used by tests to
@@ -746,6 +750,66 @@ export const buildEphemeralIndexEntries = async (
       ),
     ),
   )
+}
+
+type ChildPage = Awaited<ReturnType<typeof getCommandPageCommands>>
+
+type ChildPageCacheEntry = {
+  page: ChildPage
+  entries: IndexEntry[]
+  builtAt: number
+}
+
+// Child-page search refetches the page's children (live chrome API calls for
+// dynamic groups) and re-resolves match text on every keystroke without this
+// cache. The TTL is a typing-burst horizon — deliberately shorter than the
+// index TTL — and the cache inherits the index's freshness contract: every
+// invalidateSearchIndex() clears it. The key includes the URL because page
+// children are URL-filtered at fetch time.
+const CHILD_PAGE_TTL_MS = 15_000
+const MAX_CHILD_PAGE_CACHE = 8
+const childPageCache = new Map<string, ChildPageCacheEntry>()
+
+const getChildPageKey = (
+  context: Browser.Context,
+  parentPath: string[],
+  options?: CommandLoadOptions,
+): string =>
+  `${getContextKey(context, options)}|${context.url ?? ""}|${parentPath.join(" ")}`
+
+export const getChildPageSearchData = async (
+  context: Browser.Context,
+  parentPath: string[],
+  options?: CommandLoadOptions,
+): Promise<{ page: ChildPage; entries: IndexEntry[] }> => {
+  const key = getChildPageKey(context, parentPath, options)
+  const cached = childPageCache.get(key)
+
+  if (cached && Date.now() - cached.builtAt < CHILD_PAGE_TTL_MS) {
+    return { page: cached.page, entries: cached.entries }
+  }
+
+  const page = await getCommandPageCommands(
+    context,
+    parentPath,
+    undefined,
+    options,
+  )
+  const entries = await buildEphemeralIndexEntries(
+    page.commands,
+    context,
+    page.inheritedPermissions,
+  )
+
+  if (childPageCache.size >= MAX_CHILD_PAGE_CACHE) {
+    const oldestKey = childPageCache.keys().next().value
+    if (oldestKey !== undefined) {
+      childPageCache.delete(oldestKey)
+    }
+  }
+  childPageCache.set(key, { page, entries, builtAt: Date.now() })
+
+  return { page, entries }
 }
 
 // Wire browser events that change command sources or visibility. Settings and

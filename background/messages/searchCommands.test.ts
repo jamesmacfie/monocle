@@ -303,3 +303,68 @@ describe("child page search", () => {
     expect(ids).not.toContain("open-tab-2")
   })
 })
+
+describe("child page search caching", () => {
+  const tabQueryCalls = () =>
+    (
+      (globalThis as Record<string, unknown>).chrome as {
+        tabs: { query: { mock: { calls: unknown[] } } }
+      }
+    ).tabs.query.mock.calls.length
+
+  it("reuses the fetched child page across the keystrokes of one search burst", async () => {
+    await search("do", { parentPath: ["open-tabs"] })
+    const callsAfterFirst = tabQueryCalls()
+
+    await search("doc", { parentPath: ["open-tabs"] })
+    await search("docs", { parentPath: ["open-tabs"] })
+
+    expect(tabQueryCalls()).toBe(callsAfterFirst)
+  })
+
+  it("serves the empty child query from the same cached page", async () => {
+    await search("do", { parentPath: ["open-tabs"] })
+    const callsAfterFirst = tabQueryCalls()
+
+    const response = await search("", { parentPath: ["open-tabs"] })
+
+    expect(tabQueryCalls()).toBe(callsAfterFirst)
+    expect(response.results.length).toBeGreaterThan(0)
+  })
+
+  it("refetches after invalidateSearchIndex", async () => {
+    await search("do", { parentPath: ["open-tabs"] })
+    const callsAfterFirst = tabQueryCalls()
+
+    invalidateSearchIndex()
+    await search("doc", { parentPath: ["open-tabs"] })
+
+    expect(tabQueryCalls()).toBeGreaterThan(callsAfterFirst)
+  })
+
+  it("refetches after the cache TTL expires", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-06-07T00:00:00Z"))
+
+    await search("do", { parentPath: ["open-tabs"] })
+    const callsAfterFirst = tabQueryCalls()
+
+    vi.setSystemTime(new Date("2026-06-07T00:00:16Z"))
+    await search("doc", { parentPath: ["open-tabs"] })
+
+    expect(tabQueryCalls()).toBeGreaterThan(callsAfterFirst)
+    vi.useRealTimers()
+  })
+
+  it("keys the cache by page URL so filtered children never leak across pages", async () => {
+    await search("do", { parentPath: ["open-tabs"] })
+    const callsAfterFirst = tabQueryCalls()
+
+    await search("do", {
+      parentPath: ["open-tabs"],
+      context: { ...normalContext, url: "https://other.example.org/" },
+    })
+
+    expect(tabQueryCalls()).toBeGreaterThan(callsAfterFirst)
+  })
+})

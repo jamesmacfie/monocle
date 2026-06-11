@@ -28,7 +28,7 @@ when done.
 | 006 | DOM test baseline + CMDK↔Redux characterization tests | P2 | M | — | DONE (8 tests; found+pinned the 100ms post-navigation keystroke-swallow window) |
 | 007 | Cache the keybinding registry snapshot per context | P1 | M | — | DONE (cache implemented by maintainer at the entries level in `keybindings/source.ts` — TTL + inflight dedup + generation guard + permissions/storage invalidation; plan execution added the continuation-stroke snapshot threading) |
 | 008 | Stop ordinary browsing from destroying the search index | P1 | M | — | DONE (refined during execution: SWR only for browser-data invalidations via `retainStale`; settings/permission invalidations drop the stale snapshot so visibility changes are immediate) |
-| 009 | Cache child-page entries across search keystrokes | P2 | M | 008 | TODO |
+| 009 | Cache child-page entries across search keystrokes | P2 | M | 008 | DONE |
 | 010 | Stop currentPage prop from defeating CommandItem memo | P2 | M | 006 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)

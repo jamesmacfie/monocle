@@ -6,9 +6,9 @@ import type {
 } from "../../shared/types"
 import { commandsToSuggestions } from "../commands"
 import { getFavoriteCommandIds } from "../commands/favorites"
-import { getCommandPageCommands, normalizeContext } from "../commands/query"
+import { normalizeContext } from "../commands/query"
 import {
-  buildEphemeralIndexEntries,
+  getChildPageSearchData,
   getSearchIndex,
   getUsageRankMap,
   getVisibleEntries,
@@ -139,13 +139,14 @@ const handleSearchCommands = async (
         ? lastRootSearch.candidates
         : rootBase
   } else {
-    const page = await getCommandPageCommands(
+    // Cached across the keystrokes of one search burst — children don't
+    // change between the keystrokes of a single query, so the chrome API
+    // fetch + match-text resolution run once per page per TTL, not per
+    // keystroke.
+    const { page, entries } = await getChildPageSearchData(
       context,
-      message.parentPath,
-      undefined,
-      {
-        siteSdk,
-      },
+      message.parentPath ?? [],
+      { siteSdk },
     )
 
     // Empty child query: all children in load order
@@ -159,11 +160,7 @@ const handleSearchCommands = async (
       return { results, seq: message.seq, query: message.query }
     }
 
-    scanSet = await buildEphemeralIndexEntries(
-      page.commands,
-      context,
-      page.inheritedPermissions,
-    )
+    scanSet = entries
   }
 
   const usageRank = await getUsageRankMap()
