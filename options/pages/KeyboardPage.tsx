@@ -326,11 +326,12 @@ export function KeyboardPage() {
         open={templateDialogOpen}
         onOpenChange={setTemplateDialogOpen}
         onApply={async (operations) => {
-          await dispatch(
+          const result = await dispatch(
             setCatalogCommandKeybindings({
               updates: operations,
             }),
           ).unwrap()
+          return { conflicts: result.conflicts }
         }}
       />
     </div>

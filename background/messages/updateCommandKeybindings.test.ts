@@ -45,7 +45,7 @@ describe("update-command-keybindings", () => {
           },
         ],
       }),
-    ).resolves.toEqual({ success: true, updated: 2 })
+    ).resolves.toEqual({ success: true, updated: 2, conflicts: [] })
 
     await expect(getCommandSettings("open-new-tab")).resolves.toEqual({
       keybinding: "t",
@@ -54,5 +54,103 @@ describe("update-command-keybindings", () => {
       keybinding: "r",
     })
     expect(showToast).not.toHaveBeenCalled()
+  })
+
+  it("skips and reports a keybinding already held by another command", async () => {
+    await handleMessage({
+      type: "update-command-keybindings",
+      updates: [{ commandId: "open-new-tab", keybinding: "t" }],
+    })
+
+    const response = await handleMessage({
+      type: "update-command-keybindings",
+      updates: [{ commandId: "reload-current-tab", keybinding: "t" }],
+    })
+
+    expect(response).toEqual({
+      success: true,
+      updated: 0,
+      conflicts: [
+        {
+          commandId: "reload-current-tab",
+          keybinding: "t",
+          conflictingCommand: expect.objectContaining({ id: "open-new-tab" }),
+        },
+      ],
+    })
+    await expect(
+      getCommandSettings("reload-current-tab"),
+    ).resolves.toBeUndefined()
+    await expect(getCommandSettings("open-new-tab")).resolves.toEqual({
+      keybinding: "t",
+    })
+  })
+
+  it("reports intra-batch conflicts; the first claimant wins", async () => {
+    const response = await handleMessage({
+      type: "update-command-keybindings",
+      updates: [
+        { commandId: "open-new-tab", keybinding: "x" },
+        { commandId: "reload-current-tab", keybinding: "x" },
+      ],
+    })
+
+    expect(response).toEqual({
+      success: true,
+      updated: 1,
+      conflicts: [
+        {
+          commandId: "reload-current-tab",
+          keybinding: "x",
+          conflictingCommand: expect.objectContaining({ id: "open-new-tab" }),
+        },
+      ],
+    })
+    await expect(getCommandSettings("open-new-tab")).resolves.toEqual({
+      keybinding: "x",
+    })
+    await expect(
+      getCommandSettings("reload-current-tab"),
+    ).resolves.toBeUndefined()
+  })
+
+  it("does not report a conflict when a command keeps or trades its own key", async () => {
+    await handleMessage({
+      type: "update-command-keybindings",
+      updates: [{ commandId: "open-new-tab", keybinding: "t" }],
+    })
+
+    // open-new-tab moves off "t" in the same batch that hands "t" to
+    // reload-current-tab: no conflict, both persist.
+    const response = await handleMessage({
+      type: "update-command-keybindings",
+      updates: [
+        { commandId: "open-new-tab", keybinding: "y" },
+        { commandId: "reload-current-tab", keybinding: "t" },
+      ],
+    })
+
+    expect(response).toEqual({ success: true, updated: 2, conflicts: [] })
+    await expect(getCommandSettings("open-new-tab")).resolves.toEqual({
+      keybinding: "y",
+    })
+    await expect(getCommandSettings("reload-current-tab")).resolves.toEqual({
+      keybinding: "t",
+    })
+  })
+
+  it("clears keybindings without conflict checks and counts them as updated", async () => {
+    await handleMessage({
+      type: "update-command-keybindings",
+      updates: [{ commandId: "open-new-tab", keybinding: "t" }],
+    })
+
+    const response = await handleMessage({
+      type: "update-command-keybindings",
+      updates: [{ commandId: "open-new-tab", keybinding: null }],
+    })
+
+    expect(response).toEqual({ success: true, updated: 1, conflicts: [] })
+    await expect(getCommandSettings("open-new-tab")).resolves.toBeUndefined()
   })
 })

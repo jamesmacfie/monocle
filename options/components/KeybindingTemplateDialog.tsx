@@ -1,7 +1,10 @@
 import { LayoutTemplate } from "lucide-react"
 import { useMemo, useState } from "react"
 import { KeybindingDisplay } from "../../shared/components/KeybindingDisplay"
-import type { SettingsCatalogCommand } from "../../shared/types"
+import type {
+  SettingsCatalogCommand,
+  UpdateCommandKeybindingsConflict,
+} from "../../shared/types"
 import { cn } from "../lib/cn"
 import {
   getKeybindingTemplate,
@@ -26,7 +29,9 @@ type KeybindingTemplateDialogProps = {
   commands: SettingsCatalogCommand[]
   open: boolean
   onOpenChange: (open: boolean) => void
-  onApply: (operations: TemplateSaveOperation[]) => Promise<void>
+  onApply: (
+    operations: TemplateSaveOperation[],
+  ) => Promise<{ conflicts: UpdateCommandKeybindingsConflict[] }>
 }
 
 const getRowStatusLabel = (
@@ -48,6 +53,9 @@ export function KeybindingTemplateDialog({
   const [overrideCustomKeybindings, setOverrideCustomKeybindings] =
     useState(false)
   const [saving, setSaving] = useState(false)
+  const [conflicts, setConflicts] = useState<
+    UpdateCommandKeybindingsConflict[]
+  >([])
   const selectedTemplate = getKeybindingTemplate(selectedTemplateId)
   const previewRows = useMemo(
     () => getTemplatePreviewRows(selectedTemplateId, commands),
@@ -72,8 +80,14 @@ export function KeybindingTemplateDialog({
   const handleSave = async () => {
     setSaving(true)
     try {
-      await onApply(operations)
-      onOpenChange(false)
+      const result = await onApply(operations)
+      if (result.conflicts.length > 0) {
+        // Keep the dialog open so the user sees which bindings were skipped.
+        setConflicts(result.conflicts)
+      } else {
+        setConflicts([])
+        onOpenChange(false)
+      }
     } finally {
       setSaving(false)
     }
@@ -115,6 +129,7 @@ export function KeybindingTemplateDialog({
                     onClick={() => {
                       setSelectedTemplateId(template.id)
                       setOverrideCustomKeybindings(false)
+                      setConflicts([])
                     }}
                   >
                     <span className="block font-medium">{template.name}</span>
@@ -224,6 +239,28 @@ export function KeybindingTemplateDialog({
             </div>
 
             <div className="border-t border-[var(--color-border)] px-5 py-4">
+              {conflicts.length > 0 && (
+                <div className="mb-4 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-page)] px-4 py-3">
+                  <p className="text-sm font-medium">
+                    {conflicts.length} shortcut
+                    {conflicts.length === 1 ? " was" : "s were"} not applied
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {conflicts.map((conflict) => (
+                      <li
+                        key={`${conflict.commandId}:${conflict.keybinding}`}
+                        className="flex flex-wrap items-center gap-2 text-sm text-[var(--color-fg-muted)]"
+                      >
+                        <KeybindingDisplay keybinding={conflict.keybinding} />
+                        <span>
+                          not applied — already used by{" "}
+                          {conflict.conflictingCommand.name}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <label className="flex items-center gap-3 text-sm">
                 <Checkbox
                   checked={overrideCustomKeybindings}

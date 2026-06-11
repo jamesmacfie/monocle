@@ -115,6 +115,21 @@ export type UpdateCommandKeybindingsMessage = {
   context?: Browser.Context
 }
 
+export type UpdateCommandKeybindingsConflict = {
+  commandId: string
+  keybinding: string
+  conflictingCommand: {
+    id: string
+    name: string
+  }
+}
+
+export type UpdateCommandKeybindingsResponse = {
+  success: boolean
+  updated: number
+  conflicts: UpdateCommandKeybindingsConflict[]
+}
+
 export type GetSettingsCatalogMessage = {
   type: "get-settings-catalog"
   platform?: Browser.Platform

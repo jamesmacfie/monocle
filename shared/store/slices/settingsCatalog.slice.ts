@@ -3,6 +3,8 @@ import type {
   CommandUrlRulesSetting,
   SettingsCatalogCommand,
   SettingsCatalogResponse,
+  UpdateCommandKeybindingsConflict,
+  UpdateCommandKeybindingsResponse,
 } from "../../../shared/types"
 
 type CatalogThunkApi = {
@@ -134,7 +136,10 @@ export const setCatalogCommandKeybinding = createAsyncThunk<
 )
 
 export const setCatalogCommandKeybindings = createAsyncThunk<
-  { updates: Array<{ commandId: string; keybinding?: string }> },
+  {
+    updates: Array<{ commandId: string; keybinding?: string }>
+    conflicts: UpdateCommandKeybindingsConflict[]
+  },
   { updates: Array<{ commandId: string; keybinding?: string | null }> },
   { extra: CatalogThunkApi; rejectValue: string }
 >(
@@ -144,17 +149,25 @@ export const setCatalogCommandKeybindings = createAsyncThunk<
       const response = (await getSendMessage(extra)({
         type: "update-command-keybindings",
         updates,
-      })) as { error?: string }
+      })) as Partial<UpdateCommandKeybindingsResponse> & { error?: string }
 
       if (response?.error) {
         return rejectWithValue(response.error)
       }
 
+      // Conflicting updates were skipped by the background — only report the
+      // ones that actually persisted so the catalog mirror stays truthful.
+      const conflicts = response?.conflicts ?? []
+      const conflictedIds = new Set(conflicts.map((c) => c.commandId))
+
       return {
-        updates: updates.map((update) => ({
-          commandId: update.commandId,
-          keybinding: update.keybinding || undefined,
-        })),
+        updates: updates
+          .filter((update) => !conflictedIds.has(update.commandId))
+          .map((update) => ({
+            commandId: update.commandId,
+            keybinding: update.keybinding || undefined,
+          })),
+        conflicts,
       }
     } catch (error) {
       return rejectWithValue(
@@ -288,8 +301,12 @@ export const settingsCatalogSlice = createSlice({
         }
       })
       .addCase(setCatalogCommandKeybindings.fulfilled, (state, action) => {
-        for (const update of action.payload.updates) {
+        // Conflicted updates are absent from the payload but were still marked
+        // as updating by the pending case — clear the flag for the whole batch.
+        for (const update of action.meta.arg.updates) {
           setUpdating(state, update.commandId, false)
+        }
+        for (const update of action.payload.updates) {
           updateCommand(state, update.commandId, (command) => {
             command.settings.keybinding = update.keybinding
             command.effectiveKeybinding =
