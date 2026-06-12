@@ -90,7 +90,7 @@ Current feature status:
 | URL filtering, website commands, and site SDK | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. `window.Monocle` supports non-privileged session-only site commands. |
 | Workflow automation | Partial | Click workflows and focused wait conditions work; validation/routing/debug feedback have focused tests, and most operations remain unsupported. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
-| Snippets | Working with review notes | Create/insert palette commands, `monocle-snippets` storage, options Snippets page, caret insertion via `monocle-insertText`, and custom shortcuts gated by `keybindingRequirements` (modifier required so bindings fire inside inputs); storage CRUD, message validation, requirement enforcement, catalog rows, and delete-cleanup have focused tests; manual insertion/shortcut smoke is still needed. |
+| Snippets | Working with review notes | Create/insert palette commands, `monocle-snippets` storage, options Snippets page, caret insertion via `monocle-insertText`, custom shortcuts gated by `keybindingRequirements` (modifier required so bindings fire inside inputs), and insert-time placeholders (`{date:FORMAT}` via date-fns, `{i}` persisted counter, `{url}`/`{title}`/`{domain}`/`{path}`/`{uuid}`/`{timestamp}`); storage CRUD, message validation, requirement enforcement, catalog rows, delete-cleanup, and placeholder interpolation have focused tests; manual insertion/shortcut smoke is still needed. |
 
 Last verified validation:
 

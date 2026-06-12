@@ -80,6 +80,24 @@ export const updateSnippet = async (
     return updated
   })
 
+// Bump and persist the {i} counter for a snippet, returning the value to
+// render for this insertion. Unknown ids still render 1 so an insertion
+// never fails over counter bookkeeping.
+export const incrementSnippetCounter = async (id: string): Promise<number> =>
+  withStorageLock(STORAGE_KEY, async () => {
+    const snippets = await loadSnippets()
+    const index = snippets.findIndex((snippet) => snippet.id === id)
+
+    if (index === -1) {
+      return 1
+    }
+
+    const nextValue = (snippets[index].insertCounter ?? 0) + 1
+    snippets[index] = { ...snippets[index], insertCounter: nextValue }
+    await saveSnippets(snippets)
+    return nextValue
+  })
+
 export const deleteSnippet = async (id: string): Promise<boolean> =>
   withStorageLock(STORAGE_KEY, async () => {
     const snippets = await loadSnippets()

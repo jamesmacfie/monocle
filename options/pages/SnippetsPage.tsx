@@ -12,6 +12,7 @@ import {
   updateSnippet,
 } from "../../shared/store/slices/snippets.slice"
 import type { Snippet } from "../../shared/types"
+import { SNIPPET_PLACEHOLDERS_HINT } from "../../shared/utils/snippet-placeholders"
 import {
   Button,
   Dialog,
@@ -249,6 +250,9 @@ export function SnippetsPage() {
               placeholder="Snippet text…"
               onChange={(event) => setBody(event.target.value)}
             />
+            <span className="text-xs text-[var(--color-fg-muted)]">
+              {SNIPPET_PLACEHOLDERS_HINT}
+            </span>
           </label>
 
           <div className="flex justify-end gap-2">

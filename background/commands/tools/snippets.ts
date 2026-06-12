@@ -1,12 +1,21 @@
 import type { CommandNode } from "../../../shared/types/"
 import {
+  interpolateSnippetBody,
+  snippetBodyUsesCounter,
+} from "../../../shared/utils/snippet-placeholders"
+import {
   getActiveTab,
   sendErrorToastToActiveTab,
   sendSuccessToastToActiveTab,
   sendTabMessage,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
-import { addSnippet, getSnippets } from "../snippets"
+import {
+  addSnippet,
+  getSnippet,
+  getSnippets,
+  incrementSnippetCounter,
+} from "../snippets"
 
 // Form for creating a snippet from the palette. Persisted via the
 // background-owned `monocle-snippets` storage module.
@@ -42,7 +51,8 @@ export const createSnippet: CommandNode = {
         id: "body",
         label: "Body",
         type: "textarea",
-        placeholder: "Snippet text…",
+        placeholder:
+          "Snippet text… supports {date:yyyy-MM-dd}, {url}, {title}, {i} and more",
         required: true,
         validation: { type: "string", minLength: 1 },
       },
@@ -122,10 +132,23 @@ export const insertSnippet: CommandNode = {
             return
           }
 
+          // Re-read at execute time: the captured node can be stale against
+          // storage (registry/search-index TTL), and the {i} counter is
+          // persisted there.
+          const current = (await getSnippet(snippet.id)) ?? snippet
+          const counter = snippetBodyUsesCounter(current.body)
+            ? await incrementSnippetCounter(current.id)
+            : undefined
+          const { text } = interpolateSnippetBody(current.body, {
+            url: context?.url,
+            title: context?.title,
+            counter,
+          })
+
           const copyToClipboard = async () => {
             await sendTabMessage(activeTab.id, {
               type: "monocle-copyToClipboard",
-              message: snippet.body,
+              message: text,
             })
           }
 
@@ -140,7 +163,7 @@ export const insertSnippet: CommandNode = {
 
             const response = await sendTabMessage(activeTab.id, {
               type: "monocle-insertText",
-              text: snippet.body,
+              text,
             })
 
             if (!response?.inserted) {

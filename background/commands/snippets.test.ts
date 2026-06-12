@@ -5,6 +5,7 @@ import {
   deleteSnippet,
   getSnippet,
   getSnippets,
+  incrementSnippetCounter,
   updateSnippet,
 } from "./snippets"
 
@@ -56,6 +57,34 @@ describe("snippets storage", () => {
       undefined,
     )
     await expect(deleteSnippet("missing")).resolves.toBe(false)
+  })
+
+  it("increments and persists the {i} counter per snippet", async () => {
+    const snippet = await addSnippet({ name: "Counter", body: "#{i}" })
+
+    await expect(incrementSnippetCounter(snippet.id)).resolves.toBe(1)
+    await expect(incrementSnippetCounter(snippet.id)).resolves.toBe(2)
+    await expect(getSnippet(snippet.id)).resolves.toMatchObject({
+      insertCounter: 2,
+    })
+
+    // Unknown ids render 1 without failing the insertion.
+    await expect(incrementSnippetCounter("missing")).resolves.toBe(1)
+  })
+
+  it("serializes concurrent counter increments", async () => {
+    const snippet = await addSnippet({ name: "Counter", body: "#{i}" })
+
+    const values = await Promise.all([
+      incrementSnippetCounter(snippet.id),
+      incrementSnippetCounter(snippet.id),
+      incrementSnippetCounter(snippet.id),
+    ])
+
+    expect(values.sort()).toEqual([1, 2, 3])
+    await expect(getSnippet(snippet.id)).resolves.toMatchObject({
+      insertCounter: 3,
+    })
   })
 
   it("keeps both snippets when two adds run concurrently", async () => {

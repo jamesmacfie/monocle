@@ -8,4 +8,7 @@ export interface Snippet {
   body: string
   createdAt: number
   updatedAt: number
+  // Last value rendered for the {i} placeholder; bumped per insertion that
+  // uses it. Absent until the first counter use.
+  insertCounter?: number
 }
