@@ -95,6 +95,10 @@ If you are adding a command, the fast path is
   (single-purpose, site SDK, permissions), hard pre-submission blockers, and
   reviewer-notes guidance. Describes external policy as researched in
   June 2026, not code behavior.
+- [marketing-site.md](./marketing-site.md) — Build spec for the one-page
+  marketing site: design direction, visual tokens, full HTML structure, copy
+  deck, and screenshot capture list. Describes a site to be built, not
+  current extension behavior.
 
 ## Command catalogs
 
