@@ -1,0 +1,550 @@
+// Architecture: options/ page layer. The Automations builder: edits one
+// user-script document as form state (editorState.ts), validates the
+// assembled draft on every change with the exact schema the background
+// enforces (shared/types/userScriptValidation.ts), surfaces unknown
+// {{variable}} references as non-blocking warnings, and saves via the
+// userScripts slice thunks — the page renders data and sends messages, it
+// never holds executable command functions. Serves both /automations/new
+// and /automations/:id (wouter hash routes registered in OptionsApp).
+import { ArrowLeft, Play, Plus } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Link, useLocation, useParams } from "wouter"
+import { useAppDispatch, useAppSelector } from "../../../shared/store/hooks"
+import { selectSnippets } from "../../../shared/store/slices/snippets.slice"
+import {
+  addUserScript,
+  clearLastRunResult,
+  runUserScript,
+  selectUserScripts,
+  selectUserScriptsError,
+  selectUserScriptsLastRunResult,
+  selectUserScriptsLoading,
+  selectUserScriptsRunningIds,
+  updateUserScript,
+} from "../../../shared/store/slices/userScripts.slice"
+import type { ColorName, IconName } from "../../../shared/types"
+import { validateUserScriptDraft } from "../../../shared/types/userScriptValidation"
+import {
+  Button,
+  Checkbox,
+  Input,
+  Panel,
+  Select,
+  Textarea,
+} from "../../components/ui"
+import {
+  AUTOMATION_COLOR_OPTIONS,
+  AUTOMATION_ICON_OPTIONS,
+  assembleDraft,
+  collectTemplateWarnings,
+  createDefaultStepRow,
+  createEmptyEditorState,
+  type EditorDraftState,
+  editorStateFromScript,
+  STEP_OP_OPTIONS,
+} from "./editorState"
+import { StepRow } from "./StepRow"
+import { TriggersEditor } from "./TriggersEditor"
+import { VariablesEditor } from "./VariablesEditor"
+
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description?: string
+  children: React.ReactNode
+}) {
+  return (
+    <Panel className="p-4">
+      <h2 className="text-sm font-semibold">{title}</h2>
+      {description && (
+        <p className="mt-1 text-xs text-[var(--color-fg-muted)]">
+          {description}
+        </p>
+      )}
+      <div className="mt-3 grid gap-3">{children}</div>
+    </Panel>
+  )
+}
+
+export function UserScriptEditorPage() {
+  const dispatch = useAppDispatch()
+  const [, navigate] = useLocation()
+  const params = useParams<{ id?: string }>()
+  const scriptId = params.id
+
+  const scripts = useAppSelector(selectUserScripts)
+  const loading = useAppSelector(selectUserScriptsLoading)
+  const sliceError = useAppSelector(selectUserScriptsError)
+  const snippets = useAppSelector(selectSnippets)
+  const runningIds = useAppSelector(selectUserScriptsRunningIds)
+  const lastRunResult = useAppSelector(selectUserScriptsLastRunResult)
+
+  const isNew = !scriptId
+  const script = useMemo(
+    () => scripts.find((entry) => entry.id === scriptId),
+    [scripts, scriptId],
+  )
+
+  const [state, setState] = useState<EditorDraftState | null>(null)
+  const [addOp, setAddOp] = useState("click")
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    dispatch(clearLastRunResult())
+  }, [dispatch])
+
+  useEffect(() => {
+    if (state !== null) {
+      return
+    }
+    if (isNew) {
+      setState(createEmptyEditorState())
+      return
+    }
+    if (script) {
+      setState(editorStateFromScript(script))
+    }
+  }, [isNew, script, state])
+
+  const assembled = useMemo(
+    () => (state ? assembleDraft(state) : null),
+    [state],
+  )
+  const validation = useMemo(
+    () =>
+      assembled?.draft != null
+        ? validateUserScriptDraft(assembled.draft)
+        : null,
+    [assembled],
+  )
+  const validationErrors =
+    validation && !validation.success ? validation.errors : []
+  const warnings = useMemo(
+    () =>
+      validation?.success ? collectTemplateWarnings(validation.script) : [],
+    [validation],
+  )
+
+  const stepErrors = useMemo(() => {
+    const byIndex: Record<number, string[]> = {}
+    for (const issue of validationErrors) {
+      const match = /^steps\.(\d+)(?:\.(.*))?$/.exec(issue.path)
+      if (match) {
+        const index = Number(match[1])
+        const detail = match[2]
+          ? `${match[2]}: ${issue.message}`
+          : issue.message
+        byIndex[index] = [...(byIndex[index] ?? []), detail]
+      }
+    }
+    return byIndex
+  }, [validationErrors])
+
+  const triggerErrors = useMemo(() => {
+    const byIndex: Record<number, string[]> = {}
+    for (const issue of validationErrors) {
+      const match = /^triggers\.(\d+)(?:\.(.*))?$/.exec(issue.path)
+      if (match) {
+        const index = Number(match[1])
+        const detail = match[2]
+          ? `${match[2]}: ${issue.message}`
+          : issue.message
+        byIndex[index] = [...(byIndex[index] ?? []), detail]
+      }
+    }
+    return byIndex
+  }, [validationErrors])
+
+  const generalErrors = useMemo(
+    () =>
+      validationErrors.filter(
+        (issue) => !/^(steps|triggers)\.\d+/.test(issue.path),
+      ),
+    [validationErrors],
+  )
+
+  const canSave =
+    state !== null &&
+    assembled !== null &&
+    assembled.draft !== null &&
+    assembled.issues.length === 0 &&
+    validation?.success === true &&
+    !saving
+
+  const handleSave = async () => {
+    if (!canSave || !validation?.success) {
+      return
+    }
+    setSaving(true)
+    try {
+      const action = isNew
+        ? await dispatch(addUserScript({ script: validation.script }))
+        : await dispatch(
+            updateUserScript({ id: scriptId, script: validation.script }),
+          )
+      if (
+        addUserScript.fulfilled.match(action) ||
+        updateUserScript.fulfilled.match(action)
+      ) {
+        navigate("/automations")
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!isNew && !script) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-4">
+        <Button asChild type="button" variant="ghost">
+          <Link href="/automations">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Automations
+          </Link>
+        </Button>
+        <Panel className="p-8 text-center text-sm text-[var(--color-fg-muted)]">
+          {loading ? "Loading automation…" : "Automation not found."}
+        </Panel>
+      </div>
+    )
+  }
+
+  if (!state || !assembled) {
+    return null
+  }
+
+  const running = scriptId ? runningIds.includes(scriptId) : false
+  const runResult =
+    scriptId && lastRunResult?.id === scriptId ? lastRunResult.result : null
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-4">
+      <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-2">
+          <Button asChild size="icon" type="button" variant="ghost">
+            <Link aria-label="Back to Automations" href="/automations">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-semibold">
+            {isNew ? "New Automation" : "Edit Automation"}
+          </h1>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {!isNew && (
+            <Button
+              disabled={running}
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                if (scriptId) {
+                  void dispatch(runUserScript({ id: scriptId }))
+                }
+              }}
+            >
+              <Play className="h-4 w-4" />
+              {running ? "Running…" : "Test on Active Tab"}
+            </Button>
+          )}
+          <Button disabled={!canSave} type="button" onClick={handleSave}>
+            {saving ? "Saving…" : isNew ? "Create Automation" : "Save Changes"}
+          </Button>
+        </div>
+      </header>
+
+      {sliceError && (
+        <div className="rounded-md border border-[var(--color-error-border)] bg-[var(--color-error-bg)] px-3 py-2 text-sm text-[var(--color-error-fg)]">
+          {sliceError}
+        </div>
+      )}
+
+      {!isNew && (
+        <p className="text-xs text-[var(--color-fg-muted)]">
+          Test runs execute the last saved version against the current active
+          tab. Save your changes first to test them.
+        </p>
+      )}
+
+      {runResult && (
+        <Panel className="p-4">
+          <h2 className="text-sm font-semibold">
+            Test run: {runResult.success ? "succeeded" : "failed"}
+          </h2>
+          <p className="mt-1 text-xs text-[var(--color-fg-muted)]">
+            {runResult.completedSteps} step
+            {runResult.completedSteps === 1 ? "" : "s"} completed
+            {runResult.error ? ` — ${runResult.error}` : ""}
+          </p>
+          {runResult.stepOutcomes && runResult.stepOutcomes.length > 0 && (
+            <ul className="mt-2 grid gap-1 text-xs">
+              {runResult.stepOutcomes.map((outcome, index) => (
+                <li
+                  key={index}
+                  className={
+                    outcome.success
+                      ? "text-[var(--color-fg-muted)]"
+                      : "text-[var(--color-error-fg)]"
+                  }
+                >
+                  {index + 1}. {outcome.op}
+                  {outcome.id ? ` (${outcome.id})` : ""} —{" "}
+                  {outcome.success ? "ok" : (outcome.error ?? "failed")}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
+
+      <Section title="Details">
+        <label className="grid gap-1 text-sm">
+          <span className="text-xs font-medium text-[var(--color-fg-muted)]">
+            Name
+          </span>
+          <Input
+            placeholder="Automation name"
+            value={state.name}
+            onChange={(event) =>
+              setState({ ...state, name: event.target.value })
+            }
+          />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="text-xs font-medium text-[var(--color-fg-muted)]">
+            Description
+          </span>
+          <Textarea
+            placeholder="What does this automation do?"
+            rows={2}
+            value={state.description}
+            onChange={(event) =>
+              setState({ ...state, description: event.target.value })
+            }
+          />
+        </label>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="grid gap-1 text-sm">
+            <span className="text-xs font-medium text-[var(--color-fg-muted)]">
+              Icon
+            </span>
+            <Select
+              value={state.icon}
+              onChange={(event) =>
+                setState({
+                  ...state,
+                  icon: event.target.value as IconName | "",
+                })
+              }
+            >
+              <option value="">None</option>
+              {AUTOMATION_ICON_OPTIONS.map((icon) => (
+                <option key={icon} value={icon}>
+                  {icon}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-xs font-medium text-[var(--color-fg-muted)]">
+              Color
+            </span>
+            <Select
+              value={state.color}
+              onChange={(event) =>
+                setState({
+                  ...state,
+                  color: event.target.value as ColorName | "",
+                })
+              }
+            >
+              <option value="">Default</option>
+              {AUTOMATION_COLOR_OPTIONS.map((color) => (
+                <option key={color} value={color}>
+                  {color}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="flex h-9 items-center gap-2 text-sm">
+            <Checkbox
+              checked={state.enabled}
+              onCheckedChange={(checked) =>
+                setState({ ...state, enabled: checked === true })
+              }
+            />
+            Enabled
+          </label>
+        </div>
+      </Section>
+
+      <Section
+        description="One URL pattern per line, e.g. https://*.example.com/*. An empty allow list means every page. Scope applies to both the palette row and automatic triggers."
+        title="Scope"
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="grid gap-1 text-sm">
+            <span className="text-xs font-medium text-[var(--color-fg-muted)]">
+              Allow patterns
+            </span>
+            <Textarea
+              placeholder={"https://*.example.com/*"}
+              rows={3}
+              value={state.allowText}
+              onChange={(event) =>
+                setState({ ...state, allowText: event.target.value })
+              }
+            />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-xs font-medium text-[var(--color-fg-muted)]">
+              Deny patterns
+            </span>
+            <Textarea
+              placeholder={"https://example.com/admin/*"}
+              rows={3}
+              value={state.denyText}
+              onChange={(event) =>
+                setState({ ...state, denyText: event.target.value })
+              }
+            />
+          </label>
+        </div>
+      </Section>
+
+      <Section
+        description="When the automation runs. At most one of each automatic trigger type; manual triggers appear as palette commands."
+        title="Triggers"
+      >
+        <TriggersEditor
+          errorsByIndex={triggerErrors}
+          rows={state.triggers}
+          onChange={(triggers) => setState({ ...state, triggers })}
+        />
+      </Section>
+
+      <Section
+        description="Reference variables in step fields as {{name}}. Snippet variables resolve the snippet body at run time."
+        title="Variables"
+      >
+        <VariablesEditor
+          rows={state.vars}
+          snippets={snippets}
+          onChange={(vars) => setState({ ...state, vars })}
+        />
+      </Section>
+
+      <Section
+        description="Steps run top to bottom. Branches and loops are edited as JSON."
+        title="Steps"
+      >
+        <div className="grid gap-3">
+          {state.steps.map((row, index) => (
+            <StepRow
+              key={index}
+              errors={stepErrors[index] ?? []}
+              index={index}
+              isFirst={index === 0}
+              isLast={index === state.steps.length - 1}
+              row={row}
+              snippets={snippets}
+              onChange={(next) => {
+                const steps = [...state.steps]
+                steps[index] = next
+                setState({ ...state, steps })
+              }}
+              onDelete={() =>
+                setState({
+                  ...state,
+                  steps: state.steps.filter((_, i) => i !== index),
+                })
+              }
+              onMoveDown={() => {
+                if (index >= state.steps.length - 1) {
+                  return
+                }
+                const steps = [...state.steps]
+                ;[steps[index], steps[index + 1]] = [
+                  steps[index + 1],
+                  steps[index],
+                ]
+                setState({ ...state, steps })
+              }}
+              onMoveUp={() => {
+                if (index === 0) {
+                  return
+                }
+                const steps = [...state.steps]
+                ;[steps[index - 1], steps[index]] = [
+                  steps[index],
+                  steps[index - 1],
+                ]
+                setState({ ...state, steps })
+              }}
+            />
+          ))}
+          <div className="flex items-center gap-2">
+            <Select
+              aria-label="Step type to add"
+              value={addOp}
+              onChange={(event) => setAddOp(event.target.value)}
+            >
+              {STEP_OP_OPTIONS.map((option) => (
+                <option key={option.op} value={option.op}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                setState({
+                  ...state,
+                  steps: [...state.steps, createDefaultStepRow(addOp)],
+                })
+              }
+            >
+              <Plus className="h-4 w-4" />
+              Add Step
+            </Button>
+          </div>
+        </div>
+      </Section>
+
+      {(assembled.issues.length > 0 || generalErrors.length > 0) && (
+        <Panel className="border-[var(--color-error-border)] p-4">
+          <h2 className="text-sm font-semibold text-[var(--color-error-fg)]">
+            Fix before saving
+          </h2>
+          <ul className="mt-2 grid gap-1 text-xs text-[var(--color-error-fg)]">
+            {assembled.issues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+            {generalErrors.map((issue) => (
+              <li key={`${issue.path}:${issue.message}`}>
+                {issue.path ? `${issue.path}: ` : ""}
+                {issue.message}
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      {warnings.length > 0 && (
+        <Panel className="p-4">
+          <h2 className="text-sm font-semibold">Warnings</h2>
+          <ul className="mt-2 grid gap-1 text-xs text-[var(--color-fg-muted)]">
+            {warnings.map((name) => (
+              <li key={name}>
+                {`{{${name}}} is not a declared variable, loop binding, or known namespace — it will expand to an empty string.`}
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+    </div>
+  )
+}

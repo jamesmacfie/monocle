@@ -55,7 +55,7 @@ These must be fixed before either store will accept a submission:
    submitted package on the reviewer's machine. All dependencies must come
    from official package registries during the build.
 4. **Privacy policy.** Under Chrome's definition, reading page content
-   (`content/workflowExecutor.ts`) and capturing keystrokes for keybindings
+   (`content/workflow/`) and capturing keystrokes for keybindings
    (`shared/hooks/useGlobalKeybindings.tsx`) count as "handling user data" —
    even when local-only. A privacy policy URL
    and accurate data-disclosure checkboxes in the dashboard are required;
@@ -167,11 +167,10 @@ canonical example reviewers know). Pre-empt this in reviewer notes — see
 - NTP override must use `chrome_url_overrides` (it does — `wxt.config.ts`).
 - No banned promotional words in the listing: "Free," "Best," "Top," "#1,"
   "Award-winning," etc.
-- Functionality must match the listing exactly. Do not list or imply the
-  unimplemented workflow operations (`shared/types/workflow.ts` declares far
-  more than `content/workflowExecutor.ts` implements — only `click` and
-  `wait` exist). "Claimed features not directly provided" is a rejection
-  category.
+- Functionality must match the listing exactly. The listing's
+  expected-functionality list must mention user-defined automations now that
+  they ship; "claimed features not directly provided" — and undisclosed
+  functionality — are both rejection categories.
 - Fake or mismatched screenshots are a fast rejection; screenshot the real
   packaged build.
 
@@ -250,11 +249,15 @@ single biggest lever for shortening human review.
 
 ## Verified non-issues
 
-- **Workflow automation**: only `click` and `wait` are implemented
-  (`content/workflowExecutor.ts`), triggered solely by explicit command
-  execution routed through `background/workflows/execution.ts`. Both stores
-  host far more aggressive automation tools. Just keep the listing honest
-  about what is implemented.
+- **Workflow automation / user scripts**: the executor (`content/workflow/`)
+  interprets a fixed, bundled step vocabulary routed through
+  `background/workflows/execution.ts`; user-script documents are locally
+  stored configuration validated by `shared/types/userScriptValidation.ts`
+  and interpreted by `background/userScripts/engine.ts`. Nothing is fetched
+  remotely and no code is evaluated. Both stores host far more aggressive
+  automation tools; keep the listing honest ("automations" / "user-defined
+  commands" — avoid "scripting" language) and name these files in reviewer
+  notes. See [user-scripts.md](./user-scripts.md) for the full posture.
 - **Network surface**: exactly two external hosts, both matching declared
   `host_permissions` and CSP — Unsplash backgrounds and DuckDuckGo favicons
   (`background/utils/favicon.ts`). No analytics or telemetry of any kind.

@@ -188,6 +188,7 @@ export const ICON_NAMES = [
   "VolumeX",
   "WandSparkles",
   "Wifi",
+  "Workflow",
   "Wrench",
   "X",
   "XCircle",

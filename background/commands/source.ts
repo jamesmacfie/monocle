@@ -1,8 +1,15 @@
+// Architecture: background command system. Command loading and category
+// registration — the single seam where command sources (browser, tools, UI,
+// websites, site SDK wrappers, user scripts/automations, new-tab, Firefox)
+// are assembled into the platform-filtered command list consumed by
+// query.ts, the search index, the settings catalog, and the keybinding
+// registry. Adding a category means registering it here.
 import type {
   Browser,
   CommandNode,
   SettingsCatalogCategoryId,
 } from "../../shared/types"
+import { userScriptCommands } from "../userScripts/commands"
 import { browserCommands, firefoxCommands } from "./browser"
 import { clearFavoritesCommand } from "./favorites"
 import { newTabCommands } from "./newTab"
@@ -34,6 +41,7 @@ const categories = {
   websites: { id: "websites", label: "Websites" },
   newTab: { id: "new-tab", label: "New Tab" },
   favorites: { id: "favorites", label: "Favorites" },
+  automations: { id: "automations", label: "Automations" },
 } satisfies Record<string, CommandSourceCategory>
 
 const mapCommandsToEntries = (
@@ -59,6 +67,7 @@ export const loadCommandEntries = (
     ...mapCommandsToEntries(toolCommands, categories.tools),
     ...mapCommandsToEntries(uiCommands, categories.ui),
     ...mapCommandsToEntries(websiteCommands, categories.websites),
+    ...mapCommandsToEntries(userScriptCommands, categories.automations),
     ...mapCommandsToEntries([clearFavoritesCommand], categories.favorites),
   ]
 

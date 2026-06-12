@@ -1,3 +1,7 @@
+// Architecture: background message layer. Handler for the public
+// `execute-workflow` message: delegates target-tab resolution and forwarding
+// to background/workflows/execution.ts and never throws across the message
+// boundary (errors become { result: { success: false, error } }).
 import type { ExecuteWorkflowMessage } from "../../shared/types"
 import { executeWorkflowOnTargetTab } from "../workflows/execution"
 

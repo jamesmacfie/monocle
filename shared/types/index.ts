@@ -9,4 +9,9 @@ export * from "./settingsCatalog"
 export * from "./siteSdk"
 export * from "./snippets"
 export * from "./ui"
+export * from "./userScripts"
+export * from "./userScriptValidation"
+// validation re-exports the workflow schemas from ./workflowValidation, so
+// that module is intentionally not star-exported here (it would create
+// duplicate-name conflicts).
 export * from "./validation"

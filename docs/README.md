@@ -78,15 +78,24 @@ If you are adding a command, the fast path is
 - [new-tab-and-theme.md](./new-tab-and-theme.md) — New-tab boot, `isNewTab`
   context, clock, Unsplash background, permission-grant panel, and the
   light/dark/system theme system.
-- [workflow-automation.md](./workflow-automation.md) — The workflow type model
-  vs the implemented executor (`click` + `wait` only), target-tab routing,
-  public validation, and the debug command.
+- [workflow-automation.md](./workflow-automation.md) — The implemented workflow
+  step vocabulary (the content executor in `content/workflow/`), target-tab
+  routing, public validation, the lockstep invariant, and the debug command.
+- [user-scripts.md](./user-scripts.md) — User scripts ("Automations"):
+  declarative user-authored automation documents — schema and caps, triggers
+  (manual, urlMatch, elementAppears, schedules), the engine
+  (interpolation/segments/lowering/control flow), runCommand policy, the
+  options builder, import safety, and store posture.
 
 ## Future proposals
 
 - [proposals/README.md](./proposals/README.md) — Future-design proposals. These
   are intentionally not current behavior; promote details into the verified docs
   only after implementation.
+- [shortkeys.md](./shortkeys.md) — Research: gap analysis against the
+  Shortkeys extension's action catalog — which of its actions Monocle
+  already ships, which are easy wins under the current architecture, and
+  which to skip. Research, not behavior documentation.
 
 ## Publishing
 
@@ -114,6 +123,9 @@ If you are adding a command, the fast path is
 - [commands/websites.md](./commands/websites.md) — Website contextual
   commands: the GitHub prototype (urlRules-scoped repo/PR/issue actions,
   Toggle Star workflow) and how that differs from the page-owned SDK.
+- [commands/automations.md](./commands/automations.md) — The Automations
+  category: the user-scripts group, generated per-script rows, and the
+  Create/Manage commands.
 
 ## Conventions used in these docs
 

@@ -1,3 +1,7 @@
+// Architecture: shared/ type layer. The durable command-catalog row model
+// served to the options page by get-settings-catalog
+// (background/commands/settingsCatalog.ts): command metadata, per-command
+// settings, capabilities, and usage — data only, no executable functions.
 import type { Browser } from "./browser"
 import type {
   BrowserPermission,
@@ -15,6 +19,7 @@ export type SettingsCatalogCategoryId =
   | "websites"
   | "new-tab"
   | "favorites"
+  | "automations"
 
 export type SettingsCatalogCommand = {
   id: string

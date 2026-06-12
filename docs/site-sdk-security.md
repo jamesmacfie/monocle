@@ -227,7 +227,7 @@ dependency supply-chain issue) or if the SDK/bridge surface grows to relay more.
 | 2.5 | `executeWorkflow` trusts caller-supplied `tabId` over the sender's tab | `background/workflows/execution.ts:105-110` | Cross-tab targeting by design. Limited today (only `click`/`wait` implemented); becomes action-injection as the executor grows. |
 | 2.6 | Workflow messages are sent only by `tabId`, not document/frame | `background/workflows/execution.ts:157-161` | Same targeting shape as SDK invokes. A navigation race can send DOM automation to the wrong document in a reused tab. |
 | 2.7 | Content-side workflow listener validates nothing | `shared/hooks/useCommandPaletteStateRedux.tsx` | `_sender` unused; `message.workflow` cast without re-validation. Not page-reachable (pages cannot post to a content script's `runtime.onMessage`), but asymmetric with the background's rigorous sender checks. |
-| 2.8 | Workflow clicks have no occlusion guard | `content/workflowExecutor.ts:378-423` | `isElementVisible` checks geometry/`display`/`visibility` only, then calls `element.click()`. Clickjacking-by-proxy if a workflow runs on a hostile page. |
+| 2.8 | Workflow clicks have no occlusion guard | `content/workflow/interactionOps.ts` (`executeClick`) | `isElementVisible` checks geometry/`display`/`visibility` only, then calls `element.click()`. Clickjacking-by-proxy if a workflow runs on a hostile page. |
 | 2.9 | `requestPermission` / `openPermissionGrantPage` not restricted to extension-page senders | `background/messages/requestPermission.ts`, `background/messages/openPermissionGrantPage.ts` | Legitimate grant flows originate from the new-tab/options UI; prompt-fatigue vector if the isolated world is compromised. |
 
 ## Search privacy boundary

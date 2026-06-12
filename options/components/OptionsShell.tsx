@@ -7,6 +7,7 @@ import {
   Keyboard,
   Settings,
   Star,
+  Workflow,
 } from "lucide-react"
 import type { PropsWithChildren } from "react"
 import { Link, useLocation } from "wouter"
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/favorites", label: "Favorites", icon: Star },
   { href: "/keyboard", label: "Keyboard", icon: Keyboard },
   { href: "/snippets", label: "Snippets", icon: FileText },
+  { href: "/automations", label: "Automations", icon: Workflow },
   { href: "/url-rules", label: "URL Rules", icon: Globe2 },
   { href: "/about", label: "About", icon: Github },
 ]

@@ -171,7 +171,7 @@ describe("site SDK schema validation", () => {
           commands: [
             {
               ...action(),
-              icon: { type: "lucide", name: "Workflow" },
+              icon: { type: "lucide", name: "Anchor" },
             },
           ],
         },

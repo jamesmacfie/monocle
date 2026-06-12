@@ -305,11 +305,10 @@ describe("workflow schema validation", () => {
           version: "1.0",
           steps: [
             {
-              op: "hover",
-              target: {
-                strategy: "css",
-                value: "#target",
-              },
+              // Privileged operations are user-script engine ops, never
+              // content workflow steps.
+              op: "navigate",
+              url: "https://example.com/elsewhere",
             },
           ],
         },

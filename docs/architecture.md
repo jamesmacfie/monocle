@@ -65,6 +65,7 @@ The background owns:
 - **Permissions** — required and optional permission checks and requests. See [permissions.md](./permissions.md).
 - **Keybindings** — canonicalization, registry, and execution. See [keybindings.md](./keybindings.md).
 - **Workflow forwarding** — receives `execute-workflow` and forwards it to the active tab's content script. See [workflow-automation.md](./workflow-automation.md).
+- **User scripts** — declarative automation documents stored under `monocle-userscripts`, validated/interpreted entirely in the background (`background/userScripts/`: storage, engine, trigger engine, alarms, command generation). See [user-scripts.md](./user-scripts.md).
 
 The enforced architectural boundaries:
 
@@ -94,6 +95,7 @@ Slices (`shared/store/slices/`):
 | `commandPalette` | `commandPaletteState.slice.ts` | Overlay visibility (`isOpen`). |
 | `keybinding` | `keybinding.slice.ts` | Keybinding capture state (`isCapturing`, `targetCommandId`, `requirements`). |
 | `snippets` | `snippets.slice.ts` | Saved snippets mirror for the options Snippets page; CRUD thunks over the `get/add/update/delete-snippet` messages. |
+| `userScripts` | `userScripts.slice.ts` | User-script (Automations) mirror for the options builder; CRUD + run thunks over the user-script messages. |
 
 Typed hooks (`useAppDispatch`, `useAppSelector`, `useAppStore`) live in `shared/store/hooks.ts`. `createAppStore` ships a `preloadedState` with sensible defaults (theme `system`, clock shown, all permissions `false`, palette closed). `RootState`, `AppDispatch`, and `AppStore` types are exported from `shared/store/index.ts`.
 
@@ -108,11 +110,15 @@ monocle/
 │   └── options/         # index.html + main.tsx
 ├── background/          # Service worker: commands, messages, keybindings, utils
 │   ├── index.ts         # initializeBackground()
-│   ├── commands/        # command sources, settings, websites prototype
+│   ├── commands/        # command sources, query, execution, suggestions, settings
 │   ├── messages/        # message router and handlers
 │   ├── keybindings/     # registry
+│   ├── userScripts/     # user-script storage, engine, triggers, alarms, commands
+│   ├── workflows/       # workflow target resolution + forwarding
 │   └── utils/           # privileged browser API helpers, contentPalette
-├── content/             # Content overlay rendering and workflow executor
+├── content/             # Content overlay rendering, workflow executor
+│   ├── workflow/        # workflow executor core + op modules
+│   └── userScriptTriggers.ts  # page-side trigger service (pull/report)
 ├── newtab/              # Browser new-tab replacement app
 ├── options/             # Browser options/settings app
 ├── shared/              # Shared React components, hooks, store, types, utils
@@ -132,7 +138,7 @@ The build is driven by WXT (`wxt.config.ts`) with the React module.
 
 - `manifestVersion: 3`, `targetBrowsers: ["chrome", "firefox"]`, `modules: ["@wxt-dev/module-react"]`, `imports: false` (no WXT auto-imports).
 - The `manifest` is generated as a function of `{ browser, command }`:
-  - **Permissions** are browser-specific. Chrome gets `["scripting", "activeTab", "storage"]`; Firefox additionally gets `contextualIdentities`.
+  - **Permissions** are browser-specific. Chrome gets `["scripting", "activeTab", "alarms", "storage"]`; Firefox additionally gets `contextualIdentities`. `alarms` powers scheduled user-script triggers.
   - **Optional permissions** (`bookmarks`, `browsingData`, `cookies`, `downloads`, `history`, `sessions`, `tabs`) are declared once and requested on demand at runtime.
   - **Host permissions** cover external hosts: Unsplash API, DuckDuckGo icons.
   - **CSP** for extension pages is computed by `getExtensionPagesCsp`; the dev `serve` command relaxes `connect-src`/`script-src` to allow `localhost`/`ws` for HMR.
@@ -207,12 +213,19 @@ See [keybindings.md](./keybindings.md).
 
 ### Workflow forwarding
 
-1. A command sends `execute-workflow`.
-2. `executeWorkflow` (`background/messages/executeWorkflow.ts`) delegates to `executeWorkflowOnTargetTab` (`background/workflows/execution.ts`), which validates the workflow and sends it to the target tab as `execute-workflow-content`.
-3. The content script runs `content/workflowExecutor.ts`.
-4. Results return through the message chain.
+1. A command (or the user-script engine, per content segment) sends/forwards a workflow.
+2. `executeWorkflow` (`background/messages/executeWorkflow.ts`) delegates to `executeWorkflowOnTargetTab` (`background/workflows/execution.ts`), which resolves the target tab and sends `execute-workflow-content`.
+3. The content script runs the executor in `content/workflow/`.
+4. Results (including extracted vars) return through the message chain.
 
-Only `click` and `wait` steps are meaningfully implemented and accepted by validation today; the broader workflow type model is future design. See [workflow-automation.md](./workflow-automation.md) for the implemented-vs-modeled breakdown.
+The full step vocabulary (click/wait/fill/select/check/submit/focus/blur/scroll/hover/type/key/getText/removeElement/hideElement/injectCss) is implemented and schema-accepted; privileged operations are user-script engine ops, never workflow steps. See [workflow-automation.md](./workflow-automation.md).
+
+### User scripts
+
+1. A stored document runs via its generated palette command, an armed page trigger (content reports `user-script-trigger-fired`, the background re-validates), or a `chrome.alarms` schedule.
+2. The engine (`background/userScripts/engine.ts`) re-reads the document, interpolates background-side, lowers contiguous content steps to workflows, and executes privileged ops between segments.
+
+See [user-scripts.md](./user-scripts.md).
 
 ## Known issues and manual checks (carried from baseline)
 

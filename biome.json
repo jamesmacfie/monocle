@@ -79,5 +79,23 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "background/userScripts/**",
+        "shared/types/userScripts.ts",
+        "shared/types/userScriptValidation.ts",
+        "shared/utils/user-script-summary.ts",
+        "options/pages/userScripts/**"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noThenProperty": "off"
+          }
+        }
+      }
+    }
+  ]
 }

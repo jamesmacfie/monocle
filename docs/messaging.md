@@ -46,6 +46,13 @@ Every entry below is registered in `handleMessage`. "Direction" is always UI -> 
 | `get-unsplash-background` | UI -> bg | `{ context }` | `UnsplashBackgroundResponse` | `background/messages/getUnsplashBackground.ts`, `getUnsplashBackground` | Fetch a random Unsplash landscape photo for the new-tab background. |
 | `execute-workflow` | UI -> bg | `{ workflow, context, tabId? }` | `{ result: WorkflowResult }` | `background/messages/executeWorkflow.ts`, `executeWorkflow` | Resolve the target tab and forward the workflow to that tab's content script. |
 | `site-sdk-sync` | content -> bg | `{ context, registrations }` | `{ success: true }` or `{ success: false, error }` | `background/messages/siteSdkSync.ts`, `siteSdkSync` | Sync validated page-owned SDK registrations for the sender tab/document/origin. |
+| `get-user-scripts` | UI -> bg | `{}` | `{ scripts: UserScript[] }` | `background/messages/userScripts.ts`, `getUserScripts` | List stored user scripts for the options Automations page. |
+| `add-user-script` | UI -> bg | `{ script: UserScriptDraft }` | `{ script: UserScript }` | `background/messages/userScripts.ts`, `addUserScript` | Persist a new script (draft validated by the shared document schema); invalidates the search index and rebuilds the keybinding registry. |
+| `update-user-script` | UI -> bg | `{ id, script: UserScriptDraft }` | `{ script: UserScript \| null }` | `background/messages/userScripts.ts`, `updateUserScript` | Replace a script's draft fields; `null` when the id is unknown. |
+| `delete-user-script` | UI -> bg | `{ id }` | `{ deleted: boolean }` | `background/messages/userScripts.ts`, `deleteUserScript` | Delete a script and drop its dangling `CommandSettings` (`userscript-<id>`). |
+| `run-user-script` | UI -> bg | `{ id, context?, paramValues? }` | `{ result: UserScriptRunResult }` | `background/messages/userScripts.ts`, `runUserScriptMessage` | Run a script by id through the engine; without `context` (options test runs) the engine targets the active tab. |
+| `get-user-script-triggers` | content -> bg | `{ url }` | `{ triggers: UserScriptPageTriggerSpec[] }` | `background/messages/userScripts.ts`, `getUserScriptTriggers` | The page pulls the armed urlMatch/elementAppears trigger specs whose script urlRules allow its URL. |
+| `user-script-trigger-fired` | content -> bg | `{ scriptId, trigger: { type, url, matchedText? } }` | `{ accepted: boolean, reason? }` | `background/messages/userScripts.ts`, `userScriptTriggerFired` | A page trigger fired; the background re-validates eligibility (sender tab + sender URL authority, armed state) before the engine runs. |
 
 Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMessage`):
 

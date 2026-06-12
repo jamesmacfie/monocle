@@ -1,37 +1,40 @@
 # Workflow Automation
 
-Monocle defines a broad, typed model for browser DOM automation ("workflows") together with a background-to-content execution path, a public message schema, and a content-side executor. The **type model is intentionally far ahead of the implementation**: only `click` steps and a focused set of `wait` conditions are actually executable today, and they are the only steps the public `execute-workflow` schema accepts. Every other modeled operation (navigation, hover, fill, type, select, scroll, copy, clipboard, etc.) is **design-only** and will fail loudly if it ever reaches the runtime. This doc documents the full modeled design so future implementers know the intended shape, while clearly separating what is implemented from what is not.
+Monocle's workflow system is the typed DOM-automation vocabulary executed by the content script, plus the background-to-content execution path and the public message schema. It is the substrate user scripts lower onto (see [user-scripts.md](./user-scripts.md)): a workflow is always a flat list of **content-executable** steps — privileged operations (navigate, open URL, clipboard, run command) are user-script engine operations, never workflow steps.
+
+The system's hardest invariant is **lockstep**: the public `execute-workflow` schema accepts exactly the operations the executor implements, and a new op lands as one unit — type, schema entry, executor case, and tests. Unsupported ops fail loudly (`Unsupported step operation: <op>`), never silently.
 
 ## Status at a glance
 
 | Area | Status |
 | --- | --- |
-| Type model (`shared/types/workflow.ts`) | Complete design sketch (16 step ops modeled) |
-| Public message schema (`shared/types/validation.ts`) | Accepts `click` and `wait` only |
+| Type model (`shared/types/workflow.ts`) | Implemented — every member of the `Step` union executes |
+| Public message schema (`shared/types/workflowValidation.ts`) | Accepts all 17 implemented ops |
 | Execution routing (`background/workflows/execution.ts`) | Implemented (explicit tab / sender / context URL / active tab) |
-| Content executor (`content/workflowExecutor.ts`) | `click` + `wait` implemented; all other ops fail explicitly |
-| Variable interpolation (`{{var}}`) | Not implemented |
-| Privileged background ops (tab navigate, clipboard) | Not implemented |
+| Content executor (`content/workflow/`) | Implemented for the full vocabulary |
+| Variable interpolation (`{{var}}`) | Background-side, in the user-script engine — content receives expanded strings; the executor never templates |
+| Privileged ops (navigate, clipboard, openUrl, runCommand) | User-script engine ops (`background/userScripts/engine.ts`), not workflow steps |
 | Debug tool command | Implemented (`debug-workflow`) |
 
 ## End-to-end execution path
 
 ```
-command.execute() / debug tool
+command.execute() / user-script engine segment / debug tool
   -> executeWorkflowOnTargetTab()        background/workflows/execution.ts
        -> resolveWorkflowTargetTabId()   pick target tab
        -> sendTabMessage(tabId, { type: "execute-workflow-content", workflow, context })
   -> content listener                    shared/hooks/useCommandPaletteStateRedux.tsx
-       -> workflowExecutor.executeWorkflow(workflow)   content/workflowExecutor.ts
+       -> workflowExecutor.executeWorkflow(workflow)   content/workflow/executor.ts
        -> sendResponse({ result })
   -> unwrapWorkflowResult(response)       back in execution.ts
   -> { tabId, result } returned to caller
 ```
 
-There are two entry surfaces in the background:
+Entry surfaces in the background:
 
-- **The public message handler** `background/messages/executeWorkflow.ts` (`executeWorkflow`) handles the `execute-workflow` message. It calls `executeWorkflowOnTargetTab` and wraps any thrown error into `{ result: { success: false, error } }`. Messages reach this handler only after passing the message schema (see [Validation](#validation-public-schema)).
-- **Direct background callers** such as the debug tool (`background/commands/tools/debugWorkflow.ts`) and the GitHub website prototype (`background/commands/websites/github.ts`) call `executeWorkflowOnTargetTab` directly with an in-code `Workflow` object. These bypass the message schema because the workflow never crosses the untrusted UI boundary, but they still hit the same content executor, which independently rejects unsupported ops.
+- **The public message handler** `background/messages/executeWorkflow.ts` handles the `execute-workflow` message. Messages reach it only after passing the schema (see [Validation](#validation-public-schema)).
+- **The user-script engine** (`background/userScripts/engine.ts`) lowers each contiguous content segment of a script to a `Workflow` and calls `executeWorkflowOnTargetTab` directly. It also uses one-step probe workflows (`wait`, `getText`) to answer branch/loop conditions.
+- **Direct background callers** such as the debug tool (`background/commands/tools/debugWorkflow.ts`) and the GitHub website prototype call `executeWorkflowOnTargetTab` with in-code workflows. These bypass the message schema because the workflow never crosses the untrusted UI boundary, but the executor independently rejects unsupported ops.
 
 ### Target tab resolution
 
@@ -39,17 +42,32 @@ There are two entry surfaces in the background:
 
 1. **Explicit `tabId`** if provided (must be a positive integer, else throws `"Invalid workflow target tab id"`).
 2. **Sender tab id** from `sender.tab.id` / `sender.validationContext.senderTab` for content-originated messages.
-3. **Context URL match.** If `context.url` is set, query all tabs and match the first whose `URL.href` equals the context URL (`urlsMatch`). A new-tab context throws `"Cannot execute page workflow from new-tab context"`; no matching tab throws `"No tab found for workflow context URL: ..."`. This is what keeps a workflow pinned to the page it was launched from even if focus changes before execution.
+3. **Context URL match.** If `context.url` is set, query all tabs and match the first whose `URL.href` equals the context URL. A new-tab context throws `"Cannot execute page workflow from new-tab context"`; no matching tab throws. This keeps a workflow pinned to the page it was launched from even if focus changes.
 4. **Active tab fallback** only when no context target exists.
 5. Otherwise throws `"No workflow target tab found"`.
 
-`executeWorkflowOnTargetTab` then sends `execute-workflow-content` to the resolved tab and passes the response through `unwrapWorkflowResult`, which accepts either a raw `WorkflowResult` or a `{ result }` envelope and coerces anything malformed into `{ success: false, error: "Workflow execution returned an invalid result" }`.
+`executeWorkflowOnTargetTab` then sends `execute-workflow-content` to the resolved tab and passes the response through `unwrapWorkflowResult`, which coerces anything malformed into `{ success: false, error: "Workflow execution returned an invalid result" }`.
 
 ### Content listener
 
-The content script registers the `execute-workflow-content` listener in `shared/hooks/useCommandPaletteStateRedux.tsx`. It deliberately keeps the listener synchronous and responds via the `sendResponse` callback (returning a Promise from the listener is treated as the response by some runtimes). It logs only the workflow name and step count, not the full spec, then calls `workflowExecutor.executeWorkflow` and replies with `{ result }`.
+The content script registers the `execute-workflow-content` listener in `shared/hooks/useCommandPaletteStateRedux.tsx`. It keeps the listener synchronous and responds via `sendResponse` (returning a Promise from the listener is treated as the response by some runtimes). It logs only the workflow name and step count, never the full spec.
 
-## The workflow type model (design)
+## The executor module (`content/workflow/`)
+
+The executor was split from a single file into focused modules:
+
+| File | Role |
+| --- | --- |
+| `content/workflow/executor.ts` | `WorkflowExecutor` core: step loop, retry/timeout policy, op dispatch, result + var aggregation |
+| `content/workflow/dom.ts` | Selector resolution (css/text), visibility checks, targeting, environment-tolerant event helpers, native value setter |
+| `content/workflow/interactionOps.ts` | `click`, `hover`, `focus`, `blur`, `scroll` |
+| `content/workflow/formOps.ts` | `fill`, `type`, `key`, `select`, `check`/`uncheck`, `submit` |
+| `content/workflow/domOps.ts` | `getText`, `removeElement`, `hideElement`, `injectCss` |
+| `content/workflow/waitOps.ts` | `wait` |
+| `content/workflow/index.ts` | Public surface (`workflowExecutor` singleton) |
+| `content/workflow/testDom.ts` | Shared linkedom fixture (tests only) |
+
+## The workflow type model
 
 Defined in `shared/types/workflow.ts`. A `Workflow` is:
 
@@ -57,23 +75,21 @@ Defined in `shared/types/workflow.ts`. A `Workflow` is:
 type Workflow = {
   version: "1.0"
   name?: string
-  vars?: Record<string, string | number | boolean | null> // {{var}} expansion — NOT implemented
+  vars?: Record<string, string | number | boolean | null> // pre-expanded; seeds the var bag
   steps: Step[]
 }
 ```
 
 ### Common step fields (`BaseStep`)
 
-Every step shares these fields. All are honored by the executor today except where noted.
-
 | Field | Type | Behavior |
 | --- | --- | --- |
-| `op` | `string` | Discriminant. Only `click` and `wait` execute. |
+| `op` | `string` | Discriminant. |
 | `id` | `string?` | Reported back in `StepResult.stepId`. |
 | `description` | `string?` | Informational only. |
-| `timeoutMs` | `number?` | Per-step timeout. See [Retry and timeout](#retry-and-timeout). |
-| `retry` | `RetryPolicy?` | `{ retries, delayMs?, backoff? }`. See [Retry and timeout](#retry-and-timeout). |
-| `targeting` | `TargetingOpts?` | `{ scrollIntoView?, ensureVisible? }`, both default `true`. Applied before clicks. |
+| `timeoutMs` | `number?` | Per-step timeout (wait steps own their timeout internally). |
+| `retry` | `RetryPolicy?` | `{ retries, delayMs?, backoff? }`. |
+| `targeting` | `TargetingOpts?` | `{ scrollIntoView?, ensureVisible? }`, both default `true`. |
 
 ### Selectors
 
@@ -83,176 +99,91 @@ type Selector =
   | { strategy: "text"; value: string; exact?: boolean; within?: Selector; index?: number }
 ```
 
-Both selector strategies are implemented (see [Element lookup](#element-lookup)).
+CSS lookups use `querySelectorAll` (invalid selectors throw — fail loudly); text lookups walk text nodes, match exact or substring on trimmed content, return the parent element, and support `within` scoping and `index` picking. Hidden text is excluded unless the caller opts in (non-`visible` wait states do).
 
-### Modeled steps
+### Implemented step vocabulary
 
-The table below lists every modeled `op`. Only `click` and `wait` are implemented; the rest are design-only and the executor returns `Unsupported step operation: <op>` for them (and the public schema rejects them at the boundary).
-
-| `op` | Purpose | Key fields | Implemented? |
+| `op` | Purpose | Key fields | Notes |
 | --- | --- | --- | --- |
-| `navigate` | Navigate the tab (via background) | `url` | No — design only |
-| `wait` | Wait for a condition | `for` (see below) | **Yes** |
-| `click` | Click an element | `target`, `button?`, `clickCount?`, `delayMs?`, `modifiers?` | **Yes** |
-| `hover` | Hover an element | `target` | No |
-| `focus` | Focus an element | `target` | No |
-| `blur` | Blur an element | `target` | No |
-| `fill` | Set an input value | `target`, `text`, `clear?`, `fire?` | No |
-| `type` | Type keys into an element | `target`, `keys`, `delayMs?` | No |
-| `key` | Send a key combo to `activeElement` | `keys`, `delayMs?` | No |
-| `select` | Choose an option | `target`, `by`, `fireChange?` | No |
-| `check` | Check a checkbox | `target` | No |
-| `uncheck` | Uncheck a checkbox | `target` | No |
-| `submit` | Submit a form | `target` | No |
-| `scroll` | Scroll window/element | `target?`, `to`, `behavior?` | No |
-| `copy` | Read DOM into a var | `from`, `attr?`, `toVar` | No |
-| `clipboard.write` | Write text to clipboard | `text`, `viaBackground?` | No |
+| `click` | Click an element | `target`, `button?`, `clickCount?`, `delayMs?`, `modifiers?` | Native `click()` for plain left-clicks; full synthetic pointer/mouse sequence when options are set |
+| `wait` | Wait for a condition | `for`: `{timeMs}` / `{selector, state?}` / `{urlIncludes}` / `{readyState}` | Polls every 50ms; default timeout 5s |
+| `hover` | Hover an element | `target` | pointerover/mouseover/mouseenter/pointermove/mousemove |
+| `focus` / `blur` | Focus management | `target` | |
+| `fill` | Set an input value | `target`, `text`, `clear?`, `fire?` | Prototype value setter (framework-compatible); `clear: "none"` appends, others replace; fires input/change per `fire` flags. Non-editable targets fail loudly |
+| `type` | Synthetic keystrokes | `target`, `keys`, `delayMs?` | Named keys (Enter, Backspace, …) vs literal text per entry; lower fidelity than fill by design |
+| `key` | Key combo to the active element | `keys`, `delayMs?` | Modifier names accumulate onto the final key |
+| `select` | Choose a `<select>` option | `target`, `by: {value?\|label?\|index?}`, `fireChange?` | Fails when no option matches |
+| `check` / `uncheck` | Set checkbox state | `target` | Idempotent: clicks only when the state must change |
+| `submit` | Submit a form | `target` | Non-form targets submit their closest enclosing form; prefers `requestSubmit()` |
+| `scroll` | Scroll window/element | `target?`, `to`, `behavior?` | `to`: top/bottom/center/`{x,y}`/`{intoView}` |
+| `getText` | Read text/attribute into a var | `from`, `attr?`, `toVar` | `attr` defaults to textContent; `"value"` reads the live value; values are never logged |
+| `removeElement` | Remove element(s) | `target`, `all?` | Destructive; pages may re-render removed nodes |
+| `hideElement` | Hide element(s) via injected style | `target`, `all?`, `scopeKey?` | Marker attribute + `display: none !important` rule under `<style data-monocle-style="scopeKey">`; reversible by removing that style element |
+| `injectCss` | Inject scoped CSS | `css`, `scopeKey?` | Appends into the same scoped style element |
 
-A `BgMessage` model (`{ type: "tabs.navigate" }` / `{ type: "clipboard.write" }`) for privileged background operations is also defined but **not wired up**.
+`scopeKey` is stamped by the user-script engine (`userscript-<id>`) so one script's page edits stay grouped.
 
 ### Results
 
 ```ts
-type WorkflowResult = { success: boolean; error?: string; stepResults?: StepResult[] }
+type WorkflowResult = {
+  success: boolean
+  error?: string
+  stepResults?: StepResult[]
+  vars?: Record<string, string> // final var values incl. getText extractions
+}
 type StepResult = { stepId?: string; success: boolean; error?: string; duration?: number }
 ```
 
-The executor runs steps in order and returns on the first failure. On failure the top-level `error` is `"Step <op> failed: <error>"`, and `stepResults` contains one entry per attempted step (each with a measured `duration` in ms).
+The executor runs steps in order and returns on the first failure (`"Step <op> failed: <error>"`). `vars` is returned on success **and** failure so partial extractions remain visible — the user-script engine threads them into later segments and conditions.
 
 ## Validation (public schema)
 
-`shared/types/validation.ts` defines the Zod schemas for the `execute-workflow` message. They intentionally validate **only the executable subset**:
+`shared/types/workflowValidation.ts` defines the Zod schemas (re-exported from `shared/types/validation.ts`). `WorkflowStepSchema` is a strict discriminated union over exactly the 17 implemented ops; unknown ops and unknown fields are rejected at the message boundary. `injectCss` bodies are capped at 10k chars; selectors must be non-empty; `select.by` must name a value, label, or index.
 
-- `WorkflowStepSchema` is a discriminated union of **`ClickStepSchema` and `WaitStepSchema` only**. Any other `op` fails validation, so a `hover`/`fill`/`navigate` step never reaches the executor through the public message path.
-- All step schemas use `.strict()`, so unknown fields are rejected.
-- `ClickStepSchema`: `target` (selector), optional `button` (`left|middle|right`), `clickCount` (`1|2`), `delayMs` (non-negative int), `modifiers` (`Alt|Control|Meta|Shift`).
-- `WaitForSchema` is a union of the four implemented conditions: `{ timeMs }`, `{ selector, state? }`, `{ urlIncludes }`, `{ readyState }`.
-- `SelectorSchema` is recursive (via `z.lazy`) so `within` selectors are validated; CSS and text values must be non-empty.
-- `RetryPolicySchema` requires a non-negative `retries`, optional non-negative `delayMs`, optional `backoff` (`none|exponential`).
-- `ExecuteWorkflowMessageSchema` also carries `context` (browser context) and an optional positive-integer `tabId`.
+Messages also pass the security wrapper in `background/utils/validation.ts` (rate limiting, 1MB total / 10k-char-per-string size limits) before schema validation.
 
-Messages also pass through the security wrapper in `background/utils/validation.ts` (rate limiting, 1MB total / 10k-char-per-string size limits) before schema validation, but that file has no workflow-specific business rules — the workflow shape is enforced entirely by the Zod schemas above.
+## Retry and timeout
 
-A malformed click step or an unsupported op rejected by the schema causes the message handler to throw `Invalid message: ...`; it never executes.
+- **Retry** (`executeStepWithPolicy`): attempts a step `(retry.retries ?? 0) + 1` times. Between failures it sleeps `delayMs` (default 0), doubled per prior attempt when `backoff === "exponential"`.
+- **Timeout** (`executeStepWithTimeout`): non-`wait` steps with `timeoutMs` race a timer resolving to `{ success: false, error: "Timed out after <ms>ms" }`. `wait` steps manage their own timeout internally.
+- A thrown error inside a step is caught and converted to a step failure; an unhandled throw at the workflow level returns `{ success: false, error, stepResults, vars }` with partial results.
 
-## Implemented executor capabilities
+## The lockstep invariant, restated
 
-All in `content/workflowExecutor.ts` (class `WorkflowExecutor`, singleton export `workflowExecutor`).
+1. The public validation schema accepts **only** ops the executor implements.
+2. A new op lands as one unit: type, schema entry, executor case, tests.
+3. Unsupported ops fail loudly, never silently succeed.
 
-### Element lookup
-
-`findElement(selector, options?)` dispatches on `strategy`:
-
-- **CSS** (`findElementByCSS`): runs `document.querySelectorAll(value)` and returns the element at `index` (default `0`), or `null`. An invalid CSS selector throws `Invalid CSS selector "...": <reason>` (surfaced as a step failure).
-- **Text** (`findElementByText`): walks text nodes with a `TreeWalker` (`NodeFilter.SHOW_TEXT`). For each text node, trims `textContent` and matches by `exact` equality (when `exact: true`) or `String.includes` (substring, the default). Returns the matching node's `parentElement` at `index` (default `0`).
-  - **Scoped text** (`within`): when `within` is set, the within-selector is resolved first and used as the tree-walk root. If the `within` element is not found, the text lookup returns `null`.
-  - **Hidden text:** by default only visible parents are collected; the executor passes `includeHiddenText` when checking non-`visible` wait states so `hidden`/`detached`/`attached` waits can see hidden matches.
-- An unknown selector `strategy` throws `Unsupported selector strategy: <strategy>`.
-
-### Visibility checks
-
-`isElementVisible(element)` returns `false` if the element is not connected, has a zero-width or zero-height bounding rect, or has computed `display: none` / `visibility: hidden`. Used both for element-lookup filtering and for `ensureVisible` targeting.
-
-### Targeting (scroll into view + visibility gate)
-
-`applyTargeting(element, targeting)` runs before a click:
-
-- `ensureVisible` (default `true`): throws `"Element is not visible"` if `isElementVisible` is false — this is how hidden click targets fail loudly.
-- `scrollIntoView` (default `true`): calls `element.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" })` then sleeps 100ms to let the scroll settle.
-
-### Click execution
-
-`executeClick` finds the target (failing with `Could not find element for selector: ...` if absent), applies targeting, then clicks. `clickElement` chooses one of two paths:
-
-- **Plain native click:** if no click options are set, calls `HTMLElement.click()` directly.
-- **Synthetic event sequence:** if any of `button`, `clickCount`, `delayMs`, or `modifiers` is set (`requiresSyntheticClick`), `dispatchClickSequence` fires a realistic ordered sequence so the configured options are observable:
-  - `pointerover` → `mouseover` → `mousemove`
-  - for each click (`clickCount`, default 1): `pointerdown` → `mousedown` → (sleep `delayMs` if set) → `pointerup` → `mouseup` → `click`; plus `contextmenu` when `button === "right"`
-  - a trailing `dblclick` when `clickCount === 2`
-
-`dispatchMouseEvent` sets `clientX`/`clientY` to the element's rect center, maps `button` (`left`→0, `middle`→1, `right`→2), sets `buttons` on down events, and sets `altKey`/`ctrlKey`/`metaKey`/`shiftKey` from `modifiers`. Tested click semantics (middle/right/modifier/double-click details and `delayMs` ordering) live in `content/workflowExecutor.test.ts`.
-
-### Wait conditions
-
-`executeWait` handles four condition shapes:
-
-| Condition | Behavior |
-| --- | --- |
-| `{ timeMs }` | Simple `sleep(timeMs)` and succeeds. If `timeoutMs < timeMs`, it sleeps `timeoutMs` then fails with a timeout error. |
-| `{ selector, state? }` | Polls `matchesSelectorState`. `state` defaults to `visible`. |
-| `{ urlIncludes }` | Polls `window.location.href.includes(urlIncludes)`. |
-| `{ readyState }` | Polls until `document.readyState` is at or past the requested state (ordered `loading < interactive < complete`). |
-
-`matchesSelectorState` interprets `state`:
-
-| `state` | Satisfied when |
-| --- | --- |
-| `attached` | element found (visibility ignored) |
-| `visible` (default) | element found **and** visible |
-| `hidden` | element found **and** not visible |
-| `detached` | element not found |
-
-Non-`timeMs` waits poll every `WAIT_POLL_INTERVAL_MS` (50ms) until satisfied or until `timeoutMs` (default `DEFAULT_WAIT_TIMEOUT_MS` = 5000ms). On timeout they fail with `Timed out waiting for <description>` (e.g. `visible selector {...}`, `URL to include "..."`, `document readyState complete`).
-
-### Retry and timeout
-
-- **Retry** (`executeStepWithPolicy`): attempts a step `(retry.retries ?? 0) + 1` times, stopping at the first success. Between failed attempts it sleeps `getRetryDelay`: `delayMs` (default 0), doubled per prior attempt when `backoff === "exponential"`.
-- **Timeout** (`executeStepWithTimeout`): for non-`wait` steps with a `timeoutMs`, races the step against a timer that resolves to `{ success: false, error: "Timed out after <ms>ms" }`. **`wait` steps bypass this race** and manage their own timeout internally (so the table above's timeout numbers apply).
-- A thrown error inside a step is caught and converted to `{ success: false, error }`; an unhandled throw at the workflow level returns `{ success: false, error, stepResults }` with whatever partial results were collected.
-
-## Unsupported operations — must fail loudly
-
-The following modeled operations are **not implemented**. The executor's `executeStep` switch handles only `click` and `wait`; everything else hits the `default` branch and returns `{ success: false, error: "Unsupported step operation: <op>" }`. The public schema additionally rejects them before they reach the content script.
-
-- Navigation (`navigate`)
-- Pointer/focus events other than click: `hover`, `focus`, `blur`
-- Input mutation: `fill`, `type`, `key` (key combos), `select`, `check`, `uncheck`, `submit`
-- `scroll` operations (note: scroll-*into-view* exists only as part of click targeting, not as a `scroll` step)
-- Data extraction / clipboard: `copy`, `clipboard.write`
-- Variable interpolation (`{{var}}` expansion of `vars`)
-- Privileged background operations (`tabs.navigate`, background `clipboard.write`)
-
-**Rule for implementers:** an unsupported or unrecognized step must always surface as an explicit failure, never a silent success. The current code upholds this both at the schema boundary and in the executor's `default` branch (verified by the "fails unsupported modeled operations explicitly" test). Preserve that invariant when adding new ops — add the schema entry, the executor case, and tests together.
+User scripts add a corollary, tested in `background/userScripts/lowering.test.ts`: every content-classified user-script step must lower to a step `WorkflowStepSchema` accepts — a script that validates can never reach an executor case that fails as unsupported.
 
 ## Debug tool command
 
-`background/commands/tools/debugWorkflow.ts` exports the `debug-workflow` action command ("Debug Workflow - Click Submit Button"). It exists to exercise the whole path against a real page. On execute it:
-
-1. Resolves the target tab via `resolveWorkflowTargetTabId({ context })`.
-2. Sends `toggle-ui` to the tab to close the palette, then waits 200ms.
-3. Runs an in-code workflow with a single `click` step targeting the first element whose text contains `Submit` (`{ strategy: "text", value: "Submit", exact: false, index: 0 }`) with `scrollIntoView` and `ensureVisible` enabled.
-4. On success, sends a `monocle-toast` (level `success`) to the tab: "Debug workflow clicked the first Submit target".
-5. On failure (including a workflow result with `success: false`), shows an error toast — a tab-scoped `monocle-toast` when a tab id is known, otherwise a background `show-toast`. The message includes the workflow error string.
-
-Success and missing-target failure toasts are covered in `background/commands/tools/debugWorkflow.test.ts`.
+`background/commands/tools/debugWorkflow.ts` exports the `debug-workflow` action ("Debug Workflow - Click Submit Button") to exercise the whole path against a real page: resolves the tab, closes the palette, clicks the first `Submit` text target, and toasts the outcome. User scripts deny it as a `runCommand` target.
 
 ## Manual test checklist
 
-Automated tests use a `linkedom` DOM and stubbed events; real selector and event behavior still needs manual checks. Use `test-inputs.html` (the fixture page at the repo root, which has text inputs, forms, and buttons) as a target:
+Automated tests use a `linkedom` DOM (`content/workflow/executor.test.ts`, `content/workflow/ops.test.ts`); real selector/event behavior still needs manual checks against `test-inputs.html`:
 
-- Load the extension, open `test-inputs.html`, open the palette, and run **Debug Workflow**.
-- Confirm the palette closes before the workflow runs.
-- Confirm the first `Submit` text target is clicked, or a clear error toast appears when no match exists.
-- CSS target: confirm the first matching element (or `index` Nth) is clicked.
-- Text target: confirm both exact and substring matching.
-- Scoped text: confirm `within` restricts the search root.
-- Hidden target with `ensureVisible: true`: confirm it fails with "Element is not visible".
-- Below-the-fold target: confirm `scrollIntoView` runs before the click.
-- Unsupported op (e.g. `hover`): confirm it fails explicitly, never silently succeeds.
-- `wait` conditions: exercise `visible`, `hidden`, `detached`, `urlIncludes`, `readyState`, and a timeout failure.
+- Run **Debug Workflow**; confirm the palette closes first and the Submit target is clicked (or a clear error toast appears).
+- `fill` on a React-controlled input: confirm the framework sees the value (input/change fire).
+- `select`, `check`/`uncheck`, `submit` on the fixture form.
+- `getText` into a var, surfaced via a user-script toast.
+- `hideElement` / `injectCss`: confirm the scoped `<style data-monocle-style>` element appears and removal restores the page.
+- Hidden target with `ensureVisible: true`: fails with "Element is not visible".
+- `wait` conditions: `visible`, `hidden`, `detached`, `urlIncludes`, `readyState`, and a timeout failure.
+- An op not in the schema (e.g. a hand-crafted `navigate` step): confirm explicit rejection.
 
 ## Known issues and review notes
 
-- The type model is far ahead of the executor. This is acceptable as a design sketch only because the public runtime schema exposes just the implemented subset; do not imply the broader model works.
-- Third-party DOM workflows (e.g. the GitHub prototype in `background/commands/websites/github.ts`) are best-effort and depend on fragile selectors. Retry/timeout do not make brittle selectors reliable.
-- Keep user-authored workflows treated as potentially sensitive; logging deliberately avoids dumping full specs.
-- A small fixture-page harness (which `test-inputs.html` partly supports) would add high value because selector and event behavior can be exercised without real third-party sites.
+- `fill` fidelity on exotic editors: some custom editors reject programmatic value setting even with the prototype-setter trick; `type` exists as the lower-fidelity fallback.
+- `removeElement` on re-rendering pages silently "fails" when the framework re-renders the node; `hideElement` + `injectCss` is the durable approach.
+- Third-party DOM workflows (the GitHub prototype) are best-effort; retry/timeout do not make brittle selectors reliable.
+- Workflows are treated as potentially sensitive; logging deliberately avoids dumping full specs or extracted values.
 
 ## Related docs
 
+- [User scripts](./user-scripts.md) — the declarative automation layer that lowers onto workflows.
 - [Architecture](./architecture.md) — runtime modes, boundaries, and the background/content split.
-- [Messaging](./messaging.md) — the full `execute-workflow` / `execute-workflow-content` message protocol.
-- [Command schema](./command-schema.md) and [Command types](./command-types.md) — how the debug command and website commands are defined.
-- [URL filtering](./url-filtering.md) — `urlRules` used by website commands that trigger workflows.
-- [Commands: websites](./commands/websites.md) — the GitHub contextual command prototype that uses the executor.
+- [Messaging](./messaging.md) — the `execute-workflow` / `execute-workflow-content` protocol.
 - [Commands: tools](./commands/tools.md) — where the `debug-workflow` command is cataloged.

@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react"
-import { workflowExecutor } from "../../content/workflowExecutor"
+import { workflowExecutor } from "../../content/workflow"
 import { useAppDispatch, useAppSelector } from "../store/hooks"
 import {
   hideUI,

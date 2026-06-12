@@ -65,16 +65,21 @@ Use the feature docs as the source of truth before editing related code:
   semantics, and the Redux mirror.
 - `docs/settings-page.md`: options-page MVP, command catalog, global hidden
   commands, and future settings-page direction.
-- `docs/workflow-automation.md`: workflow type model, background-to-content
-  execution path, implemented click behavior, and unsupported operations.
+- `docs/workflow-automation.md`: the implemented workflow step vocabulary
+  (the content executor in `content/workflow/`), background-to-content
+  execution path, public validation, and the lockstep invariant.
+- `docs/user-scripts.md`: user scripts ("Automations") — document schema and
+  caps, triggers, the engine (interpolation/segments/lowering/control flow),
+  runCommand policy, options builder, import safety, and store posture.
 - `docs/new-tab-and-theme.md`: new-tab override, new-tab-only commands,
   background image behavior, clock settings, and theme application.
 - `docs/store-submission.md`: Chrome Web Store / Firefox AMO submission
   processes, Monocle-specific rejection risks, hard pre-submission blockers,
   and reviewer-notes guidance (external policy research, June 2026).
 - `docs/commands/`: per-category command catalogs: `browser.md`, `tools.md`,
-  `ui.md`, `new-tab.md`, and `websites.md` (the GitHub prototype and the
-  in-progress website command direction).
+  `ui.md`, `new-tab.md`, `automations.md` (user-script rows), and
+  `websites.md` (the GitHub prototype and the in-progress website command
+  direction).
 
 ## Current Baseline
 
@@ -88,7 +93,8 @@ Current feature status:
 | Keybindings | Working with review notes | Canonicalization, context-aware registry coverage, custom conflicts, and scoped sequence state have focused tests; manual browser smoke is still needed. |
 | Permissions and settings | Working with review notes | Optional permission requests, command-setting compatibility, global hidden command behavior, settings catalog, update validation, and URL-rule management have focused tests; manual Chrome/Firefox permission prompts and options-page smoke still need checks. |
 | URL filtering, website commands, and site SDK | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. `window.Monocle` supports non-privileged session-only site commands. |
-| Workflow automation | Partial | Click workflows and focused wait conditions work; validation/routing/debug feedback have focused tests, and most operations remain unsupported. |
+| Workflow automation | Working with review notes | The full step vocabulary (click/wait/fill/type/key/select/check/uncheck/submit/focus/blur/scroll/hover/getText/removeElement/hideElement/injectCss) is implemented in `content/workflow/`, schema-accepted, and covered by linkedom tests; privileged ops are user-script engine ops. Manual fixture-page smoke is still needed. |
+| User scripts (Automations) | Working with review notes | Declarative automation documents: schema + caps validation, `monocle-userscripts` storage, background engine (interpolation, segmentation, lowering, branch/forEach/while, runCommand policy), manual/urlMatch/elementAppears/interval/schedule/onStartup triggers, generated palette commands, and the options builder with validated import/export. Storage, validation, lowering, conditions, policy, command generation, engine, and trigger-engine behavior have focused tests; manual browser smoke (triggers, schedules, builder) is still needed. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
 | Snippets | Working with review notes | Create/insert palette commands, `monocle-snippets` storage, options Snippets page, caret insertion via `monocle-insertText`, custom shortcuts gated by `keybindingRequirements` (modifier required so bindings fire inside inputs), and insert-time placeholders (`{date:FORMAT}` via date-fns, `{i}` persisted counter, `{url}`/`{title}`/`{domain}`/`{path}`/`{uuid}`/`{timestamp}`); storage CRUD, message validation, requirement enforcement, catalog rows, delete-cleanup, and placeholder interpolation have focused tests; manual insertion/shortcut smoke is still needed. |
 
@@ -98,7 +104,9 @@ Last verified validation:
 - `pnpm run fmt:check` passes.
 - `pnpm test` passes with focused command-system, palette-search
   (index/scoring/search-commands/slice staleness), browser-command, keybinding,
-  URL-filtering, settings-management, snippet-storage, workflow automation,
+  URL-filtering, settings-management, snippet-storage, workflow-executor
+  (full op vocabulary), user-script (storage/validation/lowering/conditions/
+  policy/commands/engine/trigger-engine), template-interpolation,
   new-tab/theme/background, and GitHub parsing coverage.
 - `pnpm run build` passes for the Chrome MV3 target.
 - `pnpm run build:firefox` passes for the Firefox MV3 target.
@@ -110,8 +118,10 @@ Always use `pnpm`, not `npm` or `yarn`.
 ```text
 monocle/
 ├── entrypoints/         # WXT background, content, and new-tab entrypoints
-├── background/          # Service worker, commands, messages, keybindings
-├── content/             # Content-script overlay and workflow executor
+├── background/          # Service worker, commands, messages, keybindings,
+│                        #   userScripts (storage/engine/triggers/alarms)
+├── content/             # Content-script overlay, workflow executor
+│                        #   (content/workflow/), user-script trigger service
 ├── newtab/              # Browser new-tab replacement
 ├── options/             # Browser options/settings page
 ├── shared/              # Shared React components, hooks, store, types, utils
@@ -180,14 +190,26 @@ Keybindings:
 
 Workflow automation:
 
-1. A command sends `execute-workflow`.
-2. Background forwards the workflow to the active tab as
+1. A command (or the user-script engine, per content segment) sends a workflow.
+2. Background forwards it to the resolved target tab as
    `execute-workflow-content`.
-3. The content script runs `content/workflowExecutor.ts`.
-4. Results return through the message chain.
+3. The content script runs the executor in `content/workflow/`.
+4. Results (including `getText` var extractions) return through the chain.
 
-Only click workflows are meaningfully implemented today. Do not imply that the
-full workflow type model is supported.
+The full content step vocabulary is implemented and schema-accepted; privileged
+operations (navigate/openUrl/clipboard/runCommand) are user-script engine ops,
+never workflow steps.
+
+User scripts (Automations):
+
+1. A stored document runs from its generated palette command
+   (`userscript-<uuid>`), an armed page trigger (content reports
+   `user-script-trigger-fired`; the background re-validates), or a
+   `chrome.alarms` schedule.
+2. `background/userScripts/engine.ts` re-reads the document by id,
+   interpolates background-side, lowers contiguous content steps onto
+   workflows, runs privileged ops between segments, and enforces the runtime
+   limits (concurrency, cooldowns, loop caps, runCommand policy).
 
 ## Command System Contract
 
@@ -311,7 +333,7 @@ Canonical keybindings use angle-bracket format:
 
 Executable nodes can declare `keybindingRequirements` (e.g.
 `requireNonShiftModifier` for commands whose shortcuts must fire while an
-editable element is focused — snippets opt in). Requirements are enforced at
+editable element is focused — snippets and typing user scripts opt in). Requirements are enforced at
 assignment time in both capture UIs and on persist
 (`shared/utils/keybinding-requirements.ts`); see `docs/keybindings.md`.
 
@@ -330,42 +352,44 @@ Known risk: registry and conflict coverage is not uniform across every command
 source. Browser, tool, Firefox, and deep-search commands are covered more
 explicitly than UI, new-tab, and website commands.
 
-## Workflow Automation Contract
+## Workflow And User Script Contract
 
-The workflow types are intentionally broader than the current executor.
+The workflow vocabulary (`shared/types/workflow.ts`) contains ONLY
+content-executable operations, and every member is implemented in
+`content/workflow/` and accepted by the public schema
+(`shared/types/workflowValidation.ts`). The lockstep invariant is binding: a
+new op lands as one unit — type, schema entry, executor case, tests — and
+unsupported ops fail loudly, never silently.
 
-Implemented in `content/workflowExecutor.ts`:
+User scripts (`docs/user-scripts.md`) layer on top:
 
-- CSS selector lookup.
-- Text selector lookup.
-- Scoped text lookup.
-- Basic visibility checks.
-- Scroll into view.
-- Click execution.
-- Modifier flags for fallback click events.
-- Wait conditions for `timeMs`, selector attached/visible/hidden/detached,
-  `urlIncludes`, and document `readyState`.
-- Per-step retry and timeout handling for supported content-side steps.
-
-Not implemented or incomplete:
-
-- Navigation.
-- Hover, focus, blur, fill, type, key combo, select, check, uncheck, submit,
-  scroll, copy, and clipboard write.
-- Variable interpolation.
-- Background privileged operations such as tab navigation and clipboard write.
-
-Public workflow message validation currently accepts only implemented `click`
-and `wait` steps. Treat the broader workflow type model as future design until
-each operation is implemented and tested.
+- Documents are data, never code: validated by the shared Zod schema
+  (`shared/types/userScriptValidation.ts`) at save, import, the message
+  boundary, and re-checked structurally by the engine at run time.
+- Content steps reuse the workflow vocabulary verbatim and lower 1:1
+  (`background/userScripts/lowering.ts` is the single mapping site, tested
+  against the public schema). Privileged ops (navigate, openUrl,
+  clipboardWrite, runCommand, insertSnippet, toast) and control flow run in
+  the engine between content segments.
+- Interpolation is background-side (`{{var}}` templates + snippet
+  placeholders); the content executor never learns templating, and selector
+  values are never interpolatable.
+- `runCommand` is policy-gated (`background/userScripts/runCommandPolicy.ts`):
+  no confirm-gated commands, no recursion, no debug tools; non-manual runs are
+  restricted to a static allowlist.
+- Imported documents arrive with non-manual triggers disarmed and are saved
+  only after the user reviews the generated summary.
+- There is deliberately no arbitrary-JS step; do not add one (store policy —
+  see `docs/user-scripts.md`).
 
 ## Known Architectural Risks
 
 These are the easy traps to avoid:
 
-- `background/commands/index.ts` is already overloaded with loading,
-  filtering, ranking, action generation, execution dispatch, and settings
-  effects. Avoid adding more unrelated responsibilities there.
+- `background/commands/index.ts` is now a thin barrel over focused modules
+  (`source.ts`, `query.ts`, `execution.ts`, `suggestions.ts`, ...). Keep it
+  logic-free; add new responsibilities to the right module (or a new one),
+  never back to the root.
 - `allCommands` is context-free, so global management surfaces can miss
   context-only command sources such as new-tab commands.
 - Permission-protected dynamic groups should preserve clear permission UI paths
@@ -415,7 +439,8 @@ suite, but manual browser checks are still required for extension API behavior.
   conflict detection, and execution.
 - If you touch URL rules, test allow, deny, wildcard, domain-generated patterns,
   root filtering, and child filtering.
-- If you touch workflow automation, add or use fixture-page checks. Do not
-  silently treat unsupported workflow steps as successful.
+- If you touch workflow automation or user scripts, keep the lockstep
+  invariant (schema + executor + tests land together), add or use
+  fixture-page checks, and never treat unsupported steps as successful.
 - Do not remove or overwrite unrelated untracked work. The untracked `.codex/`
   and `background/commands/websites/` paths are intentional in-progress work.

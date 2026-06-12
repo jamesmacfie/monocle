@@ -1,3 +1,9 @@
+// Architecture: background layer. Workflow forwarding: resolves which tab a
+// workflow runs on (explicit tabId > sender tab > context-URL match > active
+// tab) and round-trips the `execute-workflow-content` tab message to the
+// content executor (content/workflow/). Used by the execute-workflow message
+// handler, the user-script engine (per content segment and condition probe),
+// and direct background callers like the debug tool.
 import type { Browser } from "../../shared/types"
 import type { Workflow, WorkflowResult } from "../../shared/types/workflow"
 import { getActiveTab, queryTabs, sendTabMessage } from "../utils/browser"

@@ -1,7 +1,15 @@
-// Runtime validation schemas for message types
+// Architecture: shared/ validation layer. Zod schemas for every message
+// crossing the UI -> background boundary, composed into the MessageSchema
+// union consumed by background/utils/validation.ts. Workflow step schemas
+// live in shared/types/workflowValidation.ts and user-script schemas in
+// shared/types/userScriptValidation.ts; both are re-exported here so message
+// handlers and tests keep one import surface.
 import { z } from "zod"
 import { SiteSdkRegistrationsSchema } from "./siteSdk"
-import type { Selector } from "./workflow"
+import { UserScriptDraftSchema } from "./userScriptValidation"
+import { WorkflowSchema } from "./workflowValidation"
+
+export { WorkflowSchema, WorkflowStepSchema } from "./workflowValidation"
 
 // Browser context validation schema
 export const BrowserContextSchema = z.object({
@@ -192,110 +200,6 @@ export const OpenPermissionGrantPageMessageSchema = z.object({
   permission: z.string().min(1, "Permission name cannot be empty"),
 })
 
-// Workflow schemas. This intentionally validates only the currently executable
-// content-side subset; broader workflow types remain future design until their
-// runtime behavior is implemented.
-const NonNegativeIntegerSchema = z.number().int().nonnegative()
-
-const RetryPolicySchema = z
-  .object({
-    retries: NonNegativeIntegerSchema,
-    delayMs: NonNegativeIntegerSchema.optional(),
-    backoff: z.enum(["none", "exponential"]).optional(),
-  })
-  .strict()
-
-const TargetingOptsSchema = z
-  .object({
-    scrollIntoView: z.boolean().optional(),
-    ensureVisible: z.boolean().optional(),
-  })
-  .strict()
-
-const BaseWorkflowStepSchema = z.object({
-  id: z.string().optional(),
-  description: z.string().optional(),
-  timeoutMs: NonNegativeIntegerSchema.optional(),
-  retry: RetryPolicySchema.optional(),
-  targeting: TargetingOptsSchema.optional(),
-})
-
-const SelectorSchema: z.ZodType<Selector> = z.lazy(() =>
-  z.discriminatedUnion("strategy", [
-    z
-      .object({
-        strategy: z.literal("css"),
-        value: z.string().min(1, "CSS selector cannot be empty"),
-        index: NonNegativeIntegerSchema.optional(),
-      })
-      .strict(),
-    z
-      .object({
-        strategy: z.literal("text"),
-        value: z.string().min(1, "Text selector cannot be empty"),
-        exact: z.boolean().optional(),
-        within: SelectorSchema.optional(),
-        index: NonNegativeIntegerSchema.optional(),
-      })
-      .strict(),
-  ]),
-)
-
-const ClickStepSchema = BaseWorkflowStepSchema.extend({
-  op: z.literal("click"),
-  target: SelectorSchema,
-  button: z.enum(["left", "middle", "right"]).optional(),
-  clickCount: z.union([z.literal(1), z.literal(2)]).optional(),
-  delayMs: NonNegativeIntegerSchema.optional(),
-  modifiers: z.array(z.enum(["Alt", "Control", "Meta", "Shift"])).optional(),
-}).strict()
-
-const WaitForSchema = z.union([
-  z
-    .object({
-      timeMs: NonNegativeIntegerSchema,
-    })
-    .strict(),
-  z
-    .object({
-      selector: SelectorSchema,
-      state: z.enum(["attached", "visible", "hidden", "detached"]).optional(),
-    })
-    .strict(),
-  z
-    .object({
-      urlIncludes: z.string().min(1, "URL wait text cannot be empty"),
-    })
-    .strict(),
-  z
-    .object({
-      readyState: z.enum(["loading", "interactive", "complete"]),
-    })
-    .strict(),
-])
-
-const WaitStepSchema = BaseWorkflowStepSchema.extend({
-  op: z.literal("wait"),
-  for: WaitForSchema,
-}).strict()
-
-export const WorkflowStepSchema = z.discriminatedUnion("op", [
-  ClickStepSchema,
-  WaitStepSchema,
-])
-
-export const WorkflowSchema = z.object({
-  version: z.literal("1.0"),
-  name: z.string().optional(),
-  vars: z
-    .record(
-      z.string(),
-      z.union([z.string(), z.number(), z.boolean(), z.null()]),
-    )
-    .optional(),
-  steps: z.array(WorkflowStepSchema),
-})
-
 export const ExecuteWorkflowMessageSchema = z.object({
   type: z.literal("execute-workflow"),
   workflow: WorkflowSchema,
@@ -307,6 +211,58 @@ export const SiteSdkSyncMessageSchema = z.object({
   type: z.literal("site-sdk-sync"),
   context: BrowserContextSchema,
   registrations: SiteSdkRegistrationsSchema,
+})
+
+// User script messages. Drafts are validated with the full shared document
+// schema (shared/types/userScriptValidation.ts) at this boundary — the
+// options builder validates with the identical schema before sending.
+export const GetUserScriptsMessageSchema = z.object({
+  type: z.literal("get-user-scripts"),
+})
+
+export const AddUserScriptMessageSchema = z.object({
+  type: z.literal("add-user-script"),
+  script: UserScriptDraftSchema,
+})
+
+export const UpdateUserScriptMessageSchema = z.object({
+  type: z.literal("update-user-script"),
+  id: z.string().min(1, "User script ID cannot be empty"),
+  script: UserScriptDraftSchema,
+})
+
+export const DeleteUserScriptMessageSchema = z.object({
+  type: z.literal("delete-user-script"),
+  id: z.string().min(1, "User script ID cannot be empty"),
+})
+
+export const RunUserScriptMessageSchema = z.object({
+  type: z.literal("run-user-script"),
+  id: z.string().min(1, "User script ID cannot be empty"),
+  // Optional: options-page test runs have no page context; the engine then
+  // targets the active tab.
+  context: BrowserContextSchema.optional(),
+  paramValues: z.record(z.string(), z.string()).optional(),
+})
+
+// Content -> background: the page reports its URL and receives the armed
+// non-manual trigger specs whose script urlRules allow that URL.
+export const GetUserScriptTriggersMessageSchema = z.object({
+  type: z.literal("get-user-script-triggers"),
+  url: z.string().min(1, "URL cannot be empty"),
+})
+
+// Content -> background: a page-side trigger (urlMatch/elementAppears)
+// fired. The background re-validates eligibility, cooldowns, and the
+// concurrent-run limit before executing anything.
+export const UserScriptTriggerFiredMessageSchema = z.object({
+  type: z.literal("user-script-trigger-fired"),
+  scriptId: z.string().min(1, "User script ID cannot be empty"),
+  trigger: z.object({
+    type: z.enum(["urlMatch", "elementAppears"]),
+    url: z.string().min(1, "URL cannot be empty"),
+    matchedText: z.string().max(500).optional(),
+  }),
 })
 
 // Union schema for all message types
@@ -334,6 +290,13 @@ export const MessageSchema = z.discriminatedUnion("type", [
   OpenPermissionGrantPageMessageSchema,
   ExecuteWorkflowMessageSchema,
   SiteSdkSyncMessageSchema,
+  GetUserScriptsMessageSchema,
+  AddUserScriptMessageSchema,
+  UpdateUserScriptMessageSchema,
+  DeleteUserScriptMessageSchema,
+  RunUserScriptMessageSchema,
+  GetUserScriptTriggersMessageSchema,
+  UserScriptTriggerFiredMessageSchema,
 ])
 
 // Validation result types

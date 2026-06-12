@@ -12,6 +12,7 @@ import {
 } from "../shared/store/slices/settings.slice"
 import { loadSettingsCatalog } from "../shared/store/slices/settingsCatalog.slice"
 import { loadSnippets } from "../shared/store/slices/snippets.slice"
+import { loadUserScripts } from "../shared/store/slices/userScripts.slice"
 import { getBrowserAPI } from "../shared/utils/extension-api"
 import {
   applyThemeToDocument,
@@ -27,6 +28,8 @@ import { KeyboardPage } from "./pages/KeyboardPage"
 import { NewTabPage } from "./pages/NewTabPage"
 import { SnippetsPage } from "./pages/SnippetsPage"
 import { UrlRulesPage } from "./pages/UrlRulesPage"
+import { UserScriptsPage } from "./pages/UserScriptsPage"
+import { UserScriptEditorPage } from "./pages/userScripts/UserScriptEditorPage"
 
 const browserAPI = getBrowserAPI()
 
@@ -37,6 +40,8 @@ function OptionsAppContent() {
   useEffect(() => {
     dispatch(loadSettings())
     dispatch(loadSettingsCatalog())
+    dispatch(loadSnippets())
+    dispatch(loadUserScripts())
   }, [dispatch])
 
   useEffect(() => {
@@ -74,6 +79,11 @@ function OptionsAppContent() {
       if ("monocle-snippets" in changes) {
         dispatch(loadSnippets())
       }
+
+      // Reflect automations created/edited elsewhere.
+      if ("monocle-userscripts" in changes) {
+        dispatch(loadUserScripts())
+      }
     }
 
     browserAPI.storage?.onChanged?.addListener(handleStorageChange)
@@ -92,6 +102,9 @@ function OptionsAppContent() {
           <Route path="/favorites" component={FavoritesPage} />
           <Route path="/keyboard" component={KeyboardPage} />
           <Route path="/snippets" component={SnippetsPage} />
+          <Route path="/automations" component={UserScriptsPage} />
+          <Route path="/automations/new" component={UserScriptEditorPage} />
+          <Route path="/automations/:id" component={UserScriptEditorPage} />
           <Route path="/url-rules" component={UrlRulesPage} />
           <Route path="/about" component={AboutPage} />
           <Route>

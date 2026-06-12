@@ -1,4 +1,8 @@
-// Background/content script communication types
+// Architecture: shared/ type layer. Background/content/options message
+// contract — every UI -> background request and response shape. The runtime
+// validation twins of these types live in shared/types/validation.ts; the
+// router is background/messages/index.ts. docs/messaging.md is the full
+// catalog.
 import type { Browser } from "./browser"
 import type { KeybindingRequirementViolation } from "./commands"
 import type { CommandUrlRulesSetting } from "./settings"
@@ -6,6 +10,12 @@ import type { SettingsCatalogResponse } from "./settingsCatalog"
 import type { SiteSdkRegistration } from "./siteSdk"
 import type { Snippet } from "./snippets"
 import type { Suggestion } from "./ui"
+import type {
+  UserScript,
+  UserScriptPageTriggerSpec,
+  UserScriptRunResult,
+} from "./userScripts"
+import type { UserScriptDraft } from "./userScriptValidation"
 import type { Workflow, WorkflowResult } from "./workflow"
 
 export type CommandExecutionScope = {
@@ -277,6 +287,83 @@ export type SiteSdkSyncMessage = {
   registrations: SiteSdkRegistration[]
 }
 
+// User script messages (handled in background/messages/userScripts.ts).
+
+export type GetUserScriptsMessage = {
+  type: "get-user-scripts"
+}
+
+export type GetUserScriptsResponse = {
+  scripts: UserScript[]
+}
+
+export type AddUserScriptMessage = {
+  type: "add-user-script"
+  script: UserScriptDraft
+}
+
+export type AddUserScriptResponse = {
+  script: UserScript
+}
+
+export type UpdateUserScriptMessage = {
+  type: "update-user-script"
+  id: string
+  script: UserScriptDraft
+}
+
+export type UpdateUserScriptResponse = {
+  script: UserScript | null
+}
+
+export type DeleteUserScriptMessage = {
+  type: "delete-user-script"
+  id: string
+}
+
+export type DeleteUserScriptResponse = {
+  deleted: boolean
+}
+
+export type RunUserScriptMessage = {
+  type: "run-user-script"
+  id: string
+  // Absent for options-page test runs; the engine targets the active tab.
+  context?: Browser.Context
+  paramValues?: Record<string, string>
+}
+
+export type RunUserScriptResponse = {
+  result: UserScriptRunResult
+}
+
+// Content -> background trigger plumbing (see
+// background/userScripts/triggerEngine.ts and content/userScriptTriggers.ts).
+
+export type GetUserScriptTriggersMessage = {
+  type: "get-user-script-triggers"
+  url: string
+}
+
+export type GetUserScriptTriggersResponse = {
+  triggers: UserScriptPageTriggerSpec[]
+}
+
+export type UserScriptTriggerFiredMessage = {
+  type: "user-script-trigger-fired"
+  scriptId: string
+  trigger: {
+    type: "urlMatch" | "elementAppears"
+    url: string
+    matchedText?: string
+  }
+}
+
+export type UserScriptTriggerFiredResponse = {
+  accepted: boolean
+  reason?: string
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
@@ -301,6 +388,13 @@ export type Message =
   | OpenPermissionGrantPageMessage
   | ExecuteWorkflowMessage
   | SiteSdkSyncMessage
+  | GetUserScriptsMessage
+  | AddUserScriptMessage
+  | UpdateUserScriptMessage
+  | DeleteUserScriptMessage
+  | RunUserScriptMessage
+  | GetUserScriptTriggersMessage
+  | UserScriptTriggerFiredMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

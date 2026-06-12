@@ -113,10 +113,18 @@ export default defineConfig({
         id: "ff@monocle.com",
       },
     },
+    // "alarms" powers scheduled user-script triggers
+    // (background/userScripts/alarms.ts).
     permissions:
       browser === "firefox"
-        ? ["activeTab", "storage", "contextualIdentities", "scripting"]
-        : ["scripting", "activeTab", "storage"],
+        ? [
+            "activeTab",
+            "alarms",
+            "storage",
+            "contextualIdentities",
+            "scripting",
+          ]
+        : ["scripting", "activeTab", "alarms", "storage"],
     content_security_policy: {
       extension_pages: getExtensionPagesCsp(command),
     },
