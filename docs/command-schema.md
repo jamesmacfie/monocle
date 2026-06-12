@@ -203,6 +203,7 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
   confirmAction?: boolean
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
+  keybindingRequirements?: KeybindingRequirements
   dedupeKey?: string
 }
 ```
@@ -213,6 +214,7 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
 | `confirmAction` | `boolean` | If `true`, the row requires a second Enter ("Are you sure?") before executing (`CommandItem`), and the command is **excluded from custom keybindings** (`allowsKeybinding` in `background/utils/commands.ts`). |
 | `remainOpenOnSelect` | `boolean` | If `true`, the palette stays open after execution instead of closing. |
 | `allowCustomKeybinding` | `boolean` | Defaults to allowed. Set `false` to forbid user-assigned keybindings — used for dynamic commands whose ids churn (e.g. `gotoTab` children, dynamic search results). |
+| `keybindingRequirements` | `KeybindingRequirements` | Optional constraints on which custom keybindings may be assigned. `requireNonShiftModifier: true` requires cmd/ctrl/alt in every stroke (shift alone doesn't count) — needed when the shortcut must fire while an editable element is focused (e.g. snippet insertion). Enforced at assignment time in both capture UIs and on persist; see [keybindings.md](keybindings.md). |
 | `dedupeKey` | `string` | Stable key used to de-duplicate rows that point at the same target across sources (bookmarks use `normalizeUrlForDedupe(node.url)`). Distinct from `id`; see [search-and-ranking.md](search-and-ranking.md). |
 
 Minimal example (`background/commands/browser/openNewTab.ts`):
@@ -243,6 +245,7 @@ export interface SubmitCommandNode extends CommandNodeBase, ActionLabel {
   confirmAction?: boolean
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
+  keybindingRequirements?: KeybindingRequirements
   dedupeKey?: string
 }
 ```
@@ -446,7 +449,7 @@ These exist on the node but are **background-only** and are never serialized ont
 
 - `execute` / `getResults` / `children` — executable functions and resolvers stay in the background. The UI triggers them by sending `execute-command` / `get-children-commands` with the command id; see [messaging.md](messaging.md).
 - `urlRules`, `supportedBrowsers` — consumed during loading/filtering before conversion, not surfaced to the UI.
-- `dedupeKey`, `doNotAddToRecents`, `allowCustomKeybinding`, `keybindingBehavior`, `enableDeepSearch` — consumed by ranking/usage/keybinding/deep-search logic in the background, not placed on the suggestion.
+- `dedupeKey`, `doNotAddToRecents`, `allowCustomKeybinding`, `keybindingRequirements`, `keybindingBehavior`, `enableDeepSearch` — consumed by ranking/usage/keybinding/deep-search logic in the background, not placed on the suggestion. (`keybindingRequirements` does reach the UI, but only inside the `setKeybinding` action's execution context and the settings catalog row, not on the command's own suggestion.)
 - The raw `keybinding` string from settings is used to compute the suggestion `keybinding`, but `allowCustomKeybinding` itself is not exposed.
 - Site SDK commands force `allowCustomKeybinding: false`, so they receive
   Favorite and Hide from Domain generated actions but not Set/Reset Keybinding

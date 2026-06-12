@@ -90,7 +90,7 @@ Current feature status:
 | URL filtering, website commands, and site SDK | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. `window.Monocle` supports non-privileged session-only site commands. |
 | Workflow automation | Partial | Click workflows and focused wait conditions work; validation/routing/debug feedback have focused tests, and most operations remain unsupported. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
-| Snippets | Working with review notes | Create/insert palette commands, `monocle-snippets` storage, options Snippets page, and caret insertion via `monocle-insertText`; storage CRUD and message validation have focused tests; manual insertion smoke (inputs, textareas, contenteditable, new-tab fallback) is still needed. |
+| Snippets | Working with review notes | Create/insert palette commands, `monocle-snippets` storage, options Snippets page, caret insertion via `monocle-insertText`, and custom shortcuts gated by `keybindingRequirements` (modifier required so bindings fire inside inputs); storage CRUD, message validation, requirement enforcement, catalog rows, and delete-cleanup have focused tests; manual insertion/shortcut smoke is still needed. |
 
 Last verified validation:
 
@@ -308,6 +308,12 @@ Canonical keybindings use angle-bracket format:
 - Single stroke: `<cmd-k>`, `<ctrl-d>`, `<alt-shift-f>`.
 - Plain keys: `g`, `escape`, `space`, `enter`.
 - Sequences: `<cmd-k>, <cmd-s>` or `g, g`.
+
+Executable nodes can declare `keybindingRequirements` (e.g.
+`requireNonShiftModifier` for commands whose shortcuts must fire while an
+editable element is focused — snippets opt in). Requirements are enforced at
+assignment time in both capture UIs and on persist
+(`shared/utils/keybinding-requirements.ts`); see `docs/keybindings.md`.
 
 Important files:
 

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
 import { clearAllSettings, getCommandSettings } from "../commands/settings"
+import { addSnippet } from "../commands/snippets"
 import { invalidateKeybindingEntriesCache } from "../keybindings/source"
 import { handleMessage } from "."
 import { showToast } from "./showToast"
@@ -180,5 +181,45 @@ describe("update-command-keybindings", () => {
 
     expect(response).toEqual({ success: true, updated: 1, conflicts: [] })
     await expect(getCommandSettings("open-new-tab")).resolves.toBeUndefined()
+  })
+
+  it("skips and reports requirement violations while persisting the rest", async () => {
+    const snippet = await addSnippet({ name: "Greeting", body: "Hello" })
+    const snippetCommandId = `snippet-${snippet.id}`
+
+    const response = await handleMessage({
+      type: "update-command-keybindings",
+      updates: [
+        // Plain key on a snippet command: violates requireNonShiftModifier.
+        { commandId: snippetCommandId, keybinding: "g" },
+        { commandId: "open-new-tab", keybinding: "t" },
+      ],
+    })
+
+    expect(response).toEqual({
+      success: true,
+      updated: 1,
+      conflicts: [
+        {
+          commandId: snippetCommandId,
+          keybinding: "g",
+          reason: "requirement-not-met",
+        },
+      ],
+    })
+    await expect(getCommandSettings(snippetCommandId)).resolves.toBeUndefined()
+    await expect(getCommandSettings("open-new-tab")).resolves.toEqual({
+      keybinding: "t",
+    })
+
+    // A modifier combo on the same snippet persists.
+    const validResponse = await handleMessage({
+      type: "update-command-keybindings",
+      updates: [{ commandId: snippetCommandId, keybinding: "<cmd-alt-1>" }],
+    })
+    expect(validResponse).toEqual({ success: true, updated: 1, conflicts: [] })
+    await expect(getCommandSettings(snippetCommandId)).resolves.toEqual({
+      keybinding: "<cmd-alt-1>",
+    })
   })
 })

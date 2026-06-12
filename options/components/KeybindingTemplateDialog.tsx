@@ -253,8 +253,9 @@ export function KeybindingTemplateDialog({
                       >
                         <KeybindingDisplay keybinding={conflict.keybinding} />
                         <span>
-                          not applied — already used by{" "}
-                          {conflict.conflictingCommand.name}
+                          {conflict.reason === "requirement-not-met"
+                            ? "not applied — this command requires ⌘, ⌃, or ⌥ in every stroke"
+                            : `not applied — already used by ${conflict.conflictingCommand?.name ?? "another command"}`}
                         </span>
                       </li>
                     ))}

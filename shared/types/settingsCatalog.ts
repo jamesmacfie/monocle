@@ -4,6 +4,7 @@ import type {
   CommandColor,
   CommandIcon,
   CommandNode,
+  KeybindingRequirements,
 } from "./commands"
 import type { CommandSettings } from "./settings"
 
@@ -32,6 +33,8 @@ export type SettingsCatalogCommand = {
   isFavorite: boolean
   defaultKeybinding?: string
   effectiveKeybinding?: string
+  // Per-command constraints on assignable keybindings (action/submit only).
+  keybindingRequirements?: KeybindingRequirements
   usage: {
     totalUsage: number
     lastUsed: number

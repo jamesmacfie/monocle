@@ -8,6 +8,7 @@ import type {
   CommandIcon,
   CommandNode,
   KeybindingBehavior,
+  KeybindingRequirements,
   SubmitCommandNode,
 } from "../../shared/types"
 
@@ -143,6 +144,16 @@ export function allowsKeybinding(command: CommandNode): boolean {
   return (
     command.confirmAction !== true && command.allowCustomKeybinding !== false
   )
+}
+
+// Per-command constraints on which custom keybindings may be assigned. Only
+// executable nodes can declare requirements (the field lives on action/submit).
+export function getKeybindingRequirements(
+  command: CommandNode,
+): KeybindingRequirements | undefined {
+  return isExecutableCommandNode(command)
+    ? command.keybindingRequirements
+    : undefined
 }
 
 export function isSettingsCatalogConfigurable(command: CommandNode): boolean {

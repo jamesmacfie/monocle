@@ -1,8 +1,10 @@
 import type {
   CommandUrlRulesSetting,
+  KeybindingRequirements,
   UpdateCommandSettingMessage,
 } from "../../shared/types"
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
+import { validateKeybindingRequirements } from "../../shared/utils/keybinding-requirements"
 import { resolveCommandById } from "../commands/query"
 import { invalidateSearchIndex } from "../commands/searchIndex"
 import {
@@ -14,7 +16,7 @@ import { getSettingsCatalogCommandById } from "../commands/settingsCatalog"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { invalidateKeybindingEntriesCache } from "../keybindings/source"
-import { allowsKeybinding } from "../utils/commands"
+import { allowsKeybinding, getKeybindingRequirements } from "../utils/commands"
 import { validateUrlPattern } from "../utils/urlFilter"
 import { showToast } from "./showToast"
 
@@ -37,21 +39,32 @@ const validateUrlRulesSetting = (urlRules: CommandUrlRulesSetting): void => {
   }
 }
 
-const canAssignKeybinding = async (
+type KeybindingTarget =
+  | { allowed: false }
+  | { allowed: true; requirements?: KeybindingRequirements }
+
+const resolveKeybindingTarget = async (
   commandId: string,
   message: UpdateCommandSettingMessage,
   siteSdk: Awaited<ReturnType<typeof prepareSiteSdkCommandLoadOptions>>,
-): Promise<boolean> => {
+): Promise<KeybindingTarget> => {
   const resolved = await resolveCommandById(commandId, message.context, {
     siteSdk,
   })
 
   if (resolved) {
     return allowsKeybinding(resolved.command)
+      ? {
+          allowed: true,
+          requirements: getKeybindingRequirements(resolved.command),
+        }
+      : { allowed: false }
   }
 
   const catalogCommand = await getSettingsCatalogCommandById(commandId)
   return catalogCommand?.capabilities.canSetKeybinding === true
+    ? { allowed: true, requirements: catalogCommand.keybindingRequirements }
+    : { allowed: false }
 }
 
 export async function updateCommandSetting(
@@ -73,8 +86,22 @@ export async function updateCommandSetting(
       return { success: true }
     }
 
-    if (!(await canAssignKeybinding(commandId, message, siteSdk))) {
+    const target = await resolveKeybindingTarget(commandId, message, siteSdk)
+    if (!target.allowed) {
       throw new Error(`Command cannot be assigned a keybinding: ${commandId}`)
+    }
+
+    // Per-command requirement gate (e.g. snippet bindings must carry a
+    // non-shift modifier in every stroke). The capture UIs block earlier via
+    // check-keybinding-conflict; this is the backstop on persist.
+    const requirementResult = validateKeybindingRequirements(
+      settingValue,
+      target.requirements,
+    )
+    if (!requirementResult.valid) {
+      throw new Error(
+        `Keybinding not allowed for ${commandId}: ${requirementResult.message}`,
+      )
     }
 
     await updateCommandSettings(commandId, {

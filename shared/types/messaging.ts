@@ -1,5 +1,6 @@
 // Background/content script communication types
 import type { Browser } from "./browser"
+import type { KeybindingRequirementViolation } from "./commands"
 import type { CommandUrlRulesSetting } from "./settings"
 import type { SettingsCatalogResponse } from "./settingsCatalog"
 import type { SiteSdkRegistration } from "./siteSdk"
@@ -145,17 +146,26 @@ export type CheckKeybindingConflictResponse = {
   conflictType?: KeybindingConflictType
   // Present only when non-empty.
   warnings?: KeybindingConflictWarning[]
+  // Present only when the binding violates the target command's
+  // KeybindingRequirements. A violation is not a conflict (no other command
+  // is involved); hasConflict stays false for pure violations.
+  requirementViolation?: {
+    code: KeybindingRequirementViolation
+    message: string
+  }
 }
 
 export type UpdateCommandKeybindingsConflict = {
   commandId: string
   keybinding: string
-  conflictingCommand: {
+  // Absent for requirement violations (no other command is involved).
+  conflictingCommand?: {
     id: string
     name: string
   }
-  // Present only for non-exact skips (e.g. open-palette shadowing).
-  reason?: KeybindingConflictType
+  // Present only for non-exact skips (e.g. open-palette shadowing) and
+  // requirement violations.
+  reason?: KeybindingConflictType | "requirement-not-met"
 }
 
 export type UpdateCommandKeybindingsResponse = {

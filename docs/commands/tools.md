@@ -127,11 +127,13 @@ A form group (`enableDeepSearch: false`) with two `input` rows plus a `submit` r
 
 ### Insert Snippet (`insert-snippet`)
 
-A dynamic group (`enableDeepSearch: true`, so snippets are findable from root search). `children` maps each saved snippet to an `action` node (`snippet-<id>`, `allowCustomKeybinding: false`, `settingsCatalog.configurable: false`); an empty list renders a NoOp row.
+A dynamic group (`enableDeepSearch: true`, so snippets are findable from root search; `settingsCatalog.includeChildren: true`, so snippet rows are manageable from the options pages). `children` maps each saved snippet to an `action` node (`snippet-<id>` — ids are stable UUIDs, so custom settings are durable); an empty list renders a NoOp row (excluded from the catalog).
+
+Snippet actions accept **custom keyboard shortcuts** with a constraint: `keybindingRequirements: { requireNonShiftModifier: true }` — every stroke must include cmd/ctrl/alt, because insertion shortcuts must fire while an editable element is focused and the content event filter only forwards modifier combos from editables (see [../keybindings.md](../keybindings.md)). Both capture UIs hint and enforce this; deleting a snippet removes its dangling command settings and refreshes the keybinding registry (`background/messages/deleteSnippet.ts`).
 
 On execute, the action sends `monocle-insertText` with the snippet body to the active tab. `InsertTextListener` (`shared/components/Listeners/InsertTextListener.tsx`, mounted in both palette modes) tracks the page's last-focused editable element (capture-phase `focusin`, ignoring Monocle's own UI) and inserts at its caret via `execCommand("insertText")` with a native-setter splice fallback, responding `{ inserted }`. When nothing was inserted (nothing focused, element detached, or the new-tab page) the executor falls back to `monocle-copyToClipboard` plus an explanatory toast. Cmd-enter copies to the clipboard directly.
 
-Test coverage: `background/commands/snippets.test.ts` (CRUD round-trip, unknown-id behavior, concurrent-add storage-lock serialization) and snippet message schema cases in `shared/types/validation.test.ts`.
+Test coverage: `background/commands/snippets.test.ts` (CRUD round-trip, unknown-id behavior, concurrent-add storage-lock serialization), snippet message schema cases in `shared/types/validation.test.ts`, keybinding-requirement enforcement in `shared/utils/keybinding-requirements.test.ts`, `background/messages/updateCommandSetting.test.ts`, `updateCommandKeybindings.test.ts`, and `checkKeybindingConflict.test.ts`, catalog rows in `background/commands/settingsCatalog.test.ts`, and delete-cleanup in `background/messages/deleteSnippet.test.ts`.
 
 ---
 

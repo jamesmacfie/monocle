@@ -2,13 +2,19 @@ import type {
   CheckKeybindingConflictMessage,
   CheckKeybindingConflictResponse,
   KeybindingBehavior,
+  KeybindingRequirements,
 } from "../../shared/types"
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
+import { validateKeybindingRequirements } from "../../shared/utils/keybinding-requirements"
 import { resolveCommandById } from "../commands/query"
+import { getSettingsCatalogCommandById } from "../commands/settingsCatalog"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import { evaluateKeybindingAssignment } from "../keybindings/conflicts"
 import { loadKeybindingCommandEntries } from "../keybindings/source"
-import { getKeybindingBehavior } from "../utils/commands"
+import {
+  getKeybindingBehavior,
+  getKeybindingRequirements,
+} from "../utils/commands"
 
 const NO_CONFLICT: CheckKeybindingConflictResponse = {
   hasConflict: false,
@@ -30,15 +36,29 @@ export const checkKeybindingConflict = async (
 
     // The target command's behavior decides whether sitting on a prefix of an
     // existing sequence is a blocking shadow (open-palette) or just a warning.
+    // The same resolution also yields the command's keybinding requirements.
     let targetBehavior: KeybindingBehavior = "execute"
+    let targetRequirements: KeybindingRequirements | undefined
     if (excludeCommandId) {
       const resolved = await resolveCommandById(excludeCommandId, context, {
         siteSdk,
       })
       if (resolved) {
         targetBehavior = getKeybindingBehavior(resolved.command)
+        targetRequirements = getKeybindingRequirements(resolved.command)
+      } else {
+        // Context-restricted commands fall back to the catalog row, mirroring
+        // the canSetKeybinding fallback in updateCommandSetting.
+        const catalogCommand =
+          await getSettingsCatalogCommandById(excludeCommandId)
+        targetRequirements = catalogCommand?.keybindingRequirements
       }
     }
+
+    const requirementResult = validateKeybindingRequirements(
+      normalizedKeybinding,
+      targetRequirements,
+    )
 
     const evaluation = evaluateKeybindingAssignment(
       entries,
@@ -58,6 +78,12 @@ export const checkKeybindingConflict = async (
     }
     if (evaluation.warnings.length > 0) {
       response.warnings = evaluation.warnings
+    }
+    if (!requirementResult.valid) {
+      response.requirementViolation = {
+        code: requirementResult.violation,
+        message: requirementResult.message,
+      }
     }
     return response
   } catch (error) {

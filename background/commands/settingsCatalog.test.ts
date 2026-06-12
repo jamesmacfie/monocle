@@ -3,6 +3,7 @@ import { fakeBrowser } from "wxt/testing"
 import { addToFavoriteCommandIds } from "./favorites"
 import { clearAllSettings, updateCommandSettings } from "./settings"
 import { getSettingsCatalog } from "./settingsCatalog"
+import { addSnippet } from "./snippets"
 import { recordCommandUsage } from "./usage"
 
 const firefoxMocks = vi.hoisted(() => ({
@@ -156,6 +157,32 @@ describe("settings catalog", () => {
         canSetKeybinding: true,
       },
     })
+  })
+
+  it("includes snippet rows with keybinding requirements and excludes the empty-state row", async () => {
+    const snippet = await addSnippet({ name: "Greeting", body: "Hello" })
+
+    const catalog = await getSettingsCatalog({ platform: "chrome" })
+    const snippetRow = catalog.commands.find(
+      (command) => command.id === `snippet-${snippet.id}`,
+    )
+
+    expect(snippetRow).toMatchObject({
+      name: "Greeting",
+      parentNames: ["Insert Snippet"],
+      keybindingRequirements: { requireNonShiftModifier: true },
+      capabilities: {
+        canSetKeybinding: true,
+      },
+    })
+  })
+
+  it("excludes the no-snippets display row when no snippets exist", async () => {
+    const catalog = await getSettingsCatalog({ platform: "chrome" })
+    const ids = catalog.commands.map((command) => command.id)
+
+    expect(ids).toContain("insert-snippet")
+    expect(ids).not.toContain("no-snippets")
   })
 
   it("resolves persisted settings, favorite state, usage stats, and capabilities", async () => {

@@ -1,11 +1,15 @@
 import { Keyboard } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { KeybindingDisplay } from "../../shared/components/KeybindingDisplay"
-import type { SettingsCatalogCommand } from "../../shared/types"
+import type {
+  CheckKeybindingConflictResponse,
+  SettingsCatalogCommand,
+} from "../../shared/types"
 import {
   getKeyString,
   normalizeKeybinding,
 } from "../../shared/utils/key-normalizer"
+import { describeKeybindingRequirements } from "../../shared/utils/keybinding-requirements"
 import {
   Button,
   Dialog,
@@ -28,6 +32,16 @@ type Conflict = {
   name: string
 } | null
 
+type ConflictCheckResult = {
+  conflict: Conflict
+  requirementViolation: string | null
+}
+
+const NO_CONFLICT_RESULT: ConflictCheckResult = {
+  conflict: null,
+  requirementViolation: null,
+}
+
 const getConflictContext = (command: SettingsCatalogCommand) => {
   const isNewTab = command.categoryId === "new-tab"
 
@@ -42,7 +56,7 @@ const getConflictContext = (command: SettingsCatalogCommand) => {
 }
 
 const checkConflict = (keybinding: string, command: SettingsCatalogCommand) =>
-  new Promise<Conflict>((resolve) => {
+  new Promise<ConflictCheckResult>((resolve) => {
     chrome.runtime.sendMessage(
       {
         type: "check-keybinding-conflict",
@@ -50,13 +64,20 @@ const checkConflict = (keybinding: string, command: SettingsCatalogCommand) =>
         excludeCommandId: command.id,
         context: getConflictContext(command),
       },
-      (response) => {
+      (
+        response:
+          | (CheckKeybindingConflictResponse & { error?: string })
+          | undefined,
+      ) => {
         if (chrome.runtime.lastError || response?.error) {
-          resolve(null)
+          resolve(NO_CONFLICT_RESULT)
           return
         }
 
-        resolve(response?.conflictingCommand ?? null)
+        resolve({
+          conflict: response?.conflictingCommand ?? null,
+          requirementViolation: response?.requirementViolation?.message ?? null,
+        })
       },
     )
   })
@@ -71,11 +92,15 @@ export function KeybindingDialog({
   const captureRef = useRef<HTMLButtonElement | null>(null)
   const [strokes, setStrokes] = useState<string[]>([])
   const [conflict, setConflict] = useState<Conflict>(null)
+  const [requirementViolation, setRequirementViolation] = useState<
+    string | null
+  >(null)
 
   useEffect(() => {
     if (!open) {
       setStrokes([])
       setConflict(null)
+      setRequirementViolation(null)
       return
     }
 
@@ -86,8 +111,16 @@ export function KeybindingDialog({
     return null
   }
 
+  const requirementHint = describeKeybindingRequirements(
+    command.keybindingRequirements,
+  )
   const keybinding = normalizeKeybinding(strokes.join(", "))
-  const canSave = Boolean(keybinding) && !conflict
+  const canSave = Boolean(keybinding) && !conflict && !requirementViolation
+
+  const applyCheckResult = (result: ConflictCheckResult) => {
+    setConflict(result.conflict)
+    setRequirementViolation(result.requirementViolation)
+  }
   const hasPlainEnter = (event: React.KeyboardEvent) =>
     event.key === "Enter" &&
     !event.metaKey &&
@@ -108,8 +141,10 @@ export function KeybindingDialog({
       const nextStrokes = strokes.slice(0, -1)
       setStrokes(nextStrokes)
       const nextKeybinding = normalizeKeybinding(nextStrokes.join(", "))
-      setConflict(
-        nextKeybinding ? await checkConflict(nextKeybinding, command) : null,
+      applyCheckResult(
+        nextKeybinding
+          ? await checkConflict(nextKeybinding, command)
+          : NO_CONFLICT_RESULT,
       )
       return
     }
@@ -130,7 +165,7 @@ export function KeybindingDialog({
     const nextStrokes = [...strokes, stroke]
     const nextKeybinding = normalizeKeybinding(nextStrokes.join(", "))
     setStrokes(nextStrokes)
-    setConflict(await checkConflict(nextKeybinding, command))
+    applyCheckResult(await checkConflict(nextKeybinding, command))
   }
 
   return (
@@ -170,9 +205,21 @@ export function KeybindingDialog({
           )}
         </button>
 
+        {requirementHint && (
+          <div className="text-xs text-[var(--color-fg-muted)]">
+            {requirementHint}
+          </div>
+        )}
+
         {conflict && (
           <div className="rounded-md border border-[var(--color-error-border)] bg-[var(--color-error-bg)] px-3 py-2 text-sm text-[var(--color-error-fg)]">
             Conflict: {conflict.name}
+          </div>
+        )}
+
+        {requirementViolation && (
+          <div className="rounded-md border border-[var(--color-error-border)] bg-[var(--color-error-bg)] px-3 py-2 text-sm text-[var(--color-error-fg)]">
+            {requirementViolation}
           </div>
         )}
 

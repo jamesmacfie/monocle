@@ -1,6 +1,10 @@
 // UI representations, forms, and display types
 import type { Browser } from "./browser"
-import type { BrowserPermission, CommandIcon } from "./commands"
+import type {
+  BrowserPermission,
+  CommandIcon,
+  KeybindingRequirements,
+} from "./commands"
 
 export type FormField = {
   id: string
@@ -85,6 +89,9 @@ export type ActionExecutionContext =
   | {
       type: "setKeybinding"
       targetCommandId: string
+      // The target command's assignment constraints, so the capture UI can
+      // hint them before the first stroke.
+      requirements?: KeybindingRequirements
     }
   | {
       type: "resetKeybinding"

@@ -8,6 +8,7 @@ import {
   normalizeKeybinding,
   splitKeybindingSequence,
 } from "../../shared/utils/key-normalizer"
+import { validateKeybindingRequirements } from "../../shared/utils/keybinding-requirements"
 import { resolveCommandById } from "../commands/query"
 import { updateCommandKeybindings as updateCommandKeybindingsSettings } from "../commands/settings"
 import { getSettingsCatalogCommandById } from "../commands/settingsCatalog"
@@ -18,7 +19,11 @@ import {
 } from "../keybindings/conflicts"
 import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { loadKeybindingCommandEntries } from "../keybindings/source"
-import { allowsKeybinding, getKeybindingBehavior } from "../utils/commands"
+import {
+  allowsKeybinding,
+  getKeybindingBehavior,
+  getKeybindingRequirements,
+} from "../utils/commands"
 
 type PreparedKeybindingUpdate = {
   commandId: string
@@ -35,6 +40,7 @@ export async function updateCommandKeybindings(
     message.context,
   )
   const preparedUpdates: PreparedKeybindingUpdate[] = []
+  const conflicts: UpdateCommandKeybindingsConflict[] = []
 
   for (const update of message.updates) {
     const normalizedKeybinding = normalizeKeybinding(update.keybinding || "")
@@ -53,16 +59,36 @@ export async function updateCommandKeybindings(
       message.context,
       { siteSdk },
     )
+    const catalogCommand = resolved
+      ? undefined
+      : await getSettingsCatalogCommandById(update.commandId)
 
     const allowed = resolved
       ? allowsKeybinding(resolved.command)
-      : (await getSettingsCatalogCommandById(update.commandId))?.capabilities
-          .canSetKeybinding === true
+      : catalogCommand?.capabilities.canSetKeybinding === true
 
     if (!allowed) {
       throw new Error(
         `Command cannot be assigned a keybinding: ${update.commandId}`,
       )
+    }
+
+    // Per-command requirement gate (e.g. snippet bindings must carry a
+    // non-shift modifier in every stroke). Violations are skipped and
+    // reported like conflicts so the rest of the batch still persists.
+    const requirementResult = validateKeybindingRequirements(
+      normalizedKeybinding,
+      resolved
+        ? getKeybindingRequirements(resolved.command)
+        : catalogCommand?.keybindingRequirements,
+    )
+    if (!requirementResult.valid) {
+      conflicts.push({
+        commandId: update.commandId,
+        keybinding: normalizedKeybinding,
+        reason: "requirement-not-met",
+      })
+      continue
     }
 
     preparedUpdates.push({
@@ -88,7 +114,6 @@ export async function updateCommandKeybindings(
     (entry) => !batchCommandIds.has(entry.id),
   )
 
-  const conflicts: UpdateCommandKeybindingsConflict[] = []
   const applicableUpdates: PreparedKeybindingUpdate[] = []
   const claimedInBatch = new Map<
     string,

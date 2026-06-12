@@ -56,6 +56,21 @@ export interface UrlRules {
 
 export type KeybindingBehavior = "execute" | "openPaletteAtCommand"
 
+// Per-command constraints on which custom keybindings may be assigned.
+// Extensible: add new optional rule fields here as commands need them.
+export type KeybindingRequirements = {
+  // Every stroke in the binding (including each stroke of a sequence) must
+  // include cmd, ctrl, or alt. Shift alone does not count. Required for
+  // commands whose shortcuts must fire while an editable element is focused:
+  // shared/utils/event-filter.ts only forwards editable-element key events
+  // that carry a non-shift modifier.
+  requireNonShiftModifier?: boolean
+}
+
+// Violation codes produced when a candidate keybinding fails a command's
+// KeybindingRequirements (see shared/utils/keybinding-requirements.ts).
+export type KeybindingRequirementViolation = "missing-non-shift-modifier"
+
 // Common base for all node-based command nodes (minimal surface)
 export interface CommandNodeBase {
   id: string
@@ -103,6 +118,7 @@ export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
   confirmAction?: boolean
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
+  keybindingRequirements?: KeybindingRequirements
   dedupeKey?: string
 }
 
@@ -127,6 +143,7 @@ export interface SubmitCommandNode extends CommandNodeBase, ActionLabel {
   confirmAction?: boolean
   remainOpenOnSelect?: boolean
   allowCustomKeybinding?: boolean
+  keybindingRequirements?: KeybindingRequirements
   dedupeKey?: string
 }
 

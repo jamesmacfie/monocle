@@ -292,7 +292,12 @@ export function useCommandNavigation(
       selectedCommand.type === "action" &&
       selectedCommand.executionContext?.type === "setKeybinding"
     ) {
-      dispatch(startCapture(selectedCommand.executionContext.targetCommandId))
+      dispatch(
+        startCapture({
+          commandId: selectedCommand.executionContext.targetCommandId,
+          requirements: selectedCommand.executionContext.requirements,
+        }),
+      )
       return // Don't execute normal command flow
     }
 

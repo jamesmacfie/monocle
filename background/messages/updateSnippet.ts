@@ -4,6 +4,7 @@ import type {
 } from "../../shared/types"
 import { invalidateSearchIndex } from "../commands/searchIndex"
 import { updateSnippet as applySnippetUpdate } from "../commands/snippets"
+import { invalidateKeybindingEntriesCache } from "../keybindings/source"
 import { createMessageHandler } from "../utils/messages"
 
 const handleUpdateSnippet = async (
@@ -15,6 +16,11 @@ const handleUpdateSnippet = async (
   })
 
   invalidateSearchIndex()
+  if (snippet && message.name !== undefined) {
+    // Keybinding conflict messages surface the cached entry name; a rename
+    // only needs the cheap entries-cache invalidation, not a full rebuild.
+    invalidateKeybindingEntriesCache()
+  }
   return { snippet: snippet ?? null }
 }
 

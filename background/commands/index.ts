@@ -12,6 +12,7 @@ import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { showToast } from "../messages/showToast"
 import {
   allowsKeybinding,
+  getKeybindingRequirements,
   isSettingsCatalogConfigurable,
   resolveActionLabel,
   resolveAsyncProperty,
@@ -320,6 +321,7 @@ const _createSetKeybindingAction = async (
     executionContext: {
       type: "setKeybinding",
       targetCommandId: command.id,
+      requirements: getKeybindingRequirements(command),
     },
   }
 }

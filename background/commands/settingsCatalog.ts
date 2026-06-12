@@ -8,6 +8,7 @@ import type {
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
 import {
   allowsKeybinding,
+  getKeybindingRequirements,
   isSettingsCatalogConfigurable,
   resolveAsyncProperty,
   resolveCommandName,
@@ -122,6 +123,7 @@ const addCatalogRow = async (
     isFavorite: traversal.favoriteCommandIds.has(command.id),
     defaultKeybinding,
     effectiveKeybinding,
+    keybindingRequirements: getKeybindingRequirements(command),
     usage: toCatalogUsage(traversal.usageStats, command.id),
     capabilities: {
       configurable,

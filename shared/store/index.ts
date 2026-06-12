@@ -63,6 +63,7 @@ export const createAppStore = (
       keybinding: {
         isCapturing: false,
         targetCommandId: null,
+        requirements: null,
       },
       settingsCatalog: {
         commands: [],

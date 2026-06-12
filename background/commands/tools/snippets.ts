@@ -80,6 +80,9 @@ export const insertSnippet: CommandNode = {
   color: "teal",
   keywords: ["snippet", "paste", "text", "template"],
   enableDeepSearch: true,
+  // Snippet ids are stable UUIDs, so child rows are durable enough for the
+  // settings catalog (keyboard page management, favorites, hide).
+  settingsCatalog: { includeChildren: true },
   children: async () => {
     const snippets = await getSnippets()
 
@@ -108,10 +111,10 @@ export const insertSnippet: CommandNode = {
         modifierActionLabel: {
           cmd: "Copy to Clipboard",
         },
-        // Dynamic id: custom keybindings would dangle once the snippet is
-        // deleted, and the settings catalog can't configure ephemeral rows.
-        allowCustomKeybinding: false,
-        settingsCatalog: { configurable: false },
+        // Custom shortcuts must fire while an editable element is focused
+        // (insert-at-cursor is the point), and the content event filter only
+        // forwards editable-element keystrokes that carry cmd/ctrl/alt.
+        keybindingRequirements: { requireNonShiftModifier: true },
         execute: async (context) => {
           const activeTab = await getActiveTab()
           if (!activeTab) {

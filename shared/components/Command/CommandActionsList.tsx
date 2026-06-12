@@ -4,6 +4,7 @@ import type {
   CheckKeybindingConflictResponse,
   KeybindingConflictType,
   KeybindingConflictWarning,
+  KeybindingRequirements,
   Suggestion,
 } from "../../../shared/types"
 import {
@@ -11,11 +12,13 @@ import {
   normalizeKeybinding,
   toDisplayFormat,
 } from "../../../shared/utils/key-normalizer"
+import { describeKeybindingRequirements } from "../../../shared/utils/keybinding-requirements"
 import { useSendMessage } from "../../hooks/useSendMessage"
 import { useAppDispatch, useAppSelector } from "../../store/hooks"
 import {
   cancelCapture,
   completeCapture,
+  selectCaptureRequirements,
   selectIsCapturing,
   selectTargetCommandId,
   startCapture,
@@ -28,10 +31,12 @@ function KeybindingCapture({
   onComplete,
   onCancel,
   commandId,
+  requirements,
 }: {
   onComplete: (keybinding: string) => void
   onCancel: () => void
   commandId?: string
+  requirements?: KeybindingRequirements | null
 }) {
   // Sequence capture: array of completed canonical strokes.
   const [strokes, setStrokes] = useState<string[]>([])
@@ -43,8 +48,14 @@ function KeybindingCapture({
     name: string
   } | null>(null)
   const [warnings, setWarnings] = useState<KeybindingConflictWarning[]>([])
+  const [requirementViolation, setRequirementViolation] = useState<
+    string | null
+  >(null)
   const captureRef = useRef<HTMLDivElement>(null)
   const sendMessage = useSendMessage()
+  const requirementHint = describeKeybindingRequirements(
+    requirements ?? undefined,
+  )
 
   useEffect(() => {
     // Focus the capture area when component mounts
@@ -66,12 +77,14 @@ function KeybindingCapture({
       setConflictingCommand(response.conflictingCommand || null)
       setConflictType(response.conflictType ?? null)
       setWarnings(response.warnings ?? [])
+      setRequirementViolation(response.requirementViolation?.message ?? null)
     } catch (error) {
       console.error("[KeybindingCapture] Failed to check conflict:", error)
       setHasConflict(false)
       setConflictingCommand(null)
       setConflictType(null)
       setWarnings([])
+      setRequirementViolation(null)
     }
   }
 
@@ -80,8 +93,8 @@ function KeybindingCapture({
     e.stopPropagation()
 
     if (e.key === "Enter" && strokes.length > 0) {
-      // Don't save if there's a conflict
-      if (hasConflict) {
+      // Don't save if there's a conflict or a requirement violation
+      if (hasConflict || requirementViolation) {
         return
       }
 
@@ -122,14 +135,16 @@ function KeybindingCapture({
       <div
         {...divProps}
         className={`w-full p-2 px-3 border-2 rounded-md bg-[var(--background)] outline-none text-sm font-mono min-h-[32px] flex items-center cursor-text focus:outline-none ${
-          hasConflict
+          hasConflict || requirementViolation
             ? "border-[var(--color-error-border)]"
             : "border-[var(--color-focus-ring)]"
         }`}
       >
         {strokes.length === 0 ? (
           <span className="text-[var(--cmdk-muted-foreground)] text-xs">
-            Press keys in sequence. Enter to save
+            {requirementHint
+              ? `Press keys in sequence. Enter to save · ${requirementHint}`
+              : "Press keys in sequence. Enter to save"}
           </span>
         ) : (
           <div className="flex items-center gap-1">
@@ -170,6 +185,11 @@ function KeybindingCapture({
             : `Already assigned to "${conflictingCommand.name}"`}
         </div>
       )}
+      {strokes.length > 0 && requirementViolation && (
+        <div className="mt-1 px-1 text-xs text-[var(--color-error-fg)]">
+          {requirementViolation}
+        </div>
+      )}
       {strokes.length > 0 && !hasConflict && warnings.length > 0 && (
         <div className="mt-1 px-1 text-xs text-[var(--color-warning-fg)]">
           {`Overlaps with "${warnings[0].command.name}" — the shared prefix only executes after a short delay`}
@@ -195,6 +215,7 @@ function ActionItem({
   const dispatch = useAppDispatch()
   const isCapturing = useAppSelector(selectIsCapturing)
   const targetCommandId = useAppSelector(selectTargetCommandId)
+  const captureRequirements = useAppSelector(selectCaptureRequirements)
   const sendMessage = useSendMessage()
 
   // Add confirmation state
@@ -246,7 +267,12 @@ function ActionItem({
       action.type === "action" &&
       action.executionContext?.type === "setKeybinding"
     ) {
-      dispatch(startCapture(action.executionContext.targetCommandId))
+      dispatch(
+        startCapture({
+          commandId: action.executionContext.targetCommandId,
+          requirements: action.executionContext.requirements,
+        }),
+      )
       return
     }
 
@@ -327,6 +353,7 @@ function ActionItem({
           onComplete={handleKeybindingComplete}
           onCancel={handleKeybindingCancel}
           commandId={targetCommandId ?? undefined}
+          requirements={captureRequirements}
         />
       </Command.Item>
     )

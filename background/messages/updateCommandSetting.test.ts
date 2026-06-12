@@ -6,6 +6,7 @@ import {
   getCommandSettings,
   updateCommandSettings,
 } from "../commands/settings"
+import { addSnippet } from "../commands/snippets"
 import { updateCommandSetting } from "./updateCommandSetting"
 
 const normalContext: Browser.Context = {
@@ -130,6 +131,54 @@ describe("updateCommandSetting message handler", () => {
     ).resolves.toEqual({
       keybinding: "<cmd-alt-c>",
     })
+  })
+
+  it("enforces snippet keybinding requirements on persist", async () => {
+    const snippet = await addSnippet({ name: "Greeting", body: "Hello" })
+    const commandId = `snippet-${snippet.id}`
+
+    // Plain keys and shift-only strokes never reach the page while an
+    // editable element is focused, so the requirement gate rejects them.
+    await expect(
+      updateCommandSetting({
+        type: "update-command-setting",
+        commandId,
+        setting: "keybinding",
+        value: "g",
+        context: normalContext,
+      }),
+    ).rejects.toThrow("Keybinding not allowed")
+
+    await expect(
+      updateCommandSetting({
+        type: "update-command-setting",
+        commandId,
+        setting: "keybinding",
+        value: "<shift-7>",
+        context: normalContext,
+      }),
+    ).rejects.toThrow("Keybinding not allowed")
+
+    // Modifier combos persist, and clearing still works.
+    await updateCommandSetting({
+      type: "update-command-setting",
+      commandId,
+      setting: "keybinding",
+      value: "<cmd-shift-7>",
+      context: normalContext,
+    })
+    await expect(getCommandSettings(commandId)).resolves.toEqual({
+      keybinding: "<cmd-shift-7>",
+    })
+
+    await updateCommandSetting({
+      type: "update-command-setting",
+      commandId,
+      setting: "keybinding",
+      value: "",
+      context: normalContext,
+    })
+    await expect(getCommandSettings(commandId)).resolves.toBeUndefined()
   })
 
   it("validates URL rules and preserves keybindings during URL-rule updates", async () => {

@@ -204,7 +204,21 @@ Generated per-command actions come from `background/commands/index.ts`:
 
 The custom keybinding is stored in command settings under the command id (`monocle-settings` -> command settings -> `keybinding`). See [settings.md](settings.md). The `update-command-setting` path persists it and refreshes the registry so subsequent `get-keybinding-state` reflects it. Reset is handled in the background (`background/commands/index.ts`, `resetKeybinding` action): `removeCommandSetting(targetCommandId, "keybinding")` then `refreshKeybindingRegistry()`.
 
-The keybinding Redux slice (`shared/store/slices/keybinding.slice.ts`) is intentionally tiny — `{ isCapturing, targetCommandId }` with `startCapture` / `cancelCapture` / `completeCapture` and `selectIsCapturing` / `selectTargetCommandId`. It carries no keybinding data; the actual bindings live in settings and the background registry.
+The keybinding Redux slice (`shared/store/slices/keybinding.slice.ts`) is intentionally tiny — `{ isCapturing, targetCommandId, requirements }` with `startCapture` / `cancelCapture` / `completeCapture` and `selectIsCapturing` / `selectTargetCommandId` / `selectCaptureRequirements`. It carries no keybinding data; the actual bindings live in settings and the background registry. `requirements` holds the target command's `KeybindingRequirements` (delivered via the `setKeybinding` execution context) so the palette capture box can hint constraints before the first stroke.
+
+### Per-command keybinding requirements
+
+Executable nodes (action/submit) can declare constraints on which custom keybindings they accept via `keybindingRequirements` (`shared/types/commands.ts`):
+
+- `requireNonShiftModifier: true` — every stroke in the binding (including each stroke of a sequence) must include `cmd`, `ctrl`, or `alt`. Shift alone does not count, and plain keys are rejected. This is required for commands whose shortcuts must fire **while an editable element is focused**: the content event filter (`shared/utils/event-filter.ts`, `hasNonShiftModifier`) only forwards editable-element keystrokes that carry a non-shift modifier, so a plain-key or shift-only binding would simply never reach the handler while typing. Snippet commands (`snippet-<uuid>`) opt in because insert-at-cursor is their whole purpose.
+
+The shared validator is `validateKeybindingRequirements` / `describeKeybindingRequirements` (`shared/utils/keybinding-requirements.ts`); the type is extensible — new rule fields are added to `KeybindingRequirements` as commands need them. Enforcement points:
+
+1. `check-keybinding-conflict` evaluates the target's requirements per stroke and returns `requirementViolation: { code, message }` (a violation is not a conflict — `hasConflict` stays false). Both capture UIs render the message and block save; requirements flow to the options dialog via the settings catalog (`keybindingRequirements` on `SettingsCatalogCommand`) and to the palette capture via the `setKeybinding` execution context.
+2. `update-command-setting` (keybinding case) re-validates on persist and throws — the backstop against stale or forged messages. Clearing a binding always passes.
+3. `update-command-keybindings` (batch/template path) skips violating updates and reports them in `conflicts` with `reason: "requirement-not-met"` and no `conflictingCommand`; the rest of the batch persists.
+
+Enforcement is **assignment-time only**: a stored binding that violates a later-added requirement stays registered and degrades harmlessly (the event filter drops it inside editables; it still fires with page focus outside inputs). The next edit through either UI forces compliance.
 
 ### Conflict detection
 
