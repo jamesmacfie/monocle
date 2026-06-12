@@ -389,6 +389,7 @@ Source: `shared/types/ui.ts`, `FormField`. Common fields apply to every variant;
 | `type` | Variant fields | Renders as (component) | Stored value | Default (`getDefaultValue`) |
 | --- | --- | --- | --- | --- |
 | `text` | `placeholder?`, `defaultValue?: string` | text input — `CommandItemInput` | `string` | `defaultValue \|\| ""` |
+| `textarea` | `placeholder?`, `defaultValue?: string`, `rows?` | multi-line textarea — `CommandItemTextarea` | `string` | `defaultValue \|\| ""` |
 | `select` | `options: {value,label}[]`, `defaultValue?: string`, `placeholder?` | native `<select>` — `CommandItemSelect` | `string` | `defaultValue \|\| ""` |
 | `checkbox` \| `switch` | `defaultChecked?: boolean` | On/Off toggle button — `CommandItemSwitch` | `"true"` / `"false"` (string) | `defaultChecked ? "true" : "false"` |
 | `radio` | `options: {value,label}[]`, `defaultValue?: string` | **not rendered** (see note) | `string` | `defaultValue \|\| options[0]?.value \|\| ""` |
@@ -400,7 +401,8 @@ Defaults come from `getDefaultValue` in `shared/utils/forms.ts`; `computeDefault
 
 Notes on rendering and storage:
 
-- **`radio` has no renderer.** `FormField` declares a `radio` variant and `getDefaultValue` handles it, but `CommandItem`'s `match` on `inputField.type` covers only `text`, `select`, `checkbox`/`switch`, `multi`, and `color` (plus `text-list` via an early return). A `radio` input row therefore renders nothing today. Prefer `select` or `multi`.
+- **`radio` has no renderer.** `FormField` declares a `radio` variant and `getDefaultValue` handles it, but `CommandItem`'s `match` on `inputField.type` covers only `text`, `textarea`, `select`, `checkbox`/`switch`, `multi`, and `color` (plus `text-list` via an early return). A `radio` input row therefore renders nothing today. Prefer `select` or `multi`.
+- **`textarea` owns Enter and arrow keys.** Plain Enter inserts a newline (Cmd/Ctrl+Enter submits the form), and Up/Down move the caret inside the field; arrows only hand navigation back to CMDK when the caret is already at the first/last position (`CommandItemTextarea`).
 - **`checkbox`/`switch` store strings**, not booleans: `"true"`/`"false"`. The toggle reads `raw === "true"` (`CommandItemSwitch`).
 - **`multi` and `text-list` store arrays** in UI state. `multi` toggles option values into a `string[]`; `text-list` keeps a normalized `string[]` (auto-appends a trailing empty row, Backspace on an empty row removes it). Both are flattened to comma-joined strings before reaching the executor (see normalization above). `validateFormValues` (`shared/utils/forms.ts`) splits/joins these for schema validation, treating a `required` empty array as invalid.
 - **`text-list`** is handled by a dedicated early return in `CommandItem` and renders one `Command.Item` per entry (`CommandItemTextList`). `maxItems` is part of the type but is not enforced by the renderer.

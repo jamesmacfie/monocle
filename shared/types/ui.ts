@@ -14,6 +14,12 @@ export type FormField = {
       defaultValue?: string
     }
   | {
+      type: "textarea"
+      placeholder?: string
+      defaultValue?: string
+      rows?: number
+    }
+  | {
       type: "select"
       options: Array<{ value: string; label: string }>
       defaultValue?: string

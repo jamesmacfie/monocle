@@ -19,6 +19,14 @@ export type CopyToClipboardEvent = {
   message: string
 }
 
+// Insert text at the caret of the page's last-focused editable element.
+// The content listener responds with { inserted: boolean } so the caller
+// can fall back (e.g. to a clipboard copy) when nothing was focused.
+export type InsertTextEvent = {
+  type: "monocle-insertText"
+  text: string
+}
+
 export type NewTabEvent = {
   type: "monocle-newTab"
   url: string
@@ -69,6 +77,7 @@ export type SiteSdkInvokeEvent = {
 export type Event =
   | AlertEvent
   | CopyToClipboardEvent
+  | InsertTextEvent
   | NewTabEvent
   | ScrollEvent
   | ScreenshotEvent

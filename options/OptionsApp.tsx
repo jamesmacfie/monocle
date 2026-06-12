@@ -11,6 +11,7 @@ import {
   selectThemeMode,
 } from "../shared/store/slices/settings.slice"
 import { loadSettingsCatalog } from "../shared/store/slices/settingsCatalog.slice"
+import { loadSnippets } from "../shared/store/slices/snippets.slice"
 import { getBrowserAPI } from "../shared/utils/extension-api"
 import {
   applyThemeToDocument,
@@ -24,6 +25,7 @@ import { FavoritesPage } from "./pages/FavoritesPage"
 import { GeneralPage } from "./pages/GeneralPage"
 import { KeyboardPage } from "./pages/KeyboardPage"
 import { NewTabPage } from "./pages/NewTabPage"
+import { SnippetsPage } from "./pages/SnippetsPage"
 import { UrlRulesPage } from "./pages/UrlRulesPage"
 
 const browserAPI = getBrowserAPI()
@@ -67,6 +69,11 @@ function OptionsAppContent() {
       ) {
         dispatch(loadSettingsCatalog())
       }
+
+      // Reflect snippets created/edited elsewhere (e.g. the palette form).
+      if ("monocle-snippets" in changes) {
+        dispatch(loadSnippets())
+      }
     }
 
     browserAPI.storage?.onChanged?.addListener(handleStorageChange)
@@ -84,6 +91,7 @@ function OptionsAppContent() {
           <Route path="/commands" component={CommandsPage} />
           <Route path="/favorites" component={FavoritesPage} />
           <Route path="/keyboard" component={KeyboardPage} />
+          <Route path="/snippets" component={SnippetsPage} />
           <Route path="/url-rules" component={UrlRulesPage} />
           <Route path="/about" component={AboutPage} />
           <Route>

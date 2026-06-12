@@ -12,6 +12,7 @@ import { CommandItemMulti } from "./CommandItemMulti"
 import { CommandItemSelect } from "./CommandItemSelect"
 import { CommandItemSubmit } from "./CommandItemSubmit"
 import { CommandItemSwitch } from "./CommandItemSwitch"
+import { CommandItemTextarea } from "./CommandItemTextarea"
 import { CommandItemTextList } from "./CommandItemTextList"
 
 type TextListField = Extract<FormField, { type: "text-list" }>
@@ -207,6 +208,15 @@ function CommandItemComponent({
                   field={inputField}
                   inputRef={inputRef}
                   onKeyDown={onInlineInputKeyDown}
+                  onSubmit={handleInputSubmit}
+                />
+              ) : null,
+            )
+            .with("textarea", () =>
+              inputField && inputField.type === "textarea" ? (
+                <CommandItemTextarea
+                  field={inputField}
+                  inputRef={inputRef as any}
                   onSubmit={handleInputSubmit}
                 />
               ) : null,

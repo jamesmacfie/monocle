@@ -1,6 +1,8 @@
 import { match } from "ts-pattern"
 import { validateIncomingMessage } from "../utils/validation"
+import { addSnippet } from "./addSnippet"
 import { checkKeybindingConflict } from "./checkKeybindingConflict"
+import { deleteSnippet } from "./deleteSnippet"
 import { executeCommand } from "./executeCommand"
 import { executeKeybinding } from "./executeKeybinding"
 import { executeWorkflow } from "./executeWorkflow"
@@ -9,6 +11,7 @@ import { getCommands } from "./getCommands"
 import { getKeybindingState } from "./getKeybindingState"
 import { getPermissions } from "./getPermissions"
 import { getSettingsCatalog } from "./getSettingsCatalog"
+import { getSnippets } from "./getSnippets"
 import { getUnsplashBackground } from "./getUnsplashBackground"
 import { openPermissionGrantPage } from "./openPermissionGrantPage"
 import { requestPermission } from "./requestPermission"
@@ -19,6 +22,7 @@ import { showToast } from "./showToast"
 import { siteSdkSync } from "./siteSdkSync"
 import { updateCommandKeybindings } from "./updateCommandKeybindings"
 import { updateCommandSetting } from "./updateCommandSetting"
+import { updateSnippet } from "./updateSnippet"
 
 export const handleMessage = async (rawMessage: unknown, sender?: any) => {
   // Validate the incoming message with comprehensi security checks
@@ -93,6 +97,18 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "set-command-favorite" }, async (msg) => {
       return await setCommandFavorite(msg, sender)
+    })
+    .with({ type: "get-snippets" }, async (msg) => {
+      return await getSnippets(msg, sender)
+    })
+    .with({ type: "add-snippet" }, async (msg) => {
+      return await addSnippet(msg, sender)
+    })
+    .with({ type: "update-snippet" }, async (msg) => {
+      return await updateSnippet(msg, sender)
+    })
+    .with({ type: "delete-snippet" }, async (msg) => {
+      return await deleteSnippet(msg, sender)
     })
     .with({ type: "check-keybinding-conflict" }, async (msg) => {
       return await checkKeybindingConflict(msg, sender)

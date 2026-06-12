@@ -11,8 +11,8 @@ keys and are not part of the `monocle-settings` document.
 
 ## Storage layout
 
-Monocle uses three independent `chrome.storage.local` keys. Only the first is
-the "settings document"; the other two are documented here for completeness
+Monocle uses four independent `chrome.storage.local` keys. Only the first is
+the "settings document"; the others are documented here for completeness
 because they are frequently confused with settings.
 
 | Storage key | Owner | Shape | Covered by |
@@ -20,9 +20,10 @@ because they are frequently confused with settings.
 | `monocle-settings` | `background/commands/settings.ts` | `Settings` (theme, newTab, commands) | this doc |
 | `monocle-favoriteCommandIds` | `background/commands/favorites.ts` | `string[]` of command ids | [search-and-ranking.md](./search-and-ranking.md) |
 | `monocle-commandUsage` | `background/commands/usage.ts` | `{ commandStats, lastCleanup }` | [search-and-ranking.md](./search-and-ranking.md) |
+| `monocle-snippets` | `background/commands/snippets.ts` | `Snippet[]` (id, name, body, timestamps) | [commands/tools.md](./commands/tools.md) |
 
-Because favorites and usage live outside `monocle-settings`, clearing settings
-(`clearAllSettings`) does **not** clear favorites or usage data, and vice
+Because favorites, usage, and snippets live outside `monocle-settings`,
+clearing settings (`clearAllSettings`) does **not** clear them, and vice
 versa.
 
 ## The settings document shape

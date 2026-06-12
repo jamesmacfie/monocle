@@ -1,0 +1,159 @@
+import type { CommandNode } from "../../../shared/types/"
+import {
+  getActiveTab,
+  sendErrorToastToActiveTab,
+  sendSuccessToastToActiveTab,
+  sendTabMessage,
+} from "../../utils/browser"
+import { createNoOpCommand } from "../../utils/commands"
+import { addSnippet, getSnippets } from "../snippets"
+
+// Form for creating a snippet from the palette. Persisted via the
+// background-owned `monocle-snippets` storage module.
+export const createSnippet: CommandNode = {
+  type: "group",
+  id: "create-snippet",
+  name: "Create Snippet",
+  description: "Save a reusable text snippet",
+  icon: { type: "lucide", name: "FilePlus" },
+  color: "teal",
+  keywords: ["snippet", "text", "template", "save"],
+  // Form fields must not leak into root search.
+  enableDeepSearch: false,
+  children: async () => [
+    {
+      type: "input",
+      id: "create-snippet-name",
+      name: "Name",
+      field: {
+        id: "name",
+        label: "Name",
+        type: "text",
+        placeholder: "Snippet name",
+        required: true,
+        validation: { type: "string", minLength: 1 },
+      },
+    },
+    {
+      type: "input",
+      id: "create-snippet-body",
+      name: "Body",
+      field: {
+        id: "body",
+        label: "Body",
+        type: "textarea",
+        placeholder: "Snippet text…",
+        required: true,
+        validation: { type: "string", minLength: 1 },
+      },
+    },
+    {
+      type: "submit",
+      id: "create-snippet-execute",
+      name: "Save Snippet",
+      actionLabel: "Save Snippet",
+      execute: async (_context, values) => {
+        const name = values?.name?.trim() || ""
+        const body = values?.body || ""
+
+        if (!name || !body.trim()) {
+          await sendErrorToastToActiveTab("Snippet needs a name and a body")
+          return
+        }
+
+        await addSnippet({ name, body })
+        await sendSuccessToastToActiveTab(`Saved snippet "${name}"`)
+      },
+    },
+  ],
+}
+
+// Dynamic list of saved snippets. Selecting one inserts its body at the
+// caret of the page's last-focused editable element; the content listener
+// reports whether it inserted, and we fall back to a clipboard copy.
+export const insertSnippet: CommandNode = {
+  type: "group",
+  id: "insert-snippet",
+  name: "Insert Snippet",
+  description: "Insert a saved snippet where the cursor is",
+  icon: { type: "lucide", name: "Clipboard" },
+  color: "teal",
+  keywords: ["snippet", "paste", "text", "template"],
+  enableDeepSearch: true,
+  children: async () => {
+    const snippets = await getSnippets()
+
+    if (snippets.length === 0) {
+      return [
+        createNoOpCommand(
+          "no-snippets",
+          "No snippets yet",
+          "Use Create Snippet to add one",
+        ),
+      ]
+    }
+
+    return snippets.map(
+      (snippet): CommandNode => ({
+        type: "action",
+        id: `snippet-${snippet.id}`,
+        name: snippet.name,
+        description:
+          snippet.body.length > 100
+            ? `${snippet.body.slice(0, 100)}…`
+            : snippet.body,
+        icon: { type: "lucide", name: "FileText" },
+        color: "teal",
+        actionLabel: "Insert",
+        modifierActionLabel: {
+          cmd: "Copy to Clipboard",
+        },
+        // Dynamic id: custom keybindings would dangle once the snippet is
+        // deleted, and the settings catalog can't configure ephemeral rows.
+        allowCustomKeybinding: false,
+        settingsCatalog: { configurable: false },
+        execute: async (context) => {
+          const activeTab = await getActiveTab()
+          if (!activeTab) {
+            console.error("No active tab to insert snippet into")
+            return
+          }
+
+          const copyToClipboard = async () => {
+            await sendTabMessage(activeTab.id, {
+              type: "monocle-copyToClipboard",
+              message: snippet.body,
+            })
+          }
+
+          try {
+            if (context?.modifierKey === "cmd") {
+              await copyToClipboard()
+              await sendSuccessToastToActiveTab(
+                `Copied "${snippet.name}" to clipboard`,
+              )
+              return
+            }
+
+            const response = await sendTabMessage(activeTab.id, {
+              type: "monocle-insertText",
+              text: snippet.body,
+            })
+
+            if (!response?.inserted) {
+              // Nothing focused on the page (or the new-tab page): fall
+              // back to the clipboard so the snippet is still usable.
+              await copyToClipboard()
+              await sendSuccessToastToActiveTab(
+                "No input focused — copied snippet to clipboard",
+              )
+            }
+          } catch (error) {
+            console.error(`Failed to insert snippet "${snippet.name}"`, error)
+            await sendErrorToastToActiveTab("Failed to insert snippet")
+          }
+        },
+      }),
+    )
+  },
+}

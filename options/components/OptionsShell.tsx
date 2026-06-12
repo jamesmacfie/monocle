@@ -1,5 +1,6 @@
 import {
   Command,
+  FileText,
   Github,
   Globe2,
   Image,
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/commands", label: "Commands", icon: Command },
   { href: "/favorites", label: "Favorites", icon: Star },
   { href: "/keyboard", label: "Keyboard", icon: Keyboard },
+  { href: "/snippets", label: "Snippets", icon: FileText },
   { href: "/url-rules", label: "URL Rules", icon: Globe2 },
   { href: "/about", label: "About", icon: Github },
 ]

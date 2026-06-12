@@ -3,6 +3,7 @@ import type { Browser } from "./browser"
 import type { CommandUrlRulesSetting } from "./settings"
 import type { SettingsCatalogResponse } from "./settingsCatalog"
 import type { SiteSdkRegistration } from "./siteSdk"
+import type { Snippet } from "./snippets"
 import type { Suggestion } from "./ui"
 import type { Workflow, WorkflowResult } from "./workflow"
 
@@ -176,6 +177,48 @@ export type SetCommandFavoriteMessage = {
   favorite: boolean
 }
 
+export type GetSnippetsMessage = {
+  type: "get-snippets"
+  context?: Browser.Context
+}
+
+export type GetSnippetsResponse = {
+  snippets: Snippet[]
+}
+
+export type AddSnippetMessage = {
+  type: "add-snippet"
+  name: string
+  body: string
+  context?: Browser.Context
+}
+
+export type AddSnippetResponse = {
+  snippet: Snippet
+}
+
+export type UpdateSnippetMessage = {
+  type: "update-snippet"
+  id: string
+  name?: string
+  body?: string
+  context?: Browser.Context
+}
+
+export type UpdateSnippetResponse = {
+  snippet: Snippet | null
+}
+
+export type DeleteSnippetMessage = {
+  type: "delete-snippet"
+  id: string
+  context?: Browser.Context
+}
+
+export type DeleteSnippetResponse = {
+  deleted: boolean
+}
+
 export type CheckKeybindingConflictMessage = {
   type: "check-keybinding-conflict"
   keybinding: string
@@ -237,6 +280,10 @@ export type Message =
   | UpdateCommandKeybindingsMessage
   | GetSettingsCatalogMessage
   | SetCommandFavoriteMessage
+  | GetSnippetsMessage
+  | AddSnippetMessage
+  | UpdateSnippetMessage
+  | DeleteSnippetMessage
   | CheckKeybindingConflictMessage
   | GetUnsplashBackgroundMessage
   | GetPermissionsMessage

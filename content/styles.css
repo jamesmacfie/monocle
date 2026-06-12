@@ -1925,6 +1925,31 @@
   color: var(--color-fg-placeholder);
 }
 
+/* Multi-line variant: the base container is a fixed 30px row, so the
+   textarea variant relaxes the height and lets the field grow. */
+.command-item-inline-textarea {
+  height: auto;
+  min-height: 30px;
+}
+
+.command-item-inline-textarea textarea {
+  font-family: var(--font-sans);
+  background: transparent;
+  border: none;
+  color: var(--color-fg);
+  font-size: 14px;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  line-height: 1.4;
+  resize: vertical;
+  width: 100%;
+}
+
+.command-item-inline-textarea textarea::placeholder {
+  color: var(--color-fg-placeholder);
+}
+
 /* Dark mode adjustments */
 .dark .command-item-inline-input {
   background: var(--color-surface-elevated);

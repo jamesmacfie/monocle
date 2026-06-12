@@ -1,7 +1,9 @@
 import * as React from "react"
 import type {
+  AddSnippetMessage,
   Browser,
   CheckKeybindingConflictMessage,
+  DeleteSnippetMessage,
   ExecuteCommandMessage,
   ExecuteKeybindingMessage,
   GetChildrenMessage,
@@ -9,12 +11,14 @@ import type {
   GetKeybindingStateMessage,
   GetPermissionsMessage,
   GetSettingsCatalogMessage,
+  GetSnippetsMessage,
   OpenPermissionGrantPageMessage,
   RequestPermissionMessage,
   RequestToastMessage,
   SearchCommandsMessage,
   SetCommandFavoriteMessage,
   UpdateCommandSettingMessage,
+  UpdateSnippetMessage,
 } from "../../shared/types"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
 
@@ -48,6 +52,10 @@ type SendableMessage =
   | UpdateCommandSettingMessage
   | GetSettingsCatalogMessage
   | SetCommandFavoriteMessage
+  | GetSnippetsMessage
+  | AddSnippetMessage
+  | UpdateSnippetMessage
+  | DeleteSnippetMessage
   | CheckKeybindingConflictMessage
   | GetPermissionsMessage
   | RequestPermissionMessage

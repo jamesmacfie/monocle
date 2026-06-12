@@ -1,6 +1,6 @@
 # Tool Commands
 
-Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are three tool commands today: a calculator, a UUID generator, and a workflow debug command.
+Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are five tool commands today: a calculator, a UUID generator, a workflow debug command, and the snippet pair (create + insert).
 
 ## Summary
 
@@ -9,11 +9,19 @@ Tool commands are general-purpose utilities that are not tied to a browser API s
 | Calculator | `calculator` | `group` | Evaluate arithmetic expressions with formatting and optional clipboard copy | Custom recursive-descent string evaluator, not `eval` |
 | Copy UUID v4 | `uuidv4` | `action` | Generate a v4 UUID and copy it to the clipboard | Uses the `uuid` package |
 | Debug Workflow | `debug-workflow` | `action` | Run a fixed click workflow against the active page | Exercises the workflow execution path; see [../workflow-automation.md](../workflow-automation.md) |
+| Create Snippet | `create-snippet` | `group` | Form (name + multi-line body) that saves a reusable text snippet | Persists to the `monocle-snippets` storage key; body uses the `textarea` form field |
+| Insert Snippet | `insert-snippet` | `group` | List saved snippets; selecting one inserts its body at the page caret | Cmd-enter copies instead; falls back to clipboard + toast when no input is focused |
 
-All three are registered in `background/commands/tools/index.ts`:
+All five are registered in `background/commands/tools/index.ts`:
 
 ```ts
-export const toolCommands = [calculator, copyUuidV4, debugWorkflow]
+export const toolCommands = [
+  calculator,
+  copyUuidV4,
+  debugWorkflow,
+  createSnippet,
+  insertSnippet,
+]
 ```
 
 ---
@@ -100,6 +108,30 @@ This command exists to exercise the end-to-end workflow execution path against a
 This is the only workflow surface that ships as a first-class command; it only exercises the implemented `click` step. The `test-inputs.html` fixture page at the repo root provides a Submit button to test against. For the workflow type model versus what the executor actually supports, see [../workflow-automation.md](../workflow-automation.md).
 
 Test coverage: `background/commands/tools/debugWorkflow.test.ts` stubs Chrome tabs and asserts the message sequence is exactly `toggle-ui` -> `execute-workflow-content` -> `monocle-toast`, that all messages target the resolved (non-active) tab whose URL matched the context, and that a failing `WorkflowResult` produces a targeted error toast containing the underlying error string.
+
+---
+
+## Snippets
+
+Source: `background/commands/tools/snippets.ts`, exporting `createSnippet` and `insertSnippet` (both `group` nodes). Snippet data is owned by `background/commands/snippets.ts` and persisted under the independent `monocle-snippets` storage key (`Snippet { id, name, body, createdAt, updatedAt }`, ids from `crypto.randomUUID()`); like favorites and usage, it survives `clearAllSettings`. The options Snippets page (`options/pages/SnippetsPage.tsx`) manages the same data through the `get-snippets` / `add-snippet` / `update-snippet` / `delete-snippet` messages and the `snippets` Redux slice.
+
+### Create Snippet (`create-snippet`)
+
+A form group (`enableDeepSearch: false`) with two `input` rows plus a `submit` row:
+
+| Child id | Field id | Field type | Notes |
+| --- | --- | --- | --- |
+| `create-snippet-name` | `name` | `text` | Required |
+| `create-snippet-body` | `body` | `textarea` | Required; first user of the multi-line `textarea` form field |
+| `create-snippet-execute` | n/a | `submit` | `actionLabel: "Save Snippet"`; persists via `addSnippet` and toasts |
+
+### Insert Snippet (`insert-snippet`)
+
+A dynamic group (`enableDeepSearch: true`, so snippets are findable from root search). `children` maps each saved snippet to an `action` node (`snippet-<id>`, `allowCustomKeybinding: false`, `settingsCatalog.configurable: false`); an empty list renders a NoOp row.
+
+On execute, the action sends `monocle-insertText` with the snippet body to the active tab. `InsertTextListener` (`shared/components/Listeners/InsertTextListener.tsx`, mounted in both palette modes) tracks the page's last-focused editable element (capture-phase `focusin`, ignoring Monocle's own UI) and inserts at its caret via `execCommand("insertText")` with a native-setter splice fallback, responding `{ inserted }`. When nothing was inserted (nothing focused, element detached, or the new-tab page) the executor falls back to `monocle-copyToClipboard` plus an explanatory toast. Cmd-enter copies to the clipboard directly.
+
+Test coverage: `background/commands/snippets.test.ts` (CRUD round-trip, unknown-id behavior, concurrent-add storage-lock serialization) and snippet message schema cases in `shared/types/validation.test.ts`.
 
 ---
 

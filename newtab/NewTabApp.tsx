@@ -2,6 +2,7 @@ import { Settings } from "lucide-react"
 import { useEffect, useMemo } from "react"
 import { Provider } from "react-redux"
 import CopyToClipboardListener from "../shared/components/Listeners/CopyToClipboardListener"
+import InsertTextListener from "../shared/components/Listeners/InsertTextListener"
 import NewTabListener from "../shared/components/Listeners/NewTabListener"
 import ScreenshotListener from "../shared/components/Listeners/ScreenshotListener"
 import ScrollListener from "../shared/components/Listeners/ScrollListener"
@@ -119,6 +120,7 @@ function NewTabAppContent() {
         <Settings size={18} />
       </button>
       <CopyToClipboardListener />
+      <InsertTextListener />
       <NewTabListener />
       <ScrollListener />
       <ScreenshotListener />

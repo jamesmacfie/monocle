@@ -159,6 +159,67 @@ describe("settings catalog schema validation", () => {
   })
 })
 
+describe("snippet message schema validation", () => {
+  it("accepts snippet CRUD messages", () => {
+    expect(
+      validateMessage({
+        type: "get-snippets",
+        context,
+      }).success,
+    ).toBe(true)
+    expect(
+      validateMessage({
+        type: "add-snippet",
+        name: "Greeting",
+        body: "Hello there,\n\nThanks!",
+        context,
+      }).success,
+    ).toBe(true)
+    expect(
+      validateMessage({
+        type: "update-snippet",
+        id: "snippet-id",
+        body: "Updated body",
+      }).success,
+    ).toBe(true)
+    expect(
+      validateMessage({
+        type: "delete-snippet",
+        id: "snippet-id",
+      }).success,
+    ).toBe(true)
+  })
+
+  it("rejects empty snippet names, bodies, and ids", () => {
+    expect(
+      validateMessage({
+        type: "add-snippet",
+        name: "",
+        body: "body",
+      }).success,
+    ).toBe(false)
+    expect(
+      validateMessage({
+        type: "add-snippet",
+        name: "name",
+        body: "",
+      }).success,
+    ).toBe(false)
+    expect(
+      validateMessage({
+        type: "update-snippet",
+        id: "",
+      }).success,
+    ).toBe(false)
+    expect(
+      validateMessage({
+        type: "delete-snippet",
+        id: "",
+      }).success,
+    ).toBe(false)
+  })
+})
+
 describe("permission grant page schema validation", () => {
   it("requires a permission value", () => {
     expect(

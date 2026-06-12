@@ -5,6 +5,8 @@ export function getDefaultValue(field: FormField): string | string[] {
   switch (field.type) {
     case "text":
       return field.defaultValue || ""
+    case "textarea":
+      return field.defaultValue || ""
     case "select":
       return field.defaultValue || ""
     case "checkbox":

@@ -130,6 +130,42 @@ export const SetCommandFavoriteMessageSchema = z.object({
   favorite: z.boolean(),
 })
 
+const SnippetNameSchema = z
+  .string()
+  .min(1, "Snippet name cannot be empty")
+  .max(200, "Snippet name too long")
+
+const SnippetBodySchema = z
+  .string()
+  .min(1, "Snippet body cannot be empty")
+  .max(100_000, "Snippet body too long")
+
+export const GetSnippetsMessageSchema = z.object({
+  type: z.literal("get-snippets"),
+  context: BrowserContextSchema.optional(),
+})
+
+export const AddSnippetMessageSchema = z.object({
+  type: z.literal("add-snippet"),
+  name: SnippetNameSchema,
+  body: SnippetBodySchema,
+  context: BrowserContextSchema.optional(),
+})
+
+export const UpdateSnippetMessageSchema = z.object({
+  type: z.literal("update-snippet"),
+  id: z.string().min(1, "Snippet ID cannot be empty"),
+  name: SnippetNameSchema.optional(),
+  body: SnippetBodySchema.optional(),
+  context: BrowserContextSchema.optional(),
+})
+
+export const DeleteSnippetMessageSchema = z.object({
+  type: z.literal("delete-snippet"),
+  id: z.string().min(1, "Snippet ID cannot be empty"),
+  context: BrowserContextSchema.optional(),
+})
+
 export const CheckKeybindingConflictMessageSchema = z.object({
   type: z.literal("check-keybinding-conflict"),
   keybinding: z.string().min(1, "Keybinding cannot be empty"),
@@ -287,6 +323,10 @@ export const MessageSchema = z.discriminatedUnion("type", [
   UpdateCommandKeybindingsMessageSchema,
   GetSettingsCatalogMessageSchema,
   SetCommandFavoriteMessageSchema,
+  GetSnippetsMessageSchema,
+  AddSnippetMessageSchema,
+  UpdateSnippetMessageSchema,
+  DeleteSnippetMessageSchema,
   CheckKeybindingConflictMessageSchema,
   GetUnsplashBackgroundMessageSchema,
   GetPermissionsMessageSchema,

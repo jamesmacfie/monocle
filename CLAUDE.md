@@ -90,6 +90,7 @@ Current feature status:
 | URL filtering, website commands, and site SDK | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. `window.Monocle` supports non-privileged session-only site commands. |
 | Workflow automation | Partial | Click workflows and focused wait conditions work; validation/routing/debug feedback have focused tests, and most operations remain unsupported. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
+| Snippets | Working with review notes | Create/insert palette commands, `monocle-snippets` storage, options Snippets page, and caret insertion via `monocle-insertText`; storage CRUD and message validation have focused tests; manual insertion smoke (inputs, textareas, contenteditable, new-tab fallback) is still needed. |
 
 Last verified validation:
 
@@ -97,7 +98,7 @@ Last verified validation:
 - `pnpm run fmt:check` passes.
 - `pnpm test` passes with focused command-system, palette-search
   (index/scoring/search-commands/slice staleness), browser-command, keybinding,
-  URL-filtering, settings-management, workflow automation,
+  URL-filtering, settings-management, snippet-storage, workflow automation,
   new-tab/theme/background, and GitHub parsing coverage.
 - `pnpm run build` passes for the Chrome MV3 target.
 - `pnpm run build:firefox` passes for the Firefox MV3 target.
