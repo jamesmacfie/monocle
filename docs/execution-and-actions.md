@@ -103,7 +103,7 @@ The action menu is the secondary "Actions" surface (footer button labelled `Acti
 
 `shared/components/Command/CommandActionsList.tsx` renders each action as an `ActionItem`, showing the action name and, when present, a `KeybindingDisplay` for `action.keybinding`. `ActionItem` handles three special cases:
 
-- **setKeybinding**: selecting it dispatches `startCapture` and swaps the row for an inline `KeybindingCapture` (sequence capture with live conflict checking via `check-keybinding-conflict`). On save it sends `update-command-setting` with `setting: "keybinding"`, completes capture, refreshes, and force-closes the menu. See [keybindings.md](keybindings.md).
+- **setKeybinding**: selecting it dispatches `startCapture` and swaps the row for an inline `KeybindingCapture` (sequence capture with live conflict checking via `check-keybinding-conflict`). The action's `executionContext` carries the target command's `keybindingRequirements` so the capture box can hint constraints (e.g. "must include ⌘/⌃/⌥" for snippet commands) before the first stroke and block violating saves. On save it sends `update-command-setting` with `setting: "keybinding"`, completes capture, refreshes, and force-closes the menu. See [keybindings.md](keybindings.md).
 - **resetKeybinding**: skips confirmation and selects immediately.
 - **confirmAction**: see below.
 

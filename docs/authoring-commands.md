@@ -171,6 +171,10 @@ The **high-risk policy is enforced in code**, not by convention: `allowsKeybindi
 
 So a destructive command may still declare a `keybinding` for documentation/intent, but if it sets `confirmAction: true` that binding will not fire. Decide deliberately: confirmation-gated or keybindable, not both.
 
+### Keybinding requirements (shortcuts that must work while typing)
+
+If a command's shortcut must fire **while an editable element is focused** (e.g. snippet insertion — the whole point is inserting at the cursor), declare `keybindingRequirements: { requireNonShiftModifier: true }` on the action/submit node. The content event filter (`shared/utils/event-filter.ts`) only forwards editable-element keystrokes that carry cmd/ctrl/alt — shift alone types a character — so a plain-key or shift-only binding would simply never reach the command while typing. The requirement makes every stroke of an assigned binding (including sequence strokes) carry a non-shift modifier; both capture UIs hint and enforce it, and the persist paths reject violations. See [keybindings.md](./keybindings.md) "Per-command keybinding requirements".
+
 ## Form-style commands (group + input + submit)
 
 There is no single "form" node type. A form is a `group` whose `children` return one or more `input` rows plus a terminal `submit`. Field values entered into the `input` rows are kept in navigation state (Redux) and handed to the `submit` command's `execute` as its second argument.

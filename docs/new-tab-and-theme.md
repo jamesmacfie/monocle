@@ -65,6 +65,7 @@ unless you intend to override WXT's inference.
 | `<PermissionGrantPanel />` | `newtab/components/PermissionGrantPanel.tsx` | Rendered only when a valid `?grantPermission=` query param is present. |
 | `<NewTabCommandPalette autoFocus />` | `newtab/components/NewTabCommandPalette.tsx` | The shared palette, wrapped in `.raycast.new-tab-palette`. |
 | Hint text | inline | "Press Cmd+Shift+K on any webpage…". |
+| Listener components | `shared/components/Listeners/` | `CopyToClipboardListener`, `InsertTextListener`, `NewTabListener`, `ScrollListener`, `ScreenshotListener` — always mounted so background → tab messages (clipboard copy, snippet insert fallback, etc.) work on the new-tab page; see [messaging.md](./messaging.md). |
 | `<ToastContainer />` | `shared/components/ToastContainer` | Shared toast host. |
 
 The product scope here is intentionally a lightweight launcher surface

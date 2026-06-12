@@ -1,8 +1,8 @@
 # Settings Page
 
 > **Status: Phase 1 plus management pages implemented.** Monocle now has a WXT
-> options page with General, New Tab, Commands, Favorites, Keyboard, URL Rules,
-> and About sections. Later sections in this document remain future design unless
+> options page with General, New Tab, Commands, Favorites, Keyboard, Snippets,
+> URL Rules, and About sections. Later sections in this document remain future design unless
 > explicitly described as implemented.
 
 Monocle's configuration is split between **palette-native quick actions** and a
@@ -31,7 +31,7 @@ Wouter hash routes, Tailwind, and local shadcn-style primitives.
 
 | Concern | How it's configured today | Source |
 | --- | --- | --- |
-| Options page | General, New Tab, Commands, Favorites, Keyboard, URL Rules, and About pages | `entrypoints/options/`, `options/` |
+| Options page | General, New Tab, Commands, Favorites, Keyboard, Snippets, URL Rules, and About pages | `entrypoints/options/`, `options/` |
 | Open settings | `open-settings` command opens `options.html#/` | `background/commands/ui/openSettings.ts` |
 | Theme (`light`/`dark`/`system`) | General page selector; `toggle-theme` command still exists | `options/pages/GeneralPage.tsx`, `background/commands/ui/theme.ts` |
 | New-tab clock visibility | New Tab page switch; `toggle-clock-visibility` still exists under `new-tab-clock` | `options/pages/NewTabPage.tsx`, `background/commands/newTab/` |
@@ -40,6 +40,7 @@ Wouter hash routes, Tailwind, and local shadcn-style primitives.
 | Per-command visibility (per domain) | Commands and URL Rules page editors; `manage-allow-list` / `manage-deny-list` commands + generated **Hide from Domain** action | `options/components/UrlRulesDialog.tsx`, `options/pages/UrlRulesPage.tsx`, `background/commands/ui/manageAllowList.ts`, `manageDenyList.ts`, `background/commands/index.ts` |
 | Per-command keybinding | Commands and Keyboard page keybinding dialogs; Keyboard page templates; generated **Set / Reset Custom Keybinding** actions in the action menu | `options/components/KeybindingDialog.tsx`, `options/components/KeybindingTemplateDialog.tsx`, `options/pages/KeyboardPage.tsx`, `options/lib/keybindingTemplates.ts`, `background/commands/index.ts`, `shared/components/Command/CommandActionsList.tsx` |
 | Favorites | Commands and Favorites page favorite toggles; inline ♡ toggle action per command; `clear-favorites` command | `options/pages/FavoritesPage.tsx`, `background/commands/favorites.ts` |
+| Snippets | Snippets page: list, create, edit, and delete saved snippets (independent `monocle-snippets` storage); mirrors palette-created snippets via `storage.onChanged` | `options/pages/SnippetsPage.tsx`, `shared/store/slices/snippets.slice.ts`, `background/commands/snippets.ts`; see [commands/tools.md](./commands/tools.md) |
 | Permissions | Inline grant actions on permission-gated rows; new-tab grant panel | `shared/components/Command/PermissionActions.tsx`, `newtab/components/PermissionGrantPanel.tsx` |
 | Clear browser data | `clear-browser-data` nested group (data type × time span) | `background/commands/browser/clearBrowserData.ts` |
 
@@ -133,6 +134,7 @@ A left sidebar with these sections (Wouter hash routes in parentheses):
 | **Commands** | `#/commands` | The core: every command, grouped by category, with hide/favorite/keybinding/URL-rules/per-command settings. |
 | **Favorites** | `#/favorites` | View, remove, and (future) reorder favorites. |
 | **Keyboard Shortcuts** | `#/keyboard` | All bindings in one table, conflicts, reset. |
+| **Snippets** | `#/snippets` | Manage saved text snippets (create/edit/delete; bodies support insert-time placeholders). |
 | **URL Rules** | `#/url-rules` | Per-command allow/deny rule overview and bulk clearing. |
 | **Permissions** | `#/permissions` | Grant/revoke optional permissions. |
 | **User Scripts** | `#/user-scripts` | *(Future)* Author/import page-scoped scripts. |

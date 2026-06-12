@@ -38,6 +38,7 @@ The palette is composed from these components (all under
 | `suggestion.type` | `inputField.type` | Rendered variant | Notes |
 | --- | --- | --- | --- |
 | `input` | `text` | `CommandItemInput` | Text field with JSON-schema validation dot. |
+| `input` | `textarea` | `CommandItemTextarea` | Multi-line field; Enter inserts a newline (Cmd/Ctrl+Enter submits), arrows move the caret and only hand navigation to CMDK at the first/last position. |
 | `input` | `select` | `CommandItemSelect` | Native `<select>`; Left/Right cycle options. |
 | `input` | `checkbox` / `switch` | `CommandItemSwitch` | On/Off toggle button (`role="switch"`). |
 | `input` | `multi` | `CommandItemMulti` | Multi-select chips; Left/Right move focus, Enter/Space toggles. |
@@ -248,7 +249,10 @@ Variant-specific keys layered on top: `select` uses Left/Right to cycle options;
 `switch` use Enter/Space to activate; `text` and `select` call `onSubmit` on
 Enter (which validates and submits the page's first `submit` command). The
 `text-list` variant adds Backspace-on-empty-row to delete that row and Up/Down to
-move between rows.
+move between rows. `textarea` deliberately deviates: plain Enter inserts a
+newline (Cmd/Ctrl+Enter submits), and Up/Down move the caret inside the field —
+arrows only forward to CMDK when the caret is already at the first/last
+position (`CommandItemTextarea`).
 
 ### Submitting a form
 
@@ -358,6 +362,17 @@ executions (`id.includes("clock")`/`"settings"`) it reloads settings into Redux.
   messages, they render inside whichever DOM (shadow or new-tab) hosts the
   container.
 
+## Always-Mounted Listener Components
+
+Both surfaces mount the same listener set **outside the palette-visibility
+gate**, so background → tab messages keep working after the palette hides
+(`content/components/ContentCommandPalette.tsx` and `newtab/NewTabApp.tsx`):
+`CopyToClipboardListener` (`monocle-copyToClipboard`), `InsertTextListener`
+(`monocle-insertText` + page focus tracking for insert-at-cursor),
+`NewTabListener` (`monocle-newTab`), `ScrollListener` (`monocle-scroll`),
+`ScreenshotListener` (`monocle-screenshot`), and `ToastContainer`
+(`monocle-toast`). See [messaging.md](./messaging.md) for the message payloads.
+
 ## Known Issues / Review Notes
 
 - `CommandPalette.tsx` carries several concerns at once: action-menu state,
@@ -391,9 +406,10 @@ executions (`id.includes("clock")`/`"settings"`) it reloads settings into Redux.
   visible.
 - Confirm Backspace pops only when the nested search box is empty (and deletes
   text otherwise).
-- Open a group with inline inputs, edit text/select/switch/multi/color/text-list
-  values, and execute a submit; confirm validation dots and the invalid-form
-  toast.
+- Open a group with inline inputs, edit
+  text/textarea/select/switch/multi/color/text-list values, and execute a
+  submit; confirm validation dots and the invalid-form toast. In a textarea,
+  confirm Enter inserts a newline and Cmd/Ctrl+Enter submits.
 - Open the action menu with Alt on action/submit/search/group rows; confirm it
   closes when focus moves and stays open during keybinding capture.
 - Open a `search` command and confirm dynamic results stream in and clear when

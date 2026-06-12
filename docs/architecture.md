@@ -79,7 +79,7 @@ Monocle uses Redux Toolkit. There are two store factories in `shared/store/`:
 
 | Factory | File | Slices | Used by |
 | --- | --- | --- | --- |
-| `createAppStore(sendMessage?)` | `shared/store/index.ts` | `settings`, `settingsCatalog`, `navigation`, `commandPalette`, `keybinding` | Content overlay, new-tab, and options page. |
+| `createAppStore(sendMessage?)` | `shared/store/index.ts` | `settings`, `settingsCatalog`, `navigation`, `commandPalette`, `keybinding`, `snippets` | Content overlay, new-tab, and options page. |
 | `createCommandPaletteStore(initialIsOpen?)` | `shared/store/commandPaletteStore.ts` | `commandPalette` only | A minimal palette-only store factory. |
 
 The full app store is instantiated **per mode** (one per content overlay mount, one per new-tab app) inside a React `useMemo`, so each surface has its own isolated store. The `sendMessage` function is injected as the thunk `extraArgument` (`ThunkApi`), giving async thunks access to background messaging without importing it directly.
@@ -92,7 +92,8 @@ Slices (`shared/store/slices/`):
 | `settingsCatalog` | `settingsCatalog.slice.ts` | Options-page command catalog rows and mutations for hidden/favorite/keybinding/URL-rule management. |
 | `navigation` | `navigation.slice.ts` | Palette page stack, search values, dynamic child pages, inline form values, loading/errors. |
 | `commandPalette` | `commandPaletteState.slice.ts` | Overlay visibility (`isOpen`). |
-| `keybinding` | `keybinding.slice.ts` | Keybinding capture state (`isCapturing`, `targetCommandId`). |
+| `keybinding` | `keybinding.slice.ts` | Keybinding capture state (`isCapturing`, `targetCommandId`, `requirements`). |
+| `snippets` | `snippets.slice.ts` | Saved snippets mirror for the options Snippets page; CRUD thunks over the `get/add/update/delete-snippet` messages. |
 
 Typed hooks (`useAppDispatch`, `useAppSelector`, `useAppStore`) live in `shared/store/hooks.ts`. `createAppStore` ships a `preloadedState` with sensible defaults (theme `system`, clock shown, all permissions `false`, palette closed). `RootState`, `AppDispatch`, and `AppStore` types are exported from `shared/store/index.ts`.
 
