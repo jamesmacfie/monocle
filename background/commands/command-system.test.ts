@@ -522,12 +522,15 @@ describe("URL-filtered execution", () => {
       childResponse.children.map((item: { id: string }) => item.id),
     ).not.toContain("open-tab-2")
 
-    // Root search applies URL deny rules to deep-search results at query time
+    // Root search applies URL deny rules to deep-search results at query time.
+    // A generous limit keeps deep-search children in scope as the root
+    // command catalog of "tab" matches grows.
     const searchResponse = (await searchCommands({
       type: "search-commands",
       context: normalContext,
       query: "tab",
       seq: 1,
+      limit: 60,
     })) as any
 
     expect(
@@ -556,6 +559,7 @@ describe("URL-filtered execution", () => {
       context: normalContext,
       query: "tab",
       seq: 1,
+      limit: 60,
     })) as any
 
     expect(

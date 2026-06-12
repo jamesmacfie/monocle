@@ -88,6 +88,9 @@ let cookieStore: Array<{
   storeId?: string
 }> = []
 let chromeApi: any
+let zoomFactor = 1
+let windowState = "normal"
+let scriptingResult: unknown
 
 const grantAllPermissions = (): Record<BrowserPermission, boolean> =>
   Object.fromEntries(
@@ -222,6 +225,24 @@ const installChromeStubs = () => {
           return Promise.resolve(tab)
         },
       ),
+      getZoom: vi.fn((_tabId: number, callback?: Function) => {
+        callback?.(zoomFactor)
+        return Promise.resolve(zoomFactor)
+      }),
+      setZoom: vi.fn(
+        (_tabId: number, newZoomFactor: number, callback?: Function) => {
+          zoomFactor = newZoomFactor
+          callback?.()
+          return Promise.resolve()
+        },
+      ),
+    },
+    scripting: {
+      executeScript: vi.fn((_injection: unknown, callback?: Function) => {
+        const results = [{ result: scriptingResult }]
+        callback?.(results)
+        return Promise.resolve(results)
+      }),
     },
     windows: {
       create: vi.fn((createData: object, callback?: Function) => {
@@ -230,7 +251,7 @@ const installChromeStubs = () => {
         return Promise.resolve(window)
       }),
       getCurrent: vi.fn((callback?: Function) => {
-        const window = { id: 10 }
+        const window = { id: 10, state: windowState }
         callback?.(window)
         return Promise.resolve(window)
       }),
@@ -351,6 +372,9 @@ beforeEach(() => {
 
   tabs = defaultTabs.map((tab) => ({ ...tab }))
   permissionAccess = grantAllPermissions()
+  zoomFactor = 1
+  windowState = "normal"
+  scriptingResult = undefined
   bookmarkTree = [
     {
       id: "0",
@@ -768,6 +792,271 @@ describe("scroll commands", () => {
       expect.objectContaining({
         type: "monocle-scroll",
         direction: "bottom",
+      }),
+      expect.anything(),
+    )
+  })
+})
+
+describe("zoom commands", () => {
+  it("zooms the active tab in by one step", async () => {
+    await executeCommand("zoom-in", normalContext, {})
+
+    expect(chromeApi.tabs.setZoom).toHaveBeenCalledWith(
+      1,
+      1.1,
+      expect.anything(),
+    )
+  })
+
+  it("zooms the active tab out by one step", async () => {
+    await executeCommand("zoom-out", normalContext, {})
+
+    expect(chromeApi.tabs.setZoom).toHaveBeenCalledWith(
+      1,
+      0.9,
+      expect.anything(),
+    )
+  })
+
+  it("clamps zoom out at the minimum zoom factor", async () => {
+    zoomFactor = 0.3
+
+    await executeCommand("zoom-out", normalContext, {})
+
+    expect(chromeApi.tabs.setZoom).toHaveBeenCalledWith(
+      1,
+      0.25,
+      expect.anything(),
+    )
+  })
+
+  it("resets the active tab to the default zoom", async () => {
+    zoomFactor = 1.7
+
+    await executeCommand("zoom-reset", normalContext, {})
+
+    expect(chromeApi.tabs.getZoom).not.toHaveBeenCalled()
+    expect(chromeApi.tabs.setZoom).toHaveBeenCalledWith(1, 0, expect.anything())
+  })
+})
+
+describe("toggle fullscreen command", () => {
+  it("enters fullscreen from a normal window", async () => {
+    await executeCommand("toggle-fullscreen", normalContext, {})
+
+    expect(chromeApi.windows.update).toHaveBeenCalledWith(
+      10,
+      { state: "fullscreen" },
+      expect.anything(),
+    )
+  })
+
+  it("returns to a normal window when already fullscreen", async () => {
+    windowState = "fullscreen"
+
+    await executeCommand("toggle-fullscreen", normalContext, {})
+
+    expect(chromeApi.windows.update).toHaveBeenCalledWith(
+      10,
+      { state: "normal" },
+      expect.anything(),
+    )
+  })
+})
+
+describe("sort tabs by title command", () => {
+  it("sorts unpinned tabs alphabetically after pinned tabs", async () => {
+    tabs = [
+      {
+        id: 1,
+        title: "Pinned",
+        url: "https://pinned.example.com/",
+        windowId: 10,
+        active: true,
+        currentWindow: true,
+        index: 0,
+        pinned: true,
+      },
+      {
+        id: 2,
+        title: "Zebra",
+        url: "https://zebra.example.com/",
+        windowId: 10,
+        currentWindow: true,
+        index: 1,
+      },
+      {
+        id: 3,
+        title: "Apple",
+        url: "https://apple.example.com/",
+        windowId: 10,
+        currentWindow: true,
+        index: 2,
+      },
+      {
+        id: 4,
+        title: "Mango",
+        url: "https://mango.example.com/",
+        windowId: 10,
+        currentWindow: true,
+        index: 3,
+      },
+    ]
+
+    await executeCommand("sort-tabs-by-title", normalContext, {})
+
+    expect(chromeApi.tabs.move).toHaveBeenNthCalledWith(
+      1,
+      3,
+      { index: 1 },
+      expect.anything(),
+    )
+    expect(chromeApi.tabs.move).toHaveBeenNthCalledWith(
+      2,
+      4,
+      { index: 2 },
+      expect.anything(),
+    )
+    expect(chromeApi.tabs.move).toHaveBeenNthCalledWith(
+      3,
+      2,
+      { index: 3 },
+      expect.anything(),
+    )
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-toast",
+        level: "success",
+        message: "Tabs sorted by title",
+      }),
+      expect.anything(),
+    )
+  })
+})
+
+describe("copy title + URL command", () => {
+  it("copies the active tab title and URL to the clipboard", async () => {
+    await executeCommand("copy-title-and-url", normalContext, {})
+
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-copyToClipboard",
+        message: "Example\nhttps://example.com/page",
+      }),
+      expect.anything(),
+    )
+  })
+})
+
+describe("open page in incognito command", () => {
+  it("opens the active tab URL in a new incognito window", async () => {
+    await executeCommand("open-page-in-incognito", normalContext, {})
+
+    expect(chromeApi.windows.create).toHaveBeenCalledWith(
+      { url: "https://example.com/page", incognito: true },
+      expect.anything(),
+    )
+  })
+})
+
+describe("print page command", () => {
+  it("injects the print script into the active tab", async () => {
+    await executeCommand("print-page", normalContext, {})
+
+    expect(chromeApi.scripting.executeScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 1 } }),
+      expect.anything(),
+    )
+  })
+})
+
+describe("focus first input command", () => {
+  it("does not toast when an input was focused", async () => {
+    scriptingResult = true
+
+    await executeCommand("focus-first-input", normalContext, {})
+
+    expect(chromeApi.scripting.executeScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 1 } }),
+      expect.anything(),
+    )
+    expect(chromeApi.tabs.sendMessage).not.toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ type: "monocle-toast", level: "error" }),
+      expect.anything(),
+    )
+  })
+
+  it("shows an error toast when no focusable input exists", async () => {
+    scriptingResult = false
+
+    await executeCommand("focus-first-input", normalContext, {})
+
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-toast",
+        level: "error",
+        message: "No focusable input found on this page",
+      }),
+      expect.anything(),
+    )
+  })
+})
+
+describe("search selection command", () => {
+  it("lists provider children", async () => {
+    const response = await getChildren("search-selection")
+
+    expect(response.children).toContainEqual(
+      expect.objectContaining({ id: "search-selection-google" }),
+    )
+  })
+
+  it("opens a Google search for the trimmed page selection", async () => {
+    scriptingResult = "  hello world "
+
+    await executeCommand(
+      "search-selection-google",
+      normalContext,
+      {},
+      undefined,
+      {
+        pageId: "search-selection",
+        parentPath: ["search-selection"],
+      },
+    )
+
+    expect(chromeApi.tabs.create).toHaveBeenCalledWith(
+      { url: "https://www.google.com/search?q=hello%20world" },
+      expect.anything(),
+    )
+  })
+
+  it("shows an error toast when nothing is selected", async () => {
+    scriptingResult = ""
+
+    await executeCommand(
+      "search-selection-google",
+      normalContext,
+      {},
+      undefined,
+      {
+        pageId: "search-selection",
+        parentPath: ["search-selection"],
+      },
+    )
+
+    expect(chromeApi.tabs.create).not.toHaveBeenCalled()
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        type: "monocle-toast",
+        level: "error",
+        message: "No text selected",
       }),
       expect.anything(),
     )
