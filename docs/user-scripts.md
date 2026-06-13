@@ -176,7 +176,8 @@ Because rows are durable commands, keybindings (assigned on the keyboard setting
 
 `options/pages/UserScriptsPage.tsx` (+ `shared/store/slices/userScripts.slice.ts`), routes `#/automations`, `#/automations/new`, `#/automations/:id`:
 
-- List view: name, blurb (`userScriptBlurb`), enabled toggle, edit/delete/export, import.
+- List view: name, blurb (`userScriptBlurb`), enabled toggle, edit/delete/export, import, and **Add Examples**.
+- **Add Examples** (`options/pages/userScripts/examples.ts`) seeds a curated set of example automations covering every trigger type and most of the step vocabulary — saved through the normal add path (so they validate like any document, locked in by `examples.test.ts`), deduped by name, and with event/scheduled triggers shipped disarmed. They double as living documentation of what automations can do.
 - Editor: metadata, scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and the step list — per-op form rows for the flat vocabulary, JSON editing for control-flow steps. Validates as-you-type with the identical shared schema; save is disabled with field-level errors; unknown `{{var}}` references warn.
 - **Test on Active Tab** runs the script through the real engine and shows per-step outcomes — selector breakage, not vocabulary, is what defeats non-programmers.
 - Import: JSON file → strip id/timestamps → validate → **non-manual triggers forced disarmed** + `source: imported` → a review dialog rendering `summarizeUserScript` (every URL pattern, trigger, op class, snippet reference, opened URL, runCommand target, clipboard use) before anything is saved. Export writes the document as JSON (keybindings excluded by design).

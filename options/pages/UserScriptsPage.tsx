@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  Sparkles,
   Trash2,
   Upload,
   Workflow,
@@ -47,6 +48,7 @@ import {
   Panel,
   Switch,
 } from "../components/ui"
+import { EXAMPLE_AUTOMATIONS } from "./userScripts/examples"
 import {
   downloadUserScriptExport,
   prepareImportedDraft,
@@ -94,6 +96,37 @@ export function UserScriptsPage() {
   const [importState, setImportState] = useState<ImportState>({
     stage: "closed",
   })
+  const [seeding, setSeeding] = useState(false)
+  const [seedNotice, setSeedNotice] = useState<string | null>(null)
+
+  // Seed the curated examples that aren't already present (matched by name),
+  // so clicking twice doesn't pile up duplicates. Each goes through the
+  // normal add-user-script path, so they're validated like any document.
+  const handleAddExamples = async () => {
+    setSeeding(true)
+    setSeedNotice(null)
+    try {
+      const existingNames = new Set(scripts.map((script) => script.name))
+      const toAdd = EXAMPLE_AUTOMATIONS.filter(
+        (example) => !existingNames.has(example.name),
+      )
+
+      for (const script of toAdd) {
+        await dispatch(addUserScript({ script }))
+      }
+
+      const skipped = EXAMPLE_AUTOMATIONS.length - toAdd.length
+      setSeedNotice(
+        toAdd.length === 0
+          ? "All example automations are already in your list."
+          : `Added ${toAdd.length} example automation${
+              toAdd.length === 1 ? "" : "s"
+            }${skipped > 0 ? ` (${skipped} already present)` : ""}. Open one to see how it works; event and scheduled triggers ship disarmed.`,
+      )
+    } finally {
+      setSeeding(false)
+    }
+  }
 
   const handleImportFile = async (file: File) => {
     const raw = await file.text()
@@ -138,6 +171,17 @@ export function UserScriptsPage() {
             </Link>
           </Button>
           <Button
+            disabled={seeding}
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              void handleAddExamples()
+            }}
+          >
+            <Sparkles className="h-4 w-4" />
+            Add Examples
+          </Button>
+          <Button
             type="button"
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
@@ -175,6 +219,12 @@ export function UserScriptsPage() {
       {error && (
         <div className="rounded-md border border-[var(--color-error-border)] bg-[var(--color-error-bg)] px-3 py-2 text-sm text-[var(--color-error-fg)]">
           {error}
+        </div>
+      )}
+
+      {seedNotice && (
+        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-sm text-[var(--color-fg-muted)]">
+          {seedNotice}
         </div>
       )}
 
