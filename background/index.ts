@@ -17,9 +17,11 @@ import {
   warmSearchIndex,
 } from "./commands/searchIndex"
 import { clearSiteSdkScopesForTab } from "./commands/siteSdk"
+import { initFeatures } from "./features"
 import { initializeKeybindingRegistry } from "./keybindings/registry"
 import { initializeKeybindingEntriesInvalidation } from "./keybindings/source"
 import { handleMessage } from "./messages"
+import { initSurfaces } from "./surfaces"
 import { initializeUserScriptAlarms } from "./userScripts/alarms"
 import { registerUserScriptCommandBridge } from "./userScripts/engine"
 import { toggleContentPalette } from "./utils/contentPalette"
@@ -60,6 +62,14 @@ export function initializeBackground() {
     },
   })
   initializeUserScriptAlarms()
+
+  // Surfaces: drop per-session (automation) surfaces from a previous session
+  // before features rebuild their own. See docs/surfaces.md.
+  initSurfaces().catch(console.error)
+
+  // Feature modules: run startup lifecycle hooks (e.g. Focus Mode re-arms its
+  // session-end alarm and rebuilds its surfaces). See docs/features.md.
+  initFeatures().catch(console.error)
 
   browserAPI.tabs?.onRemoved?.addListener((tabId: number) => {
     forgetActivatedTab(tabId)

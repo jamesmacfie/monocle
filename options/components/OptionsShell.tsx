@@ -6,6 +6,7 @@ import {
   Image,
   Keyboard,
   Settings,
+  Shield,
   Star,
   Workflow,
 } from "lucide-react"
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/keyboard", label: "Keyboard", icon: Keyboard },
   { href: "/snippets", label: "Snippets", icon: FileText },
   { href: "/automations", label: "Automations", icon: Workflow },
+  { href: "/features", label: "Features", icon: Shield },
   { href: "/url-rules", label: "URL Rules", icon: Globe2 },
   { href: "/about", label: "About", icon: Github },
 ]

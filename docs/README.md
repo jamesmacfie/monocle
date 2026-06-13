@@ -75,6 +75,17 @@ If you are adding a command, the fast path is
 
 ## Specialized subsystems
 
+- [surfaces.md](./surfaces.md) — The Surfaces primitive: a background-owned,
+  owner-namespaced store of declarative overlays/badges rendered by one generic
+  `SurfaceHost`; the `get-surfaces` query and `monocle-surfaces-changed`
+  broadcast. The reusable basis for feature and automation page UI.
+- [features.md](./features.md) — The Feature-module registry: how a feature
+  contributes commands, a typed config + settings page, runtime state, and
+  page UI (via surfaces); the two stores (`monocle-feature-config`,
+  `monocle-feature-state`).
+- [focus-mode.md](./focus-mode.md) — Focus Mode, the first feature: blocklist,
+  timed/Pomodoro sessions, the hard-block content overlay, and the new-tab
+  status widget.
 - [new-tab-and-theme.md](./new-tab-and-theme.md) — New-tab boot, `isNewTab`
   context, clock, Unsplash background, permission-grant panel, and the
   light/dark/system theme system.

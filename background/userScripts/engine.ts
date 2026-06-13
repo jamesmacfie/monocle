@@ -36,6 +36,7 @@ import {
   snippetBodyUsesCounter,
 } from "../../shared/utils/snippet-placeholders"
 import { getSnippet, incrementSnippetCounter } from "../commands/snippets"
+import { removeSurface, upsertSurface } from "../surfaces"
 import { sendTabMessage } from "../utils/browser"
 import {
   executeWorkflowOnTargetTab,
@@ -435,6 +436,31 @@ const runEngineStep = async (
 
       case "runCommand":
         await runCommandStep(step.commandId, state)
+        break
+
+      case "showSurface":
+        await upsertSurface(`userscript:${state.script.id}`, {
+          id: step.surfaceId,
+          kind: step.kind,
+          ...(step.urlMatch ? { urlMatch: step.urlMatch } : {}),
+          ...(step.blocking !== undefined ? { blocking: step.blocking } : {}),
+          content: {
+            ...(step.content.icon ? { icon: step.content.icon } : {}),
+            ...(step.content.title !== undefined
+              ? { title: interpolate(step.content.title) }
+              : {}),
+            ...(step.content.text !== undefined
+              ? { text: interpolate(step.content.text) }
+              : {}),
+            ...(step.content.countdownTo !== undefined
+              ? { countdownTo: step.content.countdownTo }
+              : {}),
+          },
+        })
+        break
+
+      case "hideSurface":
+        await removeSurface(`userscript:${state.script.id}`, step.surfaceId)
         break
 
       case "branch": {

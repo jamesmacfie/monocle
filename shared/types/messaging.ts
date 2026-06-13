@@ -364,6 +364,34 @@ export type UserScriptTriggerFiredResponse = {
   reason?: string
 }
 
+// Feature-module messages (handled in background/messages/features.ts).
+// Responses are typed in ./feature.ts.
+
+export type GetFeaturesMessage = {
+  type: "get-features"
+}
+
+export type UpdateFeatureConfigMessage = {
+  type: "update-feature-config"
+  featureId: string
+  config: Record<string, unknown>
+}
+
+export type ExecuteFeatureActionMessage = {
+  type: "execute-feature-action"
+  featureId: string
+  actionId: string
+  context?: Browser.Context
+}
+
+// Surfaces (handled in background/messages/surfaces.ts). Response in
+// ./surface.ts. The SurfaceHost queries this on mount/navigation/broadcast.
+
+export type GetSurfacesMessage = {
+  type: "get-surfaces"
+  url: string
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
@@ -395,6 +423,10 @@ export type Message =
   | RunUserScriptMessage
   | GetUserScriptTriggersMessage
   | UserScriptTriggerFiredMessage
+  | GetFeaturesMessage
+  | UpdateFeatureConfigMessage
+  | ExecuteFeatureActionMessage
+  | GetSurfacesMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

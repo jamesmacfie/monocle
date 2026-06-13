@@ -399,6 +399,7 @@ Source: `shared/types/ui.ts`, `FormField`. Common fields apply to every variant;
 | `multi` | `options: {value,label}[]`, `defaultValue?: string[]` | multi-select chips — `CommandItemMulti` | `string[]` | `defaultValue \|\| []` |
 | `text-list` | `placeholder?`, `defaultValue?: string[]`, `maxItems?` | repeatable text rows — `CommandItemTextList` | `string[]` | `defaultValue \|\| []` |
 | `color` | `defaultValue?: string` (`#RRGGBB`), `placeholder?` | swatch button + native color picker — `CommandItemColor` | `string` (hex) | `defaultValue \|\| "#000000"` |
+| `number` | `defaultValue?: number`, `min?`, `max?`, `step?`, `placeholder?` | **no palette renderer** — used by feature settings schemas (options-page `SchemaForm`, see [features.md](./features.md)) | `string` | `defaultValue != null ? String(defaultValue) : ""` |
 
 Defaults come from `getDefaultValue` in `shared/utils/forms.ts`; `computeDefaultFormValues` seeds page form state from all `input` rows on a page.
 

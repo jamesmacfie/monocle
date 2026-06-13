@@ -13,9 +13,9 @@
 // only (the content script does not run in iframes).
 import type { UserScriptPageTriggerSpec } from "../shared/types"
 import { getBrowserAPI } from "../shared/utils/extension-api"
+import { trackSpaNavigation } from "./utils/spaNavigation"
 import { findElement } from "./workflow/dom"
 
-const SPA_POLL_INTERVAL_MS = 1000
 const MATCHED_TEXT_CAP = 500
 
 type ArmedElementTrigger = {
@@ -225,17 +225,7 @@ const checkElementTriggers = (): void => {
 }
 
 // ---------------------------------------------------------------------------
-// SPA detection (best-effort: history events + low-frequency href poll;
-// hash-only changes and replaceState-heavy routers are covered by the poll)
-
-const handlePossibleNavigation = (): void => {
-  if (window.location.href === state.currentHref) {
-    return
-  }
-  state.currentHref = window.location.href
-  // Re-pull specs: the new virtual URL may arm a different script set.
-  void refreshTriggersForUrl("spa")
-}
+// SPA detection via the shared content utility (history events + href poll).
 
 /**
  * Starts the trigger service for this page. Safe to call once per document;
@@ -254,9 +244,8 @@ export const initializeUserScriptTriggers = (): void => {
 
   state.currentHref = window.location.href
 
-  window.addEventListener("popstate", handlePossibleNavigation)
-  window.addEventListener("hashchange", handlePossibleNavigation)
-  setInterval(handlePossibleNavigation, SPA_POLL_INTERVAL_MS)
+  // Re-pull specs on virtual navigation: the new URL may arm a different set.
+  trackSpaNavigation(() => void refreshTriggersForUrl("spa"))
 
   if (document.readyState === "complete") {
     void refreshTriggersForUrl("load")

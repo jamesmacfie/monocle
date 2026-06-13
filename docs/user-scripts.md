@@ -106,6 +106,8 @@ Engine steps:
 | `openUrl` | `currentTab` / `newTab` (default) / `newWindow` |
 | `clipboardWrite` | Tab-scoped `monocle-copyToClipboard` |
 | `runCommand` | Invoke a Monocle command, policy-gated (below) |
+| `showSurface` | Push a declarative [surface](./surfaces.md) (overlay/badge) under owner `userscript:<id>`; `content.title`/`content.text` interpolated, `urlMatch` is not |
+| `hideSurface` | Remove one of this script's surfaces by `surfaceId` |
 | `branch` | If/else over a condition |
 | `forEach` | Loop over element matches or a variable's lines |
 | `while` | Loop while a condition holds (always capped) |
@@ -133,7 +135,7 @@ The command bridge is injected into the engine by `background/index.ts` at start
 
 ## Variables and interpolation
 
-One ordered pipeline, applied per interpolatable field (`fill.text`, `setVariable.value`, `toast.message`, `navigate.url`/`openUrl.url`, `clipboardWrite.text`, condition `value` fields — declared in `interpolatableStrings` in `background/userScripts/interpolate.ts`). Selector values and `injectCss` bodies are deliberately **not** interpolatable (a selector is an address; interpolated selectors are unreviewable in import summaries).
+One ordered pipeline, applied per interpolatable field (`fill.text`, `setVariable.value`, `toast.message`, `navigate.url`/`openUrl.url`, `clipboardWrite.text`, `showSurface.content.title`/`.text`, condition `value` fields — declared in `interpolatableStrings` in `background/userScripts/interpolate.ts`). Selector values, `injectCss` bodies, and `showSurface.urlMatch` are deliberately **not** interpolatable (a selector/URL pattern is an address; interpolated addresses are unreviewable in import summaries).
 
 1. **`{{...}}` expansion** (`shared/utils/user-script-template.ts`, pure/shared so the builder warns with run-time semantics): declared vars, `{{trigger.*}}`, `{{params.*}}`, loop scope, inline `{{snippet:<id>}}` refs, with the whitelisted pipe transforms `trim`, `upper`, `lower`, `slice:a:b`, `replace:from:to` (first, literal), `encodeUriComponent`, `length`. Unknown references expand to `""` at run and warn in the builder. `\{{` escapes a literal `{{`. The transform set is a fixed function table, not an expression language — a deliberate one-way-door refusal.
 2. **Snippet resolution** (background): `vars` of kind `snippet` and inline refs re-read the snippet at run time, bump the persisted `{i}` counter only when the body uses it (one counter sequence shared with palette insertion), and interpolate the body.

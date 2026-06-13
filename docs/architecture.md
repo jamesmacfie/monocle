@@ -227,6 +227,13 @@ The full step vocabulary (click/wait/fill/select/check/submit/focus/blur/scroll/
 
 See [user-scripts.md](./user-scripts.md).
 
+### Feature modules
+
+1. The `background/features/` registry contributes palette commands (loaded by `source.ts`), a data-only descriptor for the options page (`get-features`), and an `init()` startup hook (`background/index.ts`).
+2. Durable feature config (`monocle-feature-config`) and transient runtime state (`monocle-feature-state`) are separate stores, both distinct from `monocle-settings`. Feature page UI is rendered through the generic Surfaces primitive (`background/surfaces.ts` + the shared `SurfaceHost`), not per-feature components — a feature pushes declarative overlays/badges and the host renders them.
+
+See [features.md](./features.md), [surfaces.md](./surfaces.md), and [focus-mode.md](./focus-mode.md).
+
 ## Known issues and manual checks (carried from baseline)
 
 - WXT builds emit chunk-size warnings for the content and new-tab bundles and an ineffective-dynamic-import warning for `settings.slice.ts`; these are warnings, not errors. The Firefox build also emits a `data_collection_permissions` warning for new extensions.

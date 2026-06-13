@@ -71,6 +71,16 @@ Use the feature docs as the source of truth before editing related code:
 - `docs/user-scripts.md`: user scripts ("Automations") — document schema and
   caps, triggers, the engine (interpolation/segments/lowering/control flow),
   runCommand policy, options builder, import safety, and store posture.
+- `docs/surfaces.md`: the Surfaces primitive — a background-owned,
+  owner-namespaced store of declarative overlays/badges rendered by one generic
+  `SurfaceHost`; `get-surfaces` + the `monocle-surfaces-changed` broadcast. The
+  reusable basis for feature and automation page UI.
+- `docs/features.md`: the Feature-module registry — how a feature contributes
+  commands, a typed config + settings page, runtime state, and page UI (via
+  surfaces); the `monocle-feature-config` / `monocle-feature-state` stores.
+- `docs/focus-mode.md`: Focus Mode, the first feature — blocklist, timed/
+  Pomodoro sessions, and a hard-block overlay + new-tab badge expressed entirely
+  as declarative surfaces (no focus-specific UI or messages).
 - `docs/new-tab-and-theme.md`: new-tab override, new-tab-only commands,
   background image behavior, clock settings, and theme application.
 - `docs/store-submission.md`: Chrome Web Store / Firefox AMO submission
@@ -97,6 +107,9 @@ Current feature status:
 | User scripts (Automations) | Working with review notes | Declarative automation documents: schema + caps validation, `monocle-userscripts` storage, background engine (interpolation, segmentation, lowering, branch/forEach/while, runCommand policy), manual/urlMatch/elementAppears/interval/schedule/onStartup triggers, generated palette commands, and the options builder with validated import/export. Storage, validation, lowering, conditions, policy, command generation, engine, and trigger-engine behavior have focused tests; manual browser smoke (triggers, schedules, builder) is still needed. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
 | Snippets | Working with review notes | Create/insert palette commands, `monocle-snippets` storage, options Snippets page, caret insertion via `monocle-insertText`, custom shortcuts gated by `keybindingRequirements` (modifier required so bindings fire inside inputs), and insert-time placeholders (`{date:FORMAT}` via date-fns, `{i}` persisted counter, `{url}`/`{title}`/`{domain}`/`{path}`/`{uuid}`/`{timestamp}`); storage CRUD, message validation, requirement enforcement, catalog rows, delete-cleanup, and placeholder interpolation have focused tests; manual insertion/shortcut smoke is still needed. |
+| Surfaces | Working with review notes | Generic declarative-UI primitive: background-owned, owner-namespaced store (`monocle-surfaces`) of overlays/badges (`{kind, urlMatch, blocking, content:{icon,title,text,countdownTo}}`), rendered by one `SurfaceHost` mounted in the closed content shadow root and on the new tab. `get-surfaces {url}` query + `monocle-surfaces-changed` broadcast; URL gating reuses `matchesUrlPattern`; per-session (`userscript:*`) owners cleared on startup. Store get/set/clear/upsert/remove + URL gating have focused tests; manual overlay/badge smoke is still needed. |
+| Feature modules | Working with review notes | Background-owned `FeatureModule` registry (`background/features/`) contributing palette commands, a declarative settings page (FormField schema + Zod config validation + action buttons), runtime state, and lifecycle. Three stores: command settings (unchanged), `monocle-feature-config` (durable), `monocle-feature-state` (runtime). Generic `get-features`/`update-feature-config`/`execute-feature-action` messages; options Features pages with `SchemaForm`. Page UI is rendered through the generic Surfaces primitive, not per-feature components. Config/state stores, registry projection, command contribution, and message validation have focused tests; manual options + cross-tab smoke is still needed. |
+| Focus Mode | Working with review notes | First feature: URL blocklist, timestamp-based session (indefinite/timed/Pomodoro) in `monocle-feature-state` with a single `chrome.alarms` end alarm. UI is built entirely on the Surfaces primitive — `projectFocusSurfaces` emits a blocking overlay (scoped to the blocklist) + a new-tab badge; no focus-specific UI/messages. `isUrlBlocked`, session timing, config schema, and surface projection have focused tests; manual overlay/countdown smoke is still needed. |
 
 Last verified validation:
 
@@ -107,7 +120,11 @@ Last verified validation:
   URL-filtering, settings-management, snippet-storage, workflow-executor
   (full op vocabulary), user-script (storage/validation/lowering/conditions/
   policy/commands/engine/trigger-engine), template-interpolation,
-  new-tab/theme/background, and GitHub parsing coverage.
+  new-tab/theme/background, feature-registry (config/state stores, projection,
+  command contribution), focus-mode (URL blocking, session timing, config
+  schema, surface projection), surfaces-store (owner set/clear/upsert/remove,
+  URL gating, session-owner cleanup), feature/surfaces-message validation, and
+  GitHub parsing coverage.
 - `pnpm run build` passes for the Chrome MV3 target.
 - `pnpm run build:firefox` passes for the Firefox MV3 target.
 
@@ -119,7 +136,8 @@ Always use `pnpm`, not `npm` or `yarn`.
 monocle/
 ├── entrypoints/         # WXT background, content, and new-tab entrypoints
 ├── background/          # Service worker, commands, messages, keybindings,
-│                        #   userScripts (storage/engine/triggers/alarms)
+│                        #   userScripts (storage/engine/triggers/alarms),
+│                        #   features (registry/config/state, focus/), surfaces
 ├── content/             # Content-script overlay, workflow executor
 │                        #   (content/workflow/), user-script trigger service
 ├── newtab/              # Browser new-tab replacement
@@ -210,6 +228,34 @@ User scripts (Automations):
    interpolates background-side, lowers contiguous content steps onto
    workflows, runs privileged ops between segments, and enforces the runtime
    limits (concurrency, cooldowns, loop caps, runCommand policy).
+
+Feature modules (`docs/features.md`):
+
+1. The `background/features/` registry holds `FeatureModule`s. Each contributes
+   palette commands (added to `source.ts` under the `features` category), an
+   optional settings page (FormField schema + Zod `configSchema` + actions),
+   and an optional `init()` lifecycle hook (called from `background/index.ts`).
+2. Durable feature config lives in `monocle-feature-config` (replace-whole,
+   validated); transient runtime state lives in `monocle-feature-state` —
+   both keyed by feature id, both distinct from `monocle-settings`.
+3. The options Features pages render descriptors via `get-features` and persist
+   through `update-feature-config` / run actions via `execute-feature-action`.
+4. Feature page UI is rendered through the generic Surfaces primitive (below),
+   not per-feature components — a feature pushes surfaces from its lifecycle.
+
+Surfaces (`docs/surfaces.md`):
+
+1. `background/surfaces.ts` is an owner-namespaced store (`monocle-surfaces`) of
+   declarative overlays/badges. Owners are features (e.g. `focus-mode`) or
+   automations (`userscript:<id>`); every mutation broadcasts
+   `monocle-surfaces-changed`.
+2. The one generic `SurfaceHost` (mounted in the closed content shadow root and
+   on the new tab) queries `get-surfaces {url}` on mount/navigation/broadcast and
+   renders the surfaces of the kinds it owns. URL gating reuses
+   `matchesUrlPattern`; the closed shadow root makes a `blocking` overlay a true
+   hard block.
+3. Focus Mode projects its overlay+badge here (`projectFocusSurfaces`);
+   automations push surfaces via the `showSurface`/`hideSurface` engine ops.
 
 ## Command System Contract
 
@@ -369,8 +415,8 @@ User scripts (`docs/user-scripts.md`) layer on top:
 - Content steps reuse the workflow vocabulary verbatim and lower 1:1
   (`background/userScripts/lowering.ts` is the single mapping site, tested
   against the public schema). Privileged ops (navigate, openUrl,
-  clipboardWrite, runCommand, insertSnippet, toast) and control flow run in
-  the engine between content segments.
+  clipboardWrite, runCommand, insertSnippet, toast, showSurface/hideSurface)
+  and control flow run in the engine between content segments.
 - Interpolation is background-side (`{{var}}` templates + snippet
   placeholders); the content executor never learns templating, and selector
   values are never interpolatable.

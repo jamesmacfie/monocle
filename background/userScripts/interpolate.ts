@@ -96,6 +96,17 @@ export const interpolatableStrings = (step: UserScriptStep): string[] => {
       return [step.url]
     case "clipboardWrite":
       return [step.text]
+    case "showSurface": {
+      // content.title/text are templates; urlMatch is an address, never one.
+      const values: string[] = []
+      if (step.content.title !== undefined) {
+        values.push(step.content.title)
+      }
+      if (step.content.text !== undefined) {
+        values.push(step.content.text)
+      }
+      return values
+    }
     case "branch":
       return collectConditionValues(step.if)
     case "while":

@@ -50,6 +50,17 @@ export type FormField = {
       maxItems?: number
     }
   | {
+      // Numeric input. Used by feature settings schemas (options-page
+      // SchemaForm); the palette form renderers fall through their default and
+      // do not render this variant inline.
+      type: "number"
+      placeholder?: string
+      defaultValue?: number
+      min?: number
+      max?: number
+      step?: number
+    }
+  | {
       type: "color"
       defaultValue?: string // Hex color like #RRGGBB
       placeholder?: string

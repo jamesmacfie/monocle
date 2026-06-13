@@ -315,6 +315,38 @@ const RunCommandStepSchema = EngineStepBaseSchema.extend({
     .max(USER_SCRIPT_NAME_MAX_LENGTH * 2),
 }).strict()
 
+// Surfaces: declarative overlay/badge data (rendered by the trusted
+// SurfaceHost — no markup). content.title/text are interpolated by the engine.
+const SurfaceContentSchema = z
+  .object({
+    icon: z.enum(ICON_NAMES).optional(),
+    title: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
+    text: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
+    countdownTo: z.number().int().nonnegative().optional(),
+  })
+  .strict()
+
+const SurfaceUrlMatchSchema = z
+  .object({
+    allowUrls: z.array(BoundedString).max(100).optional(),
+    denyUrls: z.array(BoundedString).max(100).optional(),
+  })
+  .strict()
+
+const ShowSurfaceStepSchema = EngineStepBaseSchema.extend({
+  op: z.literal("showSurface"),
+  surfaceId: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
+  kind: z.enum(["overlay", "badge"]),
+  urlMatch: SurfaceUrlMatchSchema.optional(),
+  blocking: z.boolean().optional(),
+  content: SurfaceContentSchema,
+}).strict()
+
+const HideSurfaceStepSchema = EngineStepBaseSchema.extend({
+  op: z.literal("hideSurface"),
+  surfaceId: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
+}).strict()
+
 export const UserScriptStepSchema: z.ZodType<UserScriptStep> = z.lazy(() =>
   z.union([
     WorkflowStepSchema,
@@ -325,6 +357,8 @@ export const UserScriptStepSchema: z.ZodType<UserScriptStep> = z.lazy(() =>
     OpenUrlStepSchema,
     ClipboardWriteStepSchema,
     RunCommandStepSchema,
+    ShowSurfaceStepSchema,
+    HideSurfaceStepSchema,
     EngineStepBaseSchema.extend({
       op: z.literal("branch"),
       if: UserScriptConditionSchema,

@@ -12,6 +12,26 @@ export async function queryTabs(queryInfo: any): Promise<any[]> {
   return callBrowserAPI("tabs", "query", queryInfo)
 }
 
+// Sends a message to every open tab, swallowing per-tab failures (chrome://,
+// extension, and discarded pages cannot receive content messages). Used to
+// broadcast surface-store changes (monocle-surfaces-changed) so every content
+// surface can re-query. See docs/surfaces.md.
+export async function broadcastToAllTabs(message: Event): Promise<void> {
+  const tabs = await queryTabs({})
+  await Promise.all(
+    tabs.map(async (tab) => {
+      if (!tab?.id) {
+        return
+      }
+      try {
+        await sendTabMessage(tab.id, message)
+      } catch {
+        // Expected for tabs without a content script (chrome://, store pages).
+      }
+    }),
+  )
+}
+
 export async function updateTab(
   tabId: number,
   updateProperties: any,

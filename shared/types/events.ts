@@ -74,6 +74,13 @@ export type SiteSdkInvokeEvent = {
   request: import("./siteSdk").SiteSdkInvokeRequest
 }
 
+// Broadcast to every tab when the background-owned surfaces store changes
+// (any owner: a feature like Focus Mode, or a user-script automation). Carries
+// no payload; the SurfaceHost re-queries get-surfaces. See docs/surfaces.md.
+export type SurfacesChangedEvent = {
+  type: "monocle-surfaces-changed"
+}
+
 export type Event =
   | AlertEvent
   | CopyToClipboardEvent
@@ -84,4 +91,5 @@ export type Event =
   | ToastEvent
   | SiteSdkSyncRequestEvent
   | SiteSdkInvokeEvent
+  | SurfacesChangedEvent
 export type BrowserEvent = Event

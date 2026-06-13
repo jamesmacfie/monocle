@@ -204,6 +204,15 @@ hidden rows disappear from the palette; unhide happens from the Commands page.
 
 ### 4.2 Per-command schema-driven settings
 
+> **Superseded for rich settings by the Feature-module registry**
+> ([features.md](./features.md)). Capabilities that need a full settings page +
+> persistent state are now modeled as *features* (schema-driven settings page,
+> `monocle-feature-config` / `monocle-feature-state` stores, content/new-tab
+> surfaces) rather than as `CommandSettings.config` on an individual command.
+> The proposal below is kept for historical context; a lightweight
+> per-command `config` was intentionally **not** built (it would mix durable
+> config with runtime state and duplicate the feature mechanism).
+
 Some commands want their own typed configuration (e.g. a "default download
 folder", a "screenshot format", a calculator's "decimal precision"). Today there
 is no mechanism. Proposed:

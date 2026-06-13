@@ -7,6 +7,7 @@ import NewTabListener from "../shared/components/Listeners/NewTabListener"
 import ScreenshotListener from "../shared/components/Listeners/ScreenshotListener"
 import ScrollListener from "../shared/components/Listeners/ScrollListener"
 import { MonocleMark } from "../shared/components/MonocleMark"
+import { SurfaceHost } from "../shared/components/SurfaceHost"
 import { ToastContainer } from "../shared/components/ToastContainer"
 import { createAppStore } from "../shared/store"
 import { useAppDispatch, useAppSelector } from "../shared/store/hooks"
@@ -119,6 +120,7 @@ function NewTabAppContent() {
       >
         <Settings size={18} />
       </button>
+      <SurfaceHost kinds={["badge"]} />
       <CopyToClipboardListener />
       <InsertTextListener />
       <NewTabListener />

@@ -23,6 +23,8 @@ const ENGINE_OPS = new Set([
   "openUrl",
   "clipboardWrite",
   "runCommand",
+  "showSurface",
+  "hideSurface",
   "branch",
   "forEach",
   "while",

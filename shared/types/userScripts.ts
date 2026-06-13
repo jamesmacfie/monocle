@@ -10,6 +10,7 @@
 // nesting, and capped loops — not a language. See docs/user-scripts.md.
 import type { ColorName, UrlRules } from "./commands"
 import type { IconName } from "./icons"
+import type { SurfaceContent, SurfaceKind, SurfaceUrlMatch } from "./surface"
 import type { Selector } from "./workflow"
 
 // ---------------------------------------------------------------------------
@@ -208,6 +209,25 @@ export type RunCommandStep = EngineStepBase & {
   commandId: string
 }
 
+// Pushes a declarative surface (overlay/badge) into the generic Surfaces store
+// under this script's owner (`userscript:<id>`). The author supplies the
+// surfaceId (unique within the script); content.title/content.text are
+// interpolated, urlMatch is not (an address, never a template). See
+// docs/surfaces.md.
+export type ShowSurfaceStep = EngineStepBase & {
+  op: "showSurface"
+  surfaceId: string
+  kind: SurfaceKind
+  urlMatch?: SurfaceUrlMatch
+  blocking?: boolean
+  content: SurfaceContent
+}
+
+export type HideSurfaceStep = EngineStepBase & {
+  op: "hideSurface"
+  surfaceId: string
+}
+
 export type BranchStep = EngineStepBase & {
   op: "branch"
   if: UserScriptCondition
@@ -242,6 +262,8 @@ export type UserScriptEngineStep =
   | OpenUrlStep
   | ClipboardWriteStep
   | RunCommandStep
+  | ShowSurfaceStep
+  | HideSurfaceStep
   | BranchStep
   | ForEachStep
   | WhileStep

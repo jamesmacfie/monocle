@@ -207,3 +207,73 @@ describe("structural checks", () => {
     ).toEqual([])
   })
 })
+
+describe("surface engine ops", () => {
+  it("accepts a showSurface step with declarative content", () => {
+    const result = validateUserScriptDraft(
+      draft({
+        steps: [
+          {
+            op: "showSurface",
+            surfaceId: "note",
+            kind: "badge",
+            content: { icon: "Shield", title: "{{trigger.url}}" },
+          },
+        ],
+      }),
+    )
+    expect(result.success).toBe(true)
+  })
+
+  it("accepts a blocking overlay showSurface with urlMatch", () => {
+    const result = validateUserScriptDraft(
+      draft({
+        steps: [
+          {
+            op: "showSurface",
+            surfaceId: "block",
+            kind: "overlay",
+            blocking: true,
+            urlMatch: { allowUrls: ["*://*.example.com/*"] },
+            content: { title: "Blocked" },
+          },
+        ],
+      }),
+    )
+    expect(result.success).toBe(true)
+  })
+
+  it("accepts a hideSurface step", () => {
+    const result = validateUserScriptDraft(
+      draft({ steps: [{ op: "hideSurface", surfaceId: "note" }] }),
+    )
+    expect(result.success).toBe(true)
+  })
+
+  it("rejects an unknown surface kind", () => {
+    const result = validateUserScriptDraft(
+      draft({
+        steps: [
+          { op: "showSurface", surfaceId: "x", kind: "tooltip", content: {} },
+        ],
+      }),
+    )
+    expect(result.success).toBe(false)
+  })
+
+  it("rejects unknown fields on the content (strict)", () => {
+    const result = validateUserScriptDraft(
+      draft({
+        steps: [
+          {
+            op: "showSurface",
+            surfaceId: "x",
+            kind: "badge",
+            content: { html: "<script>" },
+          },
+        ],
+      }),
+    )
+    expect(result.success).toBe(false)
+  })
+})

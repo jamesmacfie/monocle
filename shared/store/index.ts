@@ -1,5 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit"
 import { commandPaletteStateSlice } from "./slices/commandPaletteState.slice"
+import featuresSlice from "./slices/features.slice"
 import keybindingSlice from "./slices/keybinding.slice"
 import { navigationSlice } from "./slices/navigation.slice"
 import settingsSlice from "./slices/settings.slice"
@@ -25,6 +26,7 @@ export const createAppStore = (
       settingsCatalog: settingsCatalogSlice,
       snippets: snippetsSlice,
       userScripts: userScriptsSlice,
+      features: featuresSlice,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({

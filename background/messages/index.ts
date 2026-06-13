@@ -12,6 +12,11 @@ import { deleteSnippet } from "./deleteSnippet"
 import { executeCommand } from "./executeCommand"
 import { executeKeybinding } from "./executeKeybinding"
 import { executeWorkflow } from "./executeWorkflow"
+import {
+  executeFeatureAction,
+  getFeatures,
+  updateFeatureConfig,
+} from "./features"
 import { getChildrenCommands } from "./getChildrenCommands"
 import { getCommands } from "./getCommands"
 import { getKeybindingState } from "./getKeybindingState"
@@ -26,6 +31,7 @@ import { searchCommands } from "./searchCommands"
 import { setCommandFavorite } from "./setCommandFavorite"
 import { showToast } from "./showToast"
 import { siteSdkSync } from "./siteSdkSync"
+import { getSurfaces } from "./surfaces"
 import { updateCommandKeybindings } from "./updateCommandKeybindings"
 import { updateCommandSetting } from "./updateCommandSetting"
 import { updateSnippet } from "./updateSnippet"
@@ -166,6 +172,18 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "user-script-trigger-fired" }, async (msg) => {
       return await userScriptTriggerFired(msg, sender)
+    })
+    .with({ type: "get-features" }, async (msg) => {
+      return await getFeatures(msg)
+    })
+    .with({ type: "update-feature-config" }, async (msg) => {
+      return await updateFeatureConfig(msg)
+    })
+    .with({ type: "execute-feature-action" }, async (msg) => {
+      return await executeFeatureAction(msg)
+    })
+    .with({ type: "get-surfaces" }, async (msg) => {
+      return await getSurfaces(msg)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${message.type}`)

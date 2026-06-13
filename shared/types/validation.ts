@@ -265,6 +265,31 @@ export const UserScriptTriggerFiredMessageSchema = z.object({
   }),
 })
 
+// Feature-module messages. The config payload is validated structurally here;
+// the per-feature configSchema re-validates it in the handler before persist.
+export const GetFeaturesMessageSchema = z.object({
+  type: z.literal("get-features"),
+})
+
+export const UpdateFeatureConfigMessageSchema = z.object({
+  type: z.literal("update-feature-config"),
+  featureId: z.string().min(1, "Feature ID cannot be empty"),
+  config: z.record(z.string(), z.unknown()),
+})
+
+export const ExecuteFeatureActionMessageSchema = z.object({
+  type: z.literal("execute-feature-action"),
+  featureId: z.string().min(1, "Feature ID cannot be empty"),
+  actionId: z.string().min(1, "Action ID cannot be empty"),
+  context: BrowserContextSchema.optional(),
+})
+
+// Surfaces query.
+export const GetSurfacesMessageSchema = z.object({
+  type: z.literal("get-surfaces"),
+  url: z.string(),
+})
+
 // Union schema for all message types
 export const MessageSchema = z.discriminatedUnion("type", [
   ExecuteCommandMessageSchema,
@@ -297,6 +322,10 @@ export const MessageSchema = z.discriminatedUnion("type", [
   RunUserScriptMessageSchema,
   GetUserScriptTriggersMessageSchema,
   UserScriptTriggerFiredMessageSchema,
+  GetFeaturesMessageSchema,
+  UpdateFeatureConfigMessageSchema,
+  ExecuteFeatureActionMessageSchema,
+  GetSurfacesMessageSchema,
 ])
 
 // Validation result types

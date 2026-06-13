@@ -6,6 +6,7 @@ import { ToastContainer } from "../shared/components/ToastContainer"
 import { createAppStore } from "../shared/store"
 import { useAppDispatch, useAppSelector } from "../shared/store/hooks"
 import { createPaletteSendMessage } from "../shared/store/sendMessage"
+import { loadFeatures } from "../shared/store/slices/features.slice"
 import {
   loadSettings,
   selectThemeMode,
@@ -23,6 +24,8 @@ import { TooltipProvider } from "./components/ui"
 import { AboutPage } from "./pages/AboutPage"
 import { CommandsPage } from "./pages/CommandsPage"
 import { FavoritesPage } from "./pages/FavoritesPage"
+import { FeatureSettingsPage } from "./pages/FeatureSettingsPage"
+import { FeaturesPage } from "./pages/FeaturesPage"
 import { GeneralPage } from "./pages/GeneralPage"
 import { KeyboardPage } from "./pages/KeyboardPage"
 import { NewTabPage } from "./pages/NewTabPage"
@@ -42,6 +45,7 @@ function OptionsAppContent() {
     dispatch(loadSettingsCatalog())
     dispatch(loadSnippets())
     dispatch(loadUserScripts())
+    dispatch(loadFeatures())
   }, [dispatch])
 
   useEffect(() => {
@@ -84,6 +88,15 @@ function OptionsAppContent() {
       if ("monocle-userscripts" in changes) {
         dispatch(loadUserScripts())
       }
+
+      // Reflect feature config/runtime changes (e.g. Focus session start/stop
+      // or blocklist edits made from the palette).
+      if (
+        "monocle-feature-config" in changes ||
+        "monocle-feature-state" in changes
+      ) {
+        dispatch(loadFeatures())
+      }
     }
 
     browserAPI.storage?.onChanged?.addListener(handleStorageChange)
@@ -105,6 +118,8 @@ function OptionsAppContent() {
           <Route path="/automations" component={UserScriptsPage} />
           <Route path="/automations/new" component={UserScriptEditorPage} />
           <Route path="/automations/:id" component={UserScriptEditorPage} />
+          <Route path="/features" component={FeaturesPage} />
+          <Route path="/features/:id" component={FeatureSettingsPage} />
           <Route path="/url-rules" component={UrlRulesPage} />
           <Route path="/about" component={AboutPage} />
           <Route>

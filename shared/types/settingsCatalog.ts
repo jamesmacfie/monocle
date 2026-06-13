@@ -20,6 +20,7 @@ export type SettingsCatalogCategoryId =
   | "new-tab"
   | "favorites"
   | "automations"
+  | "features"
 
 export type SettingsCatalogCommand = {
   id: string

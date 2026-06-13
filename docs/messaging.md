@@ -292,6 +292,20 @@ Two near-identical messages exist. `request-toast` is the UI-facing alias that s
 
 If the key is missing or the fetch fails, all string fields are empty and `error` is set. See [new-tab-and-theme.md](new-tab-and-theme.md).
 
+### Features
+
+Generic Feature-module messages (handler: `background/messages/features.ts`; see [features.md](features.md)):
+
+- **`get-features`** → `{ features: FeatureDescriptor[] }` — data-only projection of every registered feature (schema + current config), for the options Features pages.
+- **`update-feature-config`** `{ featureId, config }` → `{ success, config }` — validates `config` against the feature's Zod `configSchema`, persists it replace-whole to `monocle-feature-config`, then runs the feature's `onConfigChange` hook.
+- **`execute-feature-action`** `{ featureId, actionId, context? }` → `{ success }` — runs a settings-page action button via the feature's `handleAction`.
+
+### Surfaces
+
+The generic declarative-UI query (handler: `background/messages/surfaces.ts`; see [surfaces.md](surfaces.md)):
+
+- **`get-surfaces`** `{ url }` → `{ surfaces: Surface[] }` — the `SurfaceHost` (content overlay + new tab) sends its URL and receives every surface whose `urlMatch` admits it; the host filters by kind locally. Surfaces are pushed into the store by features (e.g. Focus Mode) and user-script automations; this is the read side. Change notifications arrive via the `monocle-surfaces-changed` broadcast (below).
+
 ## Send-Side Utilities
 
 ### `useSendMessage` (UI components)
@@ -334,8 +348,12 @@ The background reaches a specific tab through `tabs.sendMessage`, never `runtime
 - `background/commands/siteSdk/` targets the sender tab with
   `monocle-sdk-sync-request` and `monocle-sdk-invoke`; these are handled by the
   early isolated bridge in `content/siteSdkBridge.ts`, not by the React palette.
+- `background/utils/browserTabs.ts` (`broadcastToAllTabs`) sends a message to
+  every open tab, swallowing failures on tabs without a content script. The
+  surfaces store uses it to broadcast `monocle-surfaces-changed` (no payload) so
+  every `SurfaceHost` re-queries `get-surfaces`.
 
-Content-side receivers live in the shared UI so both overlay and new-tab modes handle them: `useCommandPaletteStateRedux.tsx` (`toggle-ui`, `show-ui`, `hide-ui`, `execute-workflow-content`), `ToastContainer.tsx` (`monocle-toast`), `NewTabListener.tsx` (`monocle-newTab`), `ScreenshotListener.tsx` (`monocle-screenshot`), and `InsertTextListener.tsx` (`monocle-insertText`, which also tracks the page's last-focused editable element via a capture-phase `focusin` listener). All listeners are mounted outside the palette-visibility gate so they keep receiving messages after the palette hides.
+Content-side receivers live in the shared UI so both overlay and new-tab modes handle them: `useCommandPaletteStateRedux.tsx` (`toggle-ui`, `show-ui`, `hide-ui`, `execute-workflow-content`), `ToastContainer.tsx` (`monocle-toast`), `NewTabListener.tsx` (`monocle-newTab`), `ScreenshotListener.tsx` (`monocle-screenshot`), and `InsertTextListener.tsx` (`monocle-insertText`, which also tracks the page's last-focused editable element via a capture-phase `focusin` listener). The generic `SurfaceHost.tsx` (mounted in the content shadow root and on the new tab) listens for `monocle-surfaces-changed`. All listeners are mounted outside the palette-visibility gate so they keep receiving messages after the palette hides.
 
 ## Adding A New Message Type End To End
 

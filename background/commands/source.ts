@@ -9,6 +9,7 @@ import type {
   CommandNode,
   SettingsCatalogCategoryId,
 } from "../../shared/types"
+import { getFeatureCommands } from "../features"
 import { userScriptCommands } from "../userScripts/commands"
 import { browserCommands, firefoxCommands } from "./browser"
 import { clearFavoritesCommand } from "./favorites"
@@ -42,6 +43,7 @@ const categories = {
   newTab: { id: "new-tab", label: "New Tab" },
   favorites: { id: "favorites", label: "Favorites" },
   automations: { id: "automations", label: "Automations" },
+  features: { id: "features", label: "Features" },
 } satisfies Record<string, CommandSourceCategory>
 
 const mapCommandsToEntries = (
@@ -68,6 +70,7 @@ export const loadCommandEntries = (
     ...mapCommandsToEntries(uiCommands, categories.ui),
     ...mapCommandsToEntries(websiteCommands, categories.websites),
     ...mapCommandsToEntries(userScriptCommands, categories.automations),
+    ...mapCommandsToEntries(getFeatureCommands(context), categories.features),
     ...mapCommandsToEntries([clearFavoritesCommand], categories.favorites),
   ]
 

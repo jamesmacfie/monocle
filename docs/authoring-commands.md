@@ -4,6 +4,8 @@ This is a practical, end-to-end guide to adding a new command to Monocle. A comm
 
 For the underlying contracts see [command-schema.md](./command-schema.md) (every `CommandNode`/`FormField` field), [command-types.md](./command-types.md) (the six node types in depth), [execution-and-actions.md](./execution-and-actions.md), [search-and-ranking.md](./search-and-ranking.md), [keybindings.md](./keybindings.md), [url-filtering.md](./url-filtering.md), and [permissions.md](./permissions.md).
 
+> **Command or feature?** If you just need a one-shot palette action, author a command here. If the thing needs a **rich settings page** and/or **persistent runtime state** (and possibly content/new-tab UI), it is a *feature* — author a `FeatureModule` instead and let it contribute its commands. See [features.md](./features.md).
+
 ## The five-minute version
 
 1. Pick a category folder under `background/commands/` (browser, tools, ui, newTab, websites).

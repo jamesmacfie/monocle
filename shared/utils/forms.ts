@@ -20,6 +20,8 @@ export function getDefaultValue(field: FormField): string | string[] {
       return field.defaultValue || []
     case "color":
       return field.defaultValue || "#000000"
+    case "number":
+      return field.defaultValue != null ? String(field.defaultValue) : ""
     default:
       return ""
   }
