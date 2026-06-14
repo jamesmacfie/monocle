@@ -28,6 +28,7 @@ const permissionDisplayNames: Record<PermissionKey, string> = {
   sessions: "Sessions",
   storage: "Storage",
   tabs: "Tabs",
+  management: "Manage Extensions",
 }
 
 export function PermissionActions({

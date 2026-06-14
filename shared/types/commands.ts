@@ -1,8 +1,19 @@
-// Core command definitions and execution types
+// Core command definitions and execution types.
+//
+// `CommandNode` is the background-owned, authored shape of a command; the UI
+// only ever sees the derived `Suggestion` (shared/types/ui.ts). The six node
+// families are: action (executable), submit (executable, collects the page's
+// form values), group (dynamic container of children), search (children driven
+// by live search text), input (one inline form field rendered as a row), and
+// display (static non-executable row). See docs/command-schema.md and
+// docs/command-types.md.
 import type { Browser } from "./browser"
 import type { IconName } from "./icons"
 import type { FormField, Suggestion, SuggestionExecutionPayload } from "./ui"
 
+// A field that is either a literal value or a function resolved against the
+// browser context at load/suggestion time. Lets command fields (name, icon,
+// labels, ...) depend on the current tab without the node itself being async.
 export type AsyncValue<T> = T | ((context: Browser.Context) => Promise<T>)
 
 export type CommandIcon =
@@ -29,17 +40,25 @@ export type ColorName =
 
 export type CommandColor = { preset: ColorName } | { custom: string }
 
-export type BrowserPermission =
-  | "activeTab"
-  | "bookmarks"
-  | "browsingData"
-  | "contextualIdentities"
-  | "cookies"
-  | "downloads"
-  | "history"
-  | "sessions"
-  | "storage"
-  | "tabs"
+// Single source of truth for the browser permissions Monocle commands can
+// request. Both the `BrowserPermission` type (below) and the runtime
+// validation of request-permission messages (background/utils/validation.ts)
+// derive from this tuple, so the list is maintained in exactly one place.
+export const BROWSER_PERMISSIONS = [
+  "activeTab",
+  "bookmarks",
+  "browsingData",
+  "contextualIdentities",
+  "cookies",
+  "downloads",
+  "history",
+  "sessions",
+  "storage",
+  "tabs",
+  "management",
+] as const
+
+export type BrowserPermission = (typeof BROWSER_PERMISSIONS)[number]
 
 // Action labels
 export type ActionLabel = {
@@ -105,7 +124,9 @@ export interface GroupCommandNode extends CommandNodeBase {
   enableDeepSearch?: boolean
 }
 
-// Executable action; contains execution behavior and labels
+// The side-effecting body of an executable node, run in the background with the
+// browser context and (for submits/forms) the collected form values. Never
+// crosses to the UI — only the background holds these functions.
 export type CommandExecutor = (
   context?: Browser.Context,
   values?: Record<string, string>,
@@ -134,7 +155,10 @@ export interface SearchCommandNode extends CommandNodeBase, ActionLabel {
   ) => Promise<CommandNode[]>
 }
 
-// Submit action for forms; renders as a button and collects all form values
+// Like an action, but the executor receives the whole page's inline-input
+// values — the "OK"/"Create" button at the bottom of a form page. Use action
+// for fire-and-forget commands and submit when the command consumes sibling
+// input rows.
 export interface SubmitCommandNode extends CommandNodeBase, ActionLabel {
   type: "submit"
   execute: CommandExecutor
@@ -147,14 +171,17 @@ export interface SubmitCommandNode extends CommandNodeBase, ActionLabel {
   dedupeKey?: string
 }
 
-// A single inline input rendered as a list item
-// Each previous FormField becomes one of these
+// One inline form field rendered as its own palette row (not executable). Its
+// value lives in the page's formValues and is consumed by a sibling submit
+// node. Authored as a CommandNode so a form is just a group of input rows + a
+// submit row.
 export interface InputCommandNode extends CommandNodeBase {
   type: "input"
   field: FormField // reuse existing FormField shape for consistency
 }
 
-// Pure display-only row (e.g., headings, help text)
+// Non-executable, non-interactive row — headings, help text, and the
+// NoOp/empty/error states preferred over alerts. Selecting it does nothing.
 export interface DisplayCommandNode extends CommandNodeBase {
   type: "display"
 }

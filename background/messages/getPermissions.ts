@@ -24,6 +24,7 @@ export const getPermissions = async (_message: GetPermissionsMessage) => {
       sessions: permissions.includes("sessions"),
       storage: permissions.includes("storage"),
       tabs: permissions.includes("tabs"),
+      management: permissions.includes("management"),
     }
 
     return {

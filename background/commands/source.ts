@@ -12,6 +12,7 @@ import type {
 import { getFeatureCommands } from "../features"
 import { userScriptCommands } from "../userScripts/commands"
 import { browserCommands, firefoxCommands } from "./browser"
+import { extensionsCommands } from "./extensions"
 import { clearFavoritesCommand } from "./favorites"
 import { newTabCommands } from "./newTab"
 import { getPlatform, supportsPlatform } from "./platform"
@@ -44,6 +45,7 @@ const categories = {
   favorites: { id: "favorites", label: "Favorites" },
   automations: { id: "automations", label: "Automations" },
   features: { id: "features", label: "Features" },
+  extensions: { id: "extensions", label: "Extensions" },
 } satisfies Record<string, CommandSourceCategory>
 
 const mapCommandsToEntries = (
@@ -72,6 +74,7 @@ export const loadCommandEntries = (
     ...mapCommandsToEntries(userScriptCommands, categories.automations),
     ...mapCommandsToEntries(getFeatureCommands(context), categories.features),
     ...mapCommandsToEntries([clearFavoritesCommand], categories.favorites),
+    ...mapCommandsToEntries(extensionsCommands, categories.extensions),
   ]
 
   if (context?.isNewTab) {

@@ -16,6 +16,7 @@ export type PermissionKey =
   | "sessions"
   | "storage"
   | "tabs"
+  | "management"
 
 let lastPermissionRefreshAt = 0
 const PERMISSION_REFRESH_THROTTLE_MS = 1000

@@ -18,6 +18,11 @@ const baseOptionalPermissions = [
   "history",
   "sessions",
   "tabs",
+  // "management" powers the Extensions command group
+  // (background/commands/extensions/). Optional + requested on demand because
+  // it is a high-scrutiny permission (it can disable/uninstall other
+  // extensions).
+  "management",
 ] as const
 
 const actionShortcutCommand = {

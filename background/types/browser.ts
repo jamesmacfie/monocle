@@ -11,3 +11,4 @@ export type BrowserAPIObject =
   | "cookies"
   | "downloads"
   | "sessions"
+  | "management"

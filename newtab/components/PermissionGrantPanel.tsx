@@ -17,6 +17,7 @@ const grantablePermissions = new Set<BrowserPermission>([
   "sessions",
   "storage",
   "tabs",
+  "management",
 ])
 
 const permissionDisplayNames: Record<BrowserPermission, string> = {
@@ -30,6 +31,7 @@ const permissionDisplayNames: Record<BrowserPermission, string> = {
   sessions: "Sessions",
   storage: "Storage",
   tabs: "Tabs",
+  management: "Manage Extensions",
 }
 
 export const normalizeGrantPermission = (

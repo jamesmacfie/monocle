@@ -58,6 +58,7 @@ export const createAppStore = (
             sessions: false,
             storage: false,
             tabs: false,
+            management: false,
           },
         },
         loading: false,

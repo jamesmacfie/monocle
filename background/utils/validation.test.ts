@@ -174,4 +174,23 @@ describe("message business validation", () => {
       ).success,
     ).toBe(false)
   })
+
+  it("accepts Firefox add-on command ids (@ and {} chars) but rejects unsafe ids", () => {
+    // The Extensions command group embeds browser add-on ids in command ids.
+    // Firefox add-on ids are email-style or GUID-style, so @ and {} are valid.
+    const childrenFor = (id: string) =>
+      validateIncomingMessage(
+        { type: "get-children-commands", id, parentPath: [], context },
+        {},
+      ).success
+
+    expect(childrenFor("extension-addon@mozilla.org")).toBe(true)
+    expect(
+      childrenFor("extension-{e4a8a97b-ba8d-4f3c-9b2e-1234567890ab}"),
+    ).toBe(true)
+    expect(childrenFor("extension-abcdefghabcdefghabcdefghabcdefgh")).toBe(true)
+    // Genuinely unsafe characters are still rejected.
+    expect(childrenFor("bad id with spaces")).toBe(false)
+    expect(childrenFor("ext/../../etc")).toBe(false)
+  })
 })

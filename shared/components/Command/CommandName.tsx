@@ -22,6 +22,7 @@ const humanReadableMap: {
   sessions: "sessions",
   storage: "storage",
   tabs: "tabs",
+  management: "extension management",
 }
 
 const formatHumanReadablePermissions = (

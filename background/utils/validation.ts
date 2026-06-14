@@ -2,6 +2,7 @@
  * Runtime message validation utilities with security hardening
  */
 import {
+  BROWSER_PERMISSIONS,
   type ValidatedMessage,
   type ValidationResult,
   validateMessage,
@@ -12,6 +13,21 @@ import {
 } from "../../shared/utils/key-normalizer"
 import { createMessageHandler } from "./messages"
 import { validateUrlPattern } from "./urlFilter"
+
+// Command ids are internal lookup keys (never interpolated into a DOM/eval/query
+// sink), so the charset is an injection guard, not an escaping mechanism. Beyond
+// the safe ASCII set, ids may embed browser add-on identifiers: Chrome uses 32
+// lowercase letters, but Firefox add-on ids are email-style ("addon@mozilla.org")
+// or GUID-style ("{e4a8...}") — hence `@`, `{`, and `}` are allowed. Used for
+// every command-id-bearing message (execute-command, get-children-commands,
+// set-command-favorite, update-command-setting, update-command-keybindings).
+const COMMAND_ID_PATTERN = /^[a-zA-Z0-9\-._:@{}]+$/
+const COMMAND_ID_MAX_LENGTH = 200
+
+const isValidCommandId = (id: string): boolean =>
+  id.length > 0 &&
+  id.length <= COMMAND_ID_MAX_LENGTH &&
+  COMMAND_ID_PATTERN.test(id)
 
 // Rate limiting for message validation (prevent spam/abuse)
 const validationRateLimit = new Map<
@@ -180,7 +196,15 @@ export function validateIncomingMessage(
 }
 
 /**
- * Business logic validation for specific message types
+ * Per-message-type semantic checks layered on top of schema validation. Schema
+ * validation proves a message is structurally well-formed; this switch enforces
+ * the value-level invariants the schema can't express — command ids match the
+ * safe id charset/length (injection guard), keybindings are already canonical
+ * (no silent re-normalization at the boundary), batch keybinding updates have no
+ * duplicate target ids, url-rule patterns each pass validateUrlPattern, and
+ * permission names are members of BROWSER_PERMISSIONS. Message types not listed
+ * here need no extra checks and pass through. Returns valid:false with a
+ * human-readable error on the first violation.
  * @param message - Validated message
  * @returns Business validation result
  */
@@ -191,23 +215,13 @@ function validateBusinessLogic(message: ValidatedMessage): {
   switch (message.type) {
     case "execute-command":
     case "get-children-commands":
-      // Command IDs should be safe strings (no special injection characters)
-      // Allow alphanumeric, hyphens, dots, underscores, and common browser-generated IDs
-      if (
-        !/^[a-zA-Z0-9\-._:]+$/.test(message.id) ||
-        message.id.length === 0 ||
-        message.id.length > 200
-      ) {
+      if (!isValidCommandId(message.id)) {
         return { valid: false, error: "Invalid command ID format" }
       }
       break
 
     case "set-command-favorite":
-      if (
-        !/^[a-zA-Z0-9\-._:]+$/.test(message.commandId) ||
-        message.commandId.length === 0 ||
-        message.commandId.length > 200
-      ) {
+      if (!isValidCommandId(message.commandId)) {
         return { valid: false, error: "Invalid command ID format" }
       }
       break
@@ -220,11 +234,7 @@ function validateBusinessLogic(message: ValidatedMessage): {
     }
 
     case "update-command-setting": {
-      if (
-        !/^[a-zA-Z0-9\-._:]+$/.test(message.commandId) ||
-        message.commandId.length === 0 ||
-        message.commandId.length > 200
-      ) {
+      if (!isValidCommandId(message.commandId)) {
         return { valid: false, error: "Invalid command ID format" }
       }
 
@@ -277,11 +287,7 @@ function validateBusinessLogic(message: ValidatedMessage): {
       const seenCommandIds = new Set<string>()
 
       for (const update of message.updates) {
-        if (
-          !/^[a-zA-Z0-9\-._:]+$/.test(update.commandId) ||
-          update.commandId.length === 0 ||
-          update.commandId.length > 200
-        ) {
+        if (!isValidCommandId(update.commandId)) {
           return { valid: false, error: "Invalid command ID format" }
         }
 
@@ -315,20 +321,11 @@ function validateBusinessLogic(message: ValidatedMessage): {
 
     case "request-permission":
     case "open-permission-grant-page": {
-      // Validate permission name against known browser permissions
-      const validPermissions = [
-        "activeTab",
-        "bookmarks",
-        "browsingData",
-        "contextualIdentities",
-        "cookies",
-        "downloads",
-        "history",
-        "sessions",
-        "storage",
-        "tabs",
-      ]
-      if (!validPermissions.includes(message.permission)) {
+      // Validate permission name against the single source of truth
+      // (BROWSER_PERMISSIONS in shared/types/commands.ts).
+      if (
+        !(BROWSER_PERMISSIONS as readonly string[]).includes(message.permission)
+      ) {
         return { valid: false, error: "Invalid permission name" }
       }
       break
