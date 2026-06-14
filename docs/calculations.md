@@ -63,8 +63,15 @@ rather than throwing).
   operator or a function call) and mathjs evaluates it to a finite number — bare
   numbers and words are not echoed back.
 - **Units** runs only for the conversion shape `<expr> in|to <unit>` and emits
-  only when mathjs returns a `Unit`. A small alias pre-pass maps a few informal
-  names (`kms`→`km`, `lbs`→`lb`, …).
+  only when mathjs returns a `Unit`. The query is split on the **last** `in`/`to`
+  keyword (so a trailing inch `in` on the source is never mistaken for the
+  keyword) and the source side is normalized so the natural height/body-weight
+  notations work: a small alias pre-pass maps informal names
+  (`kms`→`km`, `lbs`→`lb`, `pounds`→`lb`, `st`→`stone`, …), foot/inch symbols
+  expand (`5'10"`→`5 ft 10 in`, straight and smart quotes), and adjacent
+  value-unit groups are summed with `+` (`5 ft 10 in`, `6 stone 4 lb`) since
+  mathjs requires it. The result row labels the source exactly as typed
+  (`5'10"` → `177.8 cm`).
 - **Time** matches `time in <place>` and resolves the place to an IANA zone by
   the last path segment of `Intl.supportedValuesOf("timeZone")`
   ("Auckland" → "Pacific/Auckland"), formatting the current time at parse moment.

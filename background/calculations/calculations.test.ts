@@ -66,6 +66,31 @@ describe("units provider", () => {
     expect(unitsProvider.parse("1 + 89", context)).toBeNull()
     expect(unitsProvider.parse("gmail", context)).toBeNull()
   })
+
+  it("aliases informal weight words to mathjs units", () => {
+    expect(rowValue(unitsProvider.parse("14 pounds to kg", context))).toContain(
+      "kg",
+    )
+    expect(rowValue(unitsProvider.parse("5 st to kg", context))).toContain("kg")
+  })
+
+  it("parses foot/inch symbol notation for height", () => {
+    const result = unitsProvider.parse("5'10\" to cm", context)
+    expect(rowValue(result)).toContain("cm")
+    // Label echoes the source as typed, not the normalized expression.
+    const block = result?.content[0]
+    expect(block?.type === "keyValue" && block.rows[0]?.label).toBe("5'10\"")
+  })
+
+  it("sums multi-unit phrases for height and body weight", () => {
+    // Adjacent value-unit groups must be summed; mathjs errors without the "+".
+    expect(
+      rowValue(unitsProvider.parse("5 ft 10 in to cm", context)),
+    ).toContain("cm")
+    expect(
+      rowValue(unitsProvider.parse("6 stone 4 lb to kg", context)),
+    ).toContain("kg")
+  })
 })
 
 describe("time provider", () => {
