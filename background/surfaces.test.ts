@@ -99,6 +99,37 @@ describe("getSurfacesForUrl URL gating", () => {
   })
 })
 
+describe("broadcast", () => {
+  it("notifies open tabs with monocle-surfaces-changed on every mutation", async () => {
+    // broadcastToAllTabs goes through callBrowserAPI -> chrome.tabs (callback
+    // style); storage stays on fakeBrowser. Override chrome.tabs with a tab and
+    // a sendMessage spy so we can assert the change broadcast actually fires.
+    const sendMessage = vi.fn(
+      (_tabId: number, _message: unknown, cb: () => void) => cb(),
+    )
+    vi.stubGlobal("chrome", {
+      runtime: { id: "monocle-test" },
+      tabs: {
+        query: (_q: unknown, cb: (tabs: unknown[]) => void) => cb([{ id: 1 }]),
+        sendMessage,
+      },
+    })
+
+    await setOwnerSurfaces("focus-mode", [badge("b")])
+    await upsertSurface("focus-mode", badge("c"))
+    await removeSurface("focus-mode", "c")
+    await clearOwnerSurfaces("focus-mode")
+
+    // Each mutation broadcasts exactly once to the open tab.
+    expect(sendMessage).toHaveBeenCalledTimes(4)
+    expect(sendMessage).toHaveBeenCalledWith(
+      1,
+      { type: "monocle-surfaces-changed" },
+      expect.any(Function),
+    )
+  })
+})
+
 describe("initSurfaces", () => {
   it("drops per-session (userscript:*) owners but keeps feature owners", async () => {
     await setOwnerSurfaces("focus-mode", [badge("f")])

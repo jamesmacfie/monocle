@@ -11,6 +11,7 @@ import { render } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Provider } from "react-redux"
 import { vi } from "vitest"
+import { fakeBrowser } from "wxt/testing"
 import { CommandPalette } from "../components/Command/CommandPalette"
 import { createAppStore } from "../store"
 import { loadPermissions } from "../store/slices/settings.slice"
@@ -98,6 +99,12 @@ export const renderPalette = (
     sendMessage?: ReturnType<typeof createMockSendMessage>
   } = {},
 ) => {
+  // Fire-and-forget UI feedback (useToast) goes through the real runtime
+  // sendMessage, not the injected palette `sendMessage`. Register a no-op
+  // listener so those sends resolve instead of rejecting with "No listeners
+  // available" (an unhandled rejection that otherwise fails the whole run).
+  fakeBrowser.runtime.onMessage.addListener(() => {})
+
   const sendMessage = options.sendMessage ?? createMockSendMessage()
   const store = createAppStore(sendMessage)
   const items = options.items ?? defaultItems()
@@ -124,6 +131,7 @@ export const renderPalette = (
           sessions: true,
           storage: true,
           tabs: true,
+          management: true,
         },
       },
       "test",

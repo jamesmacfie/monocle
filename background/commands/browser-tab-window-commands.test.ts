@@ -415,10 +415,22 @@ describe("representative browser tab commands", () => {
 
     await executeCommand(goBackCommand.id, normalContext, {})
     expect(chromeApi.tabs.goBack).toHaveBeenCalledWith(1, expect.any(Function))
+    // Regression: navigation feedback must reach the user via monocle-toast
+    // (these commands previously emitted the receiver-less monocle-alert).
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      { type: "monocle-toast", level: "success", message: "Navigated back" },
+      expect.any(Function),
+    )
 
     await executeCommand(goForwardCommand.id, normalContext, {})
     expect(chromeApi.tabs.goForward).toHaveBeenCalledWith(
       1,
+      expect.any(Function),
+    )
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      1,
+      { type: "monocle-toast", level: "success", message: "Navigated forward" },
       expect.any(Function),
     )
   })

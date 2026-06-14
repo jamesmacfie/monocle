@@ -1062,3 +1062,58 @@ describe("search selection command", () => {
     )
   })
 })
+
+// Regression: these commands previously emitted the receiver-less
+// `monocle-alert` event, so their user feedback was silently dropped. They now
+// send `monocle-toast` (rendered by ToastContainer). Pin that behavior so the
+// migration cannot regress. See docs/messaging.md.
+describe("migrated command toast feedback", () => {
+  it("reopen-last-closed-tab restores the session and shows a success toast", async () => {
+    await executeCommand("reopen-last-closed-tab", normalContext, {})
+
+    expect(chromeApi.sessions.restore).toHaveBeenCalledWith(
+      "session-1",
+      expect.any(Function),
+    )
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      expect.any(Number),
+      {
+        type: "monocle-toast",
+        level: "success",
+        message: "Reopened: Closed Tab",
+      },
+      expect.any(Function),
+    )
+  })
+
+  it("reopen-last-closed-tab shows an info toast when there is nothing to reopen", async () => {
+    sessions = []
+
+    await executeCommand("reopen-last-closed-tab", normalContext, {})
+
+    expect(chromeApi.sessions.restore).not.toHaveBeenCalled()
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      expect.any(Number),
+      {
+        type: "monocle-toast",
+        level: "info",
+        message: "No recently closed tabs to restore",
+      },
+      expect.any(Function),
+    )
+  })
+
+  it("clear-favorites clears stored favorites and shows a success toast", async () => {
+    await executeCommand("clear-favorites", normalContext, {})
+
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      expect.any(Number),
+      {
+        type: "monocle-toast",
+        level: "success",
+        message: "Favorite commands cleared successfully",
+      },
+      expect.any(Function),
+    )
+  })
+})

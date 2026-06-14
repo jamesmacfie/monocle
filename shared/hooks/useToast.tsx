@@ -13,7 +13,11 @@ export function useToast() {
         message,
       }
 
-      return sendMessage(toastMessage)
+      // Toasts are fire-and-forget UI feedback. If the background is briefly
+      // unreachable (e.g. an asleep MV3 worker, or no receiver in tests) the
+      // toast simply doesn't show — swallow the rejection so it never surfaces
+      // as an unhandled promise rejection in the calling component.
+      return sendMessage(toastMessage).catch(() => undefined)
     },
     [sendMessage],
   )
