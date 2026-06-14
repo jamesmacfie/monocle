@@ -398,6 +398,20 @@ export type GetSurfacesMessage = {
   url: string
 }
 
+// A user interaction inside a surface (content/new-tab -> background). The host
+// captures the gesture and reports it; the background decides what it means.
+// v1 implements only the universal `dismiss` action (any surface can be closed,
+// handled by removing it from the store); owner-specific routing — a feature's
+// handleAction or a user-script handler, mirroring execute-feature-action — is
+// future work. See docs/v_next/03-surfaces-and-persistent-ui.md §3.
+export type SurfaceActionMessage = {
+  type: "surface-action"
+  ownerId: string
+  surfaceId: string
+  actionId: string
+  value?: string
+}
+
 export type Message =
   | ExecuteCommandMessage
   | GetChildrenMessage
@@ -433,6 +447,7 @@ export type Message =
   | UpdateFeatureConfigMessage
   | ExecuteFeatureActionMessage
   | GetSurfacesMessage
+  | SurfaceActionMessage
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message

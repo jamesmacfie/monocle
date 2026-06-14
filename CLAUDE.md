@@ -114,7 +114,7 @@ Current feature status:
 | User scripts (Automations) | Working with review notes | Declarative automation documents: schema + caps validation, `monocle-userscripts` storage, background engine (interpolation, segmentation, lowering, branch/forEach/while, runCommand policy), manual/urlMatch/elementAppears/interval/schedule/onStartup triggers, generated palette commands, and the options builder with validated import/export. Storage, validation, lowering, conditions, policy, command generation, engine, and trigger-engine behavior have focused tests; manual browser smoke (triggers, schedules, builder) is still needed. |
 | New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
 | Snippets | Working with review notes | Create/insert palette commands, `monocle-snippets` storage, options Snippets page, caret insertion via `monocle-insertText`, custom shortcuts gated by `keybindingRequirements` (modifier required so bindings fire inside inputs), and insert-time placeholders (`{date:FORMAT}` via date-fns, `{i}` persisted counter, `{url}`/`{title}`/`{domain}`/`{path}`/`{uuid}`/`{timestamp}`); storage CRUD, message validation, requirement enforcement, catalog rows, delete-cleanup, and placeholder interpolation have focused tests; manual insertion/shortcut smoke is still needed. |
-| Surfaces | Working with review notes | Generic declarative-UI primitive: background-owned, owner-namespaced store (`monocle-surfaces`) of overlays/badges (`{kind, urlMatch, blocking, content:{icon,title,text,countdownTo}}`), rendered by one `SurfaceHost` mounted in the closed content shadow root and on the new tab. `get-surfaces {url}` query + `monocle-surfaces-changed` broadcast; URL gating reuses `matchesUrlPattern`; per-session (`userscript:*`) owners cleared on startup. Store get/set/clear/upsert/remove + URL gating have focused tests; manual overlay/badge smoke is still needed. |
+| Surfaces | Working with review notes | Generic declarative-UI primitive: background-owned, owner-namespaced store (`monocle-surfaces`) of overlays/badges/modals (`{kind, urlMatch, blocking, content:{icon,title,text,countdownTo,blocks}}`), rendered by one `SurfaceHost` mounted in the closed content shadow root (`overlay`+`modal`) and on the new tab (`badge`). `modal` is a centered, dismissible card built on the shared shadcn Dialog (`shared/components/ui/dialog.tsx`, portal-container-aware so it stays inside the closed shadow root) that renders structured `ContentBlock`s (the shared calculation/`ContentBlocks` vocabulary) and is the first kind triggered by a **command** — `execute()` runs in background and calls the store directly (owner `command:<id>`, per-session like `userscript:*`, both cleared on startup). `get-surfaces {url}` (now stamps `ownerId`) + `monocle-surfaces-changed` broadcast; new `surface-action {ownerId,surfaceId,actionId}` reports interactions, v1 handling only `dismiss` → `removeSurface` (owner routing deferred). URL gating reuses `matchesUrlPattern`. Store get/set/clear/upsert/remove + URL gating + `ownerId` stamping + `command:`/`userscript:` cleanup, modal render + dismiss (dual-DOM), and `surface-action` validation have focused tests; manual overlay/badge/modal smoke is still needed. |
 | Feature modules | Working with review notes | Background-owned `FeatureModule` registry (`background/features/`) contributing palette commands, a declarative settings page (FormField schema + Zod config validation + action buttons), runtime state, and lifecycle. Three stores: command settings (unchanged), `monocle-feature-config` (durable), `monocle-feature-state` (runtime). Generic `get-features`/`update-feature-config`/`execute-feature-action` messages; options Features pages with `SchemaForm`. Page UI is rendered through the generic Surfaces primitive, not per-feature components. The schema also supports a `record-list` FormField (per-row + per-child action buttons, rows projected via `settings.lists`, actions dispatched with a scalar `payload`) for features that manage a list of records. Config/state stores, registry projection (incl. lists), command contribution, and message validation (incl. payload) have focused tests; manual options + cross-tab smoke is still needed. |
 | Focus Mode | Working with review notes | First feature: URL blocklist, timestamp-based session (indefinite/timed/Pomodoro) in `monocle-feature-state` with a single `chrome.alarms` end alarm. UI is built entirely on the Surfaces primitive — `projectFocusSurfaces` emits a blocking overlay (scoped to the blocklist) + a new-tab badge; no focus-specific UI/messages. `isUrlBlocked`, session timing, config schema, and surface projection have focused tests; manual overlay/countdown smoke is still needed. |
 | Calculations | Working with review notes | Inline calculations (`background/calculations/`, a sibling registry to features). Providers are data + one pure synchronous `parse` (Math/Units via **mathjs**, Time via `Intl.DateTimeFormat`); `runCalculationProviders` is called from `handleSearchCommands` and **prepends** ephemeral `calculation` suggestions to root search (no new message, excluded from favorites/usage/index). Results render structured `ContentBlock`s (`shared/types/content.ts` + Zod `contentValidation.ts`) via the shared `ContentBlocks` renderer (`shared/components/ContentBlocks/`, built on the new `shared/components/ui/` boundary — the shadcn-consolidation seed). The `calculation` suggestion copies `copyValue` on select (copy-and-stay) via `useCopyToClipboard`/`useToast`. mathjs is hardened (injection functions disabled) and lives in the background bundle only. Replaced the old `calculator` group command. Provider parsing, content-block validation, and dual-DOM ContentBlocks rendering have focused tests; manual palette smoke (both modes) still needed. |
@@ -124,7 +124,7 @@ Last verified validation:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
-- `pnpm test` passes cleanly (exit 0, 524 tests) with focused command-system,
+- `pnpm test` passes cleanly (exit 0, 533 tests) with focused command-system,
   palette-search (index/scoring/search-commands/slice staleness),
   browser-command, keybinding, URL-filtering, settings-management,
   snippet-storage, workflow-executor (full op vocabulary), user-script
@@ -139,7 +139,9 @@ Last verified validation:
   calculations (Math/Units/Time providers, runCalculationProviders, content-block
   validation, dual-DOM ContentBlocks rendering),
   surfaces-store (owner set/clear/upsert/remove, URL gating, session-owner
-  cleanup, change broadcast), feature/surfaces-message validation, and GitHub
+  cleanup incl. `command:`, `ownerId` stamping, change broadcast), modal surface
+  render + dismiss (dual-DOM SurfaceHost), QR generation (background SVG data
+  URL), feature/surfaces/surface-action-message validation, and GitHub
   parsing coverage. (Note: a fire-and-forget toast that rejects when the
   background is unreachable used to surface as an unhandled rejection and make
   the run exit non-zero despite all tests passing — `useToast` now swallows that
@@ -267,16 +269,20 @@ Feature modules (`docs/features.md`):
 Surfaces (`docs/surfaces.md`):
 
 1. `background/surfaces.ts` is an owner-namespaced store (`monocle-surfaces`) of
-   declarative overlays/badges. Owners are features (e.g. `focus-mode`) or
-   automations (`userscript:<id>`); every mutation broadcasts
-   `monocle-surfaces-changed`.
-2. The one generic `SurfaceHost` (mounted in the closed content shadow root and
-   on the new tab) queries `get-surfaces {url}` on mount/navigation/broadcast and
-   renders the surfaces of the kinds it owns. URL gating reuses
-   `matchesUrlPattern`; the closed shadow root makes a `blocking` overlay a true
-   hard block.
+   declarative overlays/badges/modals. Owners are features (e.g. `focus-mode`),
+   automations (`userscript:<id>`), or commands (`command:<id>`); every mutation
+   broadcasts `monocle-surfaces-changed`. `command:`/`userscript:` owners are
+   per-session (cleared on startup).
+2. The one generic `SurfaceHost` (mounted in the closed content shadow root with
+   `overlay`+`modal`, and on the new tab with `badge`) queries `get-surfaces
+   {url}` on mount/navigation/broadcast and renders the surfaces of the kinds it
+   owns. URL gating reuses `matchesUrlPattern`; the closed shadow root makes a
+   `blocking` overlay a true hard block. A `modal` renders structured
+   `ContentBlock`s and is dismissed via `surface-action {actionId:"dismiss"}`.
 3. Focus Mode projects its overlay+badge here (`projectFocusSurfaces`);
-   automations push surfaces via the `showSurface`/`hideSurface` engine ops.
+   automations push surfaces via the `showSurface`/`hideSurface` engine ops; a
+   command pushes from its `execute()` (e.g. the QR-code modal in
+   `tools/urlAsQrCode.ts`).
 
 ## Command System Contract
 

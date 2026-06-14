@@ -31,6 +31,7 @@ import { searchCommands } from "./searchCommands"
 import { setCommandFavorite } from "./setCommandFavorite"
 import { showToast } from "./showToast"
 import { siteSdkSync } from "./siteSdkSync"
+import { surfaceAction } from "./surfaceAction"
 import { getSurfaces } from "./surfaces"
 import { updateCommandKeybindings } from "./updateCommandKeybindings"
 import { updateCommandSetting } from "./updateCommandSetting"
@@ -184,6 +185,9 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "get-surfaces" }, async (msg) => {
       return await getSurfaces(msg)
+    })
+    .with({ type: "surface-action" }, async (msg) => {
+      return await surfaceAction(msg)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${message.type}`)

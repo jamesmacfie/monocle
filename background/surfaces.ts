@@ -16,10 +16,15 @@ const browserAPI = getBrowserAPI()
 
 const STORAGE_KEY = "monocle-surfaces"
 
-// Per-session owners (automations) are prefixed so a fresh browser session
-// starts with no leftover automation surfaces, like toasts. Feature owners
-// rebuild their own surfaces from durable state in their init() hook.
-const SESSION_OWNER_PREFIX = "userscript:"
+// Per-session owners are prefixed so a fresh browser session starts with no
+// leftover surfaces, like toasts. Automations use `userscript:<id>`; commands
+// that trigger a surface use `command:<id>` (e.g. a QR modal). Feature owners
+// are NOT session-prefixed — they rebuild their own surfaces from durable state
+// in their init() hook.
+const SESSION_OWNER_PREFIXES = ["userscript:", "command:"]
+
+const isSessionOwner = (ownerId: string): boolean =>
+  SESSION_OWNER_PREFIXES.some((prefix) => ownerId.startsWith(prefix))
 
 type SurfaceStore = Record<string, Surface[]>
 
@@ -129,14 +134,18 @@ const surfaceMatchesUrl = (surface: Surface, url: string): boolean => {
   return true
 }
 
-/** Every surface (across all owners) whose urlMatch admits the given URL. */
+/**
+ * Every surface (across all owners) whose urlMatch admits the given URL. Each
+ * returned surface is stamped with its `ownerId` so the host can target it in a
+ * `surface-action` (e.g. dismiss) — the stored shape stays owner-namespaced.
+ */
 export const getSurfacesForUrl = async (url: string): Promise<Surface[]> => {
   const store = await loadStore()
   const surfaces: Surface[] = []
-  for (const ownerSurfaces of Object.values(store)) {
+  for (const [ownerId, ownerSurfaces] of Object.entries(store)) {
     for (const surface of ownerSurfaces) {
       if (surfaceMatchesUrl(surface, url)) {
-        surfaces.push(surface)
+        surfaces.push({ ...surface, ownerId })
       }
     }
   }
@@ -153,7 +162,7 @@ export const initSurfaces = async (): Promise<void> => {
     const store = await loadStore()
     let changed = false
     for (const ownerId of Object.keys(store)) {
-      if (ownerId.startsWith(SESSION_OWNER_PREFIX)) {
+      if (isSessionOwner(ownerId)) {
         delete store[ownerId]
         changed = true
       }

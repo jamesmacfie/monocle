@@ -48,7 +48,7 @@ function ContentBlockView({ block }: { block: ContentBlock }) {
         <img
           src={block.dataUrl}
           alt=""
-          className="max-h-40 max-w-full rounded-md border border-[var(--color-border)]"
+          className="mx-auto h-auto w-full max-w-[16rem] rounded-md border border-[var(--color-border)] bg-white p-2"
         />
       )
     default:

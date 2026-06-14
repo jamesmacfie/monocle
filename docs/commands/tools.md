@@ -1,6 +1,6 @@
 # Tool Commands
 
-Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are four tool commands today: a UUID generator, a workflow debug command, and the snippet pair (create + insert).
+Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are five tool commands today: a UUID generator, a workflow debug command, the snippet pair (create + insert), and the QR-code command.
 
 > Arithmetic used to be a `calculator` group command here. It has been replaced by inline **calculations** — type `1 + 89` at the palette root and the answer appears under the search input; Enter copies it. See [../calculations.md](../calculations.md).
 
@@ -12,8 +12,9 @@ Tool commands are general-purpose utilities that are not tied to a browser API s
 | Debug Workflow | `debug-workflow` | `action` | Run a fixed click workflow against the active page | Exercises the workflow execution path; see [../workflow-automation.md](../workflow-automation.md) |
 | Create Snippet | `create-snippet` | `group` | Form (name + multi-line body) that saves a reusable text snippet | Persists to the `monocle-snippets` storage key; body uses the `textarea` form field |
 | Insert Snippet | `insert-snippet` | `group` | List saved snippets; selecting one inserts its body at the page caret | Cmd-enter copies instead; falls back to clipboard + toast when no input is focused |
+| Website URL as QR code | `url-as-qr-code` | `action` | Show a QR code for the current page in a modal surface | First command to trigger a [Surface](../surfaces.md); QR generated background-side as SVG |
 
-All four are registered in `background/commands/tools/index.ts`:
+All five are registered in `background/commands/tools/index.ts`:
 
 ```ts
 export const toolCommands = [
@@ -21,6 +22,7 @@ export const toolCommands = [
   debugWorkflow,
   createSnippet,
   insertSnippet,
+  urlAsQrCode,
 ]
 ```
 
@@ -67,6 +69,23 @@ This command exists to exercise the end-to-end workflow execution path against a
 This is the only workflow surface that ships as a first-class command; it only exercises the implemented `click` step. The `test-inputs.html` fixture page at the repo root provides a Submit button to test against. For the workflow type model versus what the executor actually supports, see [../workflow-automation.md](../workflow-automation.md).
 
 Test coverage: `background/commands/tools/debugWorkflow.test.ts` stubs Chrome tabs and asserts the message sequence is exactly `toggle-ui` -> `execute-workflow-content` -> `monocle-toast`, that all messages target the resolved (non-active) tab whose URL matched the context, and that a failing `WorkflowResult` produces a targeted error toast containing the underlying error string.
+
+---
+
+## Website URL as QR code
+
+Source: `background/commands/tools/urlAsQrCode.ts`, exported as `urlAsQrCode` (`ActionCommandNode`). Id `url-as-qr-code`, icon `QrCode`.
+
+This is the **first command that triggers a [Surface](../surfaces.md)** — the pattern for rendering command output as page UI instead of executing-and-closing. On execute it:
+
+1. Reads `context.url`; if it is not an `http(s)` page (new tab, `chrome://`, `about:`), it sends a `"No page URL to encode"` warning toast and returns.
+2. Generates the QR as an **SVG data URL** synchronously via `background/utils/qr.ts` (`qrCodeSvgDataUrl`, built on the zero-dependency `qrcode-generator` library). SVG is required because the MV3 service worker has no DOM/canvas; the library is imported only here, so it stays in the background bundle.
+3. Wraps it in an `image` `ContentBlock`, validated by `validateContentBlocks` (fail-quiet, like the calculation path).
+4. `upsertSurface`s a `modal` surface under owner `command:url-as-qr-code`, URL-gated (`allowUrls: [context.url]`) to the page it was triggered on. The generic `SurfaceHost` renders the modal over the page; the user dismisses it (✕ / backdrop / Escape), which posts a `surface-action { actionId: "dismiss" }` that removes it.
+
+There is no copy step — the QR appears in the modal to scan directly. Owner ids prefixed `command:` are per-session, so `initSurfaces` clears any stale QR modal on a fresh browser start.
+
+Test coverage: QR generation in `background/utils/qr.test.ts` (svg+xml data URL, valid `image` block, scales with data length); the modal kind + dismiss in `shared/components/SurfaceHost.dom.test.tsx`; store `command:` cleanup + `ownerId` stamping in `background/surfaces.test.ts`; and `surface-action` message validation in `shared/types/feature-validation.test.ts`.
 
 ---
 

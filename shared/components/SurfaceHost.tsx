@@ -10,7 +10,29 @@ import { useCallback, useEffect, useState } from "react"
 import { trackSpaNavigation } from "../../content/utils/spaNavigation"
 import type { GetSurfacesResponse, Surface, SurfaceKind } from "../types"
 import { getBrowserAPI, sendRuntimeMessageSafe } from "../utils/extension-api"
+import { ContentBlocks } from "./ContentBlocks"
 import { getIconComponent } from "./iconRegistry"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog"
+
+// Report a surface interaction back to the background (the host captures the
+// gesture; the background decides what it means). v1 only uses "dismiss".
+const sendSurfaceAction = (surface: Surface, actionId: string): void => {
+  if (!surface.ownerId) {
+    return
+  }
+  void sendRuntimeMessageSafe({
+    type: "surface-action",
+    ownerId: surface.ownerId,
+    surfaceId: surface.id,
+    actionId,
+  })
+}
 
 const formatCountdown = (ms: number): string => {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000))
@@ -127,6 +149,46 @@ const BadgeSurface = ({ surface }: { surface: Surface }) => (
   </div>
 )
 
+// A centered, dismissible card (the shared shadcn Dialog) the first kind that
+// renders structured `blocks` and the first surface triggered by a command
+// (e.g. the QR modal). Radix handles dismissal — ✕ button, backdrop click, and
+// Escape all fire onOpenChange(false), which reports `dismiss` to the owner.
+//
+// The Dialog is portaled into `container` (a div in this component's subtree)
+// rather than document.body, so in the closed content shadow root it stays
+// inside the shadow root — themed by the :host `--color-*` tokens and isolated.
+const ModalSurface = ({ surface }: { surface: Surface }) => {
+  const [container, setContainer] = useState<HTMLElement | null>(null)
+  const { title, text, blocks } = surface.content
+
+  return (
+    <div ref={setContainer}>
+      {container ? (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              sendSurfaceAction(surface, "dismiss")
+            }
+          }}
+        >
+          <DialogContent container={container}>
+            <DialogHeader>
+              <DialogTitle>{title ?? "Monocle"}</DialogTitle>
+              {text ? (
+                <DialogDescription className="break-all">
+                  {text}
+                </DialogDescription>
+              ) : null}
+            </DialogHeader>
+            {blocks ? <ContentBlocks blocks={blocks} /> : null}
+          </DialogContent>
+        </Dialog>
+      ) : null}
+    </div>
+  )
+}
+
 export function SurfaceHost({ kinds }: { kinds: SurfaceKind[] }) {
   const [surfaces, setSurfaces] = useState<Surface[]>([])
 
@@ -170,13 +232,17 @@ export function SurfaceHost({ kinds }: { kinds: SurfaceKind[] }) {
 
   return (
     <>
-      {visible.map((surface) =>
-        surface.kind === "overlay" ? (
-          <OverlaySurface key={surface.id} surface={surface} />
-        ) : (
-          <BadgeSurface key={surface.id} surface={surface} />
-        ),
-      )}
+      {visible.map((surface) => {
+        // Key by owner + id: ids are only unique within an owner.
+        const key = `${surface.ownerId ?? ""}:${surface.id}`
+        if (surface.kind === "modal") {
+          return <ModalSurface key={key} surface={surface} />
+        }
+        if (surface.kind === "overlay") {
+          return <OverlaySurface key={key} surface={surface} />
+        }
+        return <BadgeSurface key={key} surface={surface} />
+      })}
     </>
   )
 }

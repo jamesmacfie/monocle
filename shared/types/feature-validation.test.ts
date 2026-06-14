@@ -71,4 +71,21 @@ describe("feature message validation", () => {
   it("rejects get-surfaces without a url", () => {
     expect(validateMessage({ type: "get-surfaces" }).success).toBe(false)
   })
+
+  it("accepts a surface-action with owner, surface, and action ids", () => {
+    expect(
+      validateMessage({
+        type: "surface-action",
+        ownerId: "command:url-as-qr-code",
+        surfaceId: "qr",
+        actionId: "dismiss",
+      }).success,
+    ).toBe(true)
+  })
+
+  it("rejects a surface-action missing required ids", () => {
+    expect(
+      validateMessage({ type: "surface-action", actionId: "dismiss" }).success,
+    ).toBe(false)
+  })
 })

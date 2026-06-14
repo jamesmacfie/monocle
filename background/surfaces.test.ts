@@ -72,6 +72,17 @@ describe("surfaces store", () => {
     const ids = (await getSurfacesForUrl("https://x.com")).map((s) => s.id)
     expect(ids).toEqual(["b"])
   })
+
+  it("stamps each returned surface with its ownerId (for surface-action)", async () => {
+    await upsertSurface("command:url-as-qr-code", {
+      id: "qr",
+      kind: "modal",
+      content: { title: "https://x.com" },
+    })
+    const surfaces = await getSurfacesForUrl("https://x.com")
+    expect(surfaces).toHaveLength(1)
+    expect(surfaces[0].ownerId).toBe("command:url-as-qr-code")
+  })
 })
 
 describe("getSurfacesForUrl URL gating", () => {
@@ -131,9 +142,10 @@ describe("broadcast", () => {
 })
 
 describe("initSurfaces", () => {
-  it("drops per-session (userscript:*) owners but keeps feature owners", async () => {
+  it("drops per-session (userscript:* and command:*) owners but keeps feature owners", async () => {
     await setOwnerSurfaces("focus-mode", [badge("f")])
     await upsertSurface("userscript:42", badge("u"))
+    await upsertSurface("command:url-as-qr-code", badge("q"))
 
     await initSurfaces()
 

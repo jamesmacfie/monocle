@@ -293,6 +293,16 @@ export const GetSurfacesMessageSchema = z.object({
   url: z.string(),
 })
 
+// A surface interaction (e.g. dismissing a modal). See
+// docs/v_next/03-surfaces-and-persistent-ui.md §3.
+export const SurfaceActionMessageSchema = z.object({
+  type: z.literal("surface-action"),
+  ownerId: z.string().min(1, "Owner ID cannot be empty"),
+  surfaceId: z.string().min(1, "Surface ID cannot be empty"),
+  actionId: z.string().min(1, "Action ID cannot be empty"),
+  value: z.string().optional(),
+})
+
 // Union schema for all message types
 export const MessageSchema = z.discriminatedUnion("type", [
   ExecuteCommandMessageSchema,
@@ -329,6 +339,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
   UpdateFeatureConfigMessageSchema,
   ExecuteFeatureActionMessageSchema,
   GetSurfacesMessageSchema,
+  SurfaceActionMessageSchema,
 ])
 
 // Validation result types

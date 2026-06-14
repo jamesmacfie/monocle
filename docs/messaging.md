@@ -303,7 +303,8 @@ Generic Feature-module messages (handler: `background/messages/features.ts`; see
 
 The generic declarative-UI query (handler: `background/messages/surfaces.ts`; see [surfaces.md](surfaces.md)):
 
-- **`get-surfaces`** `{ url }` → `{ surfaces: Surface[] }` — the `SurfaceHost` (content overlay + new tab) sends its URL and receives every surface whose `urlMatch` admits it; the host filters by kind locally. Surfaces are pushed into the store by features (e.g. Focus Mode) and user-script automations; this is the read side. Change notifications arrive via the `monocle-surfaces-changed` broadcast (below).
+- **`get-surfaces`** `{ url }` → `{ surfaces: Surface[] }` — the `SurfaceHost` (content overlay + new tab) sends its URL and receives every surface whose `urlMatch` admits it (each stamped with its `ownerId`); the host filters by kind locally. Surfaces are pushed into the store by features (e.g. Focus Mode), user-script automations, and commands (e.g. the QR-code modal); this is the read side. Change notifications arrive via the `monocle-surfaces-changed` broadcast (below).
+- **`surface-action`** `{ ownerId, surfaceId, actionId, value? }` → `{ ok }` (handler: `background/messages/surfaceAction.ts`) — a user interaction reported by the host (e.g. dismissing a modal). The host captures the gesture; the background decides what it means. v1 handles only the universal `actionId: "dismiss"` (any surface → `removeSurface`); owner-specific routing is future work (see [v_next §3](v_next/03-surfaces-and-persistent-ui.md)).
 
 ## Send-Side Utilities
 
