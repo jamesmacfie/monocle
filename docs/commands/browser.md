@@ -32,8 +32,11 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `close-tabs-to-right` | Close tabs to the right | action | `tabs` | — | all | `confirmAction` |
 | `copyCurrentTabUrl` | Copy current tab URL | group | — | — | all | 3 child variants with per-child keybindings |
 | `copy-tab-url` | Copy tab URL | group | `tabs` | — | all | One child per open tab in current window |
+| `copy-title-and-url` | Copy title + URL | action | — | — | all | Copies `title\nurl` for the active tab via `monocle-copyToClipboard` |
+| `copy-title-and-url-as-markdown` | Copy title + URL as a Markdown link | action | — | — | all | Copies `[title](url)`; escapes `[`/`]` in the title |
 | `downloads` | Downloads | group | `downloads` | — | all | Up to 50 recent completed downloads |
 | `duplicate-current-tab` | Duplicate current tab | action | — | — | all | Modifier labels: shift / cmd |
+| `focus-first-input` | Focus first input | action | — | — | all | Injects a script (`scripting`) to focus the first visible/enabled input/textarea/contenteditable; error toast when none found |
 | `focus-next-tab` | Go to next tab | action | `tabs` | — | all | Vim-template target; wraps within current window |
 | `focus-previous-tab` | Go to previous tab | action | `tabs` | — | all | Vim-template target; wraps within current window |
 | `focus-first-tab` | Go to first tab | action | `tabs` | — | all | Vim-template target |
@@ -57,7 +60,9 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `open-new-private-window` | Open new private window | action | — | `<cmd-shift-n>` | all | `incognito: true` |
 | `open-new-tab` | Open new tab | action | — | `<cmd-t>` | all | Modifier label: shift |
 | `open-new-window` | Open new window | action | — | `<cmd-n>` | all | |
+| `open-page-in-incognito` | Open page in incognito window | action | — | — | all | `createWindow({ url, incognito: true })`; error toast if private windows are not allowed |
 | `open-tabs` | Open Tabs | group | `tabs` | — | all | All windows; deep search; rich modifiers |
+| `print-page` | Print page | action | — | — | all | Injects `window.print()` via `scripting` on the active tab |
 | `recently-closed` | Recently Closed | group | `sessions` | — | all | Closed tabs and windows; deep search |
 | `reload-current-tab` | Reload current tab | action | — | `<cmd-r>` | all | Cmd modifier action: hard reload (bypass cache) |
 | `reopen-last-closed-tab` | Reopen Last Closed Tab | action | `sessions` | — | all | Most recent closed tab only |
@@ -68,7 +73,10 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `scroll-far-left` / `scroll-far-right` | Scroll to horizontal edge | action | — | — | all | Horizontal edge aliases |
 | `scroll-to-top` | Scroll to top | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
 | `scroll-to-bottom` | Scroll to bottom | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
+| `search-selection` | Search selection | group | — | — | all | One child per search provider (Google today); reads the page selection via `scripting` and opens a search tab. Children `search-selection-<provider>` |
+| `sort-tabs-by-title` | Sort tabs by title | action | — | — | all | Reorders current-window unpinned tabs alphabetically (`tabs.move`), keeping pinned tabs in place |
 | `stop-loading-current-tab` | Stop loading current tab | action | `tabs` | — | all | Runs `window.stop()` with required `scripting` permission |
+| `toggle-fullscreen` | Toggle fullscreen | action | — | — | all | Toggles the current window between `fullscreen` and `normal` via `updateWindow` |
 | `toggle-mute-current-tab` | Mute / Unmute current tab | action | — | — | all | State-aware label/icon from `mutedInfo.muted` |
 | `toggle-pin-current-tab` | Pin / Unpin current tab | action | — | — | all | State-aware label/icon from `pinned` |
 | `view-source-current-tab` | View page source | action | — | — | all | Navigates to `view-source:<url>` |

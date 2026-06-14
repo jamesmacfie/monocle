@@ -137,6 +137,7 @@ why `updateNewTabClockSettings({ show: false })` preserves a sibling
 | `getAllCommandSettings()` | Returns the whole `commands` record. |
 | `setCommandSettings(commandId, settings)` | Replaces a command's settings wholesale. |
 | `updateCommandSettings(commandId, partial)` | Merges via `mergeCommandSettings`, prunes empty results, deletes the command entry if nothing remains. |
+| `updateCommandKeybindings(updates)` | Batch keybinding write path (used by the template/batch keyboard flows). Takes `Array<{ commandId, keybinding? }>` and, inside one storage lock, merges each `{ keybinding }` via `mergeCommandSettings`, pruning/deleting empty entries. A `null`/empty `keybinding` clears that command's binding. |
 | `updateCommandUrlRules(commandId, urlRules)` | Thin wrapper: `updateCommandSettings(commandId, { urlRules })`. Preserves sibling keybinding and the other allow/deny list. |
 | `removeCommandSettings(commandId)` | Deletes the command entry entirely. |
 | `removeCommandSetting(commandId, setting)` | Removes a single field (`keybinding`, `hidden`, or `urlRules`), prunes, and deletes the command entry if it becomes empty. |

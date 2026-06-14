@@ -188,10 +188,10 @@ The `add-bookmark` form group is the first built-in open-page command. It has no
 
 ### Capture UI flow
 
-Generated per-command actions come from `background/commands/index.ts`:
+Generated per-command actions come from `background/commands/suggestions.ts`:
 
-- `_createSetKeybindingAction` produces a `set-keybinding-<id>` action ("Set Custom Keybinding") only when `allowsKeybinding` is true. Its `executionContext` is `{ type: "setKeybinding", targetCommandId }` and it is `remainOpenOnSelect`.
-- `_createResetKeybindingAction` produces `reset-keybinding-<id>` ("Reset Custom Keybinding") only when a custom keybinding is currently set; its description shows the default it will restore.
+- `createSetKeybindingAction` produces a `set-keybinding-<id>` action ("Set Custom Keybinding") only when `allowsKeybinding` is true. Its `executionContext` is `{ type: "setKeybinding", targetCommandId }` and it is `remainOpenOnSelect`.
+- `createResetKeybindingAction` produces `reset-keybinding-<id>` ("Reset Custom Keybinding") only when a custom keybinding is currently set; its description shows the default it will restore.
 
 `shared/components/Command/CommandActionsList.tsx` drives capture:
 
@@ -202,7 +202,7 @@ Generated per-command actions come from `background/commands/index.ts`:
 
 ### Persistence and registry refresh
 
-The custom keybinding is stored in command settings under the command id (`monocle-settings` -> command settings -> `keybinding`). See [settings.md](settings.md). The `update-command-setting` path persists it and refreshes the registry so subsequent `get-keybinding-state` reflects it. Reset is handled in the background (`background/commands/index.ts`, `resetKeybinding` action): `removeCommandSetting(targetCommandId, "keybinding")` then `refreshKeybindingRegistry()`.
+The custom keybinding is stored in command settings under the command id (`monocle-settings` -> command settings -> `keybinding`). See [settings.md](settings.md). The `update-command-setting` path persists it and refreshes the registry so subsequent `get-keybinding-state` reflects it. Reset is handled in the background (`background/commands/execution.ts`, `resetKeybinding` action branch in `executeGeneratedAction`): `removeCommandSetting(targetCommandId, "keybinding")` then `refreshKeybindingRegistry()`.
 
 The keybinding Redux slice (`shared/store/slices/keybinding.slice.ts`) is intentionally tiny — `{ isCapturing, targetCommandId, requirements }` with `startCapture` / `cancelCapture` / `completeCapture` and `selectIsCapturing` / `selectTargetCommandId` / `selectCaptureRequirements`. It carries no keybinding data; the actual bindings live in settings and the background registry. `requirements` holds the target command's `KeybindingRequirements` (delivered via the `setKeybinding` execution context) so the palette capture box can hint constraints before the first stroke.
 
@@ -241,7 +241,7 @@ The capture UI calls this per stroke and disables save while a conflict exists. 
 Commands with `confirmAction: true` (destructive operations such as closing the current tab, clearing browsing data) are **excluded from all global keybindings** — both defaults and custom. The mechanism is `allowsKeybinding` returning false for `confirmAction === true`, which means:
 
 - `getCommandKeybinding` returns `""`, so no entry enters the registry even if the user has a custom keybinding stored in settings (`registry.test.ts` "does not register confirmation-required commands, even with custom settings").
-- `_createSetKeybindingAction` returns `null`, so the action menu offers no Set Custom Keybinding option (`browser-commands.test.ts` "does not expose custom keybinding actions for confirmed commands").
+- `createSetKeybindingAction` returns `null`, so the action menu offers no Set Custom Keybinding option (`browser-commands.test.ts` "does not expose custom keybinding actions for confirmed commands").
 
 Such commands must be executed through a UI path that can show the confirmation step (`ActionItem`'s `awaitingConfirmation` flow). `browser-commands.test.ts` also confirms `<cmd-w>`/`<cmd-shift-x>` for `close-current-tab` never resolve while `<cmd-t>` (`open-new-tab`) still does.
 

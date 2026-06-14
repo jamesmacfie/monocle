@@ -15,7 +15,7 @@ A script is **always data, never code**. Documents are persisted locally, valida
 | Manual trigger (+ prompt-before-run parameters) | Implemented |
 | Page-event triggers: `urlMatch` (load + best-effort SPA), `elementAppears` | Implemented (`background/userScripts/triggerEngine.ts`, `content/userScriptTriggers.ts`) |
 | Scheduled triggers: `interval`, `schedule`, `onStartup` (`chrome.alarms`) | Implemented (`background/userScripts/alarms.ts`) |
-| Options builder, import/export with review summary (`options/pages/UserScriptsPage.tsx`) | Implemented |
+| Options builder, import/export with review summary (`options/pages/UserScriptsPage.tsx` list view; `options/pages/userScripts/UserScriptEditorPage.tsx` editor) | Implemented |
 | Arbitrary-JS step (`runJs`) | **Not implemented, by decision** — see Store posture |
 
 ## The document
@@ -58,13 +58,20 @@ Enforced by the shared Zod schema at save, import, and the message boundary; the
 | Scripts stored | 200 |
 | Steps per script (counting nested) | 100 |
 | Control-flow nesting depth | 3 |
-| Loop iterations | default 50, hard max 1000 |
+| Loop iterations | schema validates 1–1000; the **engine** `loopCap()` applies the default of 50 when `maxIterations` is omitted |
 | Triggers per script | 5, at most one of each non-manual type |
 | Declared vars | 50 |
+| Manual-trigger `parameters[]` | 10 (each with ≤ 50 select options) |
 | Name length | 1–100 |
 | General string fields | ≤ 2000 |
-| `injectCss` body | ≤ 10000 |
+| `injectCss` body and `clipboardWrite.text` | ≤ 10000 |
+| `elementAppears.throttleMs` | floor 250, max 60000 |
+| `interval.everyMinutes` | 1 to one week (`7 × 24 × 60`) |
+| Trigger `delayMs` | ≤ 10000 |
+| `allOf` / `anyOf` child conditions | 1–10 each |
+| `navigate` load wait | engine-side max 15000ms (`NAVIGATION_COMPLETE_TIMEOUT_MS`) |
 | Regex pattern (`varMatches`) | ≤ 200, no user-supplied flags, must compile |
+| Comparison operators | `equals`/`equalsIgnoreCase`/`notEquals`/`contains`/`notContains`/`startsWith`/`endsWith`/`greaterThan`/`lessThan` |
 
 Navigation steps (`navigate`, `openUrl` with `currentTab`) are rejected inside branches/loops — navigation destroys the content context and segment-splitting mid-control-flow is a complexity cliff. Flat scripts can navigate.
 
@@ -118,7 +125,7 @@ Engine steps:
 
 ### Loops
 
-- Every loop carries an iteration cap (default 50, hard max 1000), enforced by schema **and** engine.
+- Every loop carries an iteration cap. The schema enforces the 1–1000 range on an explicit `maxIterations`; the engine's `loopCap()` (`background/userScripts/engine.ts`) applies the **default of 50** when it is omitted and re-clamps to the 1000 hard max at run time.
 - `forEach` over elements: each iteration, the engine probes existence of match *i*, binds `{{item}}` (the element's text; rename with `as`) and `{{index}}`, and **pins any body-step selector structurally equal to the loop selector (including `within` scopes) to index *i*** — that is how body steps act on "the current item" without selector templating.
 - `forEach` over a variable iterates the variable's non-empty lines.
 - Loop variables are scoped to the body and restored afterward.
@@ -176,9 +183,9 @@ Because rows are durable commands, keybindings (assigned on the keyboard setting
 
 ## Options builder
 
-`options/pages/UserScriptsPage.tsx` (+ `shared/store/slices/userScripts.slice.ts`), routes `#/automations`, `#/automations/new`, `#/automations/:id`:
+Two components (+ `shared/store/slices/userScripts.slice.ts`): `#/automations` renders the list view `options/pages/UserScriptsPage.tsx`; `#/automations/new` and `#/automations/:id` render the separate editor `options/pages/userScripts/UserScriptEditorPage.tsx` (see `options/OptionsApp.tsx`):
 
-- List view: name, blurb (`userScriptBlurb`), enabled toggle, edit/delete/export, import, and **Add Examples**.
+- List view (`UserScriptsPage.tsx`): name, blurb (`userScriptBlurb`), enabled toggle, edit/delete/export, import, and **Add Examples**.
 - **Add Examples** (`options/pages/userScripts/examples.ts`) seeds a curated set of example automations covering every trigger type and most of the step vocabulary — saved through the normal add path (so they validate like any document, locked in by `examples.test.ts`), deduped by name, and with event/scheduled triggers shipped disarmed. They double as living documentation of what automations can do.
 - Editor: metadata, scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and the step list — per-op form rows for the flat vocabulary, JSON editing for control-flow steps. Validates as-you-type with the identical shared schema; save is disabled with field-level errors; unknown `{{var}}` references warn.
 - **Test on Active Tab** runs the script through the real engine and shows per-step outcomes — selector breakage, not vocabulary, is what defeats non-programmers.

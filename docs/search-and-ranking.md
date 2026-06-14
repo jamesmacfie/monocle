@@ -105,7 +105,7 @@ Ranking lives entirely in `background/commands/usage.ts` and is persisted under 
 
 ### What is recorded, and when
 
-`recordCommandUsage(commandId, parentNames?)` is called from `executeResolvedCommand` in `background/commands/index.ts` *after* a successful execute, gated by `shouldRecordUsage`:
+`recordCommandUsage(commandId, parentNames?)` is called from `executeResolvedCommand` in `background/commands/execution.ts` *after* a successful execute, gated by `shouldRecordUsage`:
 
 - `action` commands: always recorded.
 - `submit` commands: recorded unless `doNotAddToRecents === true`.
@@ -144,7 +144,7 @@ After a recording, if `≥ CLEANUP_INTERVAL_DAYS` (90) have passed since `lastCl
 Favorites are persisted separately in `background/commands/favorites.ts` under `chrome.storage.local` key `monocle-favoriteCommandIds` — a flat `string[]` of command ids.
 
 - A command becomes a favorite via `toggleFavoriteCommandId(id)` (or `addToFavoriteCommandIds` / `removeFromFavoriteCommandIds`). The user-facing entry point is the generated **Toggle Favorite** action (`toggleFavoriteCommand`, exported here), surfaced in every command's action menu; see [execution-and-actions.md](./execution-and-actions.md). `clearFavoritesCommand` removes the entire key.
-- Each suggestion also carries `isFavorite` (set in `commandsToSuggestions` from `favoriteCommandIds.includes(node.id)`) so the UI can show a star and label the toggle correctly.
+- Each suggestion also carries `isFavorite` (set in `commandsToSuggestions`, `background/commands/suggestions.ts`, from `favoriteCommandIds.includes(node.id)`) so the UI can show a star and label the toggle correctly.
 
 ### How favorites are surfaced
 

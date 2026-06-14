@@ -1,11 +1,12 @@
 # UI / Settings Commands
 
-UI commands are palette commands that change Monocle's own configuration rather than acting on the browser. Three live in `background/commands/ui/` and are aggregated by `background/commands/ui/index.ts` into `uiCommands`, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set: a theme toggle and two URL-rule managers (allow list and deny list). A fourth Monocle-state command, Clear Favorites, is defined in `background/commands/favorites.ts` and appended directly by `loadAllCommands`; it is cataloged here because it also mutates Monocle's own state.
+UI commands are palette commands that change Monocle's own configuration rather than acting on the browser. Five live in `background/commands/ui/` and are aggregated by `background/commands/ui/index.ts` into `uiCommands`, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set: an Open Settings shortcut, a theme toggle, a theme picker group, and two URL-rule managers (allow list and deny list). One more Monocle-state command, Clear Favorites, is defined in `background/commands/favorites.ts` (not in `uiCommands`) and appended directly by `loadAllCommands`; it is cataloged here because it also mutates Monocle's own state.
 
 ## Summary
 
 | Command | Id | Node type | Purpose | Notes |
 | --- | --- | --- | --- | --- |
+| Monocle Settings | `open-settings` | `action` | Open the Monocle options page | `openOptionsPage()`; `actionLabel: "Open"` |
 | Toggle Theme | `toggle-theme` | `action` | Cycle the palette theme system -> light -> dark -> system | Dynamic name/description/icon reflect current mode |
 | Themes | `theme` | `group` | Pick any theme; applies immediately | Children from `THEME_OPTIONS`; Check marks the current one |
 | Manage Command Allow List | `manage-allow-list` | `group` | Edit per-command allow URL patterns | One subgroup per user-configurable command |
@@ -17,6 +18,7 @@ Registration:
 ```ts
 // background/commands/ui/index.ts
 export const uiCommands = [
+  openSettings,
   toggleTheme,
   selectTheme,
   manageAllowList,
@@ -32,6 +34,14 @@ const commands: CommandNode[] = [
   clearFavoritesCommand,
 ]
 ```
+
+---
+
+## Monocle Settings
+
+Source: `background/commands/ui/openSettings.ts`, exported as `openSettings` (`ActionCommandNode`). Id `open-settings`, name "Monocle Settings", icon `Settings`, `actionLabel: "Open"`. Keywords: `settings`, `preferences`, `options`, `configure`.
+
+A single `action` that opens the extension's options page via `openOptionsPage()` (`shared/utils/extension-api.ts`) with no arguments (the catalog root). Note feature modules expose their own "Configure <name>" actions that deep-link to a specific options route (e.g. `/features/<id>`); see [features.md](./features.md). The options-page structure itself is documented in [../settings-page.md](../settings-page.md).
 
 ---
 
@@ -120,7 +130,7 @@ Source: `background/commands/favorites.ts`, exported as `clearFavoritesCommand` 
 
 On execute it removes the `monocle-favoriteCommandIds` key from `chrome.storage.local` — the storage that backs the favorites feature (how commands become favorites and how favorites are surfaced is documented in [../search-and-ranking.md](../search-and-ranking.md)).
 
-After clearing (or on failure) it sends a `monocle-alert` event (`level: "success"` or `"error"`) to the active tab via `tabs.sendMessage`. Known issue: no mounted UI component listens for `monocle-alert` (see [../execution-and-actions.md](../execution-and-actions.md)), so this feedback is silently dropped today — the favorites are cleared, but the user sees no confirmation.
+After clearing (or on failure) it surfaces feedback via `sendSuccessToastToActiveTab` / `sendErrorToastToActiveTab` (`background/utils/browserTabs.ts`), which send a `monocle-toast` event rendered by `ToastContainer`.
 
 It is included in `loadUserConfigurableCommands()` (`background/commands/userConfigurableCommands.ts`), so it can receive custom keybindings and URL rules like other stable-id commands.
 

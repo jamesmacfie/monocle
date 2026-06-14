@@ -64,7 +64,6 @@ Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMess
 | `show-ui` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, `toggleContentPalette` | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
 | `hide-ui` | bg -> tab | `{}` | `background/commands/browser/captureScreenshot.ts` (hide overlay before capture) | `shared/hooks/useCommandPaletteStateRedux.tsx` (hides, then responds `{ received: true }` after two `requestAnimationFrame`s so the overlay is painted out) |
 | `monocle-copyToClipboard` | bg -> tab | `{ message }` | many command executors (`copyUuidV4.ts`, `copyCurrentTabUrl.ts`, `calculator.ts`, `snippets.ts`, …) | `shared/components/Listeners/CopyToClipboardListener.tsx` (`navigator.clipboard.writeText`) |
-| `monocle-alert` | bg -> tab | `{ level, message, icon?, copyText? }` | several command executors (`favorites.ts`, `history.ts`, `downloads.ts`, `goBack.ts`, …) | **nothing** — no UI component listens for this event today; see Known Issues |
 | `monocle-newTab` | bg -> tab | `{ url }` | command executors (e.g. `background/commands/browser/history.ts`, `bookmarks.ts`) | `shared/components/Listeners/NewTabListener.tsx` (`window.open(url, "_blank")` for http(s) only) |
 | `monocle-scroll` | bg -> tab | `{ direction: "top" \| "bottom" }` | `background/commands/browser/scrollToTop.ts`, `scrollToBottom.ts` | `shared/components/Listeners/ScrollListener.tsx` (`window.scrollTo` with smooth behavior) |
 | `monocle-screenshot` | bg -> tab | `{ mode: "clipboard" \| "download", dataUrl, filename? }` | `background/commands/browser/captureScreenshot.ts` | `shared/components/Listeners/ScreenshotListener.tsx` (Blob → clipboard `ClipboardItem` or blob-URL `<a download>`) |
@@ -276,7 +275,7 @@ index, and returns `{ success: true }`.
 
 It then sends **`execute-workflow-content`** `{ workflow, context }` to that tab via `tabs.sendMessage`. The content listener in `useCommandPaletteStateRedux.tsx` runs `workflowExecutor.executeWorkflow(workflow)` and responds `{ result }`. The background unwraps it (`unwrapWorkflowResult`) and returns `{ result: WorkflowResult }`. On any thrown error the handler returns `{ result: { success: false, error } }`.
 
-Only `click` and `wait` steps are actually executed; the workflow type model is broader than the executor. See [workflow-automation.md](workflow-automation.md).
+The full workflow step vocabulary is implemented and schema-accepted: every op in `shared/types/workflow.ts` (`click`, `wait`, `hover`, `focus`, `blur`, `fill`, `type`, `key`, `select`, `check`, `uncheck`, `submit`, `scroll`, `getText`, `removeElement`, `hideElement`, `injectCss`) has an executor case in `content/workflow/executor.ts` and a matching schema entry in `shared/types/workflowValidation.ts`. Unsupported ops fail loudly rather than succeeding silently (the lockstep invariant). See [workflow-automation.md](workflow-automation.md).
 
 ### Toasts
 
@@ -370,7 +369,7 @@ Content-side receivers live in the shared UI so both overlay and new-tab modes h
 - The `Message` union in `shared/types/messaging.ts`, the `MessageSchema` discriminated union in `shared/types/validation.ts`, and the `match` chain in `handleMessage` all enumerate the same message types. `MessageSchema` and `handleMessage` are the runtime source of truth (validation rejects anything not in the union before it reaches a handler); the `Message` union is the type-level mirror. Note that `useSendMessage`'s `SendableMessage` union is deliberately narrower — it omits `ShowToastMessage`, `GetUnsplashBackgroundMessage`, and the content-bridge-only `SiteSdkSyncMessage`, and uses context-stripped variants for the command/keybinding/search messages.
 - `executeKeybinding` and `checkKeybindingConflict` are not wrapped by `createMessageHandler`; their error contracts differ (they return domain-shaped fallbacks, not `{ error: <generic> }`).
 - Keybinding sequence state is global to the service worker; multi-tab chord interactions can interfere. See [keybindings.md](keybindings.md).
-- **`monocle-alert` has no receiver.** Several background commands still send `monocle-alert` tab messages (`favorites.ts` clear-favorites, `history.ts`, `recentlyClosed.ts`, `downloads.ts`, `goBack.ts`/`goForward.ts`, `reopenLastClosedTab.ts`, Firefox `toggleReaderMode.ts`), but no listener component handles the event — these notifications silently vanish. New code should use `monocle-toast` (handled by `ToastContainer`); the remaining `monocle-alert` senders should be migrated.
+- All user-facing command feedback goes through `monocle-toast` (rendered by `ToastContainer`). The background helpers `sendToastToActiveTab(level, message)` / `sendSuccessToastToActiveTab` / `sendErrorToastToActiveTab` (`background/utils/browserTabs.ts`) are the single path; the old receiver-less `monocle-alert` event has been removed. UI surfaces send messages through the shared `sendRuntimeMessage` / `sendRuntimeMessageSafe` transport (`shared/utils/extension-api.ts`) — the latter is fire-and-forget (resolves rather than rejects when the worker is unreachable).
 
 ## Manual Test Checklist
 

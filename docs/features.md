@@ -41,6 +41,10 @@ type FeatureModule<TConfig> = {
     configSchema: ZodType<TConfig>         // validates config at the boundary
     defaults: TConfig
     handleAction?: (actionId, ctx) => Promise<void> | void
+    // Called after a validated config is persisted, so the feature can react
+    // (e.g. re-project surfaces). Focus Mode uses this to re-evaluate its
+    // blocklist live. Optional.
+    onConfigChange?: (config: TConfig) => Promise<void> | void
   }
   // Startup lifecycle: re-arm alarms / listeners after a SW restart.
   init?: () => void | Promise<void>
@@ -133,8 +137,10 @@ untouched — the registry is **additive**.
    buttons.
 3. Save dispatches `updateFeatureConfig` → `update-feature-config` → the handler
    validates the payload against the feature's `configSchema` and persists
-   (replace-whole). An action button dispatches `executeFeatureAction` →
-   `execute-feature-action` → `handleAction`.
+   (replace-whole), then calls the feature's optional `onConfigChange(config)`
+   so it can react to the new config (Focus Mode re-projects its surfaces here
+   so blocklist edits take effect live). An action button dispatches
+   `executeFeatureAction` → `execute-feature-action` → `handleAction`.
 4. `OptionsApp` re-hydrates on `storage.onChanged` for `monocle-feature-config`.
 
 Because the settings page loads from the **feature descriptor** (not a resolved
@@ -176,8 +182,11 @@ such messages live with the feature, not in the registry contract.
 3. If it has settings, define `schema` (FormField sections + actions),
    `configSchema` (Zod), and `defaults`; add a `createConfigureFeatureCommand`
    entry to its `commands()`.
-4. Add `init()` if it needs alarms/listeners; route its alarm names
-   (`feature:<id>:…`) in `background/index.ts`.
+4. Add `init()` if it needs alarms/listeners. The feature owns its own
+   `chrome.alarms.onAlarm` listener inside `init()` (filtering by its
+   `feature:<id>:…` alarm names) — `background/index.ts` only calls
+   `initFeatures()` and does not route per-feature alarms. See
+   `background/features/focus/session.ts` (`initFocusSession`).
 5. For page UI, push [surfaces](./surfaces.md) from the feature's lifecycle
    (e.g. `setOwnerSurfaces(<id>, …)` on state change) — don't add content/new-tab
    components.

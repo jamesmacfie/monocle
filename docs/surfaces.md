@@ -57,7 +57,7 @@ service-worker death within a session):
 
 | Function | Use |
 | --- | --- |
-| `setOwnerSurfaces(ownerId, surfaces[])` | Replace all of an owner's surfaces (the feature path). |
+| `setOwnerSurfaces(ownerId, surfaces[])` | Replace all of an owner's surfaces (the feature path). Passing an **empty array deletes the owner entry entirely**, so the replace-path doubles as a clear. |
 | `clearOwnerSurfaces(ownerId)` | Remove an owner's surfaces. |
 | `upsertSurface(ownerId, surface)` | Add/replace one surface by id (the automation path). |
 | `removeSurface(ownerId, surfaceId)` | Remove one surface. |

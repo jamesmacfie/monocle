@@ -17,7 +17,7 @@ Every node extends `CommandNodeBase` (id, `name`, optional `description`,
 `icon`, `color`, `keywords`, `permissions`, `urlRules`, `executionPayload`).
 Most string-producing fields are `AsyncValue<T>` — either a literal or a
 `(context) => Promise<T>` resolver. The background resolves these in
-`commandsToSuggestions` (`background/commands/index.ts`) before sending plain
+`commandsToSuggestions` (`background/commands/suggestions.ts`) before sending plain
 `Suggestion` values to the UI; the UI never receives executable functions.
 
 In the shared palette, `shared/components/Command/CommandList.tsx` renders each
@@ -67,7 +67,7 @@ optional `KeybindingDisplay`, and the `Command` meta label.
 Selecting: `handleSelect` checks `isGrantedAllPermissions` first (toasts and
 aborts if missing), then either enters confirmation state or calls
 `onSelect(suggestion.id)`, which sends `execute-command`. The background
-(`executeCommand` in `background/commands/index.ts`) resolves the node, re-checks
+(`executeCommand` in `background/commands/execution.ts`) resolves the node, re-checks
 permissions, runs `execute(context, normalizedFormValues)`, and records usage
 (`recordCommandUsage`) since `shouldRecordUsage` returns `true` for actions.
 

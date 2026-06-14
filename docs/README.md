@@ -137,11 +137,13 @@ If you are adding a command, the fast path is
 - [commands/automations.md](./commands/automations.md) — The Automations
   category: the user-scripts group, generated per-script rows, and the
   Create/Manage commands.
+- [commands/features.md](./commands/features.md) — The Features category:
+  commands contributed by feature modules, including the Focus Mode commands.
 
 ## Conventions used in these docs
 
 - Source is cited by repo-relative path and exported symbol name (for example
-  `background/commands/index.ts`, `commandsToSuggestions`), never line
+  `background/commands/suggestions.ts`, `commandsToSuggestions`), never line
   numbers.
 - Canonical keybindings use the angle-bracket form: `<cmd-shift-k>`, plain
   `g`, sequences `<cmd-k>, <cmd-s>`.

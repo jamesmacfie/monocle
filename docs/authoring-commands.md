@@ -1,6 +1,6 @@
 # Authoring Commands
 
-This is a practical, end-to-end guide to adding a new command to Monocle. A command is a typed `CommandNode` defined in the background, registered in a category index, loaded by `background/commands/source.ts`, converted to a UI-facing `Suggestion` by `commandsToSuggestions` in `background/commands/index.ts`, and executed by `executeCommand`. UI code never sees your `execute` function; it only renders the suggestion and sends a message. This guide assumes you have read the schema and type references and focuses on the workflow, conventions, and pitfalls.
+This is a practical, end-to-end guide to adding a new command to Monocle. A command is a typed `CommandNode` defined in the background, registered in a category index, loaded by `background/commands/source.ts`, converted to a UI-facing `Suggestion` by `commandsToSuggestions` in `background/commands/suggestions.ts`, and executed by `executeCommand` (`background/commands/execution.ts`). UI code never sees your `execute` function; it only renders the suggestion and sends a message. This guide assumes you have read the schema and type references and focuses on the workflow, conventions, and pitfalls.
 
 For the underlying contracts see [command-schema.md](./command-schema.md) (every `CommandNode`/`FormField` field), [command-types.md](./command-types.md) (the six node types in depth), [execution-and-actions.md](./execution-and-actions.md), [search-and-ranking.md](./search-and-ranking.md), [keybindings.md](./keybindings.md), [url-filtering.md](./url-filtering.md), and [permissions.md](./permissions.md).
 
@@ -8,7 +8,7 @@ For the underlying contracts see [command-schema.md](./command-schema.md) (every
 
 ## The five-minute version
 
-1. Pick a category folder under `background/commands/` (browser, tools, ui, newTab, websites).
+1. Pick a category folder under `background/commands/` (browser, tools, ui, newTab, websites). For automations and features, commands are contributed by the user-script and feature subsystems instead — see the table below.
 2. Create one file exporting a typed `CommandNode`.
 3. Import and add it to that folder's `index.ts` array.
 4. Confirm the array is actually loaded by `background/commands/source.ts` (and, for keybinding/URL management surfaces, by `background/commands/userConfigurableCommands.ts`).
@@ -16,21 +16,24 @@ For the underlying contracts see [command-schema.md](./command-schema.md) (every
 
 ## Step 1: Choose a category
 
-Source commands live under `background/commands/`, grouped into folders. Pick the one that matches the command's nature, not just where it is convenient.
+`source.ts` assembles a `LoadedCommandEntry[]` (each entry pairs a `CommandNode` with its `CommandSourceCategory`) across eight categories. Most are static folders under `background/commands/`; two (automations, features) are contributed by other subsystems. Pick the one that matches the command's nature, not just where it is convenient.
 
-| Folder | Index export | When to use | Loaded for |
-| --- | --- | --- | --- |
-| `browser/` | `browserCommands` | Anything calling privileged browser APIs: tabs, windows, bookmarks, history, downloads, navigation, browsing data. | Always |
-| `browser/firefox/` | `firefoxCommands` | Firefox-only browser features (containers, reader mode). | Firefox platform only |
-| `tools/` | `toolCommands` | Self-contained utilities that do not depend on a specific browser API surface: calculator, UUID generator, workflow debug. | Always |
-| `ui/` | `uiCommands` | Commands that change Monocle's own state or settings: theme toggle, allow/deny list management. | Always |
-| `newTab/` | `newTabCommands` | Commands that only make sense on the new-tab page (clock visibility). | New-tab context only |
-| `websites/` | `websiteCommands` | Contextual commands scoped to a specific site via `urlRules` (GitHub prototype). | Always (visibility gated by `urlRules`) |
+| Category | Source | Index export | When to use | Loaded for |
+| --- | --- | --- | --- | --- |
+| `browser` | `browser/` | `browserCommands` (+ `firefoxCommands` from `browser/firefox/`) | Anything calling privileged browser APIs: tabs, windows, bookmarks, history, downloads, navigation, browsing data. Firefox-only features (containers, reader mode) go in `browser/firefox/`. | Always (Firefox set: Firefox platform only) |
+| `tools` | `tools/` | `toolCommands` | Self-contained utilities that do not depend on a specific browser API surface: calculator, UUID generator, workflow debug. | Always |
+| `ui` | `ui/` | `uiCommands` | Commands that change Monocle's own state or settings: theme toggle, allow/deny list management. | Always |
+| `websites` | `websites/` + site SDK | `websiteCommands` (plus `loadSiteSdkCommands`) | Contextual commands scoped to a specific site via `urlRules` (GitHub prototype), plus page-owned site-SDK wrappers. | Always (visibility gated by `urlRules`) |
+| `new-tab` | `newTab/` | `newTabCommands` | Commands that only make sense on the new-tab page (clock visibility). | New-tab context only |
+| `favorites` | inline in `source.ts` | `clearFavoritesCommand` | One-off favorites management; not an author-extensible folder. | Always |
+| `automations` | `background/userScripts/` | `userScriptCommands` | Generated palette commands for user-script automations (`userscript-<uuid>`). Authored as automation documents, not hand-written nodes. See [user-scripts.md](./user-scripts.md). | Always |
+| `features` | `background/features/` | `getFeatureCommands(context)` | Commands contributed by feature modules (e.g. Focus Mode). Authored by registering a `FeatureModule`, not by adding a node here. See [features.md](./features.md). | Always (context-dependent per feature) |
 
 Notes:
 
-- `websites/` is currently command arrays with `urlRules`, not a first-class plugin registry. See [url-filtering.md](./url-filtering.md) before broadening it.
-- There is no separate "favorites" category for authors. `clearFavoritesCommand` is a one-off added directly in `source.ts`.
+- `websites` is currently command arrays with `urlRules` (plus site-SDK wrappers), not a first-class plugin registry. See [url-filtering.md](./url-filtering.md) before broadening it.
+- There is no separate hand-authored "favorites" folder. `clearFavoritesCommand` is a one-off added directly in `source.ts` under the `favorites` category.
+- `automations` and `features` commands are generated by their subsystems — you do not add command files for them here.
 
 ## Step 2: Create the command file
 
@@ -84,24 +87,28 @@ export const browserCommands = [
 
 Registering in the index is not enough on its own; the array must be pulled into the two loaders.
 
-`background/commands/source.ts`, `loadAllCommands`, builds the live command set:
+`background/commands/source.ts`, `loadCommandEntries`, builds the live set of `{ command, category }` entries (`loadAllCommands` is a thin wrapper that maps them down to bare `CommandNode[]`):
 
 ```ts
-const commands: CommandNode[] = [
-  ...browserCommands,
-  ...toolCommands,
-  ...uiCommands,
-  ...websiteCommands,
-  clearFavoritesCommand,
+const entries: LoadedCommandEntry[] = [
+  ...mapCommandsToEntries(loadSiteSdkCommands(options?.siteSdk), categories.websites),
+  ...mapCommandsToEntries(browserCommands, categories.browser),
+  ...mapCommandsToEntries(toolCommands, categories.tools),
+  ...mapCommandsToEntries(uiCommands, categories.ui),
+  ...mapCommandsToEntries(websiteCommands, categories.websites),
+  ...mapCommandsToEntries(userScriptCommands, categories.automations),
+  ...mapCommandsToEntries(getFeatureCommands(context), categories.features),
+  ...mapCommandsToEntries([clearFavoritesCommand], categories.favorites),
 ]
-if (context?.isNewTab) commands.push(...newTabCommands)
-if (platform === "firefox") commands.push(...firefoxCommands)
-return commands.filter((command) => supportsPlatform(command, platform))
+if (context?.isNewTab) entries.push(...mapCommandsToEntries(newTabCommands, categories.newTab))
+if (platform === "firefox") entries.push(...mapCommandsToEntries(firefoxCommands, categories.browser))
+return entries.filter(({ command }) => supportsPlatform(command, platform))
 ```
 
 Key facts:
 
-- All five base categories (browser, tools, ui, websites) plus the firefox set are wired in. If you add a brand-new folder, you must add its spread here too.
+- All eight categories are wired here: `websites` (site-SDK wrappers + `websiteCommands`), `browser`, `tools`, `ui`, `automations` (`userScriptCommands`), `features` (`getFeatureCommands(context)`), `favorites` (`clearFavoritesCommand`), and conditionally `new-tab`. If you add a brand-new folder, you must add its `mapCommandsToEntries` line here too.
+- `automations` commands come from `background/userScripts/commands.ts` and `features` commands from `background/features/` — they are contributed by those subsystems, not authored as files under `background/commands/`.
 - `newTabCommands` are only loaded when `context.isNewTab` is true.
 - `firefoxCommands` are only loaded on the Firefox platform, and the final `supportsPlatform` filter additionally drops any command whose `supportedBrowsers` excludes the active platform.
 
@@ -222,7 +229,7 @@ export const calculator: CommandNode = {
 How values reach the executor:
 
 - Each `input` row's `field.id` becomes a key in the `values` object the `submit.execute` receives. `calculation`, `precision`, `theme`, `copy` in the example.
-- Before reaching `execute`, the background runs `normalizeFormValues` (in `background/commands/index.ts`): every value is coerced to a string, and array-valued fields (`multi`) are joined with commas. Executors therefore always read strings — `values?.copy === "true"`, `parseInt(values?.precision || "2", 10)`, etc. Field validation `enum`/`pattern` describe the string forms.
+- Before reaching `execute`, the background runs `normalizeFormValues` (in `background/commands/execution.ts`): every value is coerced to a string, and array-valued fields (`multi`) are joined with commas. Executors therefore always read strings — `values?.copy === "true"`, `parseInt(values?.precision || "2", 10)`, etc. Field validation `enum`/`pattern` describe the string forms.
 - `submit` commands are recorded in recents unless you set `doNotAddToRecents: true` (see `shouldRecordUsage`).
 
 Field variants (`text`, `select`, `multi`, `switch`, `color`, etc.) are documented in [command-schema.md](./command-schema.md). Deep search does **not** flatten `input`/`display` rows, so a form group's fields never leak into root search — only its `action`/`submit` descendants do, and only if the group opts into `enableDeepSearch`.

@@ -48,7 +48,7 @@ Modifier *execution* (running a command with `context.modifierKey` set, e.g. "op
 
 ### How the modifier reaches the executor
 
-A focused row's label changing does **not** by itself change what plain Enter does — pressing Enter calls `selectCommand` for the base command id with no `modifierKey` set. Modifier execution is performed by selecting a **generated modifier action** from the action menu. For every modifier that has a `modifierActionLabel` entry, `commandsToSuggestions` (in `background/commands/index.ts`) emits an action with id `<commandId>-<modifier>-enter-action`, a display keybinding of `<cmd-enter>` / `<shift-enter>` / etc., and `executionContext: { type: "modifier", targetCommandId, modifierKey }`. When that action id is executed, `executeGeneratedAction` re-runs the target command with `{ ...context, modifierKey }`, so the executor sees `context.modifierKey === "cmd"` (etc.).
+A focused row's label changing does **not** by itself change what plain Enter does — pressing Enter calls `selectCommand` for the base command id with no `modifierKey` set. Modifier execution is performed by selecting a **generated modifier action** from the action menu. For every modifier that has a `modifierActionLabel` entry, `commandsToSuggestions` (in `background/commands/suggestions.ts`) emits an action with id `<commandId>-<modifier>-enter-action`, a display keybinding of `<cmd-enter>` / `<shift-enter>` / etc., and `executionContext: { type: "modifier", targetCommandId, modifierKey }`. When that action id is executed, `executeGeneratedAction` re-runs the target command with `{ ...context, modifierKey }`, so the executor sees `context.modifierKey === "cmd"` (etc.).
 
 Example — history items open in the current tab on Enter, in a new tab on Cmd (`background/commands/browser/history.ts`):
 
@@ -87,7 +87,7 @@ The action menu is the secondary "Actions" surface (footer button labelled `Acti
 
 ### Action ordering
 
-`commandsToSuggestions` pushes generated actions onto `actions` in a fixed order:
+`commandsToSuggestions` (`background/commands/suggestions.ts`) pushes generated actions onto `actions` in a fixed order:
 
 1. **Primary** (`<id>-enter-action`) — for `group`/`search`/`action`/`submit`. Label is `"Open"` for groups (icon `FolderOpen`) or the resolved action label otherwise (icon `Play`); display keybinding `enter`.
 2. **Modifier** actions (`<id>-<modifier>-enter-action`) — only for `action`/`submit` that declare `modifierActionLabel`, iterated in fixed order `cmd`, `shift`, `alt`, `ctrl`; each gets a `<modifier-enter>` display keybinding.
@@ -111,7 +111,7 @@ When an action is selected, `CommandPalette.handleActionSelect` checks `getPrima
 
 ## Generated actions
 
-Generated actions are synthetic `Suggestion`s whose ids encode a target command and an operation. The background parses them with `parseGeneratedCommandAction` (`background/commands/generatedActions.ts`) and dispatches via `executeGeneratedAction` (`background/commands/index.ts`).
+Generated actions are synthetic `Suggestion`s whose ids encode a target command and an operation. The background parses them with `parseGeneratedCommandAction` (`background/commands/generatedActions.ts`) and dispatches via `executeGeneratedAction` (`background/commands/execution.ts`).
 
 | Type | Id pattern | When created | Effect on execution |
 | --- | --- | --- | --- |
@@ -156,8 +156,7 @@ Executors run in the background service worker and cannot touch the page DOM or 
 | Copy to clipboard | `monocle-copyToClipboard` | `shared/components/Listeners/CopyToClipboardListener.tsx` | Calls `useCopyToClipboard().copy(message)` (`navigator.clipboard.writeText`) |
 | Open new tab | `monocle-newTab` | `shared/components/Listeners/NewTabListener.tsx` | `window.open(url, "_blank")`, but only for `http:`/`https:` URLs; other schemes are blocked |
 | Screenshot | `monocle-screenshot` | `shared/components/Listeners/ScreenshotListener.tsx` | Converts the PNG `dataUrl` to a Blob; `mode: "clipboard"` writes it via `navigator.clipboard.write([new ClipboardItem(...)])`, `mode: "download"` triggers a blob-URL `<a download>` with `filename`. Emitted by `capture-screenshot` |
-| Toast | `monocle-toast` | `ToastContainer` | Renders a transient toast |
-| Alert | `monocle-alert` | (no listener mounted) | Type is defined in `events.ts` and emitted by some commands (history, downloads, etc.), but no UI component currently handles it; it carries `message`, optional `icon`, and `copyText` |
+| Toast | `monocle-toast` | `ToastContainer` | Renders a transient toast. The single user-feedback path — sent via `sendToastToActiveTab` / `sendSuccessToastToActiveTab` / `sendErrorToastToActiveTab` (`background/utils/browserTabs.ts`) |
 
 Both listeners are mounted in the palette (`CopyToClipboardListener` and `NewTabListener` are rendered inside `CommandPalette`). They respond to `chrome.runtime.onMessage` and reply `{ received: true }`. `useCopyToClipboard` warns and returns `false` when `navigator.clipboard` is unavailable or the write fails.
 
@@ -175,7 +174,7 @@ There are two background message entry points for toasts, plus the missing-permi
 - `useToast()` (`shared/hooks/useToast.tsx`) sends a `request-toast` message (`{ level, message }`). `background/messages/requestToast.ts` forwards it to `showToast`.
 - Executors can call `showToast` directly (or emit a `monocle-toast` tab event).
 - `showToast` (`background/messages/showToast.ts`) rate-limits duplicate `level:message` pairs within a 500ms window, then sends a `monocle-toast` event **only to the active tab**, swallowing send errors for tabs that cannot receive messages (e.g. `chrome://` pages).
-- `showMissingPermissionsToast` (in `background/commands/index.ts`) is the permission-denied path: it builds a capitalized permission list and calls `showToast` with `level: "error"`.
+- `showMissingPermissionsToast` (in `background/commands/execution.ts`) is the permission-denied path: it builds a capitalized permission list and calls `showToast` with `level: "error"`.
 
 `level` is one of `"info" | "warning" | "success" | "error"`.
 

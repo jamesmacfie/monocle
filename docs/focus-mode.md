@@ -54,7 +54,9 @@ type FocusState = { session?: FocusSession }
 ```
 
 The session is **timestamp-based**: "active" is computed, never polled.
-`isActive(now)` = a session exists and (`!endsAt || endsAt > now`). This means:
+`isSessionActive(session, now)` = a session exists and
+(`!endsAt || endsAt > now`); `remainingMs(session, now)` returns the time left
+for a timed session (null when indefinite). This means:
 
 - **No per-second background work.** The overlay and new-tab widget compute the
   remaining time locally from `endsAt` with a 1s `setInterval` (the
@@ -65,9 +67,15 @@ The session is **timestamp-based**: "active" is computed, never polled.
   timed session is still in the future.
 
 `background/features/focus/session.ts` owns `startSession(mode, minutes?)`,
-`stopSession()`, `isActive`, `remainingMs`, and `syncFocusSurfaces` (the single
-place focus touches UI). `background/features/focus/block.ts` owns
-`isUrlBlocked(url, config)`.
+`stopSession()`, `isSessionActive(session, now)`, `remainingMs(session, now)`,
+and `syncFocusSurfaces` (the single place focus touches UI).
+`background/features/focus/block.ts` owns `isUrlBlocked(url, config)`.
+
+> **Note:** `isUrlBlocked` is a tested helper, not the live blocking path.
+> Runtime blocking is done entirely by the focus overlay surface's
+> `urlMatch.allowUrls` (set to `blockedUrlPatterns` by `projectFocusSurfaces`)
+> and the generic `SurfaceHost`'s URL gating — there is no per-navigation call
+> into `isUrlBlocked`.
 
 ---
 

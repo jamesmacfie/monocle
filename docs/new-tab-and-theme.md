@@ -82,10 +82,11 @@ behaviors in the background:
   pushes `newTabCommands` (from `background/commands/newTab/index.ts`) into the
   command set *only* when `context?.isNewTab` is true. On a normal page these
   commands never appear. Today `newTabCommands` is just `[clockCommand]`.
-- **URL filtering is bypassed.** In `background/commands/index.ts`, URL-rule
-  filtering checks `!context.url || context.isNewTab` and treats the new-tab
-  page as having no meaningful page URL, so contextual `urlRules` do not hide or
-  surface commands there. See [url-filtering.md](url-filtering.md).
+- **URL filtering is bypassed.** In `background/commands/query.ts`
+  (`filterForContext` → `filterCommandsByUrl`), URL-rule filtering treats the
+  new-tab page as having no meaningful page URL (the `!context.url ||
+  context.isNewTab` condition), so contextual `urlRules` do not hide or surface
+  commands there. See [url-filtering.md](url-filtering.md).
 - **Keybindings resolve in new-tab context.** `useGlobalKeybindings({ isNewTab:
   true })` sends `execute-keybinding` with the new-tab context, and the
   background registry builds a context-aware snapshot, so a new-tab command's

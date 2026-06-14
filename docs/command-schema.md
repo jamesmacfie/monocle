@@ -1,6 +1,6 @@
 # Command Schema Reference
 
-Every command in Monocle is a typed `CommandNode` value defined in `shared/types/commands.ts`. The background owns these nodes (including their executable functions and dynamic resolvers); the React UI never sees a `CommandNode`. Instead, the background resolves each node's async values against the current `Browser.Context` and converts it into a serializable `Suggestion` (`shared/types/ui.ts`) via `commandsToSuggestions` in `background/commands/index.ts`. This document is the field-by-field reference for authoring nodes: the shared base, the six node types, the `AsyncValue` resolution model, action labels, the full `FormField` catalog, and exactly which fields survive the node-to-suggestion conversion.
+Every command in Monocle is a typed `CommandNode` value defined in `shared/types/commands.ts`. The background owns these nodes (including their executable functions and dynamic resolvers); the React UI never sees a `CommandNode`. Instead, the background resolves each node's async values against the current `Browser.Context` and converts it into a serializable `Suggestion` (`shared/types/ui.ts`) via `commandsToSuggestions` in `background/commands/suggestions.ts`. This document is the field-by-field reference for authoring nodes: the shared base, the six node types, the `AsyncValue` resolution model, action labels, the full `FormField` catalog, and exactly which fields survive the node-to-suggestion conversion.
 
 For how to register and place a command, see [authoring-commands.md](authoring-commands.md). For the six types in narrative depth, see [command-types.md](command-types.md). For the executor flow and generated action menus, see [execution-and-actions.md](execution-and-actions.md).
 
@@ -76,6 +76,7 @@ Every node extends this base (`shared/types/commands.ts`, `CommandNodeBase`).
 | `executionPayload` | `AsyncValue<SuggestionExecutionPayload>` | no | Pre-baked values surfaced on the suggestion and available to dynamic execution paths. See [executionPayload](#executionpayload). |
 | `keybinding` | `string` | no | Author-default keybinding in canonical angle-bracket format, e.g. `<cmd-t>`. User overrides in command settings take precedence. See [keybindings.md](keybindings.md). |
 | `keybindingBehavior` | `"execute" \| "openPaletteAtCommand"` | no | Defaults to `"execute"`. `action`/`submit` commands execute by default; `group`/`search` commands may opt into `"openPaletteAtCommand"` so their shortcut opens the palette at that command page. |
+| `settingsCatalog` | `{ includeChildren?: boolean; configurable?: boolean }` | no | Controls whether this command (and optionally its children) get durable settings-catalog rows. Root commands are cataloged by default; children are cataloged only when a parent sets `includeChildren: true`, so volatile browser-data rows do not get durable settings by accident. Consumed by `background/commands/settingsCatalog.ts`. |
 
 > `permissions` is declared on the base (not just on action nodes) so that groups, inputs, and search nodes can also participate in permission gating and inheritance. Note that `permissions` is **not** an `AsyncValue` — it is a plain static array.
 
@@ -254,7 +255,7 @@ Identical to `ActionCommandNode` plus `doNotAddToRecents`, and rendered as a but
 
 | Extra field | Type | Notes |
 | --- | --- | --- |
-| `doNotAddToRecents` | `boolean` | If `true`, executing the submit does **not** record usage (`shouldRecordUsage` in `background/commands/index.ts`). Actions always record; submits record unless this is set. |
+| `doNotAddToRecents` | `boolean` | If `true`, executing the submit does **not** record usage (`shouldRecordUsage` in `background/commands/execution.ts`). Actions always record; submits record unless this is set. |
 
 ### `GroupCommandNode`
 
@@ -355,7 +356,7 @@ export type CommandExecutor = (
 
 Source: `shared/types/commands.ts`, `CommandExecutor`. Used by `action`, `submit`, and (optionally) `search` nodes.
 
-The executor's `values` are **always strings**, even though UI form state stores some fields as arrays. `executeResolvedCommand` calls `normalizeFormValues` (`background/commands/index.ts`) before invoking `execute`:
+The executor's `values` are **always strings**, even though UI form state stores some fields as arrays. `executeResolvedCommand` calls `normalizeFormValues` (`background/commands/execution.ts`) before invoking `execute`:
 
 ```ts
 const normalizeFormValues = (formValues = {}) =>
@@ -414,7 +415,7 @@ Notes on rendering and storage:
 
 ## Node-to-Suggestion conversion
 
-`commandsToSuggestions` (`background/commands/index.ts`) maps each `CommandNode` to a `Suggestion` (`shared/types/ui.ts`). This is the boundary between background-owned commands and the UI. Authors should know which fields cross it.
+`commandsToSuggestions` (`background/commands/suggestions.ts`) maps each `CommandNode` to a `Suggestion` (`shared/types/ui.ts`). This is the boundary between background-owned commands and the UI. Authors should know which fields cross it.
 
 ### Base fields carried onto every suggestion
 

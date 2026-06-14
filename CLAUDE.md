@@ -87,7 +87,8 @@ Use the feature docs as the source of truth before editing related code:
   processes, Monocle-specific rejection risks, hard pre-submission blockers,
   and reviewer-notes guidance (external policy research, June 2026).
 - `docs/commands/`: per-category command catalogs: `browser.md`, `tools.md`,
-  `ui.md`, `new-tab.md`, `automations.md` (user-script rows), and
+  `ui.md`, `new-tab.md`, `automations.md` (user-script rows),
+  `features.md` (feature-module commands, including Focus Mode), and
   `websites.md` (the GitHub prototype and the in-progress website command
   direction).
 
@@ -115,16 +116,21 @@ Last verified validation:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
-- `pnpm test` passes with focused command-system, palette-search
-  (index/scoring/search-commands/slice staleness), browser-command, keybinding,
-  URL-filtering, settings-management, snippet-storage, workflow-executor
-  (full op vocabulary), user-script (storage/validation/lowering/conditions/
-  policy/commands/engine/trigger-engine), template-interpolation,
-  new-tab/theme/background, feature-registry (config/state stores, projection,
-  command contribution), focus-mode (URL blocking, session timing, config
-  schema, surface projection), surfaces-store (owner set/clear/upsert/remove,
-  URL gating, session-owner cleanup), feature/surfaces-message validation, and
-  GitHub parsing coverage.
+- `pnpm test` passes cleanly (exit 0, 468 tests) with focused command-system,
+  palette-search (index/scoring/search-commands/slice staleness),
+  browser-command, keybinding, URL-filtering, settings-management,
+  snippet-storage, workflow-executor (full op vocabulary), user-script
+  (storage/validation/lowering/conditions/policy/commands/engine/trigger-engine/
+  scheduled-alarm sync), template-interpolation, new-tab/theme/background,
+  feature-registry (config/state stores, projection, command contribution),
+  focus-mode (URL blocking, session timing, config schema, surface projection),
+  surfaces-store (owner set/clear/upsert/remove, URL gating, session-owner
+  cleanup, change broadcast), feature/surfaces-message validation, and GitHub
+  parsing coverage. (Note: a fire-and-forget toast that rejects when the
+  background is unreachable used to surface as an unhandled rejection and make
+  the run exit non-zero despite all tests passing — `useToast` now swallows that
+  rejection, and the DOM-test harness registers a `fakeBrowser` message
+  listener.)
 - `pnpm run build` passes for the Chrome MV3 target.
 - `pnpm run build:firefox` passes for the Firefox MV3 target.
 

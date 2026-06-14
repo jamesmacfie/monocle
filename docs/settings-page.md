@@ -36,9 +36,9 @@ Wouter hash routes, Tailwind, and local shadcn-style primitives.
 | Theme (`light`/`dark`/`system`) | General page selector; `toggle-theme` command still exists | `options/pages/GeneralPage.tsx`, `background/commands/ui/theme.ts` |
 | New-tab clock visibility | New Tab page switch; `toggle-clock-visibility` still exists under `new-tab-clock` | `options/pages/NewTabPage.tsx`, `background/commands/newTab/` |
 | New-tab background | Auto-fetched from Unsplash, cached in `localStorage`; options page can preview/refresh cache | `newtab/components/BackgroundImage.tsx`, `newtab/backgroundImageModel.ts`, `options/pages/NewTabPage.tsx` |
-| Global command visibility | Commands page hide toggles; generated **Hide Command** action | `background/commands/settingsCatalog.ts`, `background/commands/index.ts`, `options/pages/CommandsPage.tsx` |
-| Per-command visibility (per domain) | Commands and URL Rules page editors; `manage-allow-list` / `manage-deny-list` commands + generated **Hide from Domain** action | `options/components/UrlRulesDialog.tsx`, `options/pages/UrlRulesPage.tsx`, `background/commands/ui/manageAllowList.ts`, `manageDenyList.ts`, `background/commands/index.ts` |
-| Per-command keybinding | Commands and Keyboard page keybinding dialogs; Keyboard page templates; generated **Set / Reset Custom Keybinding** actions in the action menu | `options/components/KeybindingDialog.tsx`, `options/components/KeybindingTemplateDialog.tsx`, `options/pages/KeyboardPage.tsx`, `options/lib/keybindingTemplates.ts`, `background/commands/index.ts`, `shared/components/Command/CommandActionsList.tsx` |
+| Global command visibility | Commands page hide toggles; generated **Hide Command** action | `background/commands/settingsCatalog.ts`, `background/commands/suggestions.ts` (action row) + `background/commands/execution.ts` (handler), `options/pages/CommandsPage.tsx` |
+| Per-command visibility (per domain) | Commands and URL Rules page editors; `manage-allow-list` / `manage-deny-list` commands + generated **Hide from Domain** action | `options/components/UrlRulesDialog.tsx`, `options/pages/UrlRulesPage.tsx`, `background/commands/ui/manageAllowList.ts`, `manageDenyList.ts`, `background/commands/suggestions.ts` (action row) + `background/commands/execution.ts` (handler) |
+| Per-command keybinding | Commands and Keyboard page keybinding dialogs; Keyboard page templates; generated **Set / Reset Custom Keybinding** actions in the action menu | `options/components/KeybindingDialog.tsx`, `options/components/KeybindingTemplateDialog.tsx`, `options/pages/KeyboardPage.tsx`, `options/lib/keybindingTemplates.ts`, `background/commands/suggestions.ts` (action rows) + `background/commands/execution.ts` (reset handler), `shared/components/Command/CommandActionsList.tsx` |
 | Favorites | Commands and Favorites page favorite toggles; inline ♡ toggle action per command; `clear-favorites` command | `options/pages/FavoritesPage.tsx`, `background/commands/favorites.ts` |
 | Snippets | Snippets page: list, create, edit, and delete saved snippets (independent `monocle-snippets` storage); mirrors palette-created snippets via `storage.onChanged` | `options/pages/SnippetsPage.tsx`, `shared/store/slices/snippets.slice.ts`, `background/commands/snippets.ts`; see [commands/tools.md](./commands/tools.md) |
 | Automations | List + builder for user scripts: metadata/scope/trigger/variable/step editors, validate-as-you-type with the shared document schema, test-run on the active tab, JSON export, import with a review summary (non-manual triggers arrive disarmed), and an Add Examples button that seeds curated example automations | `options/pages/UserScriptsPage.tsx`, `options/pages/userScripts/`, `shared/store/slices/userScripts.slice.ts`; see [user-scripts.md](./user-scripts.md) |
@@ -199,8 +199,10 @@ intentional so a command hidden from the catalog does not keep running invisibly
 
 **Action-menu entry point.** A generated `hide-command-<id>` action is added
 alongside the existing favorite / hide-from-domain / set-keybinding actions in
-`background/commands/index.ts`. There is no generated unhide action because
-hidden rows disappear from the palette; unhide happens from the Commands page.
+the suggestion builder (`background/commands/suggestions.ts`) and dispatched by
+`executeGeneratedAction` (`background/commands/execution.ts`). There is no
+generated unhide action because hidden rows disappear from the palette; unhide
+happens from the Commands page.
 
 ### 4.2 Per-command schema-driven settings
 
@@ -508,7 +510,7 @@ migration framework).
 | New `get-settings-catalog` message | `background/messages/`, `docs/messaging.md` | Context-free union of all command sources + settings/usage/favorites; bypasses query-time filter. |
 | New `set-command-favorite` message | `background/messages/`, `docs/messaging.md` | Lets settings update favorites even when a command is hidden. |
 | `hidden` enforcement | `background/utils/urlFilter.ts`, keybinding source | Same stage as `urlRules`; also disables execution/keybindings. |
-| Generated `hide-command-<id>` action | `background/commands/index.ts` | Action-menu quick-hide for durable/configurable rows. |
+| Generated `hide-command-<id>` action | `background/commands/suggestions.ts` (builder) + `background/commands/execution.ts` (handler) | Action-menu quick-hide for durable/configurable rows. |
 
 Future changes:
 

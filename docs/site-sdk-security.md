@@ -34,7 +34,7 @@ bearing; the design depends on all of them holding.
 
 `externally_connectable` is not set (`wxt.config.ts`), so a page's
 `chrome.runtime.sendMessage(extensionId, …)` is never delivered to the
-background. `validateMessageSender` (`background/utils/runtime.ts:43-49`) also
+background. `validateMessageSender` (`background/utils/runtime.ts:30`) also
 rejects any message whose `sender.id` belongs to a different extension, and
 rejects `data:` / `javascript:` / `about:blank` senders
 (`background/utils/runtime.ts:72-87`).
@@ -65,7 +65,7 @@ data and callback answers, never native command results or browser privileges.
 
 This is the crux of containment. When a user runs a site command, the generated
 background wrapper's `execute`
-(`background/commands/siteSdk/commands.ts:126-139`) does exactly one thing:
+(`background/commands/siteSdk/commands.ts:129-142`) does exactly one thing:
 `invokeSiteSdk` sends a message back to the page so the page's own stored
 callback runs in the page's own JS world. No SDK code path calls
 `chrome.bookmarks`, `chrome.history`, `chrome.tabs`, `chrome.cookies`, or any
@@ -103,7 +103,7 @@ path.
 | Subframe registration blocked | `background/commands/siteSdk/scope.ts:38` | Iframes cannot inject into the top page's palette. |
 | Function-free, double-validated declarations | `shared/types/siteSdk.ts` | Strict schema, reserved ids, depth/count caps, protocol allow-list. |
 | Strong extension-pages CSP | `wxt.config.ts` | `script-src 'self'`, `object-src 'none'`, scoped `connect-src`; dev relaxations gated to `serve`. |
-| SVG icons rendered as static data-URI `<img>` | `shared/components/Icon.tsx:71-84` | Script/handler injection in SVG markup neutralized. |
+| SVG icons rendered as static data-URI `<img>` | `shared/components/Icon.tsx:91-98` | Script/handler injection in SVG markup neutralized. |
 
 ## Tier 1 — risks a hostile website can exercise today
 
@@ -122,7 +122,7 @@ that look like registered Monocle shortcuts and cause the content script to send
 The blast radius is constrained:
 
 - Permissioned commands still hit the background execution-time permission check
-  (`background/commands/index.ts:122-130`).
+  (`background/commands/execution.ts:109-117`).
 - `confirmAction` commands are excluded from the keybinding registry by
   `allowsKeybinding`, so high-risk close-tab/window defaults are not reachable
   through keybindings.
@@ -149,8 +149,9 @@ per-site gating or opt-out. This is inherent to a page-world SDK, but
 
 A site can register a command with
 `icon: { type: "url", url: "https://attacker.example/px.png?u=<id>" }`. The
-palette renders it as a literal `<img src={icon.url}>`
-(`shared/components/Icon.tsx:65-69`), so the URL is fetched from the user's
+palette renders it as a literal `<img src={icon.url}>` (the URL branch at
+`shared/components/Icon.tsx:91-98` routes to `UrlImageIcon`, whose `<img>` is
+`shared/components/Icon.tsx:45-54`), so the URL is fetched from the user's
 browser at the moment the palette opens and that row is visible. The site
 learns: the palette was opened on their page, a unique per-user id, and the
 user's IP/timestamp. The schema forbids `data:` icons, so every URL icon is a
@@ -166,12 +167,12 @@ The command palette is trusted chrome; users read it as "the extension," not
 "the website." The SDK lets a site inject rows into it:
 
 - `placement: "root"` commands appear in the root list alongside native
-  suggestions (`background/commands/siteSdk/commands.ts:284-315`), not only
+  suggestions (`background/commands/siteSdk/commands.ts:290-321`), not only
   under the host-labeled site group. A deceptively named row with a
   native-looking icon blends in.
 - `input` / `submit` fields render forms inside the palette; entered `values`
   are delivered straight to the site callback
-  (`background/commands/siteSdk/commands.ts:152-165`). A user may type a secret
+  (`background/commands/siteSdk/commands.ts:155-168`). A user may type a secret
   into the trusted overlay that they would never type into the page's own DOM.
 
 The damage ceiling is "user is tricked into giving the site input, or running
@@ -193,9 +194,9 @@ loop `handle.update(...)` to force repeated index invalidation. The
 This is adjacent to the SDK rather than caused by it, but it lives in the same
 palette rendering path and is a stronger privacy issue than site icon beacons.
 Bookmark and history commands resolve favicons through DuckDuckGo's icon service
-(`background/utils/favicon.ts:27-43`), and those commands are built from
+(`background/utils/favicon.ts:27-34`), and those commands are built from
 privileged browser data after the user grants `bookmarks` or `history`
-permissions (`background/commands/browser/bookmarks.ts:62`,
+permissions (`background/commands/browser/bookmarks.ts:67`,
 `background/commands/browser/history.ts:99`).
 
 When those rows render, the browser can request:
@@ -220,26 +221,26 @@ dependency supply-chain issue) or if the SDK/bridge surface grows to relay more.
 
 | # | Weakness | Where | Note |
 | --- | --- | --- | --- |
-| 2.1 | `context.url` is client-supplied and trusted for URL-rule filtering | `background/messages/searchCommands.ts:107-111` | URL filtering is an advisory visibility layer, not a security boundary, for whoever controls the message. The SDK *sync* path is not affected — the bridge stamps `context` from its own `window.location.href` (`content/siteSdkBridge.ts:31-35`), so SDK origin-scoping is not page-spoofable. |
-| 2.2 | `executeCommand` runs any command id with no gate beyond the permission check | `background/messages/executeCommand.ts`, `background/commands/index.ts:122-130` | No user-gesture check, no per-sender allow-list; the optional-permission grant is the sole defense. |
-| 2.3 | `searchCommands` does not clamp `limit` | `background/messages/searchCommands.ts:91` | A caller can request the whole ranked index in one call — a bulk interface over permission-gated dynamic commands. |
+| 2.1 | `context.url` is client-supplied and trusted for URL-rule filtering | `background/messages/searchCommands.ts:130` (`getVisibleEntries(index, context.url)`) | URL filtering is an advisory visibility layer, not a security boundary, for whoever controls the message. The SDK *sync* path is not affected — the bridge stamps `context` from its own `window.location.href` (`content/siteSdkBridge.ts:31-35`), so SDK origin-scoping is not page-spoofable. |
+| 2.2 | `executeCommand` runs any command id with no gate beyond the permission check | `background/messages/executeCommand.ts`, `background/commands/execution.ts:109-117` | No user-gesture check, no per-sender allow-list; the optional-permission grant is the sole defense. |
+| 2.3 | `searchCommands` does not clamp `limit` | `background/messages/searchCommands.ts:111` (read), `:179` (applied) | A caller can request the whole ranked index in one call — a bulk interface over permission-gated dynamic commands. |
 | 2.4 | Background-to-content SDK invokes target only `tabId`, not `documentId` / `frameId` | `background/commands/siteSdk/commands.ts:64-71` | Registry ownership is scoped by tab/document/origin, but invoke delivery is tab-wide. Around navigation or service-worker resync races, a message intended for one document can be delivered to the current document in the same tab. The callback id normally fails closed, but document-targeted messaging would match the registry model. |
-| 2.5 | `executeWorkflow` trusts caller-supplied `tabId` over the sender's tab | `background/workflows/execution.ts:105-110` | Cross-tab targeting by design. Limited today (only `click`/`wait` implemented); becomes action-injection as the executor grows. |
-| 2.6 | Workflow messages are sent only by `tabId`, not document/frame | `background/workflows/execution.ts:157-161` | Same targeting shape as SDK invokes. A navigation race can send DOM automation to the wrong document in a reused tab. |
+| 2.5 | `executeWorkflow` trusts caller-supplied `tabId` over the sender's tab | `background/workflows/execution.ts:111-115` | Cross-tab targeting by design. The full content vocabulary is now implemented (all 17 ops in `content/workflow/executor.ts`), so this *is* a general action-injection surface — fill/type/key/click/submit/etc. on an arbitrary tab — not the narrow `click`/`wait` it once was. |
+| 2.6 | Workflow messages are sent only by `tabId`, not document/frame | `background/workflows/execution.ts:163-167` | Same targeting shape as SDK invokes. A navigation race can send DOM automation to the wrong document in a reused tab. |
 | 2.7 | Content-side workflow listener validates nothing | `shared/hooks/useCommandPaletteStateRedux.tsx` | `_sender` unused; `message.workflow` cast without re-validation. Not page-reachable (pages cannot post to a content script's `runtime.onMessage`), but asymmetric with the background's rigorous sender checks. |
-| 2.8 | Workflow clicks have no occlusion guard | `content/workflow/interactionOps.ts` (`executeClick`) | `isElementVisible` checks geometry/`display`/`visibility` only, then calls `element.click()`. Clickjacking-by-proxy if a workflow runs on a hostile page. |
+| 2.8 | Workflow clicks have no occlusion guard | `content/workflow/interactionOps.ts` (`executeClick`); `isElementVisible` in `content/workflow/dom.ts:129` | `isElementVisible` checks geometry/`display`/`visibility` only, then `executeClick` calls `element.click()`. Clickjacking-by-proxy if a workflow runs on a hostile page. |
 | 2.9 | `requestPermission` / `openPermissionGrantPage` not restricted to extension-page senders | `background/messages/requestPermission.ts`, `background/messages/openPermissionGrantPage.ts` | Legitimate grant flows originate from the new-tab/options UI; prompt-fatigue vector if the isolated world is compromised. |
 
 ## Search privacy boundary
 
 Root command search stays background-owned. A site's SDK search callback receives
 the query string only after the user opens that site's own `search` command page
-(`background/commands/siteSdk/commands.ts:218-225`). Typing into the global root
+(`background/commands/siteSdk/commands.ts:221-228`). Typing into the global root
 palette search does not stream arbitrary query text to every site command.
 
 There is one weaker observation channel: root search/index building can resolve
 SDK group children when a site group participates in deep search
-(`background/commands/searchIndex.ts:226-228`). That lets a page infer that
+(`background/commands/searchIndex.ts`, `walkGroups` ~:230-284). That lets a page infer that
 Monocle is loading or rebuilding command search entries, but not what the user
 typed into the root search box.
 

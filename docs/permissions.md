@@ -98,14 +98,14 @@ child's, deduplicating. This means:
   plus all ancestors'.
 
 Inheritance is applied in three places (two in `query.ts`, one in
-`index.ts`):
+`suggestions.ts`):
 
 - `getCommandPageCommands` walks `parentPath`, merging `pageCommand.permissions`
   into `inheritedPermissions` at each level before resolving children.
 - `findCommandRecursive` / `resolveCommandById` accumulate the same way while
   locating an executable command, and the resolved record carries the merged
   `permissions`.
-- `commandsToSuggestions` (in `background/commands/index.ts`) stamps the
+- `commandsToSuggestions` (in `background/commands/suggestions.ts`) stamps the
   merged `effectivePermissions` onto each `Suggestion.permissions`, so the UI sees the full
   inherited set rather than only a node's own declarations.
 
@@ -212,8 +212,9 @@ local `granted`/`denied`/error status, and dispatches `refreshPermissions()`.
 UI-side gating is convenience only. The authoritative check happens in the
 background before any protected work runs.
 
-`background/messages/executeCommand.ts` forwards to `executeCommand` in
-`background/commands/index.ts`, which resolves the command and calls
+`background/messages/executeCommand.ts` forwards to `executeCommand` (defined in
+`background/commands/execution.ts` and re-exported by
+`background/commands/index.ts`), which resolves the command and calls
 `executeResolvedCommand`. That function uses the **resolved** permission set
 (`resolved.permissions`, already merged with inherited ancestors) and calls
 `checkPermissions` from `background/utils/permissions.ts`:

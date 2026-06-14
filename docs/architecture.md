@@ -66,6 +66,8 @@ The background owns:
 - **Keybindings** — canonicalization, registry, and execution. See [keybindings.md](./keybindings.md).
 - **Workflow forwarding** — receives `execute-workflow` and forwards it to the active tab's content script. See [workflow-automation.md](./workflow-automation.md).
 - **User scripts** — declarative automation documents stored under `monocle-userscripts`, validated/interpreted entirely in the background (`background/userScripts/`: storage, engine, trigger engine, alarms, command generation). See [user-scripts.md](./user-scripts.md).
+- **Feature modules** — the `background/features/` registry of `FeatureModule`s, each contributing palette commands, a declarative settings page, runtime state, and a lifecycle hook. Durable config (`monocle-feature-config`) and runtime state (`monocle-feature-state`) live in dedicated stores. See [features.md](./features.md).
+- **Surfaces** — the owner-namespaced declarative-UI store (`monocle-surfaces`, `background/surfaces.ts`) of overlays/badges rendered by the generic `SurfaceHost`. The reusable basis for feature and automation page UI. See [surfaces.md](./surfaces.md).
 
 The enforced architectural boundaries:
 
@@ -80,7 +82,7 @@ Monocle uses Redux Toolkit. There are two store factories in `shared/store/`:
 
 | Factory | File | Slices | Used by |
 | --- | --- | --- | --- |
-| `createAppStore(sendMessage?)` | `shared/store/index.ts` | `settings`, `settingsCatalog`, `navigation`, `commandPalette`, `keybinding`, `snippets` | Content overlay, new-tab, and options page. |
+| `createAppStore(sendMessage?)` | `shared/store/index.ts` | `settings`, `settingsCatalog`, `navigation`, `commandPalette`, `keybinding`, `snippets`, `userScripts`, `features` | Content overlay, new-tab, and options page. |
 | `createCommandPaletteStore(initialIsOpen?)` | `shared/store/commandPaletteStore.ts` | `commandPalette` only | A minimal palette-only store factory. |
 
 The full app store is instantiated **per mode** (one per content overlay mount, one per new-tab app) inside a React `useMemo`, so each surface has its own isolated store. The `sendMessage` function is injected as the thunk `extraArgument` (`ThunkApi`), giving async thunks access to background messaging without importing it directly.
@@ -96,6 +98,7 @@ Slices (`shared/store/slices/`):
 | `keybinding` | `keybinding.slice.ts` | Keybinding capture state (`isCapturing`, `targetCommandId`, `requirements`). |
 | `snippets` | `snippets.slice.ts` | Saved snippets mirror for the options Snippets page; CRUD thunks over the `get/add/update/delete-snippet` messages. |
 | `userScripts` | `userScripts.slice.ts` | User-script (Automations) mirror for the options builder; CRUD + run thunks over the user-script messages. |
+| `features` | `features.slice.ts` | Feature-module descriptor mirror for the options Features pages; load + config-update + action thunks over the `get-features` / `update-feature-config` / `execute-feature-action` messages. |
 
 Typed hooks (`useAppDispatch`, `useAppSelector`, `useAppStore`) live in `shared/store/hooks.ts`. `createAppStore` ships a `preloadedState` with sensible defaults (theme `system`, clock shown, all permissions `false`, palette closed). `RootState`, `AppDispatch`, and `AppStore` types are exported from `shared/store/index.ts`.
 
@@ -114,6 +117,8 @@ monocle/
 │   ├── messages/        # message router and handlers
 │   ├── keybindings/     # registry
 │   ├── userScripts/     # user-script storage, engine, triggers, alarms, commands
+│   ├── features/        # feature-module registry (config/state, focus-mode)
+│   ├── surfaces.ts      # owner-namespaced declarative overlay/badge store
 │   ├── workflows/       # workflow target resolution + forwarding
 │   └── utils/           # privileged browser API helpers, contentPalette
 ├── content/             # Content overlay rendering, workflow executor

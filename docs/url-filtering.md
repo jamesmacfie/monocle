@@ -157,12 +157,13 @@ path. See
 
 ## Hide Command (generated action)
 
-The suggestion builder in `background/commands/index.ts` attaches a generated
+The suggestion builder in `background/commands/suggestions.ts` attaches a generated
 **Hide Command** action to durable/configurable command rows. Its suggestion id
 is `hide-command-${command.id}` and it carries an `executionContext` of type
 `hideCommand` with the target command id.
 
-When invoked, the `hideCommand` branch writes
+When invoked, the `hideCommand` branch in `executeGeneratedAction`
+(`background/commands/execution.ts`) writes
 `commands[targetCommandId].hidden = true`, refreshes the keybinding registry,
 and invalidates the search index. There is no generated unhide action because
 hidden rows disappear from the palette; unhide happens through the options
@@ -171,12 +172,13 @@ Commands page.
 ## Hide from Domain (generated action)
 
 When a current page URL exists (and the context is not new-tab), the suggestion
-builder in `background/commands/index.ts` attaches a generated **Hide from
+builder in `background/commands/suggestions.ts` attaches a generated **Hide from
 {domain}** action to each command. Its suggestion id is
 `hide-from-domain-${command.id}` and it carries an `executionContext` of type
 `hideDomain` with the target command id and the extracted domain.
 
-When invoked, the `hideDomain` branch in `index.ts`:
+When invoked, the `hideDomain` branch in `executeGeneratedAction`
+(`background/commands/execution.ts`):
 
 1. Returns early if there is no URL or the context is new-tab.
 2. Extracts the domain via `extractDomain(context.url)`
