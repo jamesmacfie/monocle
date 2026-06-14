@@ -31,6 +31,17 @@ type PreparedKeybindingUpdate = {
   behavior: KeybindingBehavior
 }
 
+/**
+ * Persists a batch of command keybinding updates with best-effort semantics:
+ * an update that fails its requirement gate or conflicts is skipped and
+ * reported in `conflicts`, while the rest of the batch still persists (never
+ * throws for a conflict — only for a structurally illegal assignment). Two
+ * conflict surfaces are checked per update: against commands outside the batch
+ * (evaluateKeybindingAssignment over nonBatchEntries) and against bindings
+ * already claimed earlier in the same batch (exact duplicates and open-palette
+ * shadows via claimedInBatch). Clearing a binding (null) always applies. After
+ * applying, the keybinding registry is refreshed. See docs/keybindings.md.
+ */
 export async function updateCommandKeybindings(
   message: UpdateCommandKeybindingsMessage,
   sender?: any,

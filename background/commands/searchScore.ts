@@ -36,7 +36,9 @@ export type ScoredEntry<T extends ScorableEntry> = {
 }
 
 // Returns the density (query length / matched span) of a greedy subsequence
-// match, or null when the query is not a subsequence of the text.
+// match, or null when the query is not a subsequence of the text. Density
+// rewards tightly-clustered matches over ones scattered across the string, so
+// the fuzzy tier ("gh" in "GitHub") doesn't outrank near-contiguous matches.
 const subsequenceDensity = (text: string, query: string): number | null => {
   if (query.length === 0 || query.length > text.length) {
     return null
@@ -208,8 +210,12 @@ const scoreRest = (entry: ScorableEntry, queryLower: string): number => {
   return best
 }
 
-// Final score for one entry. Returns 0 when nothing matches; callers should
-// drop zero-score entries. The scorer is never called with an empty query.
+// Final score for one entry: a textual component (name dominant at 0.8, rest
+// fields at 0.2, plus a small name-prefix bonus, capped at 1) multiplied by the
+// entry's sourceWeight and a gentle usage boost (at most +15%, so frequently
+// used commands edge ahead on ties without overriding a better text match).
+// Returns 0 when nothing matches; callers should drop zero-score entries. The
+// scorer is never called with an empty query. See docs/search-and-ranking.md.
 export const scoreEntry = (
   entry: ScorableEntry,
   queryLower: string,
@@ -240,8 +246,10 @@ export const scoreEntry = (
   return textual * entry.sourceWeight * usageBoost
 }
 
-// Score and sort entries: score desc, then favorites first, then lower usage
-// rank, then shorter name, then id. Entries that don't match are dropped.
+// Score and sort entries with a deterministic tie-breaker chain so equal-score
+// results have a stable order: score desc, then favorites first, then lower
+// usage rank, then shorter name (more specific), then id (final stable key).
+// Entries that don't match are dropped. See docs/search-and-ranking.md.
 export const rankEntries = <T extends ScorableEntry>(
   entries: T[],
   queryLower: string,

@@ -1,3 +1,12 @@
+// Architecture: background command system, resolution layer. The tree-walking
+// half of command loading: it takes the flat root command set from source.ts
+// and resolves it for a given browser context — applying URL filtering and
+// permission gating at each level, collecting favorites, navigating to a child
+// page by parentPath, and resolving a single command by id. Group children()
+// are async and may hit chrome APIs, so every walk is permission-gated before
+// descending and wrapped so one failing group can't sink the rest. The
+// per-keystroke search path uses the cached searchIndex.ts instead of these
+// walks; these run for the root empty state, navigation, and execution.
 import type {
   Browser,
   BrowserPermission,
@@ -43,6 +52,9 @@ export const normalizeContext = (
   isNewTab: context?.isNewTab,
 })
 
+// Union of ancestor-inherited permissions and a node's own, deduped. A child
+// always requires at least what its groups require, so permission gating uses
+// the merged set as it descends. Shared with searchIndex.ts's rule chain build.
 export const mergePermissions = (
   inherited: BrowserPermission[],
   own?: BrowserPermission[],
@@ -50,6 +62,9 @@ export const mergePermissions = (
   return Array.from(new Set([...inherited, ...(own ?? [])]))
 }
 
+// Browser permission probe with an empty-set fast path. The browser API is
+// authoritative (Redux can be stale), so this is the gate consulted before
+// descending into or executing a permission-bearing command.
 const checkRequiredPermissions = async (
   permissions: BrowserPermission[],
 ): Promise<{
@@ -72,6 +87,9 @@ const hasRequiredPermissions = async (
   return (await checkRequiredPermissions(permissions)).hasAllPermissions
 }
 
+// Synthesizes the display row shown in place of a group's children when an
+// ancestor permission is missing. Carries the permissions so the UI can render
+// a grant affordance (prefer a display row over an alert — see CLAUDE.md).
 const createMissingPermissionsCommand = (
   permissions: BrowserPermission[],
 ): CommandNode => {
@@ -110,6 +128,11 @@ export const getFilteredRootCommands = async (
   )
 }
 
+// Recursively collect every favorited command, descending into permitted
+// groups. Nested favorites get a breadcrumb name array ([leaf, ...ancestors])
+// so the palette can show where they live; groups are only descended when
+// their inherited permissions are already granted (a missing permission hides
+// the whole subtree rather than prompting for the favorites strip).
 const findFavoritedCommands = async (
   commands: CommandNode[],
   favoriteCommandIds: string[],
@@ -176,6 +199,11 @@ const findFavoritedCommands = async (
   return favoritedCommands
 }
 
+// Orders the root suggestion strip by usage rank (most-used first), dropping
+// ids already shown in the favorites strip. Site-SDK commands are pinned ahead
+// of native ones regardless of usage so a page's contextual commands stay
+// discoverable on first visit (they have no usage history). See
+// docs/search-and-ranking.md.
 const sortSuggestionsByUsage = async (
   commands: CommandNode[],
   excludedCommandIds: Set<string>,
@@ -247,6 +275,15 @@ const getFilteredChildren = async (
   return await filterForContext(children, context, commandSettings)
 }
 
+/**
+ * Resolves the commands shown on a single navigated palette page, walking
+ * parentPath one level at a time. Each hop merges inherited permissions and
+ * prepends the parent's name to the breadcrumb; a group hop descends into its
+ * (filtered) children, while a search hop defers to the node's getResults with
+ * the live searchValue. Returns a missing-permissions display row instead of
+ * children when an ancestor's permissions are not granted, and an empty page
+ * when any parentPath id no longer resolves (stale navigation).
+ */
 export const getCommandPageCommands = async (
   context: Browser.Context,
   parentPath: string[] = [],
@@ -359,6 +396,11 @@ export const getCommandPageCommands = async (
   }
 }
 
+// Depth-first search for a command by id across the whole tree, gating each
+// group on its inherited permissions before resolving children. Returns the
+// node with its merged permissions and breadcrumb so the caller can permission-
+// check and label it. Backs resolveCommandById (the context-free execution
+// path); resolveCommandInPage prefers the scoped page walk instead.
 const findCommandRecursive = async (
   commands: CommandNode[],
   commandId: string,
@@ -434,6 +476,15 @@ export const resolveCommandById = async (
   )
 }
 
+/**
+ * Resolves a command for execution within the exact palette page the user was
+ * on, given the UI's CommandExecutionScope. This differs from
+ * resolveCommandById, which does a context-free tree search: dynamic children
+ * (search results, page-scoped rows) only exist relative to their page, so a
+ * global walk would miss or mis-resolve them. Falls back to resolveCommandById
+ * for the root page, and re-runs getCommandPageCommands (including the search
+ * value) to rebuild the page's command set before locating the id within it.
+ */
 export const resolveCommandInPage = async (
   commandId: string,
   context: Browser.Context,

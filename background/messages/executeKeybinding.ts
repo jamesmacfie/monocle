@@ -1,3 +1,16 @@
+// Architecture: background message handler. The authoritative chord/sequence
+// state machine for keybindings. Each keydown arrives as an independent
+// execute-keybinding message; this module buffers strokes into a sequence,
+// resolves exact vs prefix matches against the keybinding registry, and fires
+// the matching command through the shared execution path. The CHORD_TIMEOUT_MS
+// (~800ms) window decides when an unfinished sequence resets, and when a stroke
+// is both a complete binding and a prefix of a longer one, the single match is
+// deferred for one window in case a continuation arrives. State is scoped per
+// tab/document (getSequenceScopeKey) so sequences in different tabs don't
+// collide, and a per-scope timerEpoch invalidates timers that fired but are
+// still queued. Because state is mutated across an awaited registry rebuild,
+// all handling is serialized per scope (runSerialized) so fast multi-stroke
+// sequences can't interleave and corrupt the buffer. See docs/keybindings.md.
 import type { Browser, ExecuteKeybindingMessage } from "../../shared/types"
 import { CHORD_TIMEOUT_MS } from "../../shared/utils/keybinding-timing"
 import { executeCommand as executeCommandById } from "../commands"
@@ -34,6 +47,10 @@ const createSequenceState = (): SequenceState => ({
   timerEpoch: 0,
 })
 
+// Scopes sequence state to the originating tab+document so a chord in progress
+// in one tab can't be continued or reset by strokes from another. Senders
+// without tab data (rare) fall back to a context key keyed on newtab/url, which
+// can still collide across tabs — a documented limitation in CLAUDE.md.
 const getSequenceScopeKey = (
   message: ExecuteKeybindingMessage,
   sender?: any,

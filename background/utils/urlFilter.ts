@@ -1,12 +1,12 @@
+// Architecture: background utility. URL pattern matching and command URL
+// visibility — the engine behind urlRules and the search index's query-time URL
+// gating. Patterns are a small glob dialect (`*` wildcard, `*.domain` optional
+// subdomain) compiled to anchored, case-insensitive regexes and cached
+// (patternToRegex) because filtering runs over many commands on every search
+// keystroke. shouldShowCommand implements the four-tier allow/deny precedence.
+// See docs/url-filtering.md.
 import type { CommandNode, CommandSettings } from "../../shared/types"
 
-/**
- * Extracts the domain from a full URL
- * Examples:
- * - https://github.com/user/repo -> github.com
- * - http://localhost:3000/path -> localhost:3000
- * - https://app.example.com/page -> app.example.com
- */
 /**
  * Normalizes a URL into a stable dedupe key for cross-source deduplication.
  * Strips hash, strips single trailing path slash, lowercases host, keeps query params.
@@ -35,6 +35,13 @@ export function extractDomain(url: string): string {
   }
 }
 
+// Host/IP helper cluster, all feeding isLocalhostOrIpAddress. The point is to
+// decide whether createUrlPatternForDomain may safely prepend a `*.` subdomain
+// wildcard: that is correct for registrable domains but wrong for an IP or
+// localhost (`*.127.0.0.1` matches nothing useful), so those get an exact host
+// pattern instead. getHostnameFromDomain strips an optional :port while leaving
+// bracketed IPv6 literals intact; the IPv4/IPv6 checks are deliberately
+// loose-but-cheap shape tests, not full validators.
 const getHostnameFromDomain = (domain: string): string => {
   const trimmedDomain = domain.trim()
 

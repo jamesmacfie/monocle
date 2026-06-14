@@ -1,3 +1,22 @@
+// Architecture: shared/ palette navigation state, used by both the content
+// overlay and the new-tab palette.
+//
+// The palette is a stack of pages: `pages[0]` is "root", and selecting a
+// group/search command pushes a child page. The current page is always the
+// last element. Each page carries its own search box value, `formValues` for
+// inline inputs, and (for child group pages) its `parentPath` — the chain of
+// parent command ids the background needs to re-resolve dynamic children
+// without re-walking from root.
+//
+// Search is background-owned: `searchCurrentPage` fires per keystroke and the
+// background returns ranked `searchResults` that render in place of
+// favorites/suggestions. Because responses are async and can arrive out of
+// order, every search/refresh carries a monotonic guard — `searchSeq` (drop
+// older responses) and an echoed `query` (drop responses for a query the user
+// has already typed past); `refreshRequest` plays the same role for child-page
+// reloads. CMDK's input value is synchronized with `page.searchValue` here, so
+// any change to clearing/restoring search needs manual regression checks in
+// both palette modes. See docs/palette-ui-and-navigation.md.
 import {
   createAsyncThunk,
   createSlice,
@@ -62,6 +81,14 @@ export function findCommandInPage(
 }
 
 // Async thunks
+
+/**
+ * Drill into a group/search command: ask the background for its children
+ * (passing `parentPath` so it can locate the node without re-walking) and, if
+ * any exist (or the background explicitly requests `openPage`), build and push
+ * a new child page seeded with default inline-input form values. Returns
+ * `{ success: false }` for leaf/childless commands so no page is pushed.
+ */
 export const navigateToCommand = createAsyncThunk<
   {
     success: boolean
@@ -136,6 +163,15 @@ export const navigateToCommand = createAsyncThunk<
   },
 )
 
+/**
+ * Re-fetch the current child page's children in place (after an action mutates
+ * command state, e.g. toggling a favorite or assigning a keybinding). No-ops on
+ * root (refreshed via setInitialCommands) and on dynamic-children pages with an
+ * empty query (those wait for search input). Re-fetched children's input
+ * defaults are merged under existing `formValues` so user-entered values
+ * survive. The `refreshRequest` stamp lets the fulfilled reducer discard a
+ * response if the page or query changed while it was in flight.
+ */
 export const refreshCurrentPage = createAsyncThunk<
   {
     success: boolean
@@ -221,10 +257,13 @@ export const refreshCurrentPage = createAsyncThunk<
   },
 )
 
-// Background-owned search for the current page. Root pages send an empty
-// parentPath; child group pages send their full parent path. Responses echo
-// seq + query so stale (out-of-order or outdated) results are dropped in the
-// fulfilled reducer, mirroring the refreshRequest staleness guard.
+/**
+ * Background-owned search for the current page (one call per debounced
+ * keystroke). Root pages send an empty parentPath; child group pages send their
+ * full parent path so the background scopes results to that subtree. Responses
+ * echo `seq` + `query` so the fulfilled reducer can drop stale (out-of-order or
+ * typed-past) results, mirroring the `refreshRequest` staleness guard.
+ */
 export const searchCurrentPage = createAsyncThunk<
   {
     results: Suggestion[]

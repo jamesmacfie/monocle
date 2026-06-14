@@ -16,6 +16,15 @@ export interface CommandListProps {
   isLoading?: boolean
 }
 
+/**
+ * Renders the current page's rows. Three mutually exclusive modes derived from
+ * page state: form pages (inline inputs/submit) keep every row visible while
+ * typing; search-driven pages render the background's flat ranked
+ * `searchResults` (deep-search matches inline); otherwise the static
+ * Favorites + Suggestions groups. Owns the typing/loading spinner and inline
+ * form submission/validation so CommandItem rows stay dumb. See
+ * docs/palette-ui-and-navigation.md.
+ */
 export function CommandList({
   currentPage,
   onSelect,

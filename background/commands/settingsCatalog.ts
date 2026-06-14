@@ -1,3 +1,11 @@
+// Architecture: background command system, options-page projection. Flattens
+// the command tree into durable, executable-function-free catalog rows for the
+// options UI (the options page receives data, not CommandNodes — see CLAUDE.md).
+// Built against synthetic page + new-tab contexts (no real URL) so the catalog
+// is context-independent and complete, deduped by id, and resolves each row's
+// effective vs default keybinding, capabilities, usage stats and favorite flag.
+// Only commands that opt into a configurable settingsCatalog appear; groups are
+// only descended when they set settingsCatalog.includeChildren.
 import type {
   Browser,
   CommandNode,
@@ -84,6 +92,11 @@ const toCatalogUsage = (
   }
 }
 
+// Resolves one command into a catalog row and appends it, skipping commands
+// already seen (dedupe across the page + new-tab passes) and any that aren't
+// settingsCatalog-configurable. Resolves async name/description/icon/color
+// against the synthetic context and precomputes the capability flags the
+// options UI gates its controls on (canHide/canFavorite/canSetKeybinding/...).
 const addCatalogRow = async (
   command: CommandNode,
   parentPath: string[],
@@ -141,6 +154,10 @@ const addCatalogRow = async (
   traversal.seenIds.add(command.id)
 }
 
+// Adds a command's row, then recurses into its children only when it is a group
+// that opts in via settingsCatalog.includeChildren. Most groups don't (their
+// children are dynamic/contextual and not meaningfully configurable), so the
+// catalog stays a shallow, durable list rather than a full live tree walk.
 const visitCommand = async (
   command: CommandNode,
   parentPath: string[],
@@ -187,6 +204,14 @@ const loadCatalogCommandEntries = (
   return [...normalEntries, ...newTabEntries]
 }
 
+/**
+ * Builds the full settings catalog the options page renders. Walks every
+ * top-level command from both the page and new-tab contexts (the new-tab
+ * category uses the new-tab context so its commands resolve correctly), deduped
+ * by id, then sorts rows by category label and name for stable display. This is
+ * the get-command-catalog data source; getSettingsCatalogCommandById reuses it
+ * for single-row lookups (e.g. keybinding requirement fallbacks).
+ */
 export const getSettingsCatalog = async (
   options?: CatalogBuildOptions,
 ): Promise<SettingsCatalogResponse> => {

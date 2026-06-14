@@ -1,5 +1,19 @@
 /**
- * Converts keyboard events and stored keybinding strings to one canonical form.
+ * Canonical keybinding strings. Every keybinding — captured from an event,
+ * authored in a command, or persisted in settings — is reduced to ONE textual
+ * form so capture, storage, registry matching, and display all compare equal.
+ *
+ * Canonical form:
+ * - Single stroke with modifiers: angle-bracketed, modifiers in fixed order
+ *   (cmd, ctrl, alt, shift) then the primary key, e.g. `<cmd-shift-k>`.
+ * - Plain key with no modifiers: the bare key, e.g. `g`, `escape`, `space`.
+ * - Sequence (chord): canonical strokes joined by `, `, e.g. `g, g` or
+ *   `<cmd-k>, <cmd-s>`.
+ *
+ * Primary keys are derived from event.code where possible (layout-independent)
+ * and lower-cased; shifted symbols are folded to their base key + the shift
+ * modifier (`!` → `<shift-1>`). This module is the single source of truth for
+ * that mapping. See docs/keybindings.md.
  */
 
 export const platform = (() => {
@@ -293,6 +307,12 @@ const parseTokenizedStroke = (input: string): KeyStroke | null => {
   }
 }
 
+/**
+ * Parse one stroke (not a sequence) into its modifiers + primary key. Accepts
+ * all the forms the codebase has historically produced: canonical
+ * `<cmd-shift-k>`, legacy display glyphs (`⌘ K`), space-tokenized, and bare
+ * keys. Returns null for anything that isn't a valid single stroke.
+ */
 export const parseKeyStroke = (stroke: string): KeyStroke | null => {
   const trimmed = stroke.trim()
   if (!trimmed) return null
@@ -326,6 +346,12 @@ export const parseKeyStroke = (stroke: string): KeyStroke | null => {
   }
 }
 
+/**
+ * Split a sequence string into its individual stroke strings on top-level
+ * commas, tracking angle-bracket depth so a comma inside `<...>` is never a
+ * separator. The literal `,` key is handled as a special case so a comma can
+ * itself be a bound key.
+ */
 export const splitKeybindingSequence = (keybinding: string): string[] => {
   const trimmed = keybinding.trim()
   if (!trimmed) return []
@@ -362,6 +388,12 @@ export const splitKeybindingSequence = (keybinding: string): string[] => {
   return strokes.length > 0 ? strokes : [trimmed]
 }
 
+/**
+ * Reduce any keybinding string (single or sequence, any accepted input form) to
+ * its canonical form. Returns "" if any stroke fails to parse — callers treat
+ * "" as "invalid keybinding" (see isValidKeybinding). This is the function to
+ * call before storing or comparing a keybinding.
+ */
 export function normalizeKeybinding(keybinding: string): string {
   if (!keybinding) return ""
 
@@ -425,6 +457,12 @@ export function getKeyChar(event: KeyboardEvent): string {
   return getPrimaryFromEvent(event)?.key ?? ""
 }
 
+/**
+ * Convert a live KeyboardEvent into a canonical single-stroke string (the
+ * capture path). Returns "" while only a modifier is held (so capture waits for
+ * a real key). Prefers event.code for the primary key (layout-independent) and
+ * folds the event's active modifier flags into canonical order.
+ */
 export function getKeyString(event: KeyboardEvent): string {
   if (MODIFIER_KEYS.has(event.key)) {
     return ""

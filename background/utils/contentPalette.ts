@@ -1,3 +1,12 @@
+// Architecture: background utility. Opens the content-overlay palette in a tab,
+// handling the case where the content script isn't loaded yet. It first tries a
+// cheap toggle-ui message; if that fails because no receiver exists
+// (isMissingContentScriptError), it programmatically injects the content script
+// and then retries show-ui a few times, since the freshly injected script needs
+// a beat to register its message listener. Benign "no response"/"port closed"
+// errors are treated as success because fire-and-forget palette messages don't
+// reply. This is the only path that injects the content script on demand
+// (rather than via the declared content-script match patterns).
 import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { callBrowserAPI } from "./browser"
 

@@ -17,6 +17,11 @@ type DraftValue = string | string[] | boolean
 
 type Draft = Record<string, DraftValue>
 
+// Read the saved value for one field out of the persisted config and coerce it
+// into the draft representation the control expects (boolean for switches,
+// string[] for lists, string for everything incl. numbers — number inputs are
+// edited as strings and re-parsed on save). Missing values fall back to a typed
+// empty so controls stay controlled.
 const initialValue = (
   field: FormField,
   config: Record<string, unknown>,
@@ -36,6 +41,11 @@ const initialValue = (
   }
 }
 
+// Inverse of initialValue: project the in-progress draft back into a plain
+// config object for persistence, coercing each field to its real type (boolean,
+// trimmed non-empty string[], number — empty number becomes NaN so the
+// feature's Zod configSchema rejects it). Only schema-declared fields are
+// emitted, dropping any stale draft keys.
 const buildConfig = (
   schema: FeatureSettingsSchema,
   draft: Draft,
@@ -66,6 +76,9 @@ const buildConfig = (
   return config
 }
 
+// Editable list of free-text rows (used for `text-list` / `multi` fields, e.g.
+// the Focus Mode blocklist). Add/remove/edit rows positionally; the parent owns
+// the array and trimming/empty-filtering happens in buildConfig on save.
 function TextListField({
   value,
   placeholder,
@@ -120,6 +133,10 @@ function TextListField({
   )
 }
 
+// Render the single control for one FormField variant. The switch is the
+// field-type → control mapping; the `default` branch handles text/textarea/
+// color/etc. as a plain text input. Grow lockstep with FormField in
+// shared/types/ui.ts.
 function FieldControl({
   field,
   value,
@@ -185,6 +202,15 @@ function FieldControl({
   }
 }
 
+/**
+ * Render a feature's settings schema as an editable form with local draft/dirty
+ * state. The draft is built from `config` and re-synced when `config` changes
+ * (e.g. storage.onChanged), so external updates don't clobber the form's shape.
+ * `dirty` is a structural compare against the mount-time draft; Save is gated on
+ * it and emits a freshly-coerced config via buildConfig. Action buttons run
+ * against SAVED config, so they're disabled while the draft is dirty. See
+ * docs/features.md.
+ */
 export function SchemaForm({
   schema,
   config,

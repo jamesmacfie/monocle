@@ -25,6 +25,12 @@ const getExecutionScope = (page: Page): CommandExecutionScope => ({
   searchValue: page.searchValue,
 })
 
+// Inner palette body: header (search input + breadcrumb), command list, and
+// footer. Split from CommandPalette so it can call `useCommandState` — cmdk's
+// focused-value hook only works inside a <Command> provider. Owns the
+// keyboard interpretation that maps raw key events onto navigation/close/
+// open-actions intents (see getPaletteKeyboardCommand) plus the special
+// Cmd/Ctrl+Enter force-close path. See docs/palette-ui-and-navigation.md.
 function CommandContent({
   pages,
   currentPage,
@@ -171,6 +177,15 @@ interface Props {
   isLoading?: boolean
 }
 
+/**
+ * Top-level command palette shell shared by the content overlay and the new-tab
+ * page. Bridges cmdk (which is reduced to a pure list renderer via
+ * `shouldFilter={false}` — filtering/ranking are background-owned) and the
+ * Redux navigation slice (via useCommandNavigation). Owns the action-menu
+ * lifecycle: a per-suggestion overlay menu (favorite / set-keybinding /
+ * hide-domain / etc.) opened with Alt and tracked in local `actionsState`.
+ * See docs/palette-ui-and-navigation.md and docs/execution-and-actions.md.
+ */
 export function CommandPalette({
   items,
   executeCommand,
@@ -214,6 +229,8 @@ export function CommandPalette({
     }
   }, [autoFocus])
 
+  // Open the action menu for a specific suggestion (triggered by Alt or the
+  // footer button). CommandContent auto-closes it when the focused row changes.
   const handleOpenActions = (suggestion: Suggestion) => {
     setActionsState({
       open: true,
@@ -221,6 +238,9 @@ export function CommandPalette({
     })
   }
 
+  // Close the action menu and refocus search. While a keybinding capture is in
+  // progress the menu is sticky (capture lives inside it), so an unforced close
+  // is ignored — only `force: true` (capture complete/cancelled) tears it down.
   const handleCloseActions = (force = false) => {
     // Don't close action menu if keybinding capture is active, unless forced
     if (_isCapturing && !force) {
@@ -238,6 +258,9 @@ export function CommandPalette({
     }, 50)
   }
 
+  // Refresh after a keybinding is assigned inside the action menu so the new
+  // shortcut shows immediately. Root pulls fresh commands from the host
+  // (onRefreshCommands); child pages re-fetch their own children.
   const handleRefreshForKeybinding = async () => {
     // If on root page, refresh the main commands list
     if (currentPage.id === "root") {
@@ -248,6 +271,12 @@ export function CommandPalette({
     }
   }
 
+  // Run a chosen action-menu item. Navigation actions (e.g. "Manage allow
+  // list") open a child page instead of executing; everything else runs through
+  // the normal executeCommand path. After execution we branch on the typed
+  // executionContext (stamped by the background) to decide whether to keep the
+  // menu open (setKeybinding, which transitions into capture) or refresh the
+  // current page (favorite/resetKeybinding/hideDomain mutate local visibility).
   const handleActionSelect = async (actionId: string) => {
     const selectedAction = getSuggestionActions(actionsState.suggestion).find(
       (action) => action.id === actionId,

@@ -101,6 +101,16 @@ const entriesToSuggestions = async (
   return results
 }
 
+/**
+ * Per-keystroke search handler. Root search scores against the cached, URL-
+ * filtered index — narrowing from the prior query's match set when the new
+ * query merely extends it (see lastRootSearch) and refreshing that cache with
+ * the full matched superset (not the sliced top-N) so a later character can
+ * still narrow correctly. Child-page search scores ephemeral entries built from
+ * the page's (TTL-cached) children. Only the returned top-N are converted to
+ * Suggestions, so action-menu construction never runs over the whole index.
+ * The empty-query root case is owned by get-commands, not here.
+ */
 const handleSearchCommands = async (
   message: SearchCommandsMessage,
   sender?: any,

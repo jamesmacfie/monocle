@@ -151,6 +151,12 @@ const resolveGeneratedActionTarget = async (
   return resolved
 }
 
+// Dispatch for the synthetic per-row actions parsed out of a generated command
+// id (favorite/hide/hide-from-domain/reset-keybinding/modifier/primary). These
+// arrive through the same execute-command path as real commands because the UI
+// only ever holds Suggestions with ids — never executable functions — so the
+// action is encoded into the id and decoded here against the resolved target.
+// setKeybinding is UI-only and a no-op here. See docs/execution-and-actions.md.
 const executeGeneratedAction = async (
   action: GeneratedCommandAction,
   context: Browser.Context,

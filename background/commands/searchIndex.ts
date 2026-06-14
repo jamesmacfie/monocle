@@ -481,6 +481,16 @@ const dedupeEntries = (entries: IndexEntry[]): IndexEntry[] => {
     })
 }
 
+/**
+ * The single resolve pass that produces a context's index: one root entry per
+ * top-level command, then walkGroups flattens deep-search descendants and
+ * nested favorites, and dedupeEntries collapses id/URL duplicates. Settings and
+ * favorites are read once here (not per converted suggestion). Built against a
+ * URL-free context so the cache survives navigation — URL visibility is applied
+ * at query time from each entry's rule chain. The tree walk is skipped entirely
+ * when no deep-search roots and no favorites exist. See
+ * docs/search-and-ranking.md.
+ */
 const buildSearchIndex = async (
   context?: Browser.Context,
   options?: CommandLoadOptions,

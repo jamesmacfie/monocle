@@ -1,3 +1,13 @@
+// Architecture: background keybindings. Resolves the flat list of
+// (id, name, keybinding, behavior) entries that the registry and conflict
+// checks match against — collecting both default keybindings discovered by
+// walking deep-search command groups and any custom keybindings set via command
+// settings, deduped by id+binding. Three layers keep this off the hot path:
+// (1) a module-scoped per-context entries cache keyed by isNewTab|url|platform,
+// URL-filtered at build time so each navigation rebuilds once; (2) an inflight
+// build map so concurrent loads share one build; and (3) a TTL backstop plus a
+// cacheGeneration guard so a build that started before an invalidation can't
+// re-insert a stale result. See docs/keybindings.md.
 import type {
   Browser,
   BrowserPermission,

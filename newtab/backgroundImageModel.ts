@@ -85,6 +85,15 @@ export const setCachedBackground = (
   }
 }
 
+/**
+ * Two-phase new-tab background load. Phase 1: if a usable image is cached, show
+ * it immediately (no flash of empty background on open). Phase 2: fetch a fresh
+ * image, preload it, and re-cache it for next time. The fresh image only paints
+ * if no cached image was already shown — otherwise it silently primes the cache,
+ * avoiding a mid-session swap. `onFallback` fires only when there's nothing
+ * cached to fall back on. Dependencies are injected so it's environment-agnostic
+ * and unit-testable. See docs/new-tab-and-theme.md.
+ */
 export async function initializeBackgroundImage({
   cache,
   requestBackground,

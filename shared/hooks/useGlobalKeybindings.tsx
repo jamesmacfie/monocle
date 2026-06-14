@@ -1,3 +1,20 @@
+// Architecture: shared/ global keybinding coordinator, installed by both the
+// content overlay and the new-tab palette.
+//
+// The background owns the keybinding registry and all execution; this hook is
+// the page-side dispatcher. On mount it pulls a snapshot of the currently
+// handled bindings (exact strings + sequence prefixes) and keeps it fresh via
+// chrome.storage.onChanged plus an optional external refresh signal. On each
+// keystroke it consults that local snapshot first: only keys that could match a
+// known binding (or continue an in-progress chord) are sent to the background —
+// everything else stays on the page and never wakes the service worker. Multi-
+// stroke chords are tracked locally (localSequenceRef) with an idle timeout so a
+// stalled chord resets; the background keeps the authoritative chord state.
+//
+// Two forks matter: when keybinding capture is active (isCapturing) the hook
+// stands down entirely so the capture UI receives raw keys, and a stale local
+// snapshot silently drops bindings — hence the refresh subscription below for
+// binding sources that don't write monocle-settings. See docs/keybindings.md.
 import { useCallback, useEffect, useRef } from "react"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
 import { useAppSelector } from "../store/hooks"
@@ -31,9 +48,12 @@ const SETTINGS_STORAGE_KEY = "monocle-settings"
 
 const sequenceKey = (strokes: readonly string[]): string => strokes.join(", ")
 
-// Pure predicate for "could this keystroke be (part of) a binding we handle?"
-// — an exact binding, a known sequence prefix, or a continuation of the
-// sequence in progress. Exported for unit tests.
+/**
+ * Pure predicate for "could this keystroke be (part of) a binding we handle?" —
+ * an exact binding, a known sequence prefix, or a continuation of the chord in
+ * progress. Drives both preemptive event suppression and the decision to wake
+ * the background. Exported for unit tests.
+ */
 export const computeKeybindingMatch = (
   keyString: string,
   exactKeybindings: ReadonlySet<string>,
@@ -51,6 +71,12 @@ export const computeKeybindingMatch = (
   return isKnown(continuedSequence) || isKnown(keyString)
 }
 
+/**
+ * Install the page-side global keybinding dispatcher. Wires a RobustKeyCapture
+ * that suppresses + dispatches only keys matching the local snapshot, manages
+ * the chord buffer, stands down during capture, and surfaces the
+ * "open palette at command" response. See module header and docs/keybindings.md.
+ */
 export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
   const sendMessage = useSendMessage()
   const isCapturing = useAppSelector(selectIsCapturing)
@@ -73,6 +99,10 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
     return options.isNewTab ? { isNewTab: true } : {}
   }, [options.isNewTab])
 
+  // Pull the current handled-binding snapshot (exact strings + sequence
+  // prefixes) from the background into the local refs the keydown path reads.
+  // Called on mount, on monocle-settings changes, on external refresh signals,
+  // and after any failed/unhandled dispatch so the snapshot self-heals.
   const refreshKeybindingState = useCallback(async () => {
     try {
       const response = (await sendMessage(
@@ -107,6 +137,11 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
     [],
   )
 
+  // Advance the local chord buffer after the background reports a stroke as
+  // `pending` (a valid prefix awaiting more keys). Appends if the extended
+  // sequence is still a known prefix, otherwise restarts the buffer at this
+  // stroke, and (re)arms the idle timeout that clears a stalled chord so it
+  // mirrors the background's own chord-timeout reset.
   const updateLocalSequenceForPendingStroke = useCallback(
     (keyString: string) => {
       const existingSequence = localSequenceRef.current

@@ -1,3 +1,8 @@
+// Architecture: background command system, site-SDK entrypoint. The seam
+// between command loading and the per-tab site-SDK registry: prepares the
+// lightweight load options threaded through command/keybinding/search paths,
+// and recovers from MV3 service-worker restarts by replaying a sender's
+// page-world registrations (requestSiteSdkSync). See docs/site-sdk.md.
 import type { Browser } from "../../../shared/types"
 import { sendTabMessage } from "../../utils/browser"
 import type { CommandLoadOptions } from "../source"
@@ -21,7 +26,9 @@ const inflightSync = new Map<string, Promise<void>>()
 
 // A restarted MV3 service worker loses the in-memory registry. Before loading
 // commands for a sender, ask that sender's content bridge to replay its latest
-// page-world registrations.
+// page-world registrations. Deduped per scope via inflightSync so a burst of
+// concurrent loads (commands + keybindings + search arriving together after a
+// cold start) triggers exactly one round-trip to the tab.
 const requestSiteSdkSync = async (scope: SiteSdkScope): Promise<void> => {
   const existing = inflightSync.get(scope.key)
   if (existing) {

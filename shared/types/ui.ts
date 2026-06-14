@@ -83,20 +83,32 @@ export interface JSONSchema {
 }
 
 // The Suggestion types that the UI actually uses
+
+// Discriminated tag the background stamps onto generated action-menu items so
+// the UI can branch on intent without re-parsing id prefixes (see
+// CommandPalette.handleActionSelect / CommandActionsList.ActionItem). Each
+// variant names the command it operates on via `targetCommandId`.
+// See docs/execution-and-actions.md.
 export type ActionExecutionContext =
+  // Re-run the command's primary action from the menu.
   | {
       type: "primary"
       targetCommandId: string
     }
+  // Run the command as if a modifier (e.g. cmd/shift) was held — its
+  // alternate action.
   | {
       type: "modifier"
       targetCommandId: string
       modifierKey: Browser.ModifierKey
     }
+  // Toggle the command's favorite status; the menu refreshes the page after.
   | {
       type: "favorite"
       targetCommandId: string
     }
+  // Begin keybinding capture for the command — keeps the action menu open and
+  // swaps in the capture widget.
   | {
       type: "setKeybinding"
       targetCommandId: string
@@ -104,15 +116,18 @@ export type ActionExecutionContext =
       // hint them before the first stroke.
       requirements?: KeybindingRequirements
     }
+  // Clear the command's custom keybinding (executes without confirmation).
   | {
       type: "resetKeybinding"
       targetCommandId: string
     }
+  // Add a deny rule for the focused page's domain to this command's urlRules.
   | {
       type: "hideDomain"
       targetCommandId: string
       domain: string
     }
+  // Globally hide the command (settings `hidden` flag).
   | {
       type: "hideCommand"
       targetCommandId: string

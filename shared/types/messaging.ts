@@ -77,6 +77,10 @@ export interface SearchCommandsResponse {
   query: string
 }
 
+// Two directions, deliberately distinct types. `show-toast` is background ->
+// tab: the background tells a specific UI to render a toast. `request-toast` is
+// UI -> background: a UI asks the background to fan a toast out to the relevant
+// surface(s). They are not interchangeable; see docs/messaging.md.
 export type ShowToastMessage = {
   type: "show-toast"
   level: "info" | "warning" | "success" | "error"

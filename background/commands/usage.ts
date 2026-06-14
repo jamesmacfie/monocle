@@ -1,3 +1,13 @@
+// Architecture: background command system, usage ranking. Per-command usage
+// stats (frequency, recency, time-of-day histogram, smoothed EMA) persisted to
+// monocle-commandUsage, used to order the root suggestion strip and as a
+// search tie-breaker. The composite score deliberately blends three signals so
+// no single one dominates: log frequency (so a runaway count can't pin a
+// command at the top), exponential recency decay (7-day half-life), and a
+// modest time-of-day boost (commands used around this hour rank higher). An EMA
+// smooths the score across runs so a single odd use doesn't whipsaw ranking.
+// searchIndex.ts caches the derived rank map behind its own TTL; this module
+// just owns the stats and the math. See docs/search-and-ranking.md.
 import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { withStorageLock } from "../utils/storageMutex"
 
@@ -64,7 +74,10 @@ const createEmptyStats = (commandId: string): CommandUsageStats => {
   }
 }
 
-// Calculate time-of-day boost based on historical usage patterns
+// Multiplier in [1, 1 + TIME_BOOST_FACTOR] favoring commands historically used
+// around the current hour. Sums the share of usage in a ±2-hour window with
+// linear distance decay, so "the command I open every morning" surfaces in the
+// morning. Neutral (1) when the command has no time history yet.
 const calculateTimeBoost = (
   hourlyUsage: number[],
   currentHour: number,
@@ -89,7 +102,10 @@ const calculateTimeBoost = (
   return 1 + timeScore * TIME_BOOST_FACTOR
 }
 
-// Calculate comprehensive command score
+// Composite ranking score: log(frequency) * recency-decay * time-boost, then
+// folded into the stored EMA for cross-run smoothing. The EMA seeds from the
+// first score rather than 0 so a brand-new command isn't penalized by a cold
+// start. Returns the new EMA value, which recordCommandUsageUnlocked persists.
 export const calculateCommandScore = (
   stats: CommandUsageStats,
   currentHour: number,
@@ -131,6 +147,11 @@ export const recordCommandUsage = async (
     await recordCommandUsageUnlocked(commandId, parentNames)
   })
 
+// The mutate-and-save body, run inside recordCommandUsage's storage lock:
+// increments frequency, stamps recency and the current-hour histogram bucket,
+// recomputes the EMA, and opportunistically prunes data older than the cleanup
+// interval. Must only be called while holding the lock — it does an
+// unsynchronized load/save round-trip.
 const recordCommandUsageUnlocked = async (
   commandId: string,
   parentNames?: string[],

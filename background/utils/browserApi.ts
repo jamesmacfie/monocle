@@ -1,8 +1,15 @@
 import { isFirefox } from "../../shared/utils/browser"
 import type { BrowserAPIObject } from "../types/"
 
-// Generic wrapper for API methods that exist in both browsers but use
-// Promise-returning Firefox APIs and callback-based Chrome APIs.
+/**
+ * The Promise/callback bridge underpinning every cross-browser extension API
+ * call: Firefox's `browser.*` is already promisified, while Chrome's `chrome.*`
+ * is callback-style and signals failure through `chrome.runtime.lastError`
+ * rather than a thrown error or rejection. This wrapper normalizes both to a
+ * Promise, surfacing lastError as a rejection so callers can use try/await
+ * uniformly. `apiObject`/`method` are indexed dynamically, hence the `any`
+ * casts. Privileged API usage stays in background code (see CLAUDE.md).
+ */
 export function callBrowserAPI(
   apiObject: BrowserAPIObject,
   method: string,

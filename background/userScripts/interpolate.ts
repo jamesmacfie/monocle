@@ -116,6 +116,10 @@ export const interpolatableStrings = (step: UserScriptStep): string[] => {
   }
 }
 
+// Flattens the interpolatable comparison values out of a (possibly nested)
+// condition tree so branch/while conditions participate in {{...}} expansion
+// like any other field. Only elementText/varCompare carry a template value;
+// the boolean combinators (not/allOf/anyOf) just recurse.
 const collectConditionValues = (
   condition: import("../../shared/types").UserScriptCondition,
 ): string[] => {
@@ -133,6 +137,10 @@ const collectConditionValues = (
   return values
 }
 
+// Pre-order traversal that descends into control-flow bodies (branch
+// then/else, forEach/while steps). Used to find every inline {{snippet:<id>}}
+// reference across the whole script, including ones nested inside loops and
+// branches, so they all resolve once before the run starts.
 const walkSteps = (
   steps: UserScriptStep[],
   visit: (step: UserScriptStep) => void,

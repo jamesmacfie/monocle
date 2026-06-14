@@ -26,7 +26,12 @@ import {
 import { KeybindingDisplay } from "../KeybindingDisplay"
 import { CommandName } from "./CommandName"
 
-// Keybinding capture component
+// Inline keybinding-capture widget rendered in place of an action row while the
+// "Set keybinding" action is active. Collects a sequence of canonical strokes
+// (getKeyString), live-checks each partial sequence for conflicts/requirement
+// violations against the background, and blocks save until clean. Uses
+// onKeyDownCapture so it intercepts keys before cmdk routes them to the palette
+// search field. See docs/keybindings.md.
 function KeybindingCapture({
   onComplete,
   onCancel,
@@ -199,6 +204,11 @@ function KeybindingCapture({
   )
 }
 
+// One row in the per-suggestion action menu. Most actions just call onSelect,
+// but two carry extra UI state machines: confirm-gated actions require a second
+// press ("Are you sure?"), and the setKeybinding action swaps itself for the
+// KeybindingCapture widget (driven by the keybinding.slice capture state) when
+// chosen, then commits the captured binding via handleKeybindingComplete.
 function ActionItem({
   action,
   onSelect,
@@ -304,6 +314,11 @@ function ActionItem({
     onSelect(action.id)
   }
 
+  // Persist a captured keybinding for the target command, then tear down the
+  // capture flow. Order matters: complete the Redux capture, refresh so the new
+  // shortcut renders, then FORCE-close the action menu (handleCloseActions
+  // normally refuses to close while capture is active) and refocus search. On
+  // failure the capture is left active so the user can retry.
   const handleKeybindingComplete = async (keybinding: string) => {
     if (!targetCommandId) {
       console.error("No target command ID for keybinding")

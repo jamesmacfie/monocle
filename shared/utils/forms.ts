@@ -1,6 +1,17 @@
+// Architecture: shared/ helpers for inline command forms. The palette stores
+// inline-input values as strings (or string[] for multi/text-list) in
+// navigation page state, so these utilities normalize FormField defaults and
+// validation to that representation. Used by CommandList (submit validation)
+// and navigation.slice (seeding a new page's formValues). See
+// docs/command-schema.md.
 import type { FormField, Suggestion } from "../types"
 import { validateWithJsonSchema } from "./validation"
 
+/**
+ * Default value for a field in the palette's string-based form-value space:
+ * booleans become "true"/"false", multi/text-list become string[], numbers
+ * become a string, everything else its string default (or "").
+ */
 export function getDefaultValue(field: FormField): string | string[] {
   switch (field.type) {
     case "text":
@@ -27,6 +38,8 @@ export function getDefaultValue(field: FormField): string | string[] {
   }
 }
 
+// Extract the FormField of every `input`-type row on a page — the page's form
+// schema, used to seed defaults and validate on submit.
 export function collectInputFieldsFromSuggestions(
   suggestions: Suggestion[],
 ): FormField[] {
@@ -35,6 +48,8 @@ export function collectInputFieldsFromSuggestions(
     .map((s) => (s as any).inputField as FormField)
 }
 
+// Build the initial `formValues` map for a freshly-opened page from its input
+// rows' defaults. Called by navigation.slice when pushing/refreshing a page.
 export function computeDefaultFormValues(
   suggestions: Suggestion[],
 ): Record<string, string | string[]> {
@@ -43,6 +58,11 @@ export function computeDefaultFormValues(
   return Object.fromEntries(entries)
 }
 
+// Validate the current page's form values against its fields before a submit
+// command runs (CommandList.handleSubmitForm). Enforces `required` and each
+// field's JSON-Schema `validation`; multi/text-list values are joined to a
+// comma string for the scalar schema check. Returns the list of failing field
+// ids so the UI can surface them.
 export function validateFormValues(
   values: Record<string, string | string[] | undefined>,
   fields: FormField[],

@@ -1,3 +1,13 @@
+// Architecture: background command system, site-SDK bridge. Converts the
+// untrusted, page-owned command declarations registered via window.Monocle
+// (validated by the public schema) into background-owned CommandNodes the rest
+// of the palette treats as ordinary commands. The page never runs in the
+// background: every execute/children/search/getResults handler closes over the
+// owning tab's scope and round-trips back into the page world through the
+// content bridge (invokeSiteSdk -> monocle-sdk-invoke). Internal ids encode
+// origin + registration + public path so dynamic children resolve and
+// settings/favorites stay scoped to the site. See docs/site-sdk.md and
+// docs/site-sdk-security.md.
 import type {
   Browser,
   CommandNode,
@@ -109,8 +119,13 @@ const convertCommands = (
   return commands.map((command) => convertCommand(command, context))
 }
 
-// Wrap one SDK command as a normal background command. Execution/dynamic
-// resolution is still delegated back to the owning page callback.
+// Wrap one SDK command as a normal background command, one branch per public
+// node type (action/submit/group/search/input/display). The wrapper never
+// holds page logic: every executable/dynamic field becomes a closure that
+// invokeSiteSdk's back into the owning page (re-validating any returned
+// children/results) so privileged background code never trusts or runs page
+// output. allowCustomKeybinding is forced false — page-owned commands must not
+// claim global keybindings.
 const convertCommand = (
   command: SiteSdkCommand,
   context: ConvertContext,

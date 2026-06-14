@@ -21,6 +21,17 @@ const NO_CONFLICT: CheckKeybindingConflictResponse = {
   conflictingCommand: null,
 }
 
+/**
+ * Single-binding pre-assignment check used by the capture UIs. Evaluates three
+ * independent layers and reports them together: (1) per-command requirement
+ * gating (e.g. snippet bindings must carry a non-shift modifier), (2)
+ * exact-binding conflicts, and (3) open-palette shadows (a binding sitting on a
+ * proper prefix of a sequence). The target command's behavior decides whether a
+ * prefix overlap is a hard shadow or just a warning, so it's resolved (falling
+ * back to the catalog row for context-restricted commands). Errors degrade to
+ * NO_CONFLICT — a check failure must never block assignment. See
+ * docs/keybindings.md.
+ */
 export const checkKeybindingConflict = async (
   { keybinding, excludeCommandId, context }: CheckKeybindingConflictMessage,
   sender?: any,
