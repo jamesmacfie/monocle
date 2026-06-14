@@ -334,6 +334,14 @@ export type ValidationResult<T> =
   | { success: false; error: string; issues: z.ZodError["issues"] }
 
 // Validation utility functions
+
+/**
+ * Parse an unknown inbound message against the whole MessageSchema union. This
+ * is the message-boundary guard the background runs on every UI->background
+ * message before dispatch; on failure it returns a flattened, human-readable
+ * error rather than throwing. The thrown-error catch guards against
+ * non-ZodError failures (e.g. a malformed schema).
+ */
 export function validateMessage(
   message: unknown,
 ): ValidationResult<z.infer<typeof MessageSchema>> {
@@ -380,7 +388,9 @@ export function validateBrowserContext(
   }
 }
 
-// Helper function to format validation errors
+// Collapse a ZodError's issues into one "Validation failed: msg at path, ..."
+// string. Used by every validator here so callers get a single error string
+// (the structured `issues` array is also returned for callers that need it).
 function formatValidationError(error: z.ZodError): string {
   const issues = error.issues.map((issue) => {
     const path = issue.path.length > 0 ? ` at ${issue.path.join(".")}` : ""
@@ -391,6 +401,14 @@ function formatValidationError(error: z.ZodError): string {
 }
 
 // Type-safe message validator that maintains TypeScript types
+
+/**
+ * Build a reusable validator bound to a single schema, returning a typed
+ * ValidationResult. Used by individual background message handlers to validate
+ * their specific payload (rather than the whole MessageSchema union), so the
+ * narrowed `data` type flows through. Same flatten-and-never-throw contract as
+ * validateMessage.
+ */
 export function createMessageValidator<T extends z.ZodSchema>(schema: T) {
   return (message: unknown): ValidationResult<z.infer<T>> => {
     try {
