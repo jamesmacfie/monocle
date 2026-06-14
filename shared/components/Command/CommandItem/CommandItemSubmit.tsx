@@ -33,7 +33,10 @@ export function CommandItemSubmit({
     if (e.key === "Escape") {
       e.preventDefault()
       e.stopPropagation()
-      const searchInput = document.querySelector(
+      // Resolve from the button's root node so this works inside the closed
+      // content shadow root, which `document.querySelector` cannot reach.
+      const root = e.currentTarget.getRootNode() as Document | ShadowRoot
+      const searchInput = root.querySelector(
         "input[cmdk-input]",
       ) as HTMLInputElement | null
       searchInput?.focus()

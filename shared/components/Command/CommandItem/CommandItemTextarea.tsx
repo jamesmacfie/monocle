@@ -70,10 +70,10 @@ export function CommandItemTextarea({
       e.preventDefault()
       e.stopPropagation()
       if (e.key === "ArrowUp" && isFirstSelectableItem(textarea)) {
-        focusSearchInput()
+        focusSearchInput(textarea)
         return
       }
-      forwardArrowToCmdk(e.key)
+      forwardArrowToCmdk(e.key, textarea)
       return
     }
 
@@ -81,7 +81,7 @@ export function CommandItemTextarea({
     if (e.key === "Escape") {
       e.preventDefault()
       e.stopPropagation()
-      focusSearchInput()
+      focusSearchInput(e.currentTarget)
       return
     }
 

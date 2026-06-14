@@ -7,15 +7,24 @@ import { useCallback } from "react"
  * - Backspace: stop propagation (prevent navigateBack)
  */
 export function useInlineInputKeys() {
-  const getSearchInput = useCallback((): HTMLInputElement | null => {
-    return document.querySelector(
-      "input[cmdk-input]",
-    ) as HTMLInputElement | null
-  }, [])
+  // Resolve the search input from the focused element's root node rather than
+  // `document`. In content-overlay mode the palette lives in a *closed* shadow
+  // root, which `document.querySelector` cannot pierce; querying the shared
+  // root node finds the input in both the shadow DOM and the new-tab DOM.
+  const getSearchInput = useCallback(
+    (from?: Element | null): HTMLInputElement | null => {
+      const root = (from?.getRootNode?.() ?? document) as Document | ShadowRoot
+      return root.querySelector("input[cmdk-input]") as HTMLInputElement | null
+    },
+    [],
+  )
 
-  const focusSearchInput = useCallback(() => {
-    getSearchInput()?.focus()
-  }, [getSearchInput])
+  const focusSearchInput = useCallback(
+    (from?: Element | null) => {
+      getSearchInput(from)?.focus()
+    },
+    [getSearchInput],
+  )
 
   const isFirstSelectableItem = useCallback((target: Element | null) => {
     const itemEl = target?.closest("[cmdk-item]") as HTMLElement | null
@@ -27,8 +36,8 @@ export function useInlineInputKeys() {
   }, [])
 
   const forwardArrowToCmdk = useCallback(
-    (key: "ArrowUp" | "ArrowDown") => {
-      const searchInput = getSearchInput()
+    (key: "ArrowUp" | "ArrowDown", from?: Element | null) => {
+      const searchInput = getSearchInput(from)
       if (!searchInput) return
       const ev = new KeyboardEvent("keydown", { key, bubbles: true })
       searchInput.dispatchEvent(ev)
@@ -51,10 +60,10 @@ export function useInlineInputKeys() {
         e.preventDefault()
         e.stopPropagation()
         if (e.key === "ArrowUp" && isFirstSelectableItem(e.currentTarget)) {
-          focusSearchInput()
+          focusSearchInput(e.currentTarget)
           return true
         }
-        forwardArrowToCmdk(e.key)
+        forwardArrowToCmdk(e.key, e.currentTarget)
         return true
       }
 
@@ -62,7 +71,7 @@ export function useInlineInputKeys() {
       if (e.key === "Escape") {
         e.preventDefault()
         e.stopPropagation()
-        focusSearchInput()
+        focusSearchInput(e.currentTarget)
         return true
       }
 

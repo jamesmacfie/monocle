@@ -49,10 +49,10 @@ export function CommandItemSelect({
       e.preventDefault()
       e.stopPropagation()
       if (e.key === "ArrowUp" && isFirstSelectableItem(e.currentTarget)) {
-        focusSearchInput()
+        focusSearchInput(e.currentTarget)
         return
       }
-      forwardArrowToCmdk(e.key)
+      forwardArrowToCmdk(e.key, e.currentTarget)
       return
     }
 
