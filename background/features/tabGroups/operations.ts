@@ -1,8 +1,4 @@
-// Architecture: background feature layer (Tab Groups). The live-browser side of
-// saved collections: capture the focused window's tabs into a SavedGroup, and
-// restore a SavedGroup back into real tabs. Pure browser-API orchestration
-// (no storage); storage.ts owns persistence. Privileged tab/window calls stay
-// here in the background. See docs/features.md.
+import { isFirefox } from "../../../shared/utils/browser"
 import {
   createTab,
   createWindow,
@@ -35,6 +31,10 @@ export const captureCurrentWindow = async (
       url: tab.url,
       title: tab.title || undefined,
       pinned: Boolean(tab.pinned) || undefined,
+      // Firefox-only container id (undefined on Chrome). mutedInfo is the
+      // browser-API shape; store only when actually muted.
+      cookieStoreId: tab.cookieStoreId || undefined,
+      muted: tab.mutedInfo?.muted ? true : undefined,
     })
   }
 
@@ -52,6 +52,41 @@ export const captureCurrentWindow = async (
 // the rest are appended; otherwise tabs open in the current window. Per-tab
 // pinned state is reapplied in both modes. Individual failures (e.g. a
 // chrome:// url) are swallowed so one bad tab can't abort the restore.
+// Container is a Firefox-only concept; Chrome's tabs/windows.create rejects an
+// unknown cookieStoreId. Persisted on every browser but only reapplied here so a
+// Firefox-saved group restores into its container while a Chrome restore (e.g.
+// of an imported config) ignores it instead of failing every tab.
+const containerProps = (tab: SavedTab): { cookieStoreId?: string } =>
+  isFirefox && tab.cookieStoreId ? { cookieStoreId: tab.cookieStoreId } : {}
+
+// Reapply state that create calls can't take directly: muted has no create-time
+// option in either browser, and windows.create can't pin its seed tab. Best
+// effort so a failure here never aborts the rest of the restore.
+const applyPostCreateState = async (
+  tabId: number | undefined,
+  tab: SavedTab,
+  pinSeedTab = false,
+): Promise<void> => {
+  if (typeof tabId !== "number") {
+    return
+  }
+  const update: { pinned?: boolean; muted?: boolean } = {}
+  if (pinSeedTab && tab.pinned) {
+    update.pinned = true
+  }
+  if (tab.muted) {
+    update.muted = true
+  }
+  if (Object.keys(update).length === 0) {
+    return
+  }
+  try {
+    await updateTab(tabId, update)
+  } catch {
+    // Best effort.
+  }
+}
+
 export const restoreGroup = async (
   group: SavedGroup,
   openInNewWindow: boolean,
@@ -62,23 +97,22 @@ export const restoreGroup = async (
 
   if (openInNewWindow) {
     const [first, ...rest] = group.tabs
-    const window = await createWindow({ url: first.url })
-    const firstTabId = window?.tabs?.[0]?.id
-    if (first.pinned && typeof firstTabId === "number") {
-      try {
-        await updateTab(firstTabId, { pinned: true })
-      } catch {
-        // Best effort.
-      }
-    }
+    const window = await createWindow({
+      url: first.url,
+      ...containerProps(first),
+    })
+    // windows.create can't pin or mute its seed tab, so reapply both after.
+    await applyPostCreateState(window?.tabs?.[0]?.id, first, true)
     for (const tab of rest) {
       try {
-        await createTab({
+        const created = await createTab({
           windowId: window?.id,
           url: tab.url,
           pinned: Boolean(tab.pinned),
           active: false,
+          ...containerProps(tab),
         })
+        await applyPostCreateState(created?.id, tab)
       } catch {
         // Best effort per tab.
       }
@@ -88,11 +122,13 @@ export const restoreGroup = async (
 
   for (const tab of group.tabs) {
     try {
-      await createTab({
+      const created = await createTab({
         url: tab.url,
         pinned: Boolean(tab.pinned),
         active: false,
+        ...containerProps(tab),
       })
+      await applyPostCreateState(created?.id, tab)
     } catch {
       // Best effort per tab.
     }

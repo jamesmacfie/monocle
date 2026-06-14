@@ -75,6 +75,28 @@ describe("tab-groups capture", () => {
     expect(group.tabs[1].pinned).toBeUndefined()
     expect(capturedTabIds).toEqual([1, 2])
   })
+
+  it("records the Firefox container and mute state when present", async () => {
+    mocks.queryTabs.mockResolvedValueOnce([
+      {
+        id: 1,
+        url: "https://a.test",
+        cookieStoreId: "firefox-container-1",
+        mutedInfo: { muted: true },
+      },
+      { id: 2, url: "https://b.test", mutedInfo: { muted: false } },
+    ])
+
+    const { group } = await captureCurrentWindow("Work", 1)
+
+    expect(group.tabs[0]).toMatchObject({
+      cookieStoreId: "firefox-container-1",
+      muted: true,
+    })
+    // No container, not muted -> fields omitted (not false/empty string).
+    expect(group.tabs[1].cookieStoreId).toBeUndefined()
+    expect(group.tabs[1].muted).toBeUndefined()
+  })
 })
 
 describe("tab-groups restore", () => {
@@ -104,6 +126,39 @@ describe("tab-groups restore", () => {
     expect(mocks.createTab).toHaveBeenCalledWith({
       windowId: 99,
       url: "https://b.test",
+      pinned: false,
+      active: false,
+    })
+  })
+
+  it("reapplies mute state after the tab is created", async () => {
+    mocks.createTab.mockResolvedValue({ id: 555 })
+    const group = makeGroup({
+      tabs: [{ id: "t1", url: "https://a.test", muted: true }],
+    })
+
+    await restoreGroup(group, false)
+
+    expect(mocks.updateTab).toHaveBeenCalledWith(555, { muted: true })
+  })
+
+  it("does not pass a Firefox container id to Chrome's create call", async () => {
+    // isFirefox is false in this (Chrome) test env, so the saved container is
+    // ignored rather than passed to chrome.tabs.create (which would reject it).
+    const group = makeGroup({
+      tabs: [
+        {
+          id: "t1",
+          url: "https://a.test",
+          cookieStoreId: "firefox-container-1",
+        },
+      ],
+    })
+
+    await restoreGroup(group, false)
+
+    expect(mocks.createTab).toHaveBeenCalledWith({
+      url: "https://a.test",
       pinned: false,
       active: false,
     })

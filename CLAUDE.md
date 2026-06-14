@@ -111,13 +111,13 @@ Current feature status:
 | Surfaces | Working with review notes | Generic declarative-UI primitive: background-owned, owner-namespaced store (`monocle-surfaces`) of overlays/badges (`{kind, urlMatch, blocking, content:{icon,title,text,countdownTo}}`), rendered by one `SurfaceHost` mounted in the closed content shadow root and on the new tab. `get-surfaces {url}` query + `monocle-surfaces-changed` broadcast; URL gating reuses `matchesUrlPattern`; per-session (`userscript:*`) owners cleared on startup. Store get/set/clear/upsert/remove + URL gating have focused tests; manual overlay/badge smoke is still needed. |
 | Feature modules | Working with review notes | Background-owned `FeatureModule` registry (`background/features/`) contributing palette commands, a declarative settings page (FormField schema + Zod config validation + action buttons), runtime state, and lifecycle. Three stores: command settings (unchanged), `monocle-feature-config` (durable), `monocle-feature-state` (runtime). Generic `get-features`/`update-feature-config`/`execute-feature-action` messages; options Features pages with `SchemaForm`. Page UI is rendered through the generic Surfaces primitive, not per-feature components. The schema also supports a `record-list` FormField (per-row + per-child action buttons, rows projected via `settings.lists`, actions dispatched with a scalar `payload`) for features that manage a list of records. Config/state stores, registry projection (incl. lists), command contribution, and message validation (incl. payload) have focused tests; manual options + cross-tab smoke is still needed. |
 | Focus Mode | Working with review notes | First feature: URL blocklist, timestamp-based session (indefinite/timed/Pomodoro) in `monocle-feature-state` with a single `chrome.alarms` end alarm. UI is built entirely on the Surfaces primitive — `projectFocusSurfaces` emits a blocking overlay (scoped to the blocklist) + a new-tab badge; no focus-specific UI/messages. `isUrlBlocked`, session timing, config schema, and surface projection have focused tests; manual overlay/countdown smoke is still needed. |
-| Tab Groups | Working with review notes | Second feature (`background/features/tabGroups/`). Cross-browser **saved collections** (named tab lists with per-tab `pinned`, stored in `monocle-feature-config`): Save Tabs as Group, Restore Tab Group, managed on the settings page via the `record-list` field (Restore/Rename/Delete per group, Pin/Unpin per tab). Chrome-only **native-group** commands (`chrome.tabs.group`/`chrome.tabGroups.*`, wrapped in `background/utils/browserTabGroups.ts`, gated `supportedBrowsers:["chrome"]` + optional `tabGroups` permission): add tab to group, group window, rename/recolor/collapse/ungroup. Capture/restore (pinned), storage CRUD + pin toggle, handleAction routing, lists projection, and native `supportedBrowsers` have focused tests; manual Chrome/Firefox smoke still needed. |
+| Tab Groups | Working with review notes | Second feature (`background/features/tabGroups/`). Cross-browser **saved collections** (named tab lists with per-tab `pinned`, Firefox container `cookieStoreId`, and `muted` audio state, stored in `monocle-feature-config`): Save Tabs as Group, Restore Tab Group, managed on the settings page via the `record-list` field (Restore/Rename/Delete per group, Pin/Unpin per tab). Restore reapplies `muted` cross-browser and reopens tabs in their saved container on Firefox only (Chrome ignores `cookieStoreId`). Chrome-only **native-group** commands (`chrome.tabs.group`/`chrome.tabGroups.*`, wrapped in `background/utils/browserTabGroups.ts`, gated `supportedBrowsers:["chrome"]` + optional `tabGroups` permission): add tab to group, group window, rename/recolor/collapse/ungroup. Capture/restore (pinned + container + mute), storage CRUD + pin toggle, handleAction routing, lists projection, and native `supportedBrowsers` have focused tests; manual Chrome/Firefox smoke still needed. |
 
 Last verified validation:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
-- `pnpm test` passes cleanly (exit 0, 498 tests) with focused command-system,
+- `pnpm test` passes cleanly (exit 0, 503 tests) with focused command-system,
   palette-search (index/scoring/search-commands/slice staleness),
   browser-command, keybinding, URL-filtering, settings-management,
   snippet-storage, workflow-executor (full op vocabulary), user-script
@@ -126,8 +126,9 @@ Last verified validation:
   feature-registry (config/state stores, projection incl. record-list lists,
   command contribution),
   focus-mode (URL blocking, session timing, config schema, surface projection),
-  tab-groups (capture/restore with pinned, saved-group storage CRUD + pin
-  toggle, handleAction routing, lists projection, native supportedBrowsers),
+  tab-groups (capture/restore with pinned + Firefox container + mute,
+  saved-group storage CRUD + pin toggle, handleAction routing, lists
+  projection, native supportedBrowsers),
   surfaces-store (owner set/clear/upsert/remove, URL gating, session-owner
   cleanup, change broadcast), feature/surfaces-message validation, and GitHub
   parsing coverage. (Note: a fire-and-forget toast that rejects when the

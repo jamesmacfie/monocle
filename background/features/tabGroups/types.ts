@@ -7,14 +7,19 @@ import { z } from "zod"
 
 export const TAB_GROUPS_FEATURE_ID = "tab-groups"
 
-// One saved tab inside a group. Carries per-tab settings (currently `pinned`)
-// so a group restores in the same shape it was captured. `id` is a stable
-// handle for per-tab row actions (pin toggle); url is not unique within a group.
+// One saved tab inside a group. Carries per-tab settings so a group restores in
+// the same shape it was captured. `id` is a stable handle for per-tab row
+// actions (pin toggle); url is not unique within a group. `cookieStoreId` is the
+// Firefox container id — persisted on every browser but only reapplied on
+// Firefox restore (Chrome has no container concept and rejects the id). `muted`
+// is cross-browser audio mute state, reapplied via tabs.update after creation.
 export type SavedTab = {
   id: string
   url: string
   title?: string
   pinned?: boolean
+  cookieStoreId?: string
+  muted?: boolean
 }
 
 export type SavedGroup = {
@@ -40,6 +45,8 @@ const savedTabSchema = z.object({
   url: z.string().min(1),
   title: z.string().optional(),
   pinned: z.boolean().optional(),
+  cookieStoreId: z.string().optional(),
+  muted: z.boolean().optional(),
 })
 
 const savedGroupSchema = z.object({
