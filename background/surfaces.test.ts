@@ -85,6 +85,48 @@ describe("surfaces store", () => {
   })
 })
 
+describe("write validation (canonical SurfaceSchema)", () => {
+  it("accepts a modal surface carrying structured content blocks", async () => {
+    await upsertSurface("command:url-as-qr-code", {
+      id: "qr",
+      kind: "modal",
+      content: {
+        title: "https://x.com",
+        blocks: [{ type: "image", dataUrl: "data:image/png;base64,AAA" }],
+      },
+    })
+    const surfaces = await getSurfacesForUrl("https://x.com")
+    expect(surfaces).toHaveLength(1)
+    expect(surfaces[0].content.blocks).toHaveLength(1)
+  })
+
+  it("drops invalid surfaces instead of persisting them", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    await setOwnerSurfaces("focus-mode", [
+      badge("good"),
+      // Unknown kind: rejected by the strict schema.
+      { id: "bad", kind: "popup", content: {} } as unknown as Surface,
+    ])
+    const ids = (await getSurfacesForUrl("https://x.com")).map((s) => s.id)
+    expect(ids).toEqual(["good"])
+    expect(errorSpy).toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+
+  it("rejects an upsert whose payload fails validation", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    await upsertSurface("userscript:1", {
+      id: "x",
+      kind: "badge",
+      // Unknown extra key: strict schema rejects it.
+      content: { title: "ok", bogus: true },
+    } as unknown as Surface)
+    expect(await getSurfacesForUrl("https://x.com")).toHaveLength(0)
+    expect(errorSpy).toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+})
+
 describe("getSurfacesForUrl URL gating", () => {
   it("includes an overlay only when its allowUrls match", async () => {
     await setOwnerSurfaces("focus-mode", [

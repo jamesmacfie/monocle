@@ -455,6 +455,9 @@ const runEngineStep = async (
             ...(step.content.countdownTo !== undefined
               ? { countdownTo: step.content.countdownTo }
               : {}),
+            ...(step.content.blocks !== undefined
+              ? { blocks: step.content.blocks }
+              : {}),
           },
         })
         break

@@ -10,6 +10,10 @@
 // rejected loudly with field-level errors, never coerced.
 import { z } from "zod"
 import { ICON_NAMES } from "./icons"
+import {
+  SurfaceContentSchema as BaseSurfaceContentSchema,
+  SurfaceUrlMatchSchema as BaseSurfaceUrlMatchSchema,
+} from "./surfaceValidation"
 import type {
   UserScript,
   UserScriptCondition,
@@ -317,21 +321,19 @@ const RunCommandStepSchema = EngineStepBaseSchema.extend({
 
 // Surfaces: declarative overlay/badge data (rendered by the trusted
 // SurfaceHost — no markup). content.title/text are interpolated by the engine.
-const SurfaceContentSchema = z
-  .object({
-    icon: z.enum(ICON_NAMES).optional(),
-    title: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
-    text: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
-    countdownTo: z.number().int().nonnegative().optional(),
-  })
-  .strict()
+// These EXTEND the canonical surface schemas (./surfaceValidation, the single
+// source of truth) with tighter caps on the attacker-facing free-text fields,
+// so the user-script shape tracks the canonical one and the two cannot drift
+// (icon/countdownTo/blocks are inherited verbatim).
+const SurfaceContentSchema = BaseSurfaceContentSchema.extend({
+  title: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
+  text: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
+}).strict()
 
-const SurfaceUrlMatchSchema = z
-  .object({
-    allowUrls: z.array(BoundedString).max(100).optional(),
-    denyUrls: z.array(BoundedString).max(100).optional(),
-  })
-  .strict()
+const SurfaceUrlMatchSchema = BaseSurfaceUrlMatchSchema.extend({
+  allowUrls: z.array(BoundedString).max(100).optional(),
+  denyUrls: z.array(BoundedString).max(100).optional(),
+}).strict()
 
 const ShowSurfaceStepSchema = EngineStepBaseSchema.extend({
   op: z.literal("showSurface"),

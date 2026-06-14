@@ -7,6 +7,7 @@
 // mutation broadcasts monocle-surfaces-changed so open tabs re-query. URL
 // gating reuses matchesUrlPattern. See docs/surfaces.md.
 import type { Surface } from "../shared/types"
+import { validateSurface } from "../shared/types"
 import { getBrowserAPI } from "../shared/utils/extension-api"
 import { broadcastToAllTabs } from "./utils/browserTabs"
 import { withStorageLock } from "./utils/storageMutex"
@@ -53,17 +54,39 @@ const broadcastChanged = async (): Promise<void> => {
   await broadcastToAllTabs({ type: "monocle-surfaces-changed" })
 }
 
+// Validate surfaces against the canonical schema before they enter the store.
+// This closes the silent-accept gap: features and command-owned surfaces were
+// previously trusted, while only user-scripts were validated. Invalid surfaces
+// are logged and skipped (fail-quiet, mirroring the content-block posture)
+// rather than corrupting the store.
+const validateSurfaces = (surfaces: Surface[], ownerId: string): Surface[] => {
+  const valid: Surface[] = []
+  for (const surface of surfaces) {
+    const parsed = validateSurface(surface)
+    if (parsed) {
+      valid.push(parsed)
+    } else {
+      console.error(
+        `[surfaces] Dropped invalid surface for owner "${ownerId}":`,
+        surface,
+      )
+    }
+  }
+  return valid
+}
+
 /** Replaces all of an owner's surfaces (the common feature path). */
 export const setOwnerSurfaces = async (
   ownerId: string,
   surfaces: Surface[],
 ): Promise<void> => {
+  const valid = validateSurfaces(surfaces, ownerId)
   await withStorageLock(STORAGE_KEY, async () => {
     const store = await loadStore()
-    if (surfaces.length === 0) {
+    if (valid.length === 0) {
       delete store[ownerId]
     } else {
-      store[ownerId] = surfaces
+      store[ownerId] = valid
     }
     await saveStore(store)
   })
@@ -87,11 +110,15 @@ export const upsertSurface = async (
   ownerId: string,
   surface: Surface,
 ): Promise<void> => {
+  const [valid] = validateSurfaces([surface], ownerId)
+  if (!valid) {
+    return
+  }
   await withStorageLock(STORAGE_KEY, async () => {
     const store = await loadStore()
     const existing = store[ownerId] ?? []
-    const next = existing.filter((entry) => entry.id !== surface.id)
-    next.push(surface)
+    const next = existing.filter((entry) => entry.id !== valid.id)
+    next.push(valid)
     store[ownerId] = next
     await saveStore(store)
   })
