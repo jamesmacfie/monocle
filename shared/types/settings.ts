@@ -50,6 +50,7 @@ export interface PermissionSettings {
     sessions: boolean
     storage: boolean
     tabs: boolean
+    tabGroups: boolean
     management: boolean
   }
 }

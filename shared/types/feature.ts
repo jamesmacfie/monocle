@@ -26,6 +26,16 @@ export type FeatureSettingsSchema = {
   actions?: FeatureSettingsAction[]
 }
 
+// One row in a `record-list` field. Display data only (the underlying record
+// stays in the feature's config); actions reference it by `id`. `children` are
+// nested rows (e.g. the tabs inside a saved group) shown when the row expands.
+export type RecordListItem = {
+  id: string
+  label: string
+  sublabel?: string
+  children?: RecordListItem[]
+}
+
 // Data-only projection of a feature for the options UI. No functions.
 export type FeatureDescriptor = {
   id: string
@@ -35,8 +45,16 @@ export type FeatureDescriptor = {
   schema?: FeatureSettingsSchema
   // Persisted config merged over the feature's defaults.
   config: Record<string, unknown>
+  // Derived display rows for `record-list` fields, keyed by field id. Projected
+  // by the feature from its config (raw config shape ≠ row shape).
+  lists?: Record<string, RecordListItem[]>
   hasSettings: boolean
 }
+
+// Payload sent with a record-list action: identifies the group row (`itemId`),
+// an optional child row (`childId`), an edited value (`value`, for rename), or
+// any feature-specific scalars (e.g. `pinned`).
+export type FeatureActionPayload = Record<string, string | number | boolean>
 
 export type GetFeaturesResponse = {
   features: FeatureDescriptor[]
@@ -49,4 +67,7 @@ export type UpdateFeatureConfigResponse = {
 
 export type ExecuteFeatureActionResponse = {
   success: boolean
+  // The re-projected descriptor after the action ran, so the options page can
+  // refresh record-list rows without a second round trip.
+  feature?: FeatureDescriptor
 }

@@ -2,11 +2,11 @@
 
 Feature commands are palette commands contributed by **feature modules** rather than by a static category file. Unlike `browser`/`tools`/`ui`/`new-tab`, there is no `background/commands/features/index.ts`; the rows in this category are projected from the feature registry at command-load time. `background/commands/source.ts` (`loadCommandEntries`) calls `getFeatureCommands(context)` from `background/features/index.ts` and maps the result into the `features` category. Each registered `FeatureModule` returns its palette commands from `feature.commands(context)`; the registry simply flattens them.
 
-Today the registry holds a single feature, **Focus Mode** (`background/features/focus/`), which contributes one state-aware group. For the registry mechanics (config/state stores, the options Features page, lifecycle) see [../features.md](../features.md); for Focus Mode's session model, blocklist, and the declarative overlay/badge it renders see [../focus-mode.md](../focus-mode.md).
+Today the registry holds two features: **Focus Mode** (`background/features/focus/`), which contributes one state-aware group, and **Tab Groups** (`background/features/tabGroups/`), which contributes cross-browser saved-collection commands plus a Chrome-only native-group command layer. For the registry mechanics (config/state stores, the options Features page, lifecycle) see [../features.md](../features.md); for Focus Mode's session model see [../focus-mode.md](../focus-mode.md).
 
 ## How these commands are loaded
 
-- `background/features/index.ts` holds the static registry (`const features = [focusFeature]`). `getFeatureCommands(context)` is `features.flatMap((f) => f.commands(context))`.
+- `background/features/index.ts` holds the static registry (`const features = [focusFeature, tabGroupsFeature]`). `getFeatureCommands(context)` is `features.flatMap((f) => f.commands(context))`.
 - `background/commands/source.ts` maps those commands into the `features` category (`{ id: "features", label: "Features" }`) alongside the other sources. They are part of the always-on command set (not gated like new-tab commands), then run through the standard `supportsPlatform` filter.
 - The loader is synchronous, so a feature's `commands()` must be synchronous. Runtime state (e.g. whether a focus session is active) shows through **async node labels** and through which children a group resolves at navigation time, not through changing the command list.
 
@@ -21,6 +21,15 @@ Today the registry holds a single feature, **Focus Mode** (`background/features/
 | └ Start Pomodoro | `focus-start-pomodoro` | `action` | Start a session for the configured default duration | Child, when no session is active |
 | └ Stop Focus | `focus-stop` | `action` | End the current focus session | Child, when a session is active |
 | └ Configure Focus Mode | `feature-focus-mode-configure` | `action` | Open the Focus Mode settings page | Child, always |
+| Save Tabs as Group | `tab-groups-save` | `group` (form) | Save this window's tabs as a named group | All contexts |
+| Restore Tab Group | `tab-groups-restore` | `group` | Reopen a saved group (all tabs or one at a time) | All contexts |
+| Configure Tab Groups | `feature-tab-groups-configure` | `action` | Open the Tab Groups settings page | All contexts |
+| Add Tab to Group | `tab-groups-native-add` | `group` | Add the current tab to a native group (or a new one) | Chrome only |
+| Group All Tabs in Window | `tab-groups-native-group-window` | `action` | Group every tab in the window | Chrome only |
+| Rename Current Group | `tab-groups-native-rename` | `group` (form) | Rename the current tab's native group | Chrome only |
+| Set Group Color | `tab-groups-native-color` | `group` | Recolor the current tab's native group | Chrome only |
+| Collapse/Expand Current Group | `tab-groups-native-collapse` | `action` | Toggle the group's collapsed state | Chrome only |
+| Ungroup Current Tab | `tab-groups-native-ungroup` | `action` | Remove the current tab from its group | Chrome only |
 
 ---
 
@@ -55,6 +64,20 @@ Built by the shared helper `createConfigureFeatureCommand(FOCUS_FEATURE_ID, "Foc
 Sessions, the blocklist, the timed/Pomodoro end alarm, and the blocking overlay + new-tab badge (rendered through the Surfaces primitive, not focus-specific UI) are all documented in [../focus-mode.md](../focus-mode.md).
 
 ---
+
+## Tab Groups
+
+Source: `background/features/tabGroups/`. The feature splits into two command families:
+
+**Saved collections** (`commands.ts`, cross-browser) — durable named lists of tabs, Session Buddy / OneTab style, persisted in the feature config (`monocle-feature-config`, key `tab-groups`, `config.savedGroups`):
+
+- **Save Tabs as Group** (`tab-groups-save`) — a form group (name `input` + `submit`). On submit, `captureCurrentWindow` reads the focused window's tabs (recording each tab's `pinned`), `addSavedGroup` persists, and (if `closeTabsAfterSave`) the captured tabs are closed.
+- **Restore Tab Group** (`tab-groups-restore`) — a `group` listing each saved collection; each expands to "Open all N tabs" plus one `action` per tab. Restore honors per-tab `pinned` and the `openRestoredInNewWindow` setting.
+- **Configure Tab Groups** (`feature-tab-groups-configure`) — opens the settings page.
+
+**Native groups** (`nativeCommands.ts`, Chrome only — `supportedBrowsers: ["chrome"]`, `permissions: ["tabGroups", "tabs"]`) — operate on the browser's live tab-strip groups via `chrome.tabs.group/ungroup` + `chrome.tabGroups.*` (wrapped in `background/utils/browserTabGroups.ts`); nothing is persisted. They are filtered out on Firefox by the standard `supportsPlatform` pass: add current tab to a group / new group, group all tabs in the window, rename / recolor / collapse-expand the current group, ungroup the current tab.
+
+The settings page manages saved groups through the generic `record-list` field (see [../features.md](../features.md)): per-group **Restore** / **Rename** (inline) / **Delete**, and per-tab **Pin/Unpin** on expanded rows, plus the two behavioral switches. Row actions dispatch `execute-feature-action` with a `payload`; `handleAction` (`index.ts`) routes `restore-group` / `rename-group` / `delete-group` / `toggle-pin`.
 
 ## Adding a feature's commands
 

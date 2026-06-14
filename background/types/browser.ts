@@ -2,6 +2,7 @@
 
 export type BrowserAPIObject =
   | "tabs"
+  | "tabGroups"
   | "windows"
   | "runtime"
   | "scripting"

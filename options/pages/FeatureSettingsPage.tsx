@@ -67,6 +67,7 @@ export function FeatureSettingsPage() {
             <SchemaForm
               schema={feature.schema}
               config={feature.config}
+              lists={feature.lists}
               busy={updating}
               onSave={(config) =>
                 dispatch(updateFeatureConfig({ featureId, config }))
@@ -75,6 +76,9 @@ export function FeatureSettingsPage() {
                 dispatch(
                   executeFeatureAction({ featureId, actionId: action.id }),
                 )
+              }
+              onItemAction={(_fieldId, actionId, payload) =>
+                dispatch(executeFeatureAction({ featureId, actionId, payload }))
               }
             />
           ) : (

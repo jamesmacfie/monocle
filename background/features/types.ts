@@ -6,12 +6,17 @@
 // and an optional startup lifecycle hook. See docs/features.md.
 import type { z } from "zod"
 import type { Browser, CommandIcon, CommandNode } from "../../shared/types"
-import type { FeatureSettingsSchema } from "../../shared/types/feature"
+import type {
+  FeatureActionPayload,
+  FeatureSettingsSchema,
+  RecordListItem,
+} from "../../shared/types/feature"
 
 // Context handed to a settings-page action handler. Kept minimal; grows as
-// features need it.
+// features need it. `payload` carries record-list row data (itemId/childId/…).
 export type FeatureActionContext = {
   context?: Browser.Context
+  payload?: FeatureActionPayload
 }
 
 export type FeatureSettings<TConfig> = {
@@ -21,7 +26,15 @@ export type FeatureSettings<TConfig> = {
   configSchema: z.ZodType<TConfig>
   // Applied as the base under any persisted config.
   defaults: TConfig
-  // Settings-page action buttons (Start/Stop/etc). Optional.
+  // Projects derived display rows for `record-list` fields, keyed by field id.
+  // The raw config shape differs from a row's {id,label,sublabel}, so a feature
+  // maps it here. Read into FeatureDescriptor.lists by the registry. Optional.
+  lists?: (
+    config: TConfig,
+  ) =>
+    | Record<string, RecordListItem[]>
+    | Promise<Record<string, RecordListItem[]>>
+  // Settings-page action buttons (Start/Stop/etc) and record-list row actions.
   handleAction?: (
     actionId: string,
     ctx: FeatureActionContext,

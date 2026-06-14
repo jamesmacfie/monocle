@@ -86,4 +86,13 @@ describe("feature registry", () => {
       defaultDurationMinutes: 25,
     })
   })
+
+  it("registers tab-groups and projects a (record-list) lists key", async () => {
+    expect(getFeatureById("tab-groups")).toBeDefined()
+    const descriptors = await getFeatureDescriptors()
+    const tabGroups = descriptors.find((feature) => feature.id === "tab-groups")
+    expect(tabGroups?.hasSettings).toBe(true)
+    // The lists projection is always present (empty array when no saved groups).
+    expect(tabGroups?.lists?.savedGroups).toEqual([])
+  })
 })

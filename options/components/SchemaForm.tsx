@@ -4,14 +4,19 @@
 // CommandItem/* renderers are CMDK list items and are NOT reusable here, so
 // this is dedicated options code; grow it lockstep as features need more field
 // types. See docs/features.md.
-import { Plus, Trash2 } from "lucide-react"
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type {
   FeatureSettingsAction,
   FeatureSettingsSchema,
   FormField,
+  RecordListAction,
+  RecordListItem,
 } from "../../shared/types"
 import { Button, Input, Panel, Select, Switch } from "./ui"
+
+// Payload shape for a record-list row action (mirrors FeatureActionPayload).
+type ItemActionPayload = Record<string, string | number | boolean>
 
 type DraftValue = string | string[] | boolean
 
@@ -36,6 +41,9 @@ const initialValue = (
       return Array.isArray(raw) ? (raw as string[]) : []
     case "number":
       return raw != null ? String(raw) : ""
+    case "record-list":
+      // Record-list rows are not draft-edited; rendered from descriptor.lists.
+      return ""
     default:
       return raw != null ? String(raw) : ""
   }
@@ -45,14 +53,23 @@ const initialValue = (
 // config object for persistence, coercing each field to its real type (boolean,
 // trimmed non-empty string[], number — empty number becomes NaN so the
 // feature's Zod configSchema rejects it). Only schema-declared fields are
-// emitted, dropping any stale draft keys.
+// emitted, dropping any stale draft keys. `saved` is the persisted config, used
+// to carry record-list values through untouched.
 const buildConfig = (
   schema: FeatureSettingsSchema,
   draft: Draft,
+  saved: Record<string, unknown>,
 ): Record<string, unknown> => {
   const config: Record<string, unknown> = {}
   for (const section of schema.sections) {
     for (const field of section.fields) {
+      // Record-list values are feature-owned and mutated via row actions, not
+      // through the draft. Preserve the persisted value so saving other fields
+      // doesn't drop them (the feature's configSchema usually requires them).
+      if (field.type === "record-list") {
+        config[field.id] = saved[field.id]
+        continue
+      }
       const value = draft[field.id]
       switch (field.type) {
         case "switch":
@@ -129,6 +146,194 @@ function TextListField({
         <Plus className="h-4 w-4" />
         Add
       </Button>
+    </div>
+  )
+}
+
+// One action button on a record-list row. `editLabel` actions don't fire here;
+// the parent row swaps in an inline editor and dispatches on confirm.
+function RowActionButton({
+  label,
+  style,
+  disabled,
+  onClick,
+}: {
+  label: string
+  style?: "default" | "primary" | "danger"
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={style === "danger" ? "danger" : "secondary"}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
+  )
+}
+
+// One row in a record-list: a group (with optional expandable children) or a
+// child. Buttons dispatch the field's declared actions with a payload that
+// identifies the row; `editLabel` actions open an inline rename editor.
+function RecordListRow({
+  item,
+  actions,
+  childActions,
+  basePayload,
+  busy,
+  onItemAction,
+}: {
+  item: RecordListItem
+  actions: RecordListAction[]
+  childActions?: RecordListAction[]
+  basePayload: ItemActionPayload
+  busy?: boolean
+  onItemAction: (actionId: string, payload: ItemActionPayload) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
+  const hasChildren = Boolean(item.children && item.children.length > 0)
+  const expandable = Boolean(childActions)
+
+  return (
+    <div className="rounded-md border border-[var(--color-border)]">
+      <div className="flex items-center gap-2 px-3 py-2">
+        {expandable ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={expanded ? "Collapse" : "Expand"}
+            disabled={!hasChildren}
+            onClick={() => setExpanded((prev) => !prev)}
+          >
+            {expanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          {editing ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editValue}
+                autoFocus
+                onChange={(event) => setEditValue(event.target.value)}
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={busy || editValue.trim().length === 0}
+                onClick={() => {
+                  onItemAction(editing, {
+                    ...basePayload,
+                    value: editValue.trim(),
+                  })
+                  setEditing(null)
+                }}
+              >
+                Save
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setEditing(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="truncate text-sm font-medium">{item.label}</div>
+              {item.sublabel ? (
+                <div className="truncate text-xs text-[var(--color-fg-muted)]">
+                  {item.sublabel}
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+        {editing ? null : (
+          <div className="flex shrink-0 items-center gap-2">
+            {actions.map((action) => (
+              <RowActionButton
+                key={action.id}
+                label={action.label}
+                style={action.style}
+                disabled={busy}
+                onClick={() => {
+                  if (action.editLabel) {
+                    setEditValue(item.label)
+                    setEditing(action.id)
+                    return
+                  }
+                  onItemAction(action.id, basePayload)
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      {expanded && item.children ? (
+        <div className="space-y-2 border-t border-[var(--color-border)] px-3 py-2">
+          {item.children.map((child) => (
+            <RecordListRow
+              key={child.id}
+              item={child}
+              actions={childActions ?? []}
+              basePayload={{ ...basePayload, childId: child.id }}
+              busy={busy}
+              onItemAction={onItemAction}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+// A `record-list` field: a list of feature-owned rows from descriptor.lists,
+// each carrying group-level itemActions and (when expanded) per-child
+// childActions. Lives outside the draft — actions dispatch immediately.
+function RecordListField({
+  field,
+  items,
+  busy,
+  onItemAction,
+}: {
+  field: Extract<FormField, { type: "record-list" }>
+  items: RecordListItem[]
+  busy?: boolean
+  onItemAction: (actionId: string, payload: ItemActionPayload) => void
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="text-sm text-[var(--color-fg-muted)]">
+        {field.emptyText ?? "No entries yet."}
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-2">
+      {items.map((item) => (
+        <RecordListRow
+          key={item.id}
+          item={item}
+          actions={field.itemActions}
+          childActions={field.childActions}
+          basePayload={{ itemId: item.id }}
+          busy={busy}
+          onItemAction={onItemAction}
+        />
+      ))}
     </div>
   )
 }
@@ -214,15 +419,23 @@ function FieldControl({
 export function SchemaForm({
   schema,
   config,
+  lists,
   busy,
   onSave,
   onAction,
+  onItemAction,
 }: {
   schema: FeatureSettingsSchema
   config: Record<string, unknown>
+  lists?: Record<string, RecordListItem[]>
   busy?: boolean
   onSave: (config: Record<string, unknown>) => void
   onAction?: (action: FeatureSettingsAction) => void
+  onItemAction?: (
+    fieldId: string,
+    actionId: string,
+    payload: ItemActionPayload,
+  ) => void
 }) {
   const buildInitialDraft = useMemo(
     () => (): Draft => {
@@ -271,11 +484,22 @@ export function SchemaForm({
                 <label className="block text-sm font-medium">
                   {field.label}
                 </label>
-                <FieldControl
-                  field={field}
-                  value={draft[field.id]}
-                  onChange={(next) => setField(field.id, next)}
-                />
+                {field.type === "record-list" ? (
+                  <RecordListField
+                    field={field}
+                    items={lists?.[field.id] ?? []}
+                    busy={busy}
+                    onItemAction={(actionId, payload) =>
+                      onItemAction?.(field.id, actionId, payload)
+                    }
+                  />
+                ) : (
+                  <FieldControl
+                    field={field}
+                    value={draft[field.id]}
+                    onChange={(next) => setField(field.id, next)}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -286,7 +510,7 @@ export function SchemaForm({
         <Button
           type="button"
           disabled={busy || !dirty}
-          onClick={() => onSave(buildConfig(schema, draft))}
+          onClick={() => onSave(buildConfig(schema, draft, config))}
         >
           Save
         </Button>

@@ -7,7 +7,11 @@ import type {
   GetFeaturesMessage,
   UpdateFeatureConfigMessage,
 } from "../../shared/types"
-import { getFeatureById, getFeatureDescriptors } from "../features"
+import {
+  getFeatureById,
+  getFeatureDescriptor,
+  getFeatureDescriptors,
+} from "../features"
 import { setFeatureConfig } from "../features/config"
 import { createMessageHandler } from "../utils/messages"
 
@@ -45,9 +49,13 @@ const handleExecuteFeatureAction = async (
 
   await feature.settings.handleAction(message.actionId, {
     context: message.context,
+    payload: message.payload,
   })
 
-  return { success: true }
+  // Re-project so the options page can refresh record-list rows (a row action
+  // may have mutated this feature's config) without reloading every feature.
+  const descriptor = await getFeatureDescriptor(message.featureId)
+  return { success: true, feature: descriptor }
 }
 
 export const getFeatures = createMessageHandler(

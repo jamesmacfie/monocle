@@ -13,11 +13,12 @@ import type {
 } from "../../shared/types"
 import { getFeatureConfig } from "./config"
 import { focusFeature } from "./focus"
+import { tabGroupsFeature } from "./tabGroups"
 import type { FeatureModule } from "./types"
 
 // Static registry. Promote to dynamic registration only once a second/third
 // feature validates the shape (see docs/features.md).
-const features: FeatureModule<any>[] = [focusFeature]
+const features: FeatureModule<any>[] = [focusFeature, tabGroupsFeature]
 
 export const getFeatures = (): FeatureModule<any>[] => features
 
@@ -31,28 +32,46 @@ export const getFeatureById = (
 export const getFeatureCommands = (context?: Browser.Context): CommandNode[] =>
   features.flatMap((feature) => feature.commands(context))
 
+// Data-only projection of a single feature for the options page. Config is
+// merged over defaults; record-list rows are projected via settings.lists.
+const projectFeatureDescriptor = async (
+  feature: FeatureModule<any>,
+): Promise<FeatureDescriptor> => {
+  const config = feature.settings
+    ? await getFeatureConfig(
+        feature.id,
+        feature.settings.defaults as Record<string, unknown>,
+      )
+    : {}
+
+  const lists = feature.settings?.lists
+    ? await feature.settings.lists(config)
+    : undefined
+
+  return {
+    id: feature.id,
+    name: feature.name,
+    description: feature.description,
+    icon: feature.icon,
+    schema: feature.settings?.schema,
+    config,
+    lists,
+    hasSettings: Boolean(feature.settings),
+  }
+}
+
 // Data-only projection for the options page. Config is merged over defaults.
 export const getFeatureDescriptors = async (): Promise<FeatureDescriptor[]> => {
-  return Promise.all(
-    features.map(async (feature): Promise<FeatureDescriptor> => {
-      const config = feature.settings
-        ? await getFeatureConfig(
-            feature.id,
-            feature.settings.defaults as Record<string, unknown>,
-          )
-        : {}
+  return Promise.all(features.map(projectFeatureDescriptor))
+}
 
-      return {
-        id: feature.id,
-        name: feature.name,
-        description: feature.description,
-        icon: feature.icon,
-        schema: feature.settings?.schema,
-        config,
-        hasSettings: Boolean(feature.settings),
-      }
-    }),
-  )
+// Re-project one feature by id (used after a settings-page action mutates its
+// config, so the UI can refresh without reloading every feature).
+export const getFeatureDescriptor = async (
+  featureId: string,
+): Promise<FeatureDescriptor | undefined> => {
+  const feature = getFeatureById(featureId)
+  return feature ? projectFeatureDescriptor(feature) : undefined
 }
 
 // Startup lifecycle. Called once from background/index.ts.

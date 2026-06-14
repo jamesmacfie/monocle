@@ -282,6 +282,9 @@ export const ExecuteFeatureActionMessageSchema = z.object({
   featureId: z.string().min(1, "Feature ID cannot be empty"),
   actionId: z.string().min(1, "Action ID cannot be empty"),
   context: BrowserContextSchema.optional(),
+  payload: z
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+    .optional(),
 })
 
 // Surfaces query.

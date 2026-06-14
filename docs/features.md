@@ -40,6 +40,11 @@ type FeatureModule<TConfig> = {
     schema: FeatureSettingsSchema          // sections of FormField + actions
     configSchema: ZodType<TConfig>         // validates config at the boundary
     defaults: TConfig
+    // Project derived display rows for `record-list` fields, keyed by field id
+    // (raw config shape ≠ a row's {id,label,sublabel}). Optional.
+    lists?: (config: TConfig) => Record<string, RecordListItem[]> | Promise<…>
+    // ctx carries an optional `payload` (record-list row data: itemId/childId/
+    // value/scalars) so one handler serves both global and per-row actions.
     handleAction?: (actionId, ctx) => Promise<void> | void
     // Called after a validated config is persisted, so the feature can react
     // (e.g. re-project surfaces). Focus Mode uses this to re-evaluate its
@@ -67,6 +72,7 @@ type FeatureDescriptor = {
   icon?: CommandIcon
   schema?: FeatureSettingsSchema
   config: Record<string, unknown>   // persisted config merged over defaults
+  lists?: Record<string, RecordListItem[]>  // derived rows for record-list fields
   hasSettings: boolean
 }
 ```
@@ -77,6 +83,31 @@ type FeatureDescriptor = {
 field with URL `validation`. (Note: the palette's `CommandItem/*` renderers are
 CMDK list items and are *not* reusable on the options form, so the options page
 ships its own `SchemaForm` renderer — see below.)
+
+### `record-list` — a managed list of feature-owned records
+
+For features that manage a growing list of records (Tab Groups' saved
+collections), the `record-list` `FormField` variant renders that list with
+**per-row action buttons** — something the flat fields + global `actions` can't
+express. It is the one field type whose data is *not* draft-edited:
+
+- Rows come from `descriptor.lists[field.id]` (projected by `settings.lists`),
+  not from `config[field.id]` — so the stored shape (`{ id, name, tabs, … }`)
+  stays independent of the row shape (`{ id, label, sublabel, children? }`).
+- The field declares `itemActions` (group-row buttons) and optional
+  `childActions` (per-child buttons; rows with `children` expand). An action
+  with `editLabel: true` opens an inline editor and dispatches with
+  `payload.value` (e.g. Rename); others dispatch immediately.
+- Each button fires `execute-feature-action` with a `payload` identifying the
+  row — `{ itemId }` for a group, `{ itemId, childId }` for a child, plus
+  `value`/scalars. The feature's `handleAction` reads `ctx.payload` and mutates
+  config (delete/rename/pin) or does runtime work (restore). The handler returns
+  the **re-projected descriptor** so `SchemaForm` refreshes rows without a full
+  reload. `record-list` config values are preserved verbatim through Save (they
+  are owned by row actions, not the draft).
+
+Tab Groups (`background/features/tabGroups/`) is the first consumer; see
+[commands/features.md](./commands/features.md).
 
 ---
 
@@ -164,7 +195,12 @@ Generic feature messages (router: `background/messages/index.ts`; types in
 | --- | --- | --- | --- |
 | `get-features` | UI → bg | — | `{ features: FeatureDescriptor[] }` |
 | `update-feature-config` | UI → bg | `{ featureId, config }` | `{ success, config }` |
-| `execute-feature-action` | UI → bg | `{ featureId, actionId, context? }` | `{ success }` |
+| `execute-feature-action` | UI → bg | `{ featureId, actionId, context?, payload? }` | `{ success, feature? }` |
+
+`payload` (scalar map) carries `record-list` row data (`itemId`/`childId`/
+`value`/…). The response includes the **re-projected `feature`** descriptor so a
+row action's effect on config (and its derived `lists`) shows in the UI without
+a reload.
 
 A feature that needs page UI pushes [surfaces](./surfaces.md) into the surfaces
 store rather than defining its own messages — the generic `get-surfaces` query

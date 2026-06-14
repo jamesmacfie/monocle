@@ -28,6 +28,7 @@ const permissionDisplayNames: Record<PermissionKey, string> = {
   sessions: "Sessions",
   storage: "Storage",
   tabs: "Tabs",
+  tabGroups: "Tab Groups",
   management: "Manage Extensions",
 }
 

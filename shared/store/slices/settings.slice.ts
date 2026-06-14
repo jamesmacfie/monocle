@@ -57,6 +57,7 @@ const initialState: SettingsState = {
       sessions: false,
       storage: false,
       tabs: false,
+      tabGroups: false,
       management: false,
     },
   },

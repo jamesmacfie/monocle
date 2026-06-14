@@ -77,24 +77,31 @@ export const updateFeatureConfig = createAsyncThunk<
 )
 
 export const executeFeatureAction = createAsyncThunk<
-  { featureId: string },
-  { featureId: string; actionId: string },
+  { featureId: string; feature?: FeatureDescriptor },
+  {
+    featureId: string
+    actionId: string
+    payload?: Record<string, string | number | boolean>
+  },
   { extra: FeaturesThunkApi; rejectValue: string }
 >(
   "features/executeAction",
-  async ({ featureId, actionId }, { extra, rejectWithValue }) => {
+  async ({ featureId, actionId, payload }, { extra, rejectWithValue }) => {
     try {
       const response = (await getSendMessage(extra)({
         type: "execute-feature-action",
         featureId,
         actionId,
+        payload,
       })) as ExecuteFeatureActionResponse & { error?: string }
 
       if (response?.error) {
         return rejectWithValue(response.error)
       }
 
-      return { featureId }
+      // The handler returns the re-projected descriptor so record-list rows
+      // refresh after the mutation (save/rename/delete/pin) without a reload.
+      return { featureId, feature: response.feature }
     } catch (error) {
       return rejectWithValue(
         error instanceof Error ? error.message : "Failed to run action",
@@ -151,6 +158,18 @@ export const featuresSlice = createSlice({
       .addCase(updateFeatureConfig.rejected, (state, action) => {
         setUpdating(state, action.meta.arg.featureId, false)
         state.error = action.payload ?? "Failed to update feature"
+      })
+      .addCase(executeFeatureAction.fulfilled, (state, action) => {
+        const updated = action.payload.feature
+        if (!updated) {
+          return
+        }
+        const index = state.features.findIndex(
+          (feature) => feature.id === updated.id,
+        )
+        if (index !== -1) {
+          state.features[index] = updated
+        }
       })
       .addCase(executeFeatureAction.rejected, (state, action) => {
         state.error = action.payload ?? "Failed to run action"

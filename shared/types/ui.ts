@@ -65,7 +65,30 @@ export type FormField = {
       defaultValue?: string // Hex color like #RRGGBB
       placeholder?: string
     }
+  | {
+      // A list of feature-owned records (e.g. saved tab groups), rendered by the
+      // options-page SchemaForm only. Rows are NOT edited as a draft: they come
+      // from the feature descriptor's `lists[field.id]` projection and each
+      // declared action dispatches `execute-feature-action` with a payload
+      // identifying the row (and child). Group rows with `children` expand to
+      // reveal per-child rows (e.g. a group's tabs) carrying `childActions`.
+      type: "record-list"
+      itemActions: RecordListAction[]
+      childActions?: RecordListAction[]
+      emptyText?: string
+    }
 )
+
+// One button on a record-list row (or child row). `id` is the action id sent to
+// the feature's handleAction; `editLabel` makes the row enter inline-edit mode
+// and dispatch with `payload.value` set to the edited text (e.g. Rename).
+export type RecordListAction = {
+  id: string
+  label: string
+  icon?: string
+  style?: "default" | "primary" | "danger"
+  editLabel?: boolean
+}
 
 // JSON Schema type for validation
 export interface JSONSchema {

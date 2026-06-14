@@ -134,7 +134,14 @@ export default defineConfig({
       extension_pages: getExtensionPagesCsp(command),
     },
     host_permissions: externalHosts,
-    optional_permissions: [...baseOptionalPermissions],
+    // "tabGroups" powers the native Chrome tab-group commands
+    // (background/features/tabGroups/nativeCommands.ts). Chrome-only: Firefox
+    // has no chrome.tabGroups API, and declaring an unknown optional permission
+    // there trips the build, so it is appended for non-Firefox targets only.
+    optional_permissions:
+      browser === "firefox"
+        ? [...baseOptionalPermissions]
+        : [...baseOptionalPermissions, "tabGroups"],
     ...(shouldDeclareActionShortcut(browser, command)
       ? actionShortcutCommand
       : {}),

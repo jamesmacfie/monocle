@@ -55,6 +55,7 @@ export const BROWSER_PERMISSIONS = [
   "sessions",
   "storage",
   "tabs",
+  "tabGroups",
   "management",
 ] as const
 

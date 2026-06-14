@@ -39,6 +39,28 @@ describe("feature message validation", () => {
     ).toBe(true)
   })
 
+  it("accepts execute-feature-action with a scalar payload", () => {
+    expect(
+      validateMessage({
+        type: "execute-feature-action",
+        featureId: "tab-groups",
+        actionId: "toggle-pin",
+        payload: { itemId: "g1", childId: "t2", pinned: true },
+      }).success,
+    ).toBe(true)
+  })
+
+  it("rejects execute-feature-action with a non-scalar payload value", () => {
+    expect(
+      validateMessage({
+        type: "execute-feature-action",
+        featureId: "tab-groups",
+        actionId: "restore-group",
+        payload: { itemId: { nested: "no" } },
+      }).success,
+    ).toBe(false)
+  })
+
   it("accepts get-surfaces with a url", () => {
     expect(
       validateMessage({ type: "get-surfaces", url: "https://example.com" })

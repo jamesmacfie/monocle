@@ -24,6 +24,8 @@ export const getPermissions = async (_message: GetPermissionsMessage) => {
       sessions: permissions.includes("sessions"),
       storage: permissions.includes("storage"),
       tabs: permissions.includes("tabs"),
+      // Chrome-only permission; absent (false) on Firefox.
+      tabGroups: permissions.includes("tabGroups" as any),
       management: permissions.includes("management"),
     }
 

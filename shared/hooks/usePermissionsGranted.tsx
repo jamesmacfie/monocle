@@ -16,6 +16,7 @@ export type PermissionKey =
   | "sessions"
   | "storage"
   | "tabs"
+  | "tabGroups"
   | "management"
 
 let lastPermissionRefreshAt = 0

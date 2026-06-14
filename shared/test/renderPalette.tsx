@@ -131,6 +131,7 @@ export const renderPalette = (
           sessions: true,
           storage: true,
           tabs: true,
+          tabGroups: true,
           management: true,
         },
       },

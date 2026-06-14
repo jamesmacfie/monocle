@@ -386,6 +386,8 @@ export type ExecuteFeatureActionMessage = {
   featureId: string
   actionId: string
   context?: Browser.Context
+  // Optional payload for record-list row actions (itemId/childId/value/…).
+  payload?: Record<string, string | number | boolean>
 }
 
 // Surfaces (handled in background/messages/surfaces.ts). Response in
