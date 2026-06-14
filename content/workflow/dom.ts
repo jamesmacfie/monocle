@@ -93,7 +93,7 @@ const findElementsByText = async (
   if (selector.within) {
     const withinElement = await findElement(selector.within, options)
     if (!withinElement) {
-      console.log("[WorkflowExecutor] 'within' element not found")
+      // The `within` scope never appeared — no elements can match inside it.
       return []
     }
     searchRoot = withinElement

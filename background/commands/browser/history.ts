@@ -4,6 +4,7 @@ import {
   getActiveTab,
   getHistoryItems,
   sendTabMessage,
+  sendToastToActiveTab,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
 import { getFaviconUrl } from "../../utils/favicon"
@@ -136,41 +137,26 @@ function createHistoryItemCommand(item: HistoryItem): CommandNode {
               })
 
               // Show success notification
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-alert",
-                level: "success",
-                message: `Opening ${item.title || item.url} in new tab`,
-                icon: { name: "ExternalLink" },
-              })
+              await sendToastToActiveTab(
+                "success",
+                `Opening ${item.title || item.url} in new tab`,
+              )
             }
           } else {
             // Smart navigation: switch to existing tab or navigate current tab
             await focusOrGoToUrl(item.url)
 
             // Show success notification
-            const activeTab = await getActiveTab()
-            if (activeTab) {
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-alert",
-                level: "success",
-                message: `Navigating to ${item.title || item.url}`,
-                icon: { name: "ExternalLink" },
-              })
-            }
+            await sendToastToActiveTab(
+              "success",
+              `Navigating to ${item.title || item.url}`,
+            )
           }
         } catch (error) {
           console.error(`Failed to open history item: ${item.title}`, error)
 
           // Show error notification
-          const activeTab = await getActiveTab()
-          if (activeTab) {
-            await sendTabMessage(activeTab.id, {
-              type: "monocle-alert",
-              level: "error",
-              message: "Failed to open history item",
-              icon: { name: "AlertTriangle" },
-            })
-          }
+          await sendToastToActiveTab("error", "Failed to open history item")
         }
       }
     },

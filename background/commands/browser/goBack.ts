@@ -2,7 +2,7 @@ import type { ActionCommandNode } from "../../../shared/types"
 import {
   callBrowserAPI,
   getActiveTab,
-  sendTabMessage,
+  sendToastToActiveTab,
 } from "../../utils/browser"
 
 async function canGoBack(): Promise<boolean> {
@@ -51,33 +51,18 @@ export const goBackCommand: ActionCommandNode = {
 
     const canNavigateBack = await canGoBack()
     if (!canNavigateBack) {
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-alert",
-        level: "info",
-        message: "No previous page in history",
-        icon: { name: "ArrowLeft" },
-      })
+      await sendToastToActiveTab("info", "No previous page in history")
       return
     }
 
     try {
       await goBack(activeTab.id)
 
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-alert",
-        level: "success",
-        message: "Navigated back",
-        icon: { name: "ArrowLeft" },
-      })
+      await sendToastToActiveTab("success", "Navigated back")
     } catch (error) {
       console.error("Failed to go back:", error)
 
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-alert",
-        level: "error",
-        message: "Failed to navigate back",
-        icon: { name: "AlertTriangle" },
-      })
+      await sendToastToActiveTab("error", "Failed to navigate back")
     }
   },
 }

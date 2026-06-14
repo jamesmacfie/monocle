@@ -1,19 +1,5 @@
 // Browser extension events
 
-// Icon type for events (matches Alert component expectations)
-type LegacyIcon = {
-  name?: string
-  url?: string
-}
-
-export type AlertEvent = {
-  type: "monocle-alert"
-  level: "info" | "warning" | "success" | "error"
-  message: string
-  icon?: LegacyIcon
-  copyText?: string
-}
-
 export type CopyToClipboardEvent = {
   type: "monocle-copyToClipboard"
   message: string
@@ -82,7 +68,6 @@ export type SurfacesChangedEvent = {
 }
 
 export type Event =
-  | AlertEvent
   | CopyToClipboardEvent
   | InsertTextEvent
   | NewTabEvent

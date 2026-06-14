@@ -87,22 +87,11 @@ export const useCommandPaletteStateRedux = () => {
         })
         return true
       } else if (message.type === "execute-workflow-content") {
-        console.log("[Content] Received workflow execution request:", {
-          name: message.workflow?.name,
-          stepCount: message.workflow?.steps?.length ?? 0,
-        })
-
         // Keep this listener synchronous. Some runtimes treat an async
         // listener's returned Promise as the message response.
         workflowExecutor
           .executeWorkflow(message.workflow as Workflow)
           .then((result) => {
-            console.log("[Content] Workflow execution completed:", {
-              success: result.success,
-              error: result.error,
-              stepCount: result.stepResults?.length || 0,
-            })
-
             sendResponse({ result })
           })
           .catch((error) => {

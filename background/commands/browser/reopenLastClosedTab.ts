@@ -1,9 +1,8 @@
 import type { CommandNode } from "../../../shared/types"
 import {
-  getActiveTab,
   getRecentlyClosed,
   restoreSession,
-  sendTabMessage,
+  sendToastToActiveTab,
 } from "../../utils/browser"
 
 export const reopenLastClosedTab: CommandNode = {
@@ -17,20 +16,11 @@ export const reopenLastClosedTab: CommandNode = {
   actionLabel: "Reopen",
   permissions: ["sessions"],
   execute: async () => {
-    const activeTab = await getActiveTab()
-
     try {
       const recentlyClosed = await getRecentlyClosed()
 
       if (!recentlyClosed || recentlyClosed.length === 0) {
-        if (activeTab) {
-          await sendTabMessage(activeTab.id, {
-            type: "monocle-alert",
-            level: "info",
-            message: "No recently closed tabs to restore",
-            icon: { name: "Info" },
-          })
-        }
+        await sendToastToActiveTab("info", "No recently closed tabs to restore")
         return
       }
 
@@ -38,41 +28,22 @@ export const reopenLastClosedTab: CommandNode = {
       const lastClosedTab = recentlyClosed.find((session) => session.tab)
 
       if (!lastClosedTab) {
-        if (activeTab) {
-          await sendTabMessage(activeTab.id, {
-            type: "monocle-alert",
-            level: "info",
-            message:
-              "No recently closed tabs to restore (only windows available)",
-            icon: { name: "Info" },
-          })
-        }
+        await sendToastToActiveTab(
+          "info",
+          "No recently closed tabs to restore (only windows available)",
+        )
         return
       }
 
       // Restore the session
       await restoreSession(lastClosedTab.tab?.sessionId)
 
-      if (activeTab) {
-        const tabTitle = lastClosedTab.tab?.title || "Tab"
-        await sendTabMessage(activeTab.id, {
-          type: "monocle-alert",
-          level: "success",
-          message: `Reopened: ${tabTitle}`,
-          icon: { name: "RotateCcw" },
-        })
-      }
+      const tabTitle = lastClosedTab.tab?.title || "Tab"
+      await sendToastToActiveTab("success", `Reopened: ${tabTitle}`)
     } catch (error) {
       console.error("Failed to reopen last closed tab:", error)
 
-      if (activeTab) {
-        await sendTabMessage(activeTab.id, {
-          type: "monocle-alert",
-          level: "error",
-          message: "Failed to reopen last closed tab",
-          icon: { name: "AlertTriangle" },
-        })
-      }
+      await sendToastToActiveTab("error", "Failed to reopen last closed tab")
     }
   },
 }

@@ -1,8 +1,7 @@
 import type { CommandIcon, CommandNode } from "../../../shared/types"
 import {
-  getActiveTab,
   getRecentDownloads,
-  sendTabMessage,
+  sendToastToActiveTab,
   showDownload,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
@@ -263,21 +262,15 @@ export const downloads: CommandNode = {
               configurable: false,
             },
             execute: async () => {
-              const activeTab = await getActiveTab()
-
               try {
                 await showDownload(item.id)
               } catch (error) {
                 console.error(`Failed to show download: ${filename}`, error)
 
-                if (activeTab) {
-                  await sendTabMessage(activeTab.id, {
-                    type: "monocle-alert",
-                    level: "error",
-                    message: `Failed to show ${filename}. File may have been moved or deleted.`,
-                    icon: { name: "AlertTriangle" },
-                  })
-                }
+                await sendToastToActiveTab(
+                  "error",
+                  `Failed to show ${filename}. File may have been moved or deleted.`,
+                )
               }
             },
           }

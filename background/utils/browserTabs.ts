@@ -66,34 +66,30 @@ export async function captureVisibleTab(windowId?: number): Promise<string> {
   })
 }
 
-export async function sendSuccessToastToActiveTab(
+export async function sendToastToActiveTab(
+  level: "info" | "warning" | "success" | "error",
   message: string,
-  event?: Partial<Event>,
 ): Promise<void> {
   const activeTab = await getActiveTab()
   if (activeTab) {
     await sendTabMessage(activeTab.id, {
-      ...(event || {}),
       type: "monocle-toast",
-      level: "success",
-      message: message,
+      level,
+      message,
     })
   }
 }
 
+export async function sendSuccessToastToActiveTab(
+  message: string,
+): Promise<void> {
+  await sendToastToActiveTab("success", message)
+}
+
 export async function sendErrorToastToActiveTab(
   message: string,
-  event?: Partial<Event>,
 ): Promise<void> {
-  const activeTab = await getActiveTab()
-  if (activeTab) {
-    await sendTabMessage(activeTab.id, {
-      ...(event || {}),
-      type: "monocle-toast",
-      level: "error",
-      message: message,
-    })
-  }
+  await sendToastToActiveTab("error", message)
 }
 
 export async function focusOrGoToUrl(url: string): Promise<void> {

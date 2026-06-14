@@ -12,7 +12,7 @@
 // resets it naturally. Initialized from entrypoints/content.tsx; top frame
 // only (the content script does not run in iframes).
 import type { UserScriptPageTriggerSpec } from "../shared/types"
-import { getBrowserAPI } from "../shared/utils/extension-api"
+import { sendRuntimeMessageSafe } from "../shared/utils/extension-api"
 import { trackSpaNavigation } from "./utils/spaNavigation"
 import { findElement } from "./workflow/dom"
 
@@ -45,26 +45,12 @@ const state = {
   initialized: false,
 }
 
-const sendMessage = (message: unknown): Promise<unknown> =>
-  new Promise((resolve) => {
-    try {
-      getBrowserAPI().runtime.sendMessage(message, (response: unknown) => {
-        // Read lastError so the runtime doesn't log unchecked errors when
-        // the background is briefly unavailable.
-        void getBrowserAPI().runtime.lastError
-        resolve(response)
-      })
-    } catch {
-      resolve(undefined)
-    }
-  })
-
 const reportFire = (
   scriptId: string,
   type: "urlMatch" | "elementAppears",
   matchedText?: string,
 ): void => {
-  void sendMessage({
+  void sendRuntimeMessageSafe({
     type: "user-script-trigger-fired",
     scriptId,
     trigger: {
@@ -113,10 +99,12 @@ const armTriggers = (specs: UserScriptPageTriggerSpec[]): void => {
 const refreshTriggersForUrl = async (
   fireKind: "load" | "spa",
 ): Promise<void> => {
-  const response = (await sendMessage({
+  const response = await sendRuntimeMessageSafe<{
+    triggers?: UserScriptPageTriggerSpec[]
+  }>({
     type: "get-user-script-triggers",
     url: window.location.href,
-  })) as { triggers?: UserScriptPageTriggerSpec[] } | undefined
+  })
 
   armTriggers(response?.triggers ?? [])
   fireUrlTriggers(fireKind)

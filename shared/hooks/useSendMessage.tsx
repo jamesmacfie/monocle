@@ -20,6 +20,7 @@ import type {
   UpdateCommandSettingMessage,
   UpdateSnippetMessage,
 } from "../../shared/types"
+import { sendRuntimeMessage } from "../utils/extension-api"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
 
 // Messages without context for easier usage
@@ -92,15 +93,7 @@ export function useSendMessage() {
           ? message
           : { ...message, context }
 
-      return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(messageWithContext, (response) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError)
-          } else {
-            resolve(response)
-          }
-        })
-      })
+      return sendRuntimeMessage(messageWithContext)
     },
     [],
   )

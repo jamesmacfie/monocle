@@ -1,9 +1,8 @@
 import type { CommandNode } from "../../../shared/types"
 import {
-  getActiveTab,
   getRecentlyClosed,
   restoreSession,
-  sendTabMessage,
+  sendToastToActiveTab,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
 import { getFaviconUrl } from "../../utils/favicon"
@@ -89,30 +88,20 @@ export const recentlyClosed: CommandNode = {
               configurable: false,
             },
             execute: async () => {
-              const activeTab = await getActiveTab()
-
               try {
                 await restoreSession(tab.sessionId)
 
-                if (activeTab) {
-                  await sendTabMessage(activeTab.id, {
-                    type: "monocle-alert",
-                    level: "success",
-                    message: `Restored tab: ${tab.title || "Tab"}`,
-                    icon: { name: "RotateCcw" },
-                  })
-                }
+                await sendToastToActiveTab(
+                  "success",
+                  `Restored tab: ${tab.title || "Tab"}`,
+                )
               } catch (error) {
                 console.error("Failed to restore tab:", error)
 
-                if (activeTab) {
-                  await sendTabMessage(activeTab.id, {
-                    type: "monocle-alert",
-                    level: "error",
-                    message: `Failed to restore tab: ${tab.title || "Tab"}`,
-                    icon: { name: "AlertTriangle" },
-                  })
-                }
+                await sendToastToActiveTab(
+                  "error",
+                  `Failed to restore tab: ${tab.title || "Tab"}`,
+                )
               }
             },
           })
@@ -147,30 +136,17 @@ export const recentlyClosed: CommandNode = {
               configurable: false,
             },
             execute: async () => {
-              const activeTab = await getActiveTab()
-
               try {
                 await restoreSession(window.sessionId)
 
-                if (activeTab) {
-                  await sendTabMessage(activeTab.id, {
-                    type: "monocle-alert",
-                    level: "success",
-                    message: `Restored window with ${tabCount} tabs`,
-                    icon: { name: "Monitor" },
-                  })
-                }
+                await sendToastToActiveTab(
+                  "success",
+                  `Restored window with ${tabCount} tabs`,
+                )
               } catch (error) {
                 console.error("Failed to restore window:", error)
 
-                if (activeTab) {
-                  await sendTabMessage(activeTab.id, {
-                    type: "monocle-alert",
-                    level: "error",
-                    message: "Failed to restore window",
-                    icon: { name: "AlertTriangle" },
-                  })
-                }
+                await sendToastToActiveTab("error", "Failed to restore window")
               }
             },
           })

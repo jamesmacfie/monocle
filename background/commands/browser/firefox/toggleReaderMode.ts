@@ -1,5 +1,5 @@
 import type { CommandNode } from "../../../../shared/types"
-import { getActiveTab, sendTabMessage } from "../../../utils/browser"
+import { getActiveTab, sendToastToActiveTab } from "../../../utils/browser"
 import { toggleReaderMode as toggleReaderModeAPI } from "../../../utils/firefox"
 
 export const toggleReaderMode: CommandNode = {
@@ -23,21 +23,14 @@ export const toggleReaderMode: CommandNode = {
     try {
       await toggleReaderModeAPI(activeTab.id)
 
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-alert",
-        level: "success",
-        message: "Toggled Reader Mode",
-        icon: { name: "BookOpen" },
-      })
+      await sendToastToActiveTab("success", "Toggled Reader Mode")
     } catch (error) {
       console.error("Failed to toggle reader mode:", error)
 
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-alert",
-        level: "error",
-        message: "Reader Mode not available for this page",
-        icon: { name: "AlertTriangle" },
-      })
+      await sendToastToActiveTab(
+        "error",
+        "Reader Mode not available for this page",
+      )
     }
   },
 }

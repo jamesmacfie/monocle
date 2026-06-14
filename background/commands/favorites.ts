@@ -1,6 +1,6 @@
 import type { ActionCommandNode, Browser } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
-import { getActiveTab } from "../utils/browser"
+import { sendToastToActiveTab } from "../utils/browser"
 import { withStorageLock } from "../utils/storageMutex"
 
 const STORAGE_KEY = "monocle-favoriteCommandIds"
@@ -124,27 +124,15 @@ export const clearFavoritesCommand: ActionCommandNode = {
       await b.storage.local.remove(STORAGE_KEY)
 
       // Send success notification
-      const activeTab = await getActiveTab()
-
-      if (activeTab) {
-        b.tabs.sendMessage(activeTab.id, {
-          type: "monocle-alert",
-          level: "success",
-          message: "Favorite commands cleared successfully",
-        })
-      }
+      await sendToastToActiveTab(
+        "success",
+        "Favorite commands cleared successfully",
+      )
     } catch (error) {
       console.error("Failed to clear favorite commands:", error)
 
       // Send error notification
-      const activeTab = await getActiveTab()
-      if (activeTab?.id) {
-        b.tabs.sendMessage(activeTab.id, {
-          type: "monocle-alert",
-          level: "error",
-          message: "Failed to clear favorite commands",
-        })
-      }
+      await sendToastToActiveTab("error", "Failed to clear favorite commands")
     }
   },
 }

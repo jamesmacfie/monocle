@@ -95,9 +95,6 @@ function processBookmarkNode(
                 // Show success notification
                 await sendSuccessToastToActiveTab(
                   `Opening ${node.title} in new tab`,
-                  {
-                    icon: { name: "ExternalLink" },
-                  },
                 )
               }
             } else {
@@ -105,17 +102,13 @@ function processBookmarkNode(
               await focusOrGoToUrl(node.url)
 
               // Show success notification
-              await sendSuccessToastToActiveTab(`Navigating to ${node.title}`, {
-                icon: { name: "ExternalLink" },
-              })
+              await sendSuccessToastToActiveTab(`Navigating to ${node.title}`)
             }
           } catch (error) {
             console.error(`Failed to open bookmark: ${node.title}`, error)
 
             // Show error notification
-            await sendErrorToastToActiveTab("Failed to open bookmark", {
-              icon: { name: "AlertTriangle" },
-            })
+            await sendErrorToastToActiveTab("Failed to open bookmark")
           }
         }
       },
@@ -258,9 +251,7 @@ export const addBookmark: CommandNode = {
             try {
               const url = values?.url?.trim() || ""
               if (!isValidUrl(url)) {
-                await sendErrorToastToActiveTab("A valid URL is required", {
-                  icon: { name: "AlertTriangle" },
-                })
+                await sendErrorToastToActiveTab("A valid URL is required")
                 return
               }
 
@@ -269,14 +260,10 @@ export const addBookmark: CommandNode = {
 
               await createBookmark({ parentId, title, url })
 
-              await sendSuccessToastToActiveTab(`Bookmarked "${title}"`, {
-                icon: { name: "Bookmark" },
-              })
+              await sendSuccessToastToActiveTab(`Bookmarked "${title}"`)
             } catch (error) {
               console.error("Failed to add bookmark:", error)
-              await sendErrorToastToActiveTab("Failed to add bookmark", {
-                icon: { name: "AlertTriangle" },
-              })
+              await sendErrorToastToActiveTab("Failed to add bookmark")
             }
           },
         },

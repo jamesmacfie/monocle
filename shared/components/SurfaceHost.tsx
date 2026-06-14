@@ -9,20 +9,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { trackSpaNavigation } from "../../content/utils/spaNavigation"
 import type { GetSurfacesResponse, Surface, SurfaceKind } from "../types"
-import { getBrowserAPI } from "../utils/extension-api"
+import { getBrowserAPI, sendRuntimeMessageSafe } from "../utils/extension-api"
 import { getIconComponent } from "./iconRegistry"
-
-const sendMessage = (message: unknown): Promise<unknown> =>
-  new Promise((resolve) => {
-    try {
-      getBrowserAPI().runtime.sendMessage(message, (response: unknown) => {
-        void getBrowserAPI().runtime.lastError
-        resolve(response)
-      })
-    } catch {
-      resolve(undefined)
-    }
-  })
 
 const formatCountdown = (ms: number): string => {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000))
@@ -143,10 +131,12 @@ export function SurfaceHost({ kinds }: { kinds: SurfaceKind[] }) {
   const [surfaces, setSurfaces] = useState<Surface[]>([])
 
   const refresh = useCallback(async () => {
-    const response = (await sendMessage({
+    const response = await sendRuntimeMessageSafe<
+      GetSurfacesResponse | { error?: string }
+    >({
       type: "get-surfaces",
       url: window.location.href,
-    })) as GetSurfacesResponse | { error?: string } | undefined
+    })
 
     if (!response || "error" in response) {
       setSurfaces([])
