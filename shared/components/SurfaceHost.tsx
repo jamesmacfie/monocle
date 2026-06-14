@@ -172,7 +172,29 @@ const ModalSurface = ({ surface }: { surface: Surface }) => {
             }
           }}
         >
-          <DialogContent container={container}>
+          <DialogContent
+            container={container}
+            onCloseAutoFocus={(event) => {
+              // On dismiss (Escape, backdrop, or ✕) return focus to the palette
+              // search input instead of letting Radix restore focus to its own
+              // target. Resolve the input from this dialog's root node — the
+              // closed content shadow root or the new-tab document — since
+              // `document.querySelector` cannot pierce the shadow root (mirrors
+              // useInlineInputKeys). Only take over when the palette is actually
+              // mounted; otherwise fall through to Radix's default restoration.
+              const root = container?.getRootNode() as
+                | Document
+                | ShadowRoot
+                | undefined
+              const searchInput = root?.querySelector(
+                "input[cmdk-input]",
+              ) as HTMLInputElement | null
+              if (searchInput) {
+                event.preventDefault()
+                searchInput.focus()
+              }
+            }}
+          >
             <DialogHeader>
               <DialogTitle>{title ?? "Monocle"}</DialogTitle>
               {text ? (
