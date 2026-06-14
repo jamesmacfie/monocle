@@ -3,8 +3,14 @@ import { memo, type ReactNode, useEffect, useRef, useState } from "react"
 import { match } from "ts-pattern"
 import { usePermissionsGranted } from "../../../hooks/usePermissionsGranted"
 import { useToast } from "../../../hooks/useToast"
-import type { FormField, InputSuggestion, Suggestion } from "../../../types"
+import type {
+  CalculationSuggestion,
+  FormField,
+  InputSuggestion,
+  Suggestion,
+} from "../../../types"
 import { CommandItemAction } from "./CommandItemAction"
+import { CommandItemCalculation } from "./CommandItemCalculation"
 import { CommandItemColor } from "./CommandItemColor"
 import { CommandItemDisplay } from "./CommandItemDisplay"
 import { CommandItemInput } from "./CommandItemInput"
@@ -266,6 +272,11 @@ function CommandItemComponent({
           <CommandItemDisplay
             suggestion={suggestion}
             displayName={displayName}
+          />
+        ))
+        .with("calculation", () => (
+          <CommandItemCalculation
+            suggestion={suggestion as CalculationSuggestion}
           />
         ))
         .otherwise(() => (

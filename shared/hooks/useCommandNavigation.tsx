@@ -19,6 +19,8 @@ import {
   updateSearchValue as updateSearchValueAction,
 } from "../store/slices/navigation.slice"
 import { buildCommandExecutionRequest } from "./commandExecution"
+import { useCopyToClipboard } from "./useCopyToClipboard"
+import { useToast } from "./useToast"
 
 // Helper function to clear search input
 function _clearAndResetSearch(
@@ -72,6 +74,8 @@ export function useCommandNavigation(
   ) => Promise<void>,
 ) {
   const dispatch = useAppDispatch()
+  const [, copyToClipboard] = useCopyToClipboard()
+  const toast = useToast()
 
   // Redux selectors - subscribe only to what we need
   const pages = useAppSelector(selectPages)
@@ -281,8 +285,22 @@ export function useCommandNavigation(
       return
     }
 
-    // Inline input/display items are non-executable and should not navigate
+    // Calculation rows are not commands: selecting one copies its value to the
+    // clipboard (copy-and-stay so the user can refine the query) rather than
+    // executing or navigating. See docs/v_next/11-calculations.md.
     const type = selectedCommand.type
+    if (type === "calculation") {
+      const copied = await copyToClipboard(selectedCommand.copyValue)
+      toast(
+        copied ? "success" : "error",
+        copied
+          ? `Copied "${selectedCommand.copyValue}"`
+          : "Failed to copy to clipboard",
+      )
+      return
+    }
+
+    // Inline input/display items are non-executable and should not navigate
     if (type === "input" || type === "display") {
       return
     }

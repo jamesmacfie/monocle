@@ -21,7 +21,7 @@ For the underlying contracts see [command-schema.md](./command-schema.md) (every
 | Category | Source | Index export | When to use | Loaded for |
 | --- | --- | --- | --- | --- |
 | `browser` | `browser/` | `browserCommands` (+ `firefoxCommands` from `browser/firefox/`) | Anything calling privileged browser APIs: tabs, windows, bookmarks, history, downloads, navigation, browsing data. Firefox-only features (containers, reader mode) go in `browser/firefox/`. | Always (Firefox set: Firefox platform only) |
-| `tools` | `tools/` | `toolCommands` | Self-contained utilities that do not depend on a specific browser API surface: calculator, UUID generator, workflow debug. | Always |
+| `tools` | `tools/` | `toolCommands` | Self-contained utilities that do not depend on a specific browser API surface: UUID generator, workflow debug, snippets. (Arithmetic is now an inline calculation, not a command — see [calculations.md](./calculations.md).) | Always |
 | `ui` | `ui/` | `uiCommands` | Commands that change Monocle's own state or settings: theme toggle, allow/deny list management. | Always |
 | `websites` | `websites/` + site SDK | `websiteCommands` (plus `loadSiteSdkCommands`) | Contextual commands scoped to a specific site via `urlRules` (GitHub prototype), plus page-owned site-SDK wrappers. | Always (visibility gated by `urlRules`) |
 | `new-tab` | `newTab/` | `newTabCommands` | Commands that only make sense on the new-tab page (clock visibility). | New-tab context only |
@@ -188,37 +188,39 @@ If a command's shortcut must fire **while an editable element is focused** (e.g.
 
 There is no single "form" node type. A form is a `group` whose `children` return one or more `input` rows plus a terminal `submit`. Field values entered into the `input` rows are kept in navigation state (Redux) and handed to the `submit` command's `execute` as its second argument.
 
-Adapted from `background/commands/tools/calculator.ts` (`calculator`):
+Adapted from `background/commands/tools/snippets.ts` (`createSnippet`):
 
 ```ts
-export const calculator: CommandNode = {
+export const createSnippet: CommandNode = {
   type: "group",
-  id: "calculator",
-  name: "Calculator",
-  icon: { type: "lucide", name: "Calculator" },
+  id: "create-snippet",
+  name: "Create Snippet",
+  icon: { type: "lucide", name: "FilePlus" },
   color: "teal",
   async children() {
     return [
       {
         type: "input",
-        id: "calculator-input",
-        name: "Expression",
+        id: "create-snippet-name",
+        name: "Name",
         field: {
-          id: "calculation",            // <-- key in the values object
-          label: "Expression",
+          id: "name",                   // <-- key in the values object
+          label: "Name",
           type: "text",
-          placeholder: "1 + 2",
-          validation: { type: "string", pattern: "[0-9+\\-*/\\s()^%|]+" },
+          placeholder: "Snippet name",
+          required: true,
+          validation: { type: "string", minLength: 1 },
         },
       },
       {
         type: "submit",
-        id: "calculator-execute",
-        name: "Calculate",
-        actionLabel: "Calculate",
+        id: "create-snippet-execute",
+        name: "Save Snippet",
+        actionLabel: "Save Snippet",
         async execute(context, values) {
-          const expression = values?.calculation || ""
-          // ...compute and toast the result
+          const name = values?.name?.trim() || ""
+          const body = values?.body || ""
+          // ...persist and toast the result
         },
       },
     ]
@@ -228,8 +230,8 @@ export const calculator: CommandNode = {
 
 How values reach the executor:
 
-- Each `input` row's `field.id` becomes a key in the `values` object the `submit.execute` receives. `calculation`, `precision`, `theme`, `copy` in the example.
-- Before reaching `execute`, the background runs `normalizeFormValues` (in `background/commands/execution.ts`): every value is coerced to a string, and array-valued fields (`multi`) are joined with commas. Executors therefore always read strings — `values?.copy === "true"`, `parseInt(values?.precision || "2", 10)`, etc. Field validation `enum`/`pattern` describe the string forms.
+- Each `input` row's `field.id` becomes a key in the `values` object the `submit.execute` receives — `name` and `body` in the example.
+- Before reaching `execute`, the background runs `normalizeFormValues` (in `background/commands/execution.ts`): every value is coerced to a string, and array-valued fields (`multi`) are joined with commas. Executors therefore always read strings — `values?.copy === "true"`, `parseInt(values?.count || "1", 10)`, etc. Field validation `enum`/`pattern` describe the string forms.
 - `submit` commands are recorded in recents unless you set `doNotAddToRecents: true` (see `shouldRecordUsage`).
 
 Field variants (`text`, `select`, `multi`, `switch`, `color`, etc.) are documented in [command-schema.md](./command-schema.md). Deep search does **not** flatten `input`/`display` rows, so a form group's fields never leak into root search — only its `action`/`submit` descendants do, and only if the group opts into `enableDeepSearch`.

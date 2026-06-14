@@ -86,6 +86,10 @@ If you are adding a command, the fast path is
 - [focus-mode.md](./focus-mode.md) — Focus Mode, the first feature: blocklist,
   timed/Pomodoro sessions, the hard-block content overlay, and the new-tab
   status widget.
+- [calculations.md](./calculations.md) — Inline calculations: the shared
+  `ContentBlock` schema + `ContentBlocks` renderer, the background calculation
+  provider registry (Math/Units via mathjs, Time via `Intl`), how results are
+  prepended to root search, and the `calculation` suggestion's copy-on-select.
 - [new-tab-and-theme.md](./new-tab-and-theme.md) — New-tab boot, `isNewTab`
   context, clock, Unsplash background, permission-grant panel, and the
   light/dark/system theme system.
@@ -125,8 +129,9 @@ If you are adding a command, the fast path is
 - [commands/browser.md](./commands/browser.md) — Every browser command: tabs,
   windows, navigation, bookmarks, history, downloads, sessions, clear-data,
   and the Firefox container/reader commands.
-- [commands/tools.md](./commands/tools.md) — Tool commands: calculator, copy
-  UUID v4, debug workflow.
+- [commands/tools.md](./commands/tools.md) — Tool commands: copy UUID v4, debug
+  workflow, snippets. (Arithmetic is now an inline calculation, not a command —
+  see [calculations.md](./calculations.md).)
 - [commands/ui.md](./commands/ui.md) — UI/settings commands: toggle theme,
   Manage Allow List, Manage Deny List, clear favorites.
 - [commands/new-tab.md](./commands/new-tab.md) — New-tab-only commands: the

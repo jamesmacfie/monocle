@@ -4,6 +4,7 @@ import type {
   SearchCommandsResponse,
   Suggestion,
 } from "../../shared/types"
+import { runCalculationProviders } from "../calculations"
 import { commandsToSuggestions } from "../commands"
 import { getFavoriteCommandIds } from "../commands/favorites"
 import { normalizeContext } from "../commands/query"
@@ -191,6 +192,22 @@ const handleSearchCommands = async (
   // Suggestions (with eager action menus) are built only for the returned
   // top-N — never for the whole index.
   const results = await entriesToSuggestions(topEntries, context)
+
+  // Inline calculations run only at the root query: every provider parses the
+  // raw query and any non-null results are prepended as ephemeral rows. They
+  // are not commands, so they bypass favorites, usage ranking, and the index.
+  // A query no provider parses simply yields none. See
+  // docs/v_next/11-calculations.md.
+  if (isRootSearch) {
+    const calculations = runCalculationProviders(message.query, context)
+    if (calculations.length > 0) {
+      return {
+        results: [...calculations, ...results],
+        seq: message.seq,
+        query: message.query,
+      }
+    }
+  }
 
   return { results, seq: message.seq, query: message.query }
 }

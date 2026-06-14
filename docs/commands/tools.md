@@ -1,69 +1,28 @@
 # Tool Commands
 
-Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are five tool commands today: a calculator, a UUID generator, a workflow debug command, and the snippet pair (create + insert).
+Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are four tool commands today: a UUID generator, a workflow debug command, and the snippet pair (create + insert).
+
+> Arithmetic used to be a `calculator` group command here. It has been replaced by inline **calculations** — type `1 + 89` at the palette root and the answer appears under the search input; Enter copies it. See [../calculations.md](../calculations.md).
 
 ## Summary
 
 | Command | Id | Node type | Purpose | Notes |
 | --- | --- | --- | --- | --- |
-| Calculator | `calculator` | `group` | Evaluate arithmetic expressions with formatting and optional clipboard copy | Custom recursive-descent string evaluator, not `eval` |
 | Copy UUID v4 | `uuidv4` | `action` | Generate a v4 UUID and copy it to the clipboard | Uses the `uuid` package |
 | Debug Workflow | `debug-workflow` | `action` | Run a fixed click workflow against the active page | Exercises the workflow execution path; see [../workflow-automation.md](../workflow-automation.md) |
 | Create Snippet | `create-snippet` | `group` | Form (name + multi-line body) that saves a reusable text snippet | Persists to the `monocle-snippets` storage key; body uses the `textarea` form field |
 | Insert Snippet | `insert-snippet` | `group` | List saved snippets; selecting one inserts its body at the page caret | Cmd-enter copies instead; falls back to clipboard + toast when no input is focused |
 
-All five are registered in `background/commands/tools/index.ts`:
+All four are registered in `background/commands/tools/index.ts`:
 
 ```ts
 export const toolCommands = [
-  calculator,
   copyUuidV4,
   debugWorkflow,
   createSnippet,
   insertSnippet,
 ]
 ```
-
----
-
-## Calculator
-
-Source: `background/commands/tools/calculator.ts`, exported as `calculator`.
-
-A `group` command. Selecting it opens a child page with four inline `input` rows plus a `submit` row:
-
-| Child id | Field id | Field type | Default | Purpose |
-| --- | --- | --- | --- | --- |
-| `calculator-input` | `calculation` | `text` | (empty, placeholder `1 + 2`) | The expression to evaluate |
-| `calculator-theme` | `theme` | `multi` | `["system"]` | Cosmetic theme selector (not used by the executor) |
-| `calculator-precision` | `precision` | `select` | `"2"` | Decimal places: `0`, `2`, `4`, or `6` |
-| `calculator-copy` | `copy` | `switch` | `false` | Copy the result to the clipboard |
-| `calculator-execute` | n/a | `submit` | n/a | Runs the calculation (`actionLabel: "Calculate"`) |
-
-The `calculation` field declares input validation `pattern: "[0-9+\\-*/\\s\\(\\)\\^\\%\\|]+"`, so the UI permits digits, the four basic operators, parentheses, whitespace, and the `^`, `%`, `|` characters.
-
-### Expression evaluation
-
-Evaluation does not use `eval`. The local `stringMath(eq)` helper is a small recursive parser that repeatedly:
-
-1. Resolves innermost parentheses via the `parentheses` regex (and inserts an implicit `*` for forms like `2(3)`).
-2. Applies multiplication/division (`fMulDiv`).
-3. Applies addition/subtraction (`fPlusMin`), after first normalizing sign pairs such as `--` to `+`.
-
-It loops until the expression reduces to a single numeric literal, throwing `SyntaxError("The equation is invalid.")` if a pass makes no progress. Note that despite the input `pattern` permitting `^`, `%`, and `|`, `stringMath` only understands `+ - * /` and parentheses; expressions using `^`, `%`, or `|` will not reduce and will throw.
-
-### Result formatting, display, and copy
-
-On submit, the executor (`execute(context, values)`):
-
-- Reads `calculation`, `precision` (parsed to int, default `2`), `format` (defaults to `"fixed"`; there is no UI field that sets `format`, so `"scientific"` is currently unreachable from the palette), and `copy === "true"`.
-- Returns early if the expression is empty.
-- Computes `stringMath(expression)` and formats: `precision === 0` rounds to an integer, otherwise `result.toFixed(precision)`. (The `"scientific"` branch would use `toExponential(precision)`.)
-- Resolves the active tab via `getActiveTab()` and sends a `monocle-toast` with `level: "success"` carrying the formatted result string as the display.
-- Copies to the clipboard via a `monocle-copyToClipboard` tab message when either the `copy` switch is on **or** the user submitted with the cmd modifier (`context?.modifierKey === "cmd"`).
-- On any thrown error (invalid expression), sends an error toast `"Invalid calculation"` and logs to the console.
-
-All output flows through tab messages, so the calculator requires an active tab to display or copy results.
 
 ---
 
@@ -154,7 +113,8 @@ Test coverage: `background/commands/snippets.test.ts` (CRUD round-trip, unknown-
 ## Related docs
 
 - [../command-types.md](../command-types.md) - the `group`, `action`, `submit`, and `search` node types used here.
-- [../command-schema.md](../command-schema.md) - `FormField` variants (`text`, `select`, `multi`, `switch`) used by the calculator.
+- [../command-schema.md](../command-schema.md) - `FormField` variants (`text`, `textarea`, `select`, `multi`, `switch`) used by these commands.
+- [../calculations.md](../calculations.md) - inline calculations, which replaced the old calculator command.
 - [../execution-and-actions.md](../execution-and-actions.md) - Enter vs cmd-Enter, action labels, and `executionPayload`.
 - [../workflow-automation.md](../workflow-automation.md) - what the workflow executor actually supports (relevant to Debug Workflow).
 - [../authoring-commands.md](../authoring-commands.md) - registering a command into a category index.

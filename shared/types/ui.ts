@@ -5,6 +5,7 @@ import type {
   CommandIcon,
   KeybindingRequirements,
 } from "./commands"
+import type { ContentBlock } from "./content"
 
 export type FormField = {
   id: string
@@ -220,6 +221,19 @@ export interface DisplaySuggestion extends SuggestionBase {
   actionLabel?: string
 }
 
+// An ephemeral inline result row (e.g. an inline calculation) produced by the
+// background and prepended to root search results. It renders structured
+// `content` blocks inside a real cmdk row (so it stays in the keyboard
+// navigation path) and, on select, copies `copyValue` to the clipboard rather
+// than executing a command. Never persisted: excluded from favorites, usage
+// ranking, and the search index. See docs/v_next/11-calculations.md.
+export interface CalculationSuggestion extends SuggestionBase {
+  type: "calculation"
+  content: ContentBlock[]
+  copyValue: string
+  providerId: string
+}
+
 export type Suggestion =
   | ActionSuggestion
   | SubmitSuggestion
@@ -227,6 +241,7 @@ export type Suggestion =
   | SearchSuggestion
   | InputSuggestion
   | DisplaySuggestion
+  | CalculationSuggestion
 
 // Backward compatibility alias
 export type CommandSuggestion = Suggestion

@@ -1,6 +1,8 @@
 // Re-exports for all types
 export * from "./browser"
 export * from "./commands"
+export * from "./content"
+export * from "./contentValidation"
 export * from "./events"
 export * from "./feature"
 export * from "./icons"

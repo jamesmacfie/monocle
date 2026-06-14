@@ -216,7 +216,7 @@ happens from the Commands page.
 > config with runtime state and duplicate the feature mechanism).
 
 Some commands want their own typed configuration (e.g. a "default download
-folder", a "screenshot format", a calculator's "decimal precision"). Today there
+folder", a "screenshot format", a default search engine). Today there
 is no mechanism. Proposed:
 
 **Declarative schema on the command.**

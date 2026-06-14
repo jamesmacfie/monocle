@@ -148,26 +148,27 @@ descendants of opted-in groups just like actions.
 Nesting: a submit is a leaf. It is meaningful only on a page that also contains
 `input` rows whose values it consumes.
 
-Real example — the Calculate button of the calculator group
-(`background/commands/tools/calculator.ts`), shown with one of its sibling
-inputs:
+Real example — the Save button of the Create Snippet group
+(`background/commands/tools/snippets.ts`, `createSnippet`), shown with one of its
+sibling inputs:
 
 ```typescript
 {
   type: "input",
-  id: "calculator-input",
-  name: "Expression",
-  field: { id: "calculation", label: "Expression", type: "text", placeholder: "1 + 2" },
+  id: "create-snippet-name",
+  name: "Name",
+  field: { id: "name", label: "Name", type: "text", placeholder: "Snippet name", required: true },
 },
 {
   type: "submit",
-  id: "calculator-execute",
-  name: "Calculate",
-  actionLabel: "Calculate",
+  id: "create-snippet-execute",
+  name: "Save Snippet",
+  actionLabel: "Save Snippet",
   async execute(context, values) {
-    const expression = values?.calculation || ""
-    const result = stringMath(expression)
-    // ...format and toast the result, optionally copy to clipboard
+    const name = values?.name?.trim() || ""
+    const body = values?.body || ""
+    await addSnippet({ name, body })
+    // ...toast success
   },
 }
 ```
@@ -202,8 +203,8 @@ are never executed.) See [palette-ui-and-navigation.md](./palette-ui-and-navigat
 for the page stack.
 
 Children: a group may contain any `CommandNode` type, including nested groups,
-`search`, `action`, `submit`, `input`, and `display` rows. The calculator group,
-for example, returns four `input` nodes plus a `submit`; the history group
+`search`, `action`, `submit`, `input`, and `display` rows. The Create Snippet
+group, for example, returns two `input` nodes plus a `submit`; the history group
 returns nested `group` time-period nodes that each resolve `action` children.
 
 Keybindings: groups themselves are not keybindable (`allowsKeybinding` returns
@@ -331,24 +332,21 @@ does not attach an action menu to input suggestions.
 
 Nesting: inputs are leaves and only make sense alongside a sibling `submit`.
 
-Real example — the precision selector of the calculator group
-(`background/commands/tools/calculator.ts`):
+Real example — the folder selector of the Add Bookmark group
+(`background/commands/browser/bookmarks.ts`), built per-context from the user's
+bookmark folders:
 
 ```typescript
 {
   type: "input",
-  id: "calculator-precision",
-  name: "Precision",
+  id: "add-bookmark-folder",
+  name: "Folder",
   field: {
-    id: "precision",
-    label: "Decimal Places",
+    id: "folder",
+    label: "Folder",
     type: "select",
-    options: [
-      { value: "0", label: "None (integers)" },
-      { value: "2", label: "2 decimal places" },
-    ],
-    defaultValue: "2",
-    validation: { type: "string", enum: ["0", "2", "4", "6"] },
+    options, // [{ value, label }] resolved from the bookmark tree
+    defaultValue: defaultId,
   },
 }
 ```
@@ -436,7 +434,7 @@ See [search-and-ranking.md](./search-and-ranking.md) for ranking specifics.
   resolves to "Hide Clock" or "Show Clock" from current settings.
 - **Pair `input` with `submit`.** Inputs alone do nothing; always provide a
   `submit` sibling on the page (typically the last child of a group). See the
-  calculator group for the canonical layout.
+  Create Snippet group for the canonical layout.
 - **Declare `permissions`, `supportedBrowsers`, `urlRules` on the node** rather
   than enforcing them in `execute`. The background filters and gates on these
   before the executor runs. See [permissions.md](./permissions.md) and
@@ -455,10 +453,11 @@ See [search-and-ranking.md](./search-and-ranking.md) for ranking specifics.
 
 ## Manual test checklist
 
-- Open a `group` (bookmarks, downloads, history, open tabs, calculator) and
+- Open a `group` (bookmarks, downloads, history, open tabs, Create Snippet) and
   confirm a child page opens and Escape navigates back.
-- Open the calculator group, fill the `input` fields, and confirm the `submit`
-  button validates and executes; confirm invalid input toasts and blocks submit.
+- Open the Create Snippet group, fill the `input` fields, and confirm the
+  `submit` button validates and executes; confirm invalid input toasts and blocks
+  submit.
 - Open a `search` node (e.g. a site SDK search command) and confirm results re-resolve as you type.
 - Trigger an empty/error child state (e.g. revoke `sessions` then open Recently
   Closed) and confirm a `display`/NoOp row appears rather than an alert.

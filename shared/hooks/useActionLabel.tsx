@@ -25,6 +25,11 @@ export function useActionLabel(
     return ""
   }
 
+  // Calculation rows copy their value on select rather than executing.
+  if (type === "calculation") {
+    return "Copy"
+  }
+
   if (!modifier) {
     return focusedSuggestion.actionLabel || defaultLabel
   }

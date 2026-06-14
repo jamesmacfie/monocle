@@ -221,7 +221,7 @@ The first child of the group is always the `add-bookmark` form (pinned above the
 ### `add-bookmark` (group/form, `bookmarks`)
 Registered both as a **top-level** command (in `browserCommands`) and as the pinned first child of the `bookmarks` group, so it is reachable by searching "Add Bookmark" and by browsing into Bookmarks. The group sets **`enableDeepSearch: false`** so its `input` rows and `submit` are never flattened into root search — only the group itself appears as a search result, opening the form on selection.
 
-A form `group` (children built per-context, like `tools/calculator`) for bookmarking the current page. Its `children(context)` returns three `input` rows plus a `submit`:
+A form `group` (children built per-context, like `tools/snippets`) for bookmarking the current page. Its `children(context)` returns three `input` rows plus a `submit`:
 
 - **Title** (`text`) — `defaultValue` from `context.title`.
 - **URL** (`text`) — `defaultValue` from `context.url`.

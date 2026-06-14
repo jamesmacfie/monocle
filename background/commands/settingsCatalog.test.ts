@@ -116,7 +116,7 @@ describe("settings catalog", () => {
     expect(ids).toContain("github-actions")
     expect(ids).toContain("new-tab-clock")
     expect(ids).toContain("toggle-clock-visibility")
-    expect(ids).toContain("calculator-execute")
+    expect(ids).toContain("clear-cookies-this-site")
     expect(ids).toContain("open-browser-page-settings")
   })
 

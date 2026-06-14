@@ -23,7 +23,7 @@ import {
 } from "./settings"
 import { loadAllCommands } from "./source"
 import { toolCommands } from "./tools"
-import { calculator } from "./tools/calculator"
+import { createSnippet } from "./tools/snippets"
 import { manageAllowList } from "./ui/manageAllowList"
 import { manageDenyList } from "./ui/manageDenyList"
 import { getCommandUsageStats, getRankedCommandIds } from "./usage"
@@ -258,10 +258,10 @@ describe("usage ranking", () => {
   })
 
   it("does not record submit commands that opt out of recents", async () => {
-    const calculatorGroup = calculator as GroupCommandNode
-    const originalChildren = calculatorGroup.children
+    const snippetGroup = createSnippet as GroupCommandNode
+    const originalChildren = snippetGroup.children
     const execute = vi.fn()
-    calculatorGroup.children = async () => [
+    snippetGroup.children = async () => [
       {
         type: "submit",
         id: "test-no-recent-submit",
@@ -279,7 +279,7 @@ describe("usage ranking", () => {
         (await getCommandUsageStats("test-no-recent-submit")).totalUsage,
       ).toBe(0)
     } finally {
-      calculatorGroup.children = originalChildren
+      snippetGroup.children = originalChildren
     }
   })
 })
@@ -352,10 +352,10 @@ describe("generated actions", () => {
       hidden: true,
     })
 
-    const calculatorGroup = calculator as GroupCommandNode
-    const originalCalculatorChildren = calculatorGroup.children
+    const snippetGroup = createSnippet as GroupCommandNode
+    const originalCalculatorChildren = snippetGroup.children
     const nestedExecute = vi.fn()
-    calculatorGroup.children = async () => [
+    snippetGroup.children = async () => [
       {
         type: "action",
         id: "test-nested-action",
@@ -371,14 +371,14 @@ describe("generated actions", () => {
         normalContext,
         {},
         undefined,
-        { pageId: "calculator", parentPath: ["calculator"] },
+        { pageId: "create-snippet", parentPath: ["create-snippet"] },
       )
       expect(nestedExecute).toHaveBeenCalledOnce()
       expect(
         (await getCommandUsageStats("test-nested-action")).parentNames,
-      ).toEqual(["Calculator"])
+      ).toEqual(["Create Snippet"])
     } finally {
-      calculatorGroup.children = originalCalculatorChildren
+      snippetGroup.children = originalCalculatorChildren
     }
 
     const searchExecute = vi.fn()

@@ -12,7 +12,7 @@ import {
   invalidateSearchIndex,
 } from "./searchIndex"
 import { clearAllSettings } from "./settings"
-import { calculator } from "./tools/calculator"
+import { createSnippet } from "./tools/snippets"
 
 const normalContext: Browser.Context = {
   url: "https://example.com/page",
@@ -61,11 +61,11 @@ const makeAction = (
 
 const openTabsGroup = openTabs as GroupCommandNode
 const historyGroup = browsingHistory as GroupCommandNode
-const calculatorGroup = calculator as GroupCommandNode
+const snippetGroup = createSnippet as GroupCommandNode
 
 const originalOpenTabsChildren = openTabsGroup.children
 const originalHistoryChildren = historyGroup.children
-const originalCalculatorChildren = calculatorGroup.children
+const originalSnippetChildren = snippetGroup.children
 
 beforeEach(async () => {
   fakeBrowser.reset()
@@ -79,7 +79,7 @@ beforeEach(async () => {
 afterEach(() => {
   openTabsGroup.children = originalOpenTabsChildren
   historyGroup.children = originalHistoryChildren
-  calculatorGroup.children = originalCalculatorChildren
+  snippetGroup.children = originalSnippetChildren
   vi.useRealTimers()
 })
 
@@ -108,7 +108,7 @@ describe("index build sharing and skipping", () => {
 
   it("skips descending into non-deep-search groups when there are no favorites", async () => {
     const children = vi.fn(async () => [])
-    calculatorGroup.children = children
+    snippetGroup.children = children
 
     await getSearchIndex(normalContext)
     expect(children).not.toHaveBeenCalled()

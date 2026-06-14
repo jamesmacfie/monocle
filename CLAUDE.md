@@ -81,6 +81,12 @@ Use the feature docs as the source of truth before editing related code:
 - `docs/focus-mode.md`: Focus Mode, the first feature — blocklist, timed/
   Pomodoro sessions, and a hard-block overlay + new-tab badge expressed entirely
   as declarative surfaces (no focus-specific UI or messages).
+- `docs/calculations.md`: inline calculations — the shared `ContentBlock`
+  schema + `ContentBlocks` renderer (the seed of the shared `ui/` layer), the
+  background calculation provider registry (Math/Units via mathjs, Time via
+  `Intl`), prepending results to root search, and the `calculation` suggestion's
+  copy-on-select. First custom-UI-in-palette case and stepping stone to v_next
+  Surfaces.
 - `docs/new-tab-and-theme.md`: new-tab override, new-tab-only commands,
   background image behavior, clock settings, and theme application.
 - `docs/store-submission.md`: Chrome Web Store / Firefox AMO submission
@@ -111,13 +117,14 @@ Current feature status:
 | Surfaces | Working with review notes | Generic declarative-UI primitive: background-owned, owner-namespaced store (`monocle-surfaces`) of overlays/badges (`{kind, urlMatch, blocking, content:{icon,title,text,countdownTo}}`), rendered by one `SurfaceHost` mounted in the closed content shadow root and on the new tab. `get-surfaces {url}` query + `monocle-surfaces-changed` broadcast; URL gating reuses `matchesUrlPattern`; per-session (`userscript:*`) owners cleared on startup. Store get/set/clear/upsert/remove + URL gating have focused tests; manual overlay/badge smoke is still needed. |
 | Feature modules | Working with review notes | Background-owned `FeatureModule` registry (`background/features/`) contributing palette commands, a declarative settings page (FormField schema + Zod config validation + action buttons), runtime state, and lifecycle. Three stores: command settings (unchanged), `monocle-feature-config` (durable), `monocle-feature-state` (runtime). Generic `get-features`/`update-feature-config`/`execute-feature-action` messages; options Features pages with `SchemaForm`. Page UI is rendered through the generic Surfaces primitive, not per-feature components. The schema also supports a `record-list` FormField (per-row + per-child action buttons, rows projected via `settings.lists`, actions dispatched with a scalar `payload`) for features that manage a list of records. Config/state stores, registry projection (incl. lists), command contribution, and message validation (incl. payload) have focused tests; manual options + cross-tab smoke is still needed. |
 | Focus Mode | Working with review notes | First feature: URL blocklist, timestamp-based session (indefinite/timed/Pomodoro) in `monocle-feature-state` with a single `chrome.alarms` end alarm. UI is built entirely on the Surfaces primitive — `projectFocusSurfaces` emits a blocking overlay (scoped to the blocklist) + a new-tab badge; no focus-specific UI/messages. `isUrlBlocked`, session timing, config schema, and surface projection have focused tests; manual overlay/countdown smoke is still needed. |
+| Calculations | Working with review notes | Inline calculations (`background/calculations/`, a sibling registry to features). Providers are data + one pure synchronous `parse` (Math/Units via **mathjs**, Time via `Intl.DateTimeFormat`); `runCalculationProviders` is called from `handleSearchCommands` and **prepends** ephemeral `calculation` suggestions to root search (no new message, excluded from favorites/usage/index). Results render structured `ContentBlock`s (`shared/types/content.ts` + Zod `contentValidation.ts`) via the shared `ContentBlocks` renderer (`shared/components/ContentBlocks/`, built on the new `shared/components/ui/` boundary — the shadcn-consolidation seed). The `calculation` suggestion copies `copyValue` on select (copy-and-stay) via `useCopyToClipboard`/`useToast`. mathjs is hardened (injection functions disabled) and lives in the background bundle only. Replaced the old `calculator` group command. Provider parsing, content-block validation, and dual-DOM ContentBlocks rendering have focused tests; manual palette smoke (both modes) still needed. |
 | Tab Groups | Working with review notes | Second feature (`background/features/tabGroups/`). Cross-browser **saved collections** (named tab lists with per-tab `pinned`, Firefox container `cookieStoreId`, and `muted` audio state, stored in `monocle-feature-config`): Save Tabs as Group, Restore Tab Group, managed on the settings page via the `record-list` field (Restore/Rename/Delete per group, Pin/Unpin per tab). Restore reapplies `muted` cross-browser and reopens tabs in their saved container on Firefox only (Chrome ignores `cookieStoreId`). Chrome-only **native-group** commands (`chrome.tabs.group`/`chrome.tabGroups.*`, wrapped in `background/utils/browserTabGroups.ts`, gated `supportedBrowsers:["chrome"]` + optional `tabGroups` permission): add tab to group, group window, rename/recolor/collapse/ungroup. Capture/restore (pinned + container + mute), storage CRUD + pin toggle, handleAction routing, lists projection, and native `supportedBrowsers` have focused tests; manual Chrome/Firefox smoke still needed. |
 
 Last verified validation:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
-- `pnpm test` passes cleanly (exit 0, 503 tests) with focused command-system,
+- `pnpm test` passes cleanly (exit 0, 524 tests) with focused command-system,
   palette-search (index/scoring/search-commands/slice staleness),
   browser-command, keybinding, URL-filtering, settings-management,
   snippet-storage, workflow-executor (full op vocabulary), user-script
@@ -129,6 +136,8 @@ Last verified validation:
   tab-groups (capture/restore with pinned + Firefox container + mute,
   saved-group storage CRUD + pin toggle, handleAction routing, lists
   projection, native supportedBrowsers),
+  calculations (Math/Units/Time providers, runCalculationProviders, content-block
+  validation, dual-DOM ContentBlocks rendering),
   surfaces-store (owner set/clear/upsert/remove, URL gating, session-owner
   cleanup, change broadcast), feature/surfaces-message validation, and GitHub
   parsing coverage. (Note: a fire-and-forget toast that rejects when the
@@ -148,7 +157,8 @@ monocle/
 ├── entrypoints/         # WXT background, content, and new-tab entrypoints
 ├── background/          # Service worker, commands, messages, keybindings,
 │                        #   userScripts (storage/engine/triggers/alarms),
-│                        #   features (registry/config/state, focus/, tabGroups/), surfaces
+│                        #   features (registry/config/state, focus/, tabGroups/), surfaces,
+│                        #   calculations (inline-calculation provider registry)
 ├── content/             # Content-script overlay, workflow executor
 │                        #   (content/workflow/), user-script trigger service
 ├── newtab/              # Browser new-tab replacement
