@@ -17,6 +17,8 @@ There are two transport directions, both built on `chrome.runtime` / `browser.ru
 
 `handleMessage` (`background/messages/index.ts`) then runs a second validation pass — `validateIncomingMessage` (`background/utils/validation.ts`) against the Zod `MessageSchema` discriminated union in `shared/types/validation.ts`. On failure it returns `{ error: "Message validation failed: ...", validationIssues }` and never reaches a handler. On success it routes the validated message with `ts-pattern`'s `match` on `message.type`. Unknown types throw `Unknown message type: ...`.
 
+The reverse direction has its own schema boundary. Background-to-tab payloads are modeled and validated by `shared/types/contentMessageValidation.ts` (`ContentMessageSchema`). `background/utils/browserTabs.ts` types `sendTabMessage` / `broadcastToAllTabs` with that union, and content/new-tab listeners call `validateContentMessage` before acting. This covers palette control messages, `execute-workflow-content`, `monocle-*` events, Site SDK bridge events, and the `monocle-surfaces-changed` broadcast.
+
 ## Message Catalog
 
 Every entry below is registered in `handleMessage`. "Direction" is always UI -> background unless noted. Request shapes are defined in `shared/types/messaging.ts`; the send-side appends `context` automatically for most messages (see [Send-Side Utilities](#send-side-utilities)).
@@ -203,9 +205,9 @@ type UpdateHiddenSettingMessage = {
 
 `updateCommandSetting` behavior:
 
-- `setting: "keybinding"` — normalizes the value. Empty/invalid removes the stored keybinding and refreshes the registry. Otherwise it resolves the command, rejects (`throw`) if the command does not allow keybindings, persists via `updateCommandSettings`, refreshes the registry, and emits a success `show-toast`.
-- `setting: "urlRules"` — runs custom `validateUrlRulesSetting` (each field must be an array of valid URL patterns; invalid patterns `throw`), then `updateCommandUrlRules` and invalidates the search index.
-- `setting: "hidden"` — writes `commands[id].hidden`, refreshes the keybinding registry, and invalidates the search index. Hidden commands are removed from palette views/search, child pages, execution resolution, keybinding snapshots, and conflict checks.
+- `setting: "keybinding"` — normalizes the value. Empty/invalid removes the stored keybinding and refreshes the registry. Otherwise it resolves the assignment target through `background/keybindings/assignmentTarget.ts` (live command first, settings-catalog fallback for context-only rows), rejects (`throw`) if the command does not allow keybindings, persists the keybinding, refreshes the registry, and emits a success `show-toast`.
+- `setting: "urlRules"` — runs custom `validateUrlRulesSetting` (each field must be an array of valid URL patterns; invalid patterns `throw`), then writes through `background/commands/settingMutations.ts`, invalidating both the search index and keybinding-entry cache.
+- `setting: "hidden"` — writes `commands[id].hidden` through the same mutation helper, refreshes the keybinding registry, and invalidates the search index. Hidden commands are removed from palette views/search, child pages, execution resolution, keybinding snapshots, and conflict checks.
 
 Returns `{ success: true }`. See [settings.md](settings.md) and [url-filtering.md](url-filtering.md).
 
@@ -278,7 +280,7 @@ index, and returns `{ success: true }`.
 3. A tab whose URL matches `context.url` (throws for new-tab context, since a page workflow cannot run from the new-tab page).
 4. The active tab.
 
-It then sends **`execute-workflow-content`** `{ workflow, context }` to that tab via `tabs.sendMessage`. The content listener in `useCommandPaletteStateRedux.tsx` runs `workflowExecutor.executeWorkflow(workflow)` and responds `{ result }`. The background unwraps it (`unwrapWorkflowResult`) and returns `{ result: WorkflowResult }`. On any thrown error the handler returns `{ result: { success: false, error } }`.
+It validates the workflow against `WorkflowSchema` before sending **`execute-workflow-content`** `{ workflow, context }` to that tab via typed `tabs.sendMessage`. The content listener in `useCommandPaletteStateRedux.tsx` validates the content message again, runs the injected workflow runner, and responds `{ result }`. The background unwraps it (`unwrapWorkflowResult`) and returns `{ result: WorkflowResult }`. On any thrown error the handler returns `{ result: { success: false, error } }`.
 
 The full workflow step vocabulary is implemented and schema-accepted: every op in `shared/types/workflow.ts` (`click`, `wait`, `hover`, `focus`, `blur`, `fill`, `type`, `key`, `select`, `check`, `uncheck`, `submit`, `scroll`, `getText`, `removeElement`, `hideElement`, `injectCss`) has an executor case in `content/workflow/executor.ts` and a matching schema entry in `shared/types/workflowValidation.ts`. Unsupported ops fail loudly rather than succeeding silently (the lockstep invariant). See [workflow-automation.md](workflow-automation.md).
 
@@ -358,7 +360,7 @@ The background reaches a specific tab through `tabs.sendMessage`, never `runtime
   surfaces store uses it to broadcast `monocle-surfaces-changed` (no payload) so
   every `SurfaceHost` re-queries `get-surfaces`.
 
-Content-side receivers live in the shared UI so both overlay and new-tab modes handle them: `useCommandPaletteStateRedux.tsx` (`toggle-ui`, `show-ui`, `hide-ui`, `execute-workflow-content`), `ToastContainer.tsx` (`monocle-toast`), `NewTabListener.tsx` (`monocle-newTab`), `ScreenshotListener.tsx` (`monocle-screenshot`), and `InsertTextListener.tsx` (`monocle-insertText`, which also tracks the page's last-focused editable element via a capture-phase `focusin` listener). The generic `SurfaceHost.tsx` (mounted in the content shadow root and on the new tab) listens for `monocle-surfaces-changed`. All listeners are mounted outside the palette-visibility gate so they keep receiving messages after the palette hides.
+Content-side receivers live in the shared UI so both overlay and new-tab modes handle them: `useCommandPaletteStateRedux.tsx` (`toggle-ui`, `show-ui`, `hide-ui`, `execute-workflow-content`), `ToastContainer.tsx` (`monocle-toast`), `NewTabListener.tsx` (`monocle-newTab`), `ScreenshotListener.tsx` (`monocle-screenshot`), and `InsertTextListener.tsx` (`monocle-insertText`, which also tracks the page's last-focused editable element via a capture-phase `focusin` listener). Each listener validates the message with `validateContentMessage` before acting. The generic `SurfaceHost.tsx` (mounted in the content shadow root and on the new tab) listens for `monocle-surfaces-changed`. All listeners are mounted outside the palette-visibility gate so they keep receiving messages after the palette hides.
 
 ## Adding A New Message Type End To End
 

@@ -10,7 +10,7 @@
 // Requires the "alarms" permission (declared in wxt.config.ts).
 import type { UserScript, UserScriptTrigger } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
-import { matchesUrlPattern } from "../utils/urlFilter"
+import { getAutomationEligibility } from "./eligibility"
 import { runUserScript } from "./engine"
 import { getAllAutomations } from "./registry"
 
@@ -21,13 +21,21 @@ type ScheduledTriggerType = "interval" | "schedule"
 const alarmName = (type: ScheduledTriggerType, scriptId: string): string =>
   `${ALARM_PREFIX}${type}:${scriptId}`
 
-const parseAlarmName = (
+export const parseAlarmName = (
   name: string,
 ): { type: ScheduledTriggerType; scriptId: string } | null => {
   if (!name.startsWith(ALARM_PREFIX)) {
     return null
   }
-  const [type, scriptId] = name.slice(ALARM_PREFIX.length).split(":")
+
+  const rest = name.slice(ALARM_PREFIX.length)
+  const separatorIndex = rest.indexOf(":")
+  if (separatorIndex === -1) {
+    return null
+  }
+
+  const type = rest.slice(0, separatorIndex)
+  const scriptId = rest.slice(separatorIndex + 1)
   if ((type !== "interval" && type !== "schedule") || !scriptId) {
     return null
   }
@@ -105,18 +113,25 @@ export const syncUserScriptAlarms = async (): Promise<void> => {
  * the script's allow rules match, or the active tab when the script is
  * unscoped. Returns null (skip) when nothing qualifies.
  */
-const findScheduledRunTab = async (
+export const findScheduledRunTab = async (
   script: UserScript,
 ): Promise<{ id: number; url?: string } | null> => {
   const browserAPI = getBrowserAPI()
-  const allowUrls = script.urlRules?.allowUrls ?? []
+  const eligibility = await getAutomationEligibility(script)
 
-  if (allowUrls.length === 0) {
+  if (!eligibility.hasAllowRules) {
     const [activeTab] = await browserAPI.tabs.query({
       active: true,
       currentWindow: true,
     })
-    return activeTab?.id ? { id: activeTab.id, url: activeTab.url } : null
+    if (
+      activeTab?.id &&
+      activeTab.url &&
+      eligibility.isEligibleForUrl(activeTab.url)
+    ) {
+      return { id: activeTab.id, url: activeTab.url }
+    }
+    return null
   }
 
   const tabs = await browserAPI.tabs.query({})
@@ -130,7 +145,7 @@ const findScheduledRunTab = async (
   }
 
   const match = tabs.find(
-    (tab) => tab.id && tab.url && matchesUrlPattern(tab.url, allowUrls),
+    (tab) => tab.id && tab.url && eligibility.isEligibleForUrl(tab.url),
   )
   return match?.id ? { id: match.id, url: match.url } : null
 }

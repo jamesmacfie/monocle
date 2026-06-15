@@ -88,13 +88,13 @@ Navigation steps (`navigate`, `openUrl` with `currentTab`) are rejected inside b
 | `schedule` | Daily at HH:MM local (`chrome.alarms`, self re-arming) | |
 | `onStartup` | Browser start | |
 
-Rules for every trigger: non-manual triggers never fire on `urlRules`-denied pages, non-http(s) pages, or the new-tab page; **imported scripts arrive with non-manual triggers disarmed** until the user reviews and arms them; a disabled script arms nothing.
+Rules for every trigger: non-manual triggers never fire on `urlRules`-denied pages, non-http(s) pages, or the new-tab page; **imported scripts arrive with non-manual triggers disarmed** until the user reviews and arms them; a disabled script arms nothing. Page triggers and scheduled triggers share the same eligibility helper (`background/userScripts/eligibility.ts`), so script `urlRules`, user command URL-rule overrides, and hidden command settings are interpreted identically across both paths.
 
 Page-trigger flow is **pull-based** (no extra permissions): the content service (`content/userScriptTriggers.ts`) reports its URL via `get-user-script-triggers`, receives the armed specs for that URL, and reports fires via `user-script-trigger-fired`. The background **re-validates everything** on fire — script existence, enablement, armed state, and URL eligibility against the *sender's actual URL* (a page cannot claim a different URL) — before the engine runs. Content never receives steps and executes nothing on its own.
 
 SPA detection is best-effort and content-side (popstate/hashchange plus a 1s href poll), avoiding the `webNavigation` install-time permission. `oncePerPage` bookkeeping is per document and, for SPA fires, per virtual location.
 
-Scheduled triggers re-register on `runtime.onInstalled`/`onStartup` and on every store change. A scheduled run targets the first open tab the script's allow rules match (active tab when unscoped); with no eligible tab it is skipped with a log. Matching tab URLs requires the optional `tabs` permission — without it, scoped scheduled scripts skip and say why. The `alarms` permission is declared in `wxt.config.ts`.
+Scheduled triggers re-register on `runtime.onInstalled`/`onStartup` and on every store change. A scheduled run targets the first open tab the script's allow rules match (active tab when unscoped); with no eligible tab it is skipped with a log. Alarm names preserve full script ids, including ids containing `:`, by splitting only the trigger suffix. Matching tab URLs requires the optional `tabs` permission — without it, scoped scheduled scripts skip and say why. The `alarms` permission is declared in `wxt.config.ts`.
 
 The `{{trigger.*}}` namespace delivers fire context into interpolation: `{{trigger.type}}`, `{{trigger.url}}`, and (elementAppears only) `{{trigger.matchedText}}` capped at 500 chars.
 
@@ -113,7 +113,7 @@ Engine steps:
 | `openUrl` | `currentTab` / `newTab` (default) / `newWindow` |
 | `clipboardWrite` | Tab-scoped `monocle-copyToClipboard` |
 | `runCommand` | Invoke a Monocle command, policy-gated (below) |
-| `showSurface` | Push a declarative [surface](./surfaces.md) (overlay/badge) under owner `userscript:<id>`; `content.title`/`content.text` interpolated, `urlMatch` is not |
+| `showSurface` | Push a declarative [surface](./surfaces.md) (overlay/badge only) under owner `userscript:<id>`; `content.title`/`content.text` interpolated, `urlMatch` is not |
 | `hideSurface` | Remove one of this script's surfaces by `surfaceId` |
 | `branch` | If/else over a condition |
 | `forEach` | Loop over element matches or a variable's lines |
@@ -142,7 +142,7 @@ The command bridge is injected into the engine by `background/index.ts` at start
 
 ## Variables and interpolation
 
-One ordered pipeline, applied per interpolatable field (`fill.text`, `setVariable.value`, `toast.message`, `navigate.url`/`openUrl.url`, `clipboardWrite.text`, `showSurface.content.title`/`.text`, condition `value` fields — declared in `interpolatableStrings` in `background/userScripts/interpolate.ts`). Selector values, `injectCss` bodies, and `showSurface.urlMatch` are deliberately **not** interpolatable (a selector/URL pattern is an address; interpolated addresses are unreviewable in import summaries).
+One ordered pipeline, applied per interpolatable field (`fill.text`, `setVariable.value`, `toast.message`, `navigate.url`/`openUrl.url`, `clipboardWrite.text`, `showSurface.content.title`/`.text`, condition `value` fields — declared in `shared/utils/user-script-introspection.ts` and reused by the engine, options warnings, and import summaries). Selector values, `injectCss` bodies, and `showSurface.urlMatch` are deliberately **not** interpolatable (a selector/URL pattern is an address; interpolated addresses are unreviewable in import summaries).
 
 1. **`{{...}}` expansion** (`shared/utils/user-script-template.ts`, pure/shared so the builder warns with run-time semantics): declared vars, `{{trigger.*}}`, `{{params.*}}`, loop scope, inline `{{snippet:<id>}}` refs, with the whitelisted pipe transforms `trim`, `upper`, `lower`, `slice:a:b`, `replace:from:to` (first, literal), `encodeUriComponent`, `length`. Unknown references expand to `""` at run and warn in the builder. `\{{` escapes a literal `{{`. The transform set is a fixed function table, not an expression language — a deliberate one-way-door refusal.
 2. **Snippet resolution** (background): `vars` of kind `snippet` and inline refs re-read the snippet at run time, bump the persisted `{i}` counter only when the body uses it (one counter sequence shared with palette insertion), and interpolate the body.
@@ -180,7 +180,7 @@ Because rows are durable commands, keybindings (assigned on the keyboard setting
 - `monocle-userscripts` key, `withStorageLock` CRUD, independent lifecycle from `monocle-settings` (`background/userScripts/storage.ts`). Writes re-validate the full document.
 - Messages (`background/messages/userScripts.ts`, schemas in `shared/types/validation.ts`): `get-user-scripts`, `add-user-script`, `update-user-script`, `delete-user-script`, `run-user-script` (context optional — options-page test runs target the active tab), `get-user-script-triggers` (content → bg), `user-script-trigger-fired` (content → bg).
 - CRUD handlers invalidate the search index and rebuild the keybinding registry; delete also removes dangling `CommandSettings` for the generated command id (the snippets housekeeping pattern).
-- **Feature-owned automations.** A document carries an optional `owner` field (absent ⇒ `{kind:"user"}`). Features can contribute read-only automations projected from their config (`FeatureModule.automations`, see [features.md](./features.md)). The unified read surface is `background/userScripts/registry.ts` (`getAllAutomations` / `getAutomationById`) — the union of stored user docs + feature projections — which the engine, trigger engine, alarm sync, and `get-user-scripts` listing read from. Feature documents are never stored (`addUserScript` rejects a feature-owned draft) and are excluded from palette command generation; the options list shows them read-only under "Managed by features".
+- **Feature-owned automations.** A document carries an optional `owner` field (absent ⇒ `{kind:"user"}`). Features can contribute read-only automations projected from their config (`FeatureModule.automations`, see [features.md](./features.md)). The feature registry validates every projected document centrally with `UserScriptSchema.safeParse` and skips invalid projections with an error log before they reach the engine. The unified read surface is `background/userScripts/registry.ts` (`getAllAutomations` / `getAutomationById`) — the union of stored user docs + validated feature projections — which the engine, trigger engine, alarm sync, and `get-user-scripts` listing read from. Feature documents are never stored (`addUserScript` rejects a feature-owned draft) and are excluded from palette command generation; the options list shows them read-only under "Managed by features".
 
 ## Options builder
 

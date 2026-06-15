@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import type { ScreenshotEvent } from "../../../shared/types"
+import { validateContentMessage } from "../../types/contentMessageValidation"
 
 // Convert a base64 data URL into a Blob without using fetch(), so a page's
 // connect-src CSP can't block reading our own screenshot data.
@@ -42,11 +42,11 @@ export default function ScreenshotListener() {
       _sender: chrome.runtime.MessageSender,
       sendResponse: (response?: any) => void,
     ) => {
-      if (message?.type !== "monocle-screenshot") {
+      const event = validateContentMessage(message)
+      if (event?.type !== "monocle-screenshot") {
         return
       }
 
-      const event = message as ScreenshotEvent
       ;(async () => {
         try {
           const blob = dataUrlToBlob(event.dataUrl)

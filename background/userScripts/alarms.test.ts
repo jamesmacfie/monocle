@@ -6,8 +6,14 @@
 // getAll/clear/create surface alarms.ts uses. See docs/user-scripts.md.
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
+import { userScriptCommandId } from "../../shared/types/userScripts"
 import type { UserScriptDraft } from "../../shared/types/userScriptValidation"
-import { syncUserScriptAlarms } from "./alarms"
+import { updateCommandSettings } from "../commands/settings"
+import {
+  findScheduledRunTab,
+  parseAlarmName,
+  syncUserScriptAlarms,
+} from "./alarms"
 import { addUserScript } from "./storage"
 
 const createFakeAlarms = () => {
@@ -34,6 +40,9 @@ beforeEach(() => {
   // reads its `alarms` namespace, which fakeBrowser does not provide.
   alarms = createFakeAlarms()
   ;(fakeBrowser as unknown as { alarms: unknown }).alarms = alarms
+  ;(fakeBrowser as unknown as { tabs: unknown }).tabs = {
+    query: vi.fn(async () => []),
+  }
 })
 
 const draft = (overrides: Partial<UserScriptDraft>): UserScriptDraft => ({
@@ -111,5 +120,81 @@ describe("syncUserScriptAlarms", () => {
     await syncUserScriptAlarms()
 
     expect(await alarmNames()).toEqual([`userscript:interval:${live.id}`])
+  })
+})
+
+describe("parseAlarmName", () => {
+  it("preserves automation ids that contain colons", () => {
+    expect(parseAlarmName("userscript:interval:feature:demo:key")).toEqual({
+      type: "interval",
+      scriptId: "feature:demo:key",
+    })
+  })
+})
+
+describe("findScheduledRunTab", () => {
+  const setTabs = (tabs: Array<{ id: number; url?: string }>) => {
+    ;(fakeBrowser.tabs.query as ReturnType<typeof vi.fn>).mockImplementation(
+      async (queryInfo: { active?: boolean }) => {
+        if (queryInfo.active) {
+          return tabs.slice(0, 1)
+        }
+        return tabs
+      },
+    )
+  }
+
+  it("skips unscoped scheduled runs on non-http active tabs", async () => {
+    const script = await addUserScript(
+      draft({ triggers: [{ type: "interval", everyMinutes: 5 }] }),
+    )
+    setTabs([{ id: 1, url: "chrome://extensions" }])
+
+    await expect(findScheduledRunTab(script)).resolves.toBeNull()
+  })
+
+  it("honors script deny rules for unscoped scheduled runs", async () => {
+    const script = await addUserScript(
+      draft({
+        urlRules: { denyUrls: ["*://blocked.example/*"] },
+        triggers: [{ type: "interval", everyMinutes: 5 }],
+      }),
+    )
+    setTabs([{ id: 1, url: "https://blocked.example/page" }])
+
+    await expect(findScheduledRunTab(script)).resolves.toBeNull()
+  })
+
+  it("honors hidden command settings for scheduled runs", async () => {
+    const script = await addUserScript(
+      draft({ triggers: [{ type: "interval", everyMinutes: 5 }] }),
+    )
+    await updateCommandSettings(userScriptCommandId(script.id), {
+      hidden: true,
+    })
+    setTabs([{ id: 1, url: "https://example.com/" }])
+
+    await expect(findScheduledRunTab(script)).resolves.toBeNull()
+  })
+
+  it("uses allow+deny precedence when searching scoped scheduled tabs", async () => {
+    const script = await addUserScript(
+      draft({
+        urlRules: {
+          allowUrls: ["*://*.example.com/*"],
+          denyUrls: ["*://blocked.example.com/*"],
+        },
+        triggers: [{ type: "interval", everyMinutes: 5 }],
+      }),
+    )
+    setTabs([
+      { id: 1, url: "https://blocked.example.com/" },
+      { id: 2, url: "https://ok.example.com/" },
+    ])
+
+    await expect(findScheduledRunTab(script)).resolves.toEqual({
+      id: 2,
+      url: "https://ok.example.com/",
+    })
   })
 })

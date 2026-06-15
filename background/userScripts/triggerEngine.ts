@@ -11,13 +11,10 @@
 // sent, and a page cannot fire a script its rules deny. Scheduled triggers
 // live in background/userScripts/alarms.ts.
 import type {
-  UserScript,
   UserScriptPageTriggerSpec,
   UserScriptTrigger,
 } from "../../shared/types"
-import { userScriptCommandId } from "../../shared/types/userScripts"
-import { getCommandSettings } from "../commands/settings"
-import { isCommandVisibleForUrl } from "../utils/urlFilter"
+import { isAutomationEligibleForUrl, isHttpUrl } from "./eligibility"
 import { runUserScript } from "./engine"
 import { getAllAutomations } from "./registry"
 
@@ -27,33 +24,6 @@ const isPageTrigger = (
   UserScriptTrigger,
   { type: "urlMatch" } | { type: "elementAppears" }
 > => trigger.type === "urlMatch" || trigger.type === "elementAppears"
-
-const isHttpUrl = (url: string): boolean =>
-  url.startsWith("http://") || url.startsWith("https://")
-
-/**
- * Whether a script's non-manual triggers may act on a URL: the script's own
- * urlRules plus the user's per-command overrides (deny rules and hidden
- * state suppress triggers too — hiding a script should silence it
- * everywhere), evaluated with the standard precedence
- * (docs/url-filtering.md). Extension pages and non-http schemes never
- * qualify.
- */
-const isScriptEligibleForUrl = async (
-  script: UserScript,
-  url: string,
-): Promise<boolean> => {
-  if (!isHttpUrl(url)) {
-    return false
-  }
-
-  const userSettings = await getCommandSettings(userScriptCommandId(script.id))
-  return isCommandVisibleForUrl(
-    { urlRules: script.urlRules },
-    url,
-    userSettings,
-  )
-}
 
 /**
  * The armed page-trigger specs for one URL — what the content service
@@ -82,7 +52,7 @@ export const getPageTriggersForUrl = async (
       continue
     }
 
-    if (!(await isScriptEligibleForUrl(script, url))) {
+    if (!(await isAutomationEligibleForUrl(script, url))) {
       continue
     }
 
@@ -142,7 +112,7 @@ export const handleTriggerFired = async (
     return { accepted: false, reason: "Trigger is not armed for this script" }
   }
 
-  if (!(await isScriptEligibleForUrl(script, effectiveUrl))) {
+  if (!(await isAutomationEligibleForUrl(script, effectiveUrl))) {
     return { accepted: false, reason: "URL is not eligible for this script" }
   }
 

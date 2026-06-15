@@ -15,10 +15,8 @@ import type {
   IconName,
   Suggestion,
 } from "../../shared/types"
-import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
+import { getKeybindingTargetMetadata } from "../keybindings/targets"
 import {
-  allowsKeybinding,
-  getKeybindingRequirements,
   isSettingsCatalogConfigurable,
   resolveActionLabel,
   resolveAsyncProperty,
@@ -26,19 +24,19 @@ import {
 } from "../utils/commands"
 import { extractDomain } from "../utils/urlFilter"
 import { getFavoriteCommandIds } from "./favorites"
+import { generatedActionIds } from "./generatedActions"
 import { mergePermissions } from "./query"
 import { getAllCommandSettings } from "./settings"
 
 // Helper to create set keybinding action
-const createSetKeybindingAction = async (
-  command: CommandNode,
-): Promise<Suggestion | null> => {
-  if (!allowsKeybinding(command)) {
+const createSetKeybindingAction = (command: CommandNode): Suggestion | null => {
+  const keybindingTarget = getKeybindingTargetMetadata(command)
+  if (!keybindingTarget.allowed) {
     return null
   }
 
   return {
-    id: `set-keybinding-${command.id}`,
+    id: generatedActionIds.setKeybinding(command.id),
     name: "Set Custom Keybinding",
     description: "Set a custom keyboard shortcut for this command",
     icon: { type: "lucide", name: "Keyboard" },
@@ -52,7 +50,7 @@ const createSetKeybindingAction = async (
     executionContext: {
       type: "setKeybinding",
       targetCommandId: command.id,
-      requirements: getKeybindingRequirements(command),
+      requirements: keybindingTarget.requirements,
     },
   }
 }
@@ -62,7 +60,8 @@ const createResetKeybindingAction = (
   command: CommandNode,
   settings?: CommandSettings,
 ): Suggestion | null => {
-  if (!allowsKeybinding(command)) {
+  const keybindingTarget = getKeybindingTargetMetadata(command, settings)
+  if (!keybindingTarget.allowed) {
     return null
   }
 
@@ -72,10 +71,10 @@ const createResetKeybindingAction = (
   }
 
   return {
-    id: `reset-keybinding-${command.id}`,
+    id: generatedActionIds.resetKeybinding(command.id),
     name: "Reset Custom Keybinding",
     description: command.keybinding
-      ? `Reset to default keybinding: ${normalizeKeybinding(command.keybinding)}`
+      ? `Reset to default keybinding: ${keybindingTarget.defaultKeybinding}`
       : "Reset to default keybinding",
     icon: { type: "lucide", name: "RotateCcw" },
     color: "orange",
@@ -99,7 +98,7 @@ const createFavoriteToggleAction = async (
 ): Promise<Suggestion> => {
   const isFavorite = favoriteCommandIds.has(command.id)
   return {
-    id: `toggle-favorite-${command.id}`,
+    id: generatedActionIds.favorite(command.id),
     name: isFavorite ? "Remove from Favorites" : "Add to Favorites",
     description: isFavorite
       ? "Remove this command from favorites"
@@ -137,7 +136,7 @@ const createHideFromDomainAction = async (
   }
 
   return {
-    id: `hide-from-domain-${command.id}`,
+    id: generatedActionIds.hideDomain(command.id),
     name: `Hide from ${domain}`,
     description: `Hide this command from all pages on ${domain}`,
     icon: { type: "lucide", name: "EyeOff" },
@@ -162,7 +161,7 @@ const createHideCommandAction = (command: CommandNode): Suggestion | null => {
   }
 
   return {
-    id: `hide-command-${command.id}`,
+    id: generatedActionIds.hideCommand(command.id),
     name: "Hide Command",
     description: "Hide this command from Monocle",
     icon: { type: "lucide", name: "EyeOff" },
@@ -224,11 +223,8 @@ export const commandsToSuggestions = async (
         icon: await resolveAsyncProperty(node.icon, context),
         keywords: await resolveAsyncProperty(node.keywords, context),
         color: (await resolveAsyncProperty(node.color, context)) as any,
-        keybinding: allowsKeybinding(node)
-          ? normalizeKeybinding(
-              commandSettings[node.id]?.keybinding || node.keybinding || "",
-            ) || undefined
-          : undefined,
+        keybinding: getKeybindingTargetMetadata(node, commandSettings[node.id])
+          .effectiveKeybinding,
         isFavorite: favoriteCommandIds.has(node.id),
         permissions: effectivePermissions,
       }
@@ -304,7 +300,7 @@ export const commandsToSuggestions = async (
             ? "Open"
             : await resolveActionLabel(node as any, context)
         actions.push({
-          id: `${node.id}-enter-action`,
+          id: generatedActionIds.primary(node.id),
           name: primaryLabel,
           description: node.type === "group" ? "Open this group" : primaryLabel,
           icon: {
@@ -364,7 +360,7 @@ export const commandsToSuggestions = async (
           const label = modifierLabels[key]
           if (label) {
             actions.push({
-              id: `${node.id}-${key}-enter-action`,
+              id: generatedActionIds.modifier(node.id, key),
               name: label,
               description: `Execute with ${description} key`,
               icon: { type: "lucide", name: icon },
@@ -393,7 +389,7 @@ export const commandsToSuggestions = async (
       if (hideFromDomain) actions.push(hideFromDomain)
       const hideCommand = createHideCommandAction(node)
       if (hideCommand) actions.push(hideCommand)
-      const setKB = await createSetKeybindingAction(node)
+      const setKB = createSetKeybindingAction(node)
       const resetKB = createResetKeybindingAction(
         node,
         commandSettings[node.id],

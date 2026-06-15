@@ -9,21 +9,15 @@ import {
   splitKeybindingSequence,
 } from "../../shared/utils/key-normalizer"
 import { validateKeybindingRequirements } from "../../shared/utils/keybinding-requirements"
-import { resolveCommandById } from "../commands/query"
 import { updateCommandKeybindings as updateCommandKeybindingsSettings } from "../commands/settings"
-import { getSettingsCatalogCommandById } from "../commands/settingsCatalog"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
+import { resolveKeybindingAssignmentTarget } from "../keybindings/assignmentTarget"
 import {
   evaluateKeybindingAssignment,
   isProperStrokePrefix,
 } from "../keybindings/conflicts"
 import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { loadKeybindingCommandEntries } from "../keybindings/source"
-import {
-  allowsKeybinding,
-  getKeybindingBehavior,
-  getKeybindingRequirements,
-} from "../utils/commands"
 
 type PreparedKeybindingUpdate = {
   commandId: string
@@ -65,20 +59,13 @@ export async function updateCommandKeybindings(
       continue
     }
 
-    const resolved = await resolveCommandById(
-      update.commandId,
-      message.context,
-      { siteSdk },
-    )
-    const catalogCommand = resolved
-      ? undefined
-      : await getSettingsCatalogCommandById(update.commandId)
+    const target = await resolveKeybindingAssignmentTarget({
+      commandId: update.commandId,
+      context: message.context,
+      options: { siteSdk },
+    })
 
-    const allowed = resolved
-      ? allowsKeybinding(resolved.command)
-      : catalogCommand?.capabilities.canSetKeybinding === true
-
-    if (!allowed) {
+    if (!target.allowed) {
       throw new Error(
         `Command cannot be assigned a keybinding: ${update.commandId}`,
       )
@@ -89,9 +76,7 @@ export async function updateCommandKeybindings(
     // reported like conflicts so the rest of the batch still persists.
     const requirementResult = validateKeybindingRequirements(
       normalizedKeybinding,
-      resolved
-        ? getKeybindingRequirements(resolved.command)
-        : catalogCommand?.keybindingRequirements,
+      target.requirements,
     )
     if (!requirementResult.valid) {
       conflicts.push({
@@ -105,9 +90,7 @@ export async function updateCommandKeybindings(
     preparedUpdates.push({
       commandId: update.commandId,
       keybinding: normalizedKeybinding,
-      // Catalog-only commands (not resolvable in this context) default to
-      // execute behavior; shadow checks for them rerun on next assignment.
-      behavior: resolved ? getKeybindingBehavior(resolved.command) : "execute",
+      behavior: target.behavior,
     })
   }
 

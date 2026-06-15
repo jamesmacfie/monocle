@@ -7,16 +7,19 @@
 // interpolatable field: {{...}} expansion (declared vars, trigger.*,
 // params.*, inline snippet:<id> refs, loop scope) -> snippet placeholder
 // expansion ({date:...}, {url}, ...) with the run's page context.
-import type { UserScript, UserScriptStep } from "../../shared/types"
+import type { UserScript } from "../../shared/types"
 import {
   interpolateSnippetBody,
   snippetBodyUsesCounter,
 } from "../../shared/utils/snippet-placeholders"
 import {
-  collectTemplateReferences,
-  expandTemplate,
-} from "../../shared/utils/user-script-template"
+  collectInlineSnippetReferences,
+  interpolatableStrings,
+} from "../../shared/utils/user-script-introspection"
+import { expandTemplate } from "../../shared/utils/user-script-template"
 import { getSnippet, incrementSnippetCounter } from "../commands/snippets"
+
+export { interpolatableStrings }
 
 export type UserScriptPageContext = {
   url?: string
@@ -76,89 +79,6 @@ const resolveSnippetValue = async (
 }
 
 /**
- * Lists the interpolatable string fields of a step. This is the single
- * declaration of which fields are templates (the discipline of declaring
- * interpolation per-op): selector values and injectCss bodies are
- * deliberately NOT interpolatable — a selector is an address, not a
- * template, and interpolated selectors are unreviewable in import
- * summaries.
- */
-export const interpolatableStrings = (step: UserScriptStep): string[] => {
-  switch (step.op) {
-    case "fill":
-      return [step.text]
-    case "setVariable":
-      return [step.value]
-    case "toast":
-      return [step.message]
-    case "navigate":
-    case "openUrl":
-      return [step.url]
-    case "clipboardWrite":
-      return [step.text]
-    case "showSurface": {
-      // content.title/text are templates; urlMatch is an address, never one.
-      const values: string[] = []
-      if (step.content.title !== undefined) {
-        values.push(step.content.title)
-      }
-      if (step.content.text !== undefined) {
-        values.push(step.content.text)
-      }
-      return values
-    }
-    case "branch":
-      return collectConditionValues(step.if)
-    case "while":
-      return collectConditionValues(step.condition)
-    default:
-      return []
-  }
-}
-
-// Flattens the interpolatable comparison values out of a (possibly nested)
-// condition tree so branch/while conditions participate in {{...}} expansion
-// like any other field. Only elementText/varCompare carry a template value;
-// the boolean combinators (not/allOf/anyOf) just recurse.
-const collectConditionValues = (
-  condition: import("../../shared/types").UserScriptCondition,
-): string[] => {
-  const values: string[] = []
-  const walk = (c: typeof condition): void => {
-    if (c.kind === "elementText" || c.kind === "varCompare") {
-      values.push(c.value)
-    } else if (c.kind === "not") {
-      walk(c.of)
-    } else if (c.kind === "allOf" || c.kind === "anyOf") {
-      c.of.forEach(walk)
-    }
-  }
-  walk(condition)
-  return values
-}
-
-// Pre-order traversal that descends into control-flow bodies (branch
-// then/else, forEach/while steps). Used to find every inline {{snippet:<id>}}
-// reference across the whole script, including ones nested inside loops and
-// branches, so they all resolve once before the run starts.
-const walkSteps = (
-  steps: UserScriptStep[],
-  visit: (step: UserScriptStep) => void,
-): void => {
-  for (const step of steps) {
-    visit(step)
-    if (step.op === "branch") {
-      walkSteps(step.then, visit)
-      if (step.else) {
-        walkSteps(step.else, visit)
-      }
-    } else if (step.op === "forEach" || step.op === "while") {
-      walkSteps(step.steps, visit)
-    }
-  }
-}
-
-/**
  * Builds the initial value bag for a run: declared vars (literals, snippet
  * refs resolved + interpolated, runtime vars empty), the {{trigger.*}}
  * namespace, {{params.*}} from prompt-before-run values, and any inline
@@ -200,19 +120,8 @@ export const buildInitialValueBag = async (
 
   // Inline {{snippet:<id>}} references resolve once per run, before any
   // step executes, so a snippet used twice renders identically.
-  const inlineRefs = new Set<string>()
-  walkSteps(script.steps, (step) => {
-    for (const text of interpolatableStrings(step)) {
-      for (const reference of collectTemplateReferences(text)) {
-        if (reference.startsWith("snippet:")) {
-          inlineRefs.add(reference)
-        }
-      }
-    }
-  })
-
-  for (const reference of inlineRefs) {
-    const snippetId = reference.slice("snippet:".length)
+  for (const snippetId of collectInlineSnippetReferences(script.steps)) {
+    const reference = `snippet:${snippetId}`
     values[reference] = await resolveSnippetValue(
       snippetId,
       input.pageContext,

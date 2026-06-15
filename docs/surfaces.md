@@ -171,8 +171,9 @@ start/stop/expiry/config-change. See [focus-mode.md](./focus-mode.md).
 **Automations** push surfaces with the `showSurface` / `hideSurface` user-script
 engine ops (owner `userscript:<id>`). `content.title` / `content.text` are
 interpolated (`{{var}}`); `urlMatch` is not (an address, never a template). See
-[user-scripts.md](./user-scripts.md). (Automations do not yet produce `modal`
-or `blocks` — the `showSurface` schema is unchanged.)
+[user-scripts.md](./user-scripts.md). Automations intentionally produce only
+`overlay`/`badge` surfaces. Their schema rejects modal/picker-only fields such
+as `blocks` and `css`, so richer interactive surfaces stay command/feature-owned.
 
 **Commands** push surfaces directly from their `execute(context)` (which runs in
 the background) by calling the store with an owner id `command:<commandId>`. The

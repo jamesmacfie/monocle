@@ -23,7 +23,10 @@ import { getFavoriteCommandIds } from "./favorites"
 import { getAllCommandSettings } from "./settings"
 import { isSiteSdkCommandId } from "./siteSdk"
 import { type CommandLoadOptions, loadAllCommands } from "./source"
+import { mergePermissions } from "./traversal"
 import { getRankedCommandIds } from "./usage"
+
+export { mergePermissions } from "./traversal"
 
 export type ResolvedCommand = {
   command: CommandNode
@@ -51,16 +54,6 @@ export const normalizeContext = (
   modifierKey: context?.modifierKey ?? null,
   isNewTab: context?.isNewTab,
 })
-
-// Union of ancestor-inherited permissions and a node's own, deduped. A child
-// always requires at least what its groups require, so permission gating uses
-// the merged set as it descends. Shared with searchIndex.ts's rule chain build.
-export const mergePermissions = (
-  inherited: BrowserPermission[],
-  own?: BrowserPermission[],
-): BrowserPermission[] => {
-  return Array.from(new Set([...inherited, ...(own ?? [])]))
-}
 
 // Browser permission probe with an empty-set fast path. The browser API is
 // authoritative (Redux can be stale), so this is the gate consulted before

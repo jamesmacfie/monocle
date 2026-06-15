@@ -7,24 +7,33 @@
 // feature decides what the selection means (hide it, copy the selector, extract
 // text, watch it, …). Element Hider is merely the first consumer.
 //
-// The bounded free-text fields are validated in shared/types/validation.ts
-// (PickedElementSchema, the message-boundary schema). See docs/surfaces.md.
-export type PickedElement = {
+// The bounded free-text fields are validated here, then reused by the
+// surface-action message boundary. See docs/surfaces.md.
+import { z } from "zod"
+
+export const PickedElementSchema = z.object({
   // Stable CSS selector generated in content (compatible with the workflow
   // `css` Selector strategy in ./workflow.ts).
-  selector: string
+  selector: z.string().min(1).max(2000),
   // Upper-case tag name, e.g. "DIV".
-  tagName: string
-  id?: string
-  classes?: string[]
+  tagName: z.string().min(1).max(64),
+  id: z.string().max(256).optional(),
+  classes: z.array(z.string().max(256)).max(50).optional(),
   // Trimmed/truncated visible text, for feature UI and labels only.
-  innerText?: string
+  innerText: z.string().max(2000).optional(),
   // Present for anchors / media so a feature can act on the link target.
-  href?: string
-  role?: string
+  href: z.string().max(2000).optional(),
+  role: z.string().max(64).optional(),
   // Computed style values for the CSS properties an owner requested via the
   // picker surface's `content.css` config (property name -> resolved value).
   // Read in content from window.getComputedStyle at click time; absent when no
   // properties were requested. The font inspector is the first consumer.
-  css?: Record<string, string>
-}
+  css: z
+    .record(z.string().max(128), z.string().max(2000))
+    .refine((map) => Object.keys(map).length <= 64, {
+      message: "Too many css properties",
+    })
+    .optional(),
+})
+
+export type PickedElement = z.infer<typeof PickedElementSchema>

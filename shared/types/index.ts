@@ -2,6 +2,7 @@
 export * from "./browser"
 export * from "./commands"
 export * from "./content"
+export * from "./contentMessageValidation"
 export * from "./contentValidation"
 export * from "./events"
 export * from "./feature"

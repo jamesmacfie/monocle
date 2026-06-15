@@ -22,8 +22,10 @@ The system's hardest invariant is **lockstep**: the public `execute-workflow` sc
 command.execute() / user-script engine segment / debug tool
   -> executeWorkflowOnTargetTab()        background/workflows/execution.ts
        -> resolveWorkflowTargetTabId()   pick target tab
+       -> WorkflowSchema.safeParse(workflow)
        -> sendTabMessage(tabId, { type: "execute-workflow-content", workflow, context })
   -> content listener                    shared/hooks/useCommandPaletteStateRedux.tsx
+       -> validateContentMessage(message)
        -> workflowExecutor.executeWorkflow(workflow)   content/workflow/executor.ts
        -> sendResponse({ result })
   -> unwrapWorkflowResult(response)       back in execution.ts
@@ -46,11 +48,11 @@ Entry surfaces in the background:
 4. **Active tab fallback** only when no context target exists.
 5. Otherwise throws `"No workflow target tab found"`.
 
-`executeWorkflowOnTargetTab` then sends `execute-workflow-content` to the resolved tab and passes the response through `unwrapWorkflowResult`, which coerces anything malformed into `{ success: false, error: "Workflow execution returned an invalid result" }`.
+`executeWorkflowOnTargetTab` validates the workflow with `WorkflowSchema` before sending `execute-workflow-content` to the resolved tab and passes the response through `unwrapWorkflowResult`, which coerces anything malformed into `{ success: false, error: "Workflow execution returned an invalid result" }`.
 
 ### Content listener
 
-The content script registers the `execute-workflow-content` listener in `shared/hooks/useCommandPaletteStateRedux.tsx`. It keeps the listener synchronous and responds via `sendResponse` (returning a Promise from the listener is treated as the response by some runtimes). It logs only the workflow name and step count, never the full spec.
+The content script injects the real content runner from `content/components/ContentCommandPalette.tsx`; the shared listener lives in `shared/hooks/useCommandPaletteStateRedux.tsx` so new-tab/content palette state stays shared without importing `content/` from `shared/`. The listener validates `execute-workflow-content` with `ContentMessageSchema`, keeps the listener synchronous, and responds via `sendResponse` (returning a Promise from the listener is treated as the response by some runtimes). It logs only the workflow name and step count, never the full spec.
 
 ## The executor module (`content/workflow/`)
 
@@ -141,7 +143,7 @@ The executor runs steps in order and returns on the first failure (`"Step <op> f
 
 `shared/types/workflowValidation.ts` defines the Zod schemas (re-exported from `shared/types/validation.ts`). `WorkflowStepSchema` is a strict discriminated union over exactly the 17 implemented ops; unknown ops and unknown fields are rejected at the message boundary. `injectCss` bodies are capped at 10k chars; selectors must be non-empty; `select.by` must name a value, label, or index.
 
-Messages also pass the security wrapper in `background/utils/validation.ts` (rate limiting, 1MB total / 10k-char-per-string size limits) before schema validation.
+Messages also pass the security wrapper in `background/utils/validation.ts` (rate limiting, 1MB total / 10k-char-per-string size limits) before schema validation. Direct background callers that bypass the public `execute-workflow` message are still validated before the workflow crosses into content, and content validates the resulting `execute-workflow-content` message before executing.
 
 ## Retry and timeout
 

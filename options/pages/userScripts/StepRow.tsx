@@ -5,9 +5,9 @@
 // `StepRowState` data (editorState.ts) and report changes upward — the page
 // owns assembly and validation; nothing here executes anything.
 import { ArrowDown, ArrowUp, Trash2 } from "lucide-react"
-import type { PropsWithChildren } from "react"
 import type { Snippet, UserScriptStep } from "../../../shared/types"
 import { Button, Checkbox, Input, Select, Textarea } from "../../components/ui"
+import { EditorField as Field } from "./components/EditorField"
 import {
   createDefaultSelector,
   createDefaultStepRow,
@@ -27,17 +27,6 @@ type StepRowProps = {
   onMoveUp: () => void
   onMoveDown: () => void
   onDelete: () => void
-}
-
-function Field({ label, children }: PropsWithChildren<{ label: string }>) {
-  return (
-    <label className="grid gap-1 text-sm">
-      <span className="text-xs font-medium text-[var(--color-fg-muted)]">
-        {label}
-      </span>
-      {children}
-    </label>
-  )
 }
 
 const rowOp = (row: StepRowState): string =>

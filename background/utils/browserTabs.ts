@@ -1,9 +1,9 @@
-import type { Event } from "../../shared/types/"
+import type { ContentMessage } from "../../shared/types/"
 import { callBrowserAPI } from "./browserApi"
 
 export async function sendTabMessage(
   tabId: number,
-  message: Event,
+  message: ContentMessage,
 ): Promise<any> {
   return callBrowserAPI("tabs", "sendMessage", tabId, message)
 }
@@ -16,7 +16,9 @@ export async function queryTabs(queryInfo: any): Promise<any[]> {
 // extension, and discarded pages cannot receive content messages). Used to
 // broadcast surface-store changes (monocle-surfaces-changed) so every content
 // surface can re-query. See docs/surfaces.md.
-export async function broadcastToAllTabs(message: Event): Promise<void> {
+export async function broadcastToAllTabs(
+  message: ContentMessage,
+): Promise<void> {
   const tabs = await queryTabs({})
   await Promise.all(
     tabs.map(async (tab) => {

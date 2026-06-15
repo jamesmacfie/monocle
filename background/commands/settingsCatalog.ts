@@ -13,10 +13,8 @@ import type {
   SettingsCatalogCommand,
   SettingsCatalogResponse,
 } from "../../shared/types"
-import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
+import { getKeybindingTargetMetadata } from "../keybindings/targets"
 import {
-  allowsKeybinding,
-  getKeybindingRequirements,
   isSettingsCatalogConfigurable,
   resolveAsyncProperty,
   resolveCommandName,
@@ -58,26 +56,6 @@ const newTabContext: Browser.Context = {
   isNewTab: true,
 }
 
-const getDefaultKeybinding = (command: CommandNode): string | undefined => {
-  if (!allowsKeybinding(command)) {
-    return undefined
-  }
-
-  return normalizeKeybinding(command.keybinding || "") || undefined
-}
-
-const getEffectiveKeybinding = (
-  command: CommandNode,
-  settings?: CommandSettings,
-): string | undefined => {
-  if (!allowsKeybinding(command)) {
-    return undefined
-  }
-
-  const defaultKeybinding = getDefaultKeybinding(command)
-  return normalizeKeybinding(settings?.keybinding || defaultKeybinding || "")
-}
-
 const toCatalogUsage = (
   usageStats: CatalogTraversalContext["usageStats"],
   commandId: string,
@@ -113,8 +91,7 @@ const addCatalogRow = async (
   }
 
   const settings = traversal.commandSettings[command.id] || {}
-  const defaultKeybinding = getDefaultKeybinding(command)
-  const effectiveKeybinding = getEffectiveKeybinding(command, settings)
+  const keybindingTarget = getKeybindingTargetMetadata(command, settings)
 
   traversal.rows.push({
     id: command.id,
@@ -134,15 +111,15 @@ const addCatalogRow = async (
     permissions: command.permissions,
     settings,
     isFavorite: traversal.favoriteCommandIds.has(command.id),
-    defaultKeybinding,
-    effectiveKeybinding,
-    keybindingRequirements: getKeybindingRequirements(command),
+    defaultKeybinding: keybindingTarget.defaultKeybinding,
+    effectiveKeybinding: keybindingTarget.effectiveKeybinding,
+    keybindingRequirements: keybindingTarget.requirements,
     usage: toCatalogUsage(traversal.usageStats, command.id),
     capabilities: {
       configurable,
       canHide: configurable,
       canFavorite: configurable,
-      canSetKeybinding: allowsKeybinding(command),
+      canSetKeybinding: keybindingTarget.allowed,
       canEditUrlRules: configurable,
       hasUrlRules:
         Boolean(command.urlRules?.allowUrls?.length) ||

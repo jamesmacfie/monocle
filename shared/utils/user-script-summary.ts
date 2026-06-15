@@ -5,11 +5,11 @@
 // the user reviews exactly what the automation can do. Also used by the
 // options list view for scope/step blurbs. Pure (document in, strings out)
 // so the options page and tests share one implementation.
-import type {
-  UserScript,
-  UserScriptStep,
-  UserScriptTrigger,
-} from "../types/userScripts"
+import type { UserScript, UserScriptTrigger } from "../types/userScripts"
+import {
+  collectInlineSnippetReferences,
+  walkUserScriptSteps,
+} from "./user-script-introspection"
 
 export type UserScriptSummary = {
   // "Runs on *.dev.example.com · never on …" (empty scope = every page)
@@ -70,25 +70,6 @@ const OP_LABELS: Record<string, [singular: string, plural: string]> = {
   while: ["loops while a condition holds", "has {n} loops"],
 }
 
-const walkSteps = (
-  steps: UserScriptStep[],
-  visit: (step: UserScriptStep) => void,
-): void => {
-  for (const step of steps) {
-    visit(step)
-    if (step.op === "branch") {
-      walkSteps(step.then, visit)
-      if (step.else) {
-        walkSteps(step.else, visit)
-      }
-    } else if (step.op === "forEach" || step.op === "while") {
-      walkSteps(step.steps, visit)
-    }
-  }
-}
-
-const INLINE_SNIPPET_REF = /\{\{\s*snippet:([\w-]+)/g
-
 /** Builds the full review summary for a document. */
 export const summarizeUserScript = (
   script: Pick<UserScript, "urlRules" | "triggers" | "steps" | "vars">,
@@ -115,7 +96,11 @@ export const summarizeUserScript = (
     }
   }
 
-  walkSteps(script.steps, (step) => {
+  for (const snippetId of collectInlineSnippetReferences(script.steps)) {
+    snippetIds.add(snippetId)
+  }
+
+  walkUserScriptSteps(script.steps, (step) => {
     opCounts.set(step.op, (opCounts.get(step.op) ?? 0) + 1)
 
     if (step.op === "insertSnippet") {
@@ -129,21 +114,6 @@ export const summarizeUserScript = (
     }
     if (step.op === "clipboardWrite") {
       usesClipboard = true
-    }
-    if (
-      step.op === "fill" ||
-      step.op === "toast" ||
-      step.op === "setVariable"
-    ) {
-      const text =
-        step.op === "fill"
-          ? step.text
-          : step.op === "toast"
-            ? step.message
-            : step.value
-      for (const match of text.matchAll(INLINE_SNIPPET_REF)) {
-        snippetIds.add(match[1])
-      }
     }
   })
 
@@ -177,7 +147,7 @@ export const userScriptBlurb = (
   script: Pick<UserScript, "urlRules" | "triggers" | "steps">,
 ): string => {
   let stepCount = 0
-  walkSteps(script.steps, () => {
+  walkUserScriptSteps(script.steps, () => {
     stepCount += 1
   })
 

@@ -1,4 +1,8 @@
 import { z } from "zod"
+import {
+  GENERATED_ACTION_PREFIXES,
+  GENERATED_ACTION_SUFFIXES,
+} from "../utils/generated-actions"
 import { validateSvgIconMarkup } from "../utils/svg-icon"
 import type { Browser } from "./browser"
 import type { ColorName, CommandColor, CommandIcon } from "./commands"
@@ -61,9 +65,24 @@ export type SiteSdkSearchCommand = SiteSdkCommandBase & {
   getResults: SiteSdkCallbackRef
 }
 
+export type SiteSdkFormField = Extract<
+  FormField,
+  {
+    type:
+      | "text"
+      | "textarea"
+      | "select"
+      | "checkbox"
+      | "switch"
+      | "multi"
+      | "text-list"
+      | "color"
+  }
+>
+
 export type SiteSdkInputCommand = SiteSdkCommandBase & {
   type: "input"
-  field: Exclude<FormField, { type: "radio" }>
+  field: SiteSdkFormField
 }
 
 export type SiteSdkDisplayCommand = SiteSdkCommandBase & {
@@ -312,6 +331,18 @@ const FormFieldSchema = z.discriminatedUnion("type", [
       label: TextSchema,
       required: z.boolean().optional(),
       validation: JsonSchemaSchema.optional(),
+      type: z.literal("textarea"),
+      placeholder: TextSchema.optional(),
+      defaultValue: z.string().max(10_000).optional(),
+      rows: z.number().int().positive().max(30).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      id: SafeIdSchema,
+      label: TextSchema,
+      required: z.boolean().optional(),
+      validation: JsonSchemaSchema.optional(),
       type: z.literal("select"),
       options: z.array(OptionSchema).min(1).max(50),
       defaultValue: z.string().max(300).optional(),
@@ -452,22 +483,11 @@ export const SiteSdkRegistrationsSchema = z
   .array(SiteSdkRegistrationSchema)
   .max(20)
 
-const RESERVED_PREFIXES = [
-  "toggle-favorite-",
-  "set-keybinding-",
-  "reset-keybinding-",
-  "hide-from-domain-",
-]
-
 // Sites cannot claim ids that collide with Monocle's generated action rows.
 const isReservedCommandId = (id: string): boolean => {
   return (
-    id.endsWith("-enter-action") ||
-    id.endsWith("-cmd-enter-action") ||
-    id.endsWith("-shift-enter-action") ||
-    id.endsWith("-alt-enter-action") ||
-    id.endsWith("-ctrl-enter-action") ||
-    RESERVED_PREFIXES.some((prefix) => id.startsWith(prefix))
+    GENERATED_ACTION_SUFFIXES.some((suffix) => id.endsWith(suffix)) ||
+    GENERATED_ACTION_PREFIXES.some((prefix) => id.startsWith(prefix))
   )
 }
 

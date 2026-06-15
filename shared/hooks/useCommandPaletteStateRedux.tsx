@@ -1,5 +1,4 @@
 import { useCallback, useEffect } from "react"
-import { workflowExecutor } from "../../content/workflow"
 import { useAppDispatch, useAppSelector } from "../store/hooks"
 import {
   hideUI,
@@ -8,14 +7,20 @@ import {
   toggleUI,
 } from "../store/slices/commandPaletteState.slice"
 import { selectIsCapturing } from "../store/slices/keybinding.slice"
-import type { Workflow } from "../types/workflow"
+import { validateContentMessage } from "../types/contentMessageValidation"
+import type { Workflow, WorkflowResult } from "../types/workflow"
 import { getBrowserAPI } from "../utils/extension-api"
 
 // Cross-browser compatibility layer
 const browserAPI = getBrowserAPI()
 
-// Redux-based hook for managing command palette shortcuts and toggle state
-export const useCommandPaletteStateRedux = () => {
+type WorkflowRunner = (workflow: Workflow) => Promise<WorkflowResult>
+
+// Redux-based hook for managing command palette shortcuts and toggle state.
+// Content mode injects a workflow runner; extension-page modes can omit it.
+export const useCommandPaletteStateRedux = (options?: {
+  executeWorkflow?: WorkflowRunner
+}) => {
   const dispatch = useAppDispatch()
   const isOpen = useAppSelector(selectIsOpen)
   const isCapturing = useAppSelector(selectIsCapturing)
@@ -68,13 +73,18 @@ export const useCommandPaletteStateRedux = () => {
       _sender: browser.runtime.MessageSender | chrome.runtime.MessageSender,
       sendResponse: (response?: any) => void,
     ) => {
-      if (message.type === "toggle-ui") {
+      const parsed = validateContentMessage(message)
+      if (!parsed) {
+        return
+      }
+
+      if (parsed.type === "toggle-ui") {
         toggle()
         sendResponse({ received: true })
-      } else if (message.type === "show-ui") {
+      } else if (parsed.type === "show-ui") {
         show()
         sendResponse({ received: true })
-      } else if (message.type === "hide-ui") {
+      } else if (parsed.type === "hide-ui") {
         // Hide the palette and only acknowledge once the overlay has actually
         // been removed from the screen. Two animation frames ensures React has
         // committed the unmount and the browser has painted the result, so a
@@ -86,11 +96,21 @@ export const useCommandPaletteStateRedux = () => {
           })
         })
         return true
-      } else if (message.type === "execute-workflow-content") {
+      } else if (parsed.type === "execute-workflow-content") {
+        if (!options?.executeWorkflow) {
+          sendResponse({
+            result: {
+              success: false,
+              error: "Workflow execution is unavailable in this host",
+            },
+          })
+          return true
+        }
+
         // Keep this listener synchronous. Some runtimes treat an async
         // listener's returned Promise as the message response.
-        workflowExecutor
-          .executeWorkflow(message.workflow as Workflow)
+        options
+          .executeWorkflow(parsed.workflow)
           .then((result) => {
             sendResponse({ result })
           })
@@ -99,7 +119,7 @@ export const useCommandPaletteStateRedux = () => {
               error,
               message: error instanceof Error ? error.message : "Unknown error",
               stack: error instanceof Error ? error.stack : undefined,
-              workflow: message.workflow?.name,
+              workflow: parsed.workflow.name,
             })
 
             sendResponse({
@@ -117,7 +137,7 @@ export const useCommandPaletteStateRedux = () => {
     return () => {
       browserAPI.runtime.onMessage.removeListener(handleBackgroundMessage)
     }
-  }, [toggle, show, hide])
+  }, [toggle, show, hide, options?.executeWorkflow])
 
   return { isOpen, showUI: show, hideUI: hide, toggleUI: toggle }
 }

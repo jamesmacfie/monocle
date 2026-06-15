@@ -23,6 +23,7 @@ import {
   loadSettings,
 } from "../../shared/store/slices/settings.slice"
 import { subscribeSiteSdkCommandsChanged } from "../siteSdkBridge"
+import { workflowExecutor } from "../workflow"
 
 // Store is provided by ContentCommandPaletteWithState at the root
 
@@ -34,7 +35,14 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
   onClose,
 }) => {
   const { data, fetchCommands } = useGetCommands()
-  const { isOpen, showUI, hideUI } = useCommandPaletteStateRedux()
+  const executeWorkflow = useCallback(
+    (workflow: Parameters<typeof workflowExecutor.executeWorkflow>[0]) =>
+      workflowExecutor.executeWorkflow(workflow),
+    [],
+  )
+  const { isOpen, showUI, hideUI } = useCommandPaletteStateRedux({
+    executeWorkflow,
+  })
   const sendMessage = useSendMessage()
   const dispatch = useAppDispatch()
   const openPaletteAtCommand = useOpenPaletteAtCommand({

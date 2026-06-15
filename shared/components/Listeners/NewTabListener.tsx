@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import type { NewTabEvent } from "../../../shared/types"
+import { validateContentMessage } from "../../types/contentMessageValidation"
 
 export default function NewTabListener() {
   useEffect(() => {
@@ -8,19 +8,18 @@ export default function NewTabListener() {
       _sender: chrome.runtime.MessageSender,
       sendResponse: (response?: any) => void,
     ) => {
-      if (message.type === "monocle-newTab") {
-        const newTabEvent = message as NewTabEvent
-
+      const event = validateContentMessage(message)
+      if (event?.type === "monocle-newTab") {
         try {
-          const url = new URL(newTabEvent.url)
+          const url = new URL(event.url)
           // Only allow safe URL schemes
           if (url.protocol === "http:" || url.protocol === "https:") {
-            window.open(newTabEvent.url, "_blank")
+            window.open(event.url, "_blank")
           } else {
             console.warn("Blocked unsafe URL scheme:", url.protocol)
           }
         } catch (error) {
-          console.error("Invalid URL:", newTabEvent.url, error)
+          console.error("Invalid URL:", event.url, error)
         }
 
         sendResponse({ received: true })

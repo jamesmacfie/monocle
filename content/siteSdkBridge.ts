@@ -7,6 +7,7 @@ import type {
 import {
   SITE_SDK_BRIDGE_SOURCE,
   SITE_SDK_PAGE_SOURCE,
+  validateContentMessage,
   validateSiteSdkCommandList,
   validateSiteSdkRegistrations,
 } from "../shared/types"
@@ -159,14 +160,16 @@ const handleBackgroundMessage = (
   _sender: any,
   sendResponse: (response?: any) => void,
 ) => {
-  if (message?.type === "monocle-sdk-sync-request") {
+  const event = validateContentMessage(message)
+
+  if (event?.type === "monocle-sdk-sync-request") {
     postBridgeMessage({ type: "sync-request" })
     sendResponse({ registrations: latestRegistrations })
     return false
   }
 
-  if (message?.type === "monocle-sdk-invoke" && message.request) {
-    requestPageInvoke(message.request)
+  if (event?.type === "monocle-sdk-invoke") {
+    requestPageInvoke(event.request)
       .then((response) => {
         if (response.success && response.commands) {
           const validation = validateSiteSdkCommandList(response.commands, {

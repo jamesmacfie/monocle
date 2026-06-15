@@ -13,6 +13,7 @@ import { getChildrenCommands } from "../messages/getChildrenCommands"
 import { getCommands as getCommandMessage } from "../messages/getCommands"
 import { searchCommands } from "../messages/searchCommands"
 import { toggleFavoriteCommandId } from "./favorites"
+import { generatedActionIds } from "./generatedActions"
 import { commandsToSuggestions, executeCommand, getCommands } from "./index"
 import { invalidateSearchIndex } from "./searchIndex"
 import {
@@ -176,6 +177,30 @@ const installChromeStubs = () => {
         },
       ),
     },
+    bookmarks: {
+      getTree: vi.fn((callback?: Function) => {
+        callback?.([])
+        return Promise.resolve([])
+      }),
+    },
+    sessions: {
+      getRecentlyClosed: vi.fn((_filter: object, callback?: Function) => {
+        callback?.([])
+        return Promise.resolve([])
+      }),
+    },
+    downloads: {
+      search: vi.fn((_query: object, callback?: Function) => {
+        callback?.([])
+        return Promise.resolve([])
+      }),
+    },
+    history: {
+      search: vi.fn((_query: object, callback?: Function) => {
+        callback?.([])
+        return Promise.resolve([])
+      }),
+    },
   }
 
   vi.stubGlobal("browser", fakeBrowser)
@@ -195,6 +220,16 @@ const _getChildren = async (
     searchValue,
     context,
   })) as any
+}
+
+const searchResultIds = (
+  response: Awaited<ReturnType<typeof searchCommands>>,
+): string[] => {
+  if ("error" in response) {
+    throw new Error(response.error)
+  }
+
+  return response.results.map((command) => command.id)
 }
 
 beforeEach(async () => {
@@ -329,16 +364,16 @@ describe("generated actions", () => {
           : []
 
       expect(actions.map((action) => action.id)).toContain(
-        `${suggestion.id}-enter-action`,
+        generatedActionIds.primary(suggestion.id),
       )
       expect(actions.map((action) => action.id)).toContain(
-        `toggle-favorite-${suggestion.id}`,
+        generatedActionIds.favorite(suggestion.id),
       )
       expect(actions.map((action) => action.id)).toContain(
-        `hide-from-domain-${suggestion.id}`,
+        generatedActionIds.hideDomain(suggestion.id),
       )
       expect(actions.map((action) => action.id)).toContain(
-        `hide-command-${suggestion.id}`,
+        generatedActionIds.hideCommand(suggestion.id),
       )
     }
   })
@@ -637,12 +672,20 @@ describe("URL-filtered execution", () => {
     })
   })
 
-  it("stores generated hide-from-domain deny patterns", async () => {
+  it("stores generated hide-from-domain deny patterns and invalidates search visibility", async () => {
     const docsContext: Browser.Context = {
       url: "https://docs.example.com/reference",
       title: "Docs",
       modifierKey: null,
     }
+
+    const beforeHide = await searchCommands({
+      type: "search-commands",
+      query: "bookmarks",
+      context: docsContext,
+      seq: 1,
+    })
+    expect(searchResultIds(beforeHide)).toContain("bookmarks")
 
     await executeCommand("hide-from-domain-bookmarks", docsContext, {})
 
@@ -651,6 +694,14 @@ describe("URL-filtered execution", () => {
         denyUrls: ["*://*.docs.example.com/*"],
       },
     })
+
+    const afterHide = await searchCommands({
+      type: "search-commands",
+      query: "bookmarks",
+      context: docsContext,
+      seq: 2,
+    })
+    expect(searchResultIds(afterHide)).not.toContain("bookmarks")
   })
 })
 

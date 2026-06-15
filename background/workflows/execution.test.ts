@@ -98,6 +98,31 @@ describe("workflow target routing", () => {
     ).rejects.toThrow("No tab found for workflow context URL")
   })
 
+  it("does not send invalid internal workflows to content", async () => {
+    const sendTabMessage = vi.fn()
+
+    await expect(
+      executeWorkflowOnTargetTab({
+        workflow: {
+          version: "1.0",
+          steps: [{ op: "not-real" }],
+        } as unknown as Workflow,
+        context,
+        tabId: 4,
+        deps: {
+          sendTabMessage,
+        },
+      }),
+    ).resolves.toMatchObject({
+      tabId: 4,
+      result: {
+        success: false,
+      },
+    })
+
+    expect(sendTabMessage).not.toHaveBeenCalled()
+  })
+
   it("unwraps malformed content responses as workflow failures", () => {
     expect(unwrapWorkflowResult({ received: true })).toEqual({
       success: false,

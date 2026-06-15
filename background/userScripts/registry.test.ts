@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
 import { isFeatureAutomation } from "../../shared/types/userScripts"
+import { validateFeatureAutomations } from "../features"
 import { setFeatureConfig } from "../features/config"
 import { ELEMENT_HIDER_FEATURE_ID } from "../features/elementHider/types"
 import { getAllAutomations, getAutomationById } from "./registry"
@@ -52,6 +53,31 @@ describe("getAllAutomations", () => {
       kind: "feature",
       featureId: ELEMENT_HIDER_FEATURE_ID,
     })
+  })
+
+  it("logs and skips invalid feature-projected automations", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    const valid = validateFeatureAutomations(ELEMENT_HIDER_FEATURE_ID, [
+      {
+        id: "bad",
+        schemaVersion: 1,
+        name: "Bad projected automation",
+        enabled: true,
+        createdAt: 1,
+        updatedAt: 1,
+        triggers: [{ type: "manual" }],
+        steps: [],
+      } as any,
+    ])
+
+    expect(valid).toEqual([])
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("invalid projected automation skipped"),
+      expect.objectContaining({ automationId: "bad" }),
+    )
+
+    error.mockRestore()
   })
 })
 

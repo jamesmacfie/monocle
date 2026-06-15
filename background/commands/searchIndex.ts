@@ -19,15 +19,10 @@ import type {
   CommandSettings,
   GroupCommandNode,
   SubmitCommandNode,
-  UrlRules,
 } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
-import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
-import {
-  allowsKeybinding,
-  resolveAsyncProperty,
-  resolveCommandName,
-} from "../utils/commands"
+import { resolveEffectiveKeybinding } from "../keybindings/targets"
+import { resolveAsyncProperty, resolveCommandName } from "../utils/commands"
 import { checkPermissions } from "../utils/permissions"
 import { isCommandVisibleForUrl } from "../utils/urlFilter"
 import { getFavoriteCommandIds } from "./favorites"
@@ -36,6 +31,12 @@ import { getCommandPageCommands, mergePermissions } from "./query"
 import { computeScorableTokens } from "./searchScore"
 import { getAllCommandSettings } from "./settings"
 import { type CommandLoadOptions, loadAllCommands } from "./source"
+import {
+  appendUrlRuleChain,
+  reverseBreadcrumb,
+  toUrlRuleChainLink,
+  type UrlRuleChainLink,
+} from "./traversal"
 import { getRankedCommandIds } from "./usage"
 
 // Source-based ranking multipliers for deep-search entries. Root commands are
@@ -55,11 +56,6 @@ export const DEEP_SEARCH_RANK_WEIGHTS: Record<string, number> = {
 const DEFAULT_DEEP_SEARCH_WEIGHT = 1
 
 const INDEX_TTL_MS = 30_000
-
-type UrlRuleChainLink = {
-  id: string
-  urlRules?: UrlRules
-}
 
 export type IndexEntry = {
   id: string
@@ -153,18 +149,10 @@ const resolveEntryKeybinding = (
   command: CommandNode,
   commandSettings: Record<string, CommandSettings>,
 ): string => {
-  if (!allowsKeybinding(command)) {
-    return ""
-  }
-
-  const raw =
-    commandSettings[command.id]?.keybinding ||
-    (command.type === "action" || command.type === "submit"
-      ? command.keybinding
-      : undefined) ||
-    ""
-
-  return (normalizeKeybinding(raw) || "").toLowerCase()
+  return resolveEffectiveKeybinding(
+    command,
+    commandSettings[command.id],
+  ).toLowerCase()
 }
 
 type EntryParams = {
@@ -276,17 +264,11 @@ const walkGroups = async (
 
       const parentName = await resolveCommandName(command.name, shared.context)
       const newPath = [...parentPath, parentName]
-      const chain: UrlRuleChainLink[] = [
-        ...parentChain,
-        { id: command.id, urlRules: command.urlRules },
-      ]
+      const chain = appendUrlRuleChain(parentChain, command)
 
       for (const child of children) {
-        const childChain: UrlRuleChainLink[] = [
-          ...chain,
-          { id: child.id, urlRules: child.urlRules },
-        ]
-        const reversedPath = [...newPath].reverse()
+        const childChain = appendUrlRuleChain(chain, child)
+        const reversedPath = reverseBreadcrumb(newPath)
 
         if (
           shouldDeepSearch &&
@@ -536,7 +518,7 @@ const buildSearchIndex = async (
           sourceWeight: 1,
           fromDeepSearch: false,
           inheritedPermissions: [],
-          urlRuleChain: [{ id: command.id, urlRules: command.urlRules }],
+          urlRuleChain: [toUrlRuleChainLink(command)],
         },
         shared,
       ),
@@ -754,7 +736,7 @@ export const buildEphemeralIndexEntries = async (
           sourceWeight: 1,
           fromDeepSearch: false,
           inheritedPermissions,
-          urlRuleChain: [{ id: command.id, urlRules: command.urlRules }],
+          urlRuleChain: [toUrlRuleChainLink(command)],
         },
         shared,
       ),

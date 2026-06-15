@@ -1,22 +1,17 @@
 import type {
   CommandUrlRulesSetting,
-  KeybindingRequirements,
   UpdateCommandSettingMessage,
 } from "../../shared/types"
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
 import { validateKeybindingRequirements } from "../../shared/utils/keybinding-requirements"
-import { resolveCommandById } from "../commands/query"
-import { invalidateSearchIndex } from "../commands/searchIndex"
 import {
-  removeCommandSetting,
-  updateCommandSettings,
-  updateCommandUrlRules,
-} from "../commands/settings"
-import { getSettingsCatalogCommandById } from "../commands/settingsCatalog"
+  clearCommandKeybindingAndRefresh,
+  setCommandHiddenAndInvalidate,
+  setCommandKeybindingAndRefresh,
+  updateCommandUrlRulesAndInvalidate,
+} from "../commands/settingMutations"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
-import { refreshKeybindingRegistry } from "../keybindings/registry"
-import { invalidateKeybindingEntriesCache } from "../keybindings/source"
-import { allowsKeybinding, getKeybindingRequirements } from "../utils/commands"
+import { resolveKeybindingAssignmentTarget } from "../keybindings/assignmentTarget"
 import { validateUrlPattern } from "../utils/urlFilter"
 import { showToast } from "./showToast"
 
@@ -39,34 +34,6 @@ const validateUrlRulesSetting = (urlRules: CommandUrlRulesSetting): void => {
   }
 }
 
-type KeybindingTarget =
-  | { allowed: false }
-  | { allowed: true; requirements?: KeybindingRequirements }
-
-const resolveKeybindingTarget = async (
-  commandId: string,
-  message: UpdateCommandSettingMessage,
-  siteSdk: Awaited<ReturnType<typeof prepareSiteSdkCommandLoadOptions>>,
-): Promise<KeybindingTarget> => {
-  const resolved = await resolveCommandById(commandId, message.context, {
-    siteSdk,
-  })
-
-  if (resolved) {
-    return allowsKeybinding(resolved.command)
-      ? {
-          allowed: true,
-          requirements: getKeybindingRequirements(resolved.command),
-        }
-      : { allowed: false }
-  }
-
-  const catalogCommand = await getSettingsCatalogCommandById(commandId)
-  return catalogCommand?.capabilities.canSetKeybinding === true
-    ? { allowed: true, requirements: catalogCommand.keybindingRequirements }
-    : { allowed: false }
-}
-
 export async function updateCommandSetting(
   message: UpdateCommandSettingMessage,
   sender?: any,
@@ -81,12 +48,15 @@ export async function updateCommandSetting(
     const settingValue = normalizeKeybinding(String(value ?? ""))
 
     if (!settingValue) {
-      await removeCommandSetting(commandId, "keybinding")
-      await refreshKeybindingRegistry()
+      await clearCommandKeybindingAndRefresh(commandId)
       return { success: true }
     }
 
-    const target = await resolveKeybindingTarget(commandId, message, siteSdk)
+    const target = await resolveKeybindingAssignmentTarget({
+      commandId,
+      context: message.context,
+      options: { siteSdk },
+    })
     if (!target.allowed) {
       throw new Error(`Command cannot be assigned a keybinding: ${commandId}`)
     }
@@ -104,10 +74,7 @@ export async function updateCommandSetting(
       )
     }
 
-    await updateCommandSettings(commandId, {
-      keybinding: settingValue,
-    })
-    await refreshKeybindingRegistry()
+    await setCommandKeybindingAndRefresh(commandId, settingValue)
 
     // Show success toast for keybinding updates
     await showToast({
@@ -119,18 +86,11 @@ export async function updateCommandSetting(
 
   if (setting === "urlRules") {
     validateUrlRulesSetting(value)
-    await updateCommandUrlRules(commandId, value)
-    invalidateSearchIndex()
-    // URL rules change which commands are visible to the keybinding source.
-    invalidateKeybindingEntriesCache()
+    await updateCommandUrlRulesAndInvalidate(commandId, value)
   }
 
   if (setting === "hidden") {
-    await updateCommandSettings(commandId, {
-      hidden: value,
-    })
-    await refreshKeybindingRegistry()
-    invalidateSearchIndex()
+    await setCommandHiddenAndInvalidate(commandId, value)
   }
 
   return { success: true }

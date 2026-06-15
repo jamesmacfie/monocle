@@ -148,7 +148,7 @@ Supported node families:
 | `submit` | `onExecute(event)` | Form submit row. Supports `actionLabel`, `confirmAction`, `remainOpenOnSelect`, `doNotAddToRecents`. |
 | `group` | `children` | Static array or callback. SDK groups deep-search by default unless `enableDeepSearch: false`. |
 | `search` | `getResults(event)` | Dynamic result page. Optional `onExecute(event)` executes the search node itself. |
-| `input` | `field` | Rendered variants only: `text`, `select`, `checkbox`, `switch`, `multi`, `text-list`, `color`. |
+| `input` | `field` | Rendered variants only: `text`, `textarea`, `select`, `checkbox`, `switch`, `multi`, `text-list`, `color`. |
 | `display` | none beyond base | Non-executable row. |
 
 Not exposed in V1:
@@ -157,7 +157,7 @@ Not exposed in V1:
 - `supportedBrowsers`
 - default `keybinding`
 - custom-keybinding fields
-- `radio` form fields
+- `radio`, `number`, and `record-list` form fields
 
 Unknown fields are rejected because schemas use strict object validation.
 
@@ -336,10 +336,10 @@ Validation rejects:
 - malformed ids
 - duplicate command ids within one registration tree
 - duplicate registration ids within a snapshot
-- reserved generated-action ids such as `hide-from-domain-*` or
-  `*-enter-action`
+- reserved generated-action ids such as `hide-from-domain-*`,
+  `hide-command-*`, or `*-enter-action`
 - unknown object fields
-- unsupported `radio` fields
+- unsupported `radio`, `number`, and `record-list` fields
 - invalid icon URL protocols; only `http:` and `https:` are allowed
 - unsafe svg icon markup; oversize markup, multiple or non-`<svg>` roots,
   script-capable elements, inline event handlers, `javascript:` URLs, and

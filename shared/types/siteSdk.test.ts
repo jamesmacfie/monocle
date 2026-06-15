@@ -62,6 +62,17 @@ describe("site SDK schema validation", () => {
                   },
                 },
                 {
+                  id: "textarea-input",
+                  type: "input",
+                  name: "Body",
+                  field: {
+                    id: "body",
+                    type: "textarea",
+                    label: "Body",
+                    rows: 4,
+                  },
+                },
+                {
                   id: "checkbox-input",
                   type: "input",
                   name: "Enabled",
@@ -254,7 +265,7 @@ describe("site SDK schema validation", () => {
     ).toBe(false)
   })
 
-  it("rejects invalid ids, duplicate ids, unsupported fields, and radio fields", () => {
+  it("rejects invalid ids, duplicate ids, unsupported fields, and non-SDK fields", () => {
     expect(
       validateSiteSdkRegistrations([
         {
@@ -317,6 +328,49 @@ describe("site SDK schema validation", () => {
         },
       ]).success,
     ).toBe(false)
+
+    expect(
+      validateSiteSdkRegistrations([
+        {
+          id: "number",
+          namespace: "number",
+          commands: [
+            {
+              id: "number-input",
+              type: "input",
+              name: "Number",
+              field: {
+                id: "count",
+                type: "number",
+                label: "Count",
+              },
+            },
+          ],
+        },
+      ]).success,
+    ).toBe(false)
+
+    expect(
+      validateSiteSdkRegistrations([
+        {
+          id: "record-list",
+          namespace: "record-list",
+          commands: [
+            {
+              id: "record-list-input",
+              type: "input",
+              name: "Records",
+              field: {
+                id: "records",
+                type: "record-list",
+                label: "Records",
+                itemActions: [],
+              },
+            },
+          ],
+        },
+      ]).success,
+    ).toBe(false)
   })
 
   it("rejects invalid URL rules, arbitrary colors, reserved ids, and submit modifier labels", () => {
@@ -350,7 +404,10 @@ describe("site SDK schema validation", () => {
         {
           id: "reserved",
           namespace: "reserved",
-          commands: [action("hide-from-domain-open")],
+          commands: [
+            action("hide-from-domain-open"),
+            action("hide-command-open"),
+          ],
         },
       ]).success,
     ).toBe(false)

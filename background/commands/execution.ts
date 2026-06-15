@@ -14,7 +14,6 @@ import type {
   CommandExecutionScope,
   CommandNode,
 } from "../../shared/types"
-import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { showToast } from "../messages/showToast"
 import { isSettingsCatalogConfigurable } from "../utils/commands"
 import { checkPermissions } from "../utils/permissions"
@@ -30,13 +29,11 @@ import {
   resolveCommandById,
   resolveCommandInPage,
 } from "./query"
-import { invalidateSearchIndex } from "./searchIndex"
 import {
-  getCommandSettings,
-  removeCommandSetting,
-  updateCommandSettings,
-  updateCommandUrlRules,
-} from "./settings"
+  appendCommandDenyUrlRuleAndInvalidate,
+  clearCommandKeybindingAndRefresh,
+  setCommandHiddenAndInvalidate,
+} from "./settingMutations"
 import type { CommandLoadOptions } from "./source"
 import { recordCommandUsage } from "./usage"
 
@@ -185,8 +182,7 @@ const executeGeneratedAction = async (
   }
 
   if (action.type === "resetKeybinding") {
-    await removeCommandSetting(action.targetCommandId, "keybinding")
-    await refreshKeybindingRegistry()
+    await clearCommandKeybindingAndRefresh(action.targetCommandId)
     return
   }
 
@@ -201,16 +197,7 @@ const executeGeneratedAction = async (
     }
 
     const pattern = createUrlPatternForDomain(domain)
-    const currentSettings =
-      (await getCommandSettings(action.targetCommandId)) || {}
-    const currentDenyUrls = currentSettings.urlRules?.denyUrls || []
-
-    if (!currentDenyUrls.includes(pattern)) {
-      await updateCommandUrlRules(action.targetCommandId, {
-        denyUrls: [...currentDenyUrls, pattern],
-      })
-    }
-
+    await appendCommandDenyUrlRuleAndInvalidate(action.targetCommandId, pattern)
     return
   }
 
@@ -219,11 +206,7 @@ const executeGeneratedAction = async (
       return
     }
 
-    await updateCommandSettings(action.targetCommandId, {
-      hidden: true,
-    })
-    await refreshKeybindingRegistry()
-    invalidateSearchIndex()
+    await setCommandHiddenAndInvalidate(action.targetCommandId, true)
     return
   }
 

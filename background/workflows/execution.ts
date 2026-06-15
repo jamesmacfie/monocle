@@ -6,6 +6,7 @@
 // and direct background callers like the debug tool.
 import type { Browser } from "../../shared/types"
 import type { Workflow, WorkflowResult } from "../../shared/types/workflow"
+import { WorkflowSchema } from "../../shared/types/workflowValidation"
 import { getActiveTab, queryTabs, sendTabMessage } from "../utils/browser"
 import { resolveSenderTabId } from "../utils/messages"
 
@@ -161,9 +162,20 @@ export const executeWorkflowOnTargetTab = async ({
     ((targetTabId: number, message: unknown) =>
       sendTabMessage(targetTabId, message as any))
 
+  const parsedWorkflow = WorkflowSchema.safeParse(workflow)
+  if (!parsedWorkflow.success) {
+    return {
+      tabId: targetTabId,
+      result: {
+        success: false,
+        error: `Workflow validation failed: ${parsedWorkflow.error.issues[0]?.message ?? "Invalid workflow"}`,
+      },
+    }
+  }
+
   const response = await sendTabMessageImpl(targetTabId, {
     type: "execute-workflow-content",
-    workflow,
+    workflow: parsedWorkflow.data,
     context,
   })
 

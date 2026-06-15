@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import type { InsertTextEvent } from "../../../shared/types"
+import { validateContentMessage } from "../../types/contentMessageValidation"
 
 // Selector matching Monocle's own UI: the content-mode shadow host (focus
 // events from a closed shadow root retarget to the host element) and the
@@ -109,12 +109,10 @@ export default function InsertTextListener() {
       _sender: chrome.runtime.MessageSender,
       sendResponse: (response?: any) => void,
     ) => {
-      if (message.type === "monocle-insertText") {
-        const insertTextEvent = message as InsertTextEvent
+      const event = validateContentMessage(message)
+      if (event?.type === "monocle-insertText") {
         const target = lastEditableRef.current
-        const inserted = target
-          ? insertAtCaret(target, insertTextEvent.text)
-          : false
+        const inserted = target ? insertAtCaret(target, event.text) : false
 
         sendResponse({ inserted })
         return true

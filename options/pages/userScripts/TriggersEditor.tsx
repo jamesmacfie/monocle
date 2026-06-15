@@ -5,13 +5,14 @@
 // schema's at-most-one-of-each-non-manual-type rule up front by disabling
 // used types. Edits pure `TriggerRowState` data; the page owns validation.
 import { Trash2 } from "lucide-react"
-import { type PropsWithChildren, useState } from "react"
+import { useState } from "react"
 import type {
   UserScriptParameterField,
   UserScriptTrigger,
   UserScriptTriggerType,
 } from "../../../shared/types"
 import { Button, Checkbox, Input, Select, Textarea } from "../../components/ui"
+import { EditorField as Field } from "./components/EditorField"
 import {
   createDefaultTrigger,
   TRIGGER_TYPE_LABELS,
@@ -32,17 +33,6 @@ type TriggersEditorProps = {
   rows: TriggerRowState[]
   errorsByIndex: Record<number, string[]>
   onChange: (rows: TriggerRowState[]) => void
-}
-
-function Field({ label, children }: PropsWithChildren<{ label: string }>) {
-  return (
-    <label className="grid gap-1 text-sm">
-      <span className="text-xs font-medium text-[var(--color-fg-muted)]">
-        {label}
-      </span>
-      {children}
-    </label>
-  )
 }
 
 function CheckboxField({

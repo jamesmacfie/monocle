@@ -1,80 +1,52 @@
-// Browser extension events
+// Browser extension events. Runtime schemas live in
+// contentMessageValidation.ts; these aliases keep the established public type
+// names while deriving them from the validated background -> tab contract.
+import type { ContentMessage } from "./contentMessageValidation"
 
-export type CopyToClipboardEvent = {
-  type: "monocle-copyToClipboard"
-  message: string
-}
+export type CopyToClipboardEvent = Extract<
+  ContentMessage,
+  { type: "monocle-copyToClipboard" }
+>
 
 // Insert text at the caret of the page's last-focused editable element.
 // The content listener responds with { inserted: boolean } so the caller
 // can fall back (e.g. to a clipboard copy) when nothing was focused.
-export type InsertTextEvent = {
-  type: "monocle-insertText"
-  text: string
-}
+export type InsertTextEvent = Extract<
+  ContentMessage,
+  { type: "monocle-insertText" }
+>
 
-export type NewTabEvent = {
-  type: "monocle-newTab"
-  url: string
-}
+export type NewTabEvent = Extract<ContentMessage, { type: "monocle-newTab" }>
 
-export type ScrollEvent = {
-  type: "monocle-scroll"
-} & (
-  | {
-      direction: "top" | "bottom"
-    }
-  | {
-      axis: "x" | "y"
-      amount: number
-      unit: "line" | "viewport" | "pixel"
-    }
-  | {
-      axis: "x" | "y"
-      edge: "start" | "end"
-    }
-)
+export type ScrollEvent = Extract<ContentMessage, { type: "monocle-scroll" }>
 
-export type ScreenshotEvent = {
-  type: "monocle-screenshot"
-  // "clipboard" writes the image to the clipboard; "download" saves it to the
-  // browser's downloads folder. Both run page-side because clipboard image
-  // writes and anchor downloads need a DOM/document context.
-  mode: "clipboard" | "download"
-  dataUrl: string
-  filename?: string
-}
+// "clipboard" writes the image to the clipboard; "download" saves it to the
+// browser's downloads folder. Both run page-side because clipboard image
+// writes and anchor downloads need a DOM/document context.
+export type ScreenshotEvent = Extract<
+  ContentMessage,
+  { type: "monocle-screenshot" }
+>
 
-export type ToastEvent = {
-  type: "monocle-toast"
-  level: "info" | "warning" | "success" | "error"
-  message: string
-}
+export type ToastEvent = Extract<ContentMessage, { type: "monocle-toast" }>
 
-export type SiteSdkSyncRequestEvent = {
-  type: "monocle-sdk-sync-request"
-}
+export type SiteSdkSyncRequestEvent = Extract<
+  ContentMessage,
+  { type: "monocle-sdk-sync-request" }
+>
 
-export type SiteSdkInvokeEvent = {
-  type: "monocle-sdk-invoke"
-  request: import("./siteSdk").SiteSdkInvokeRequest
-}
+export type SiteSdkInvokeEvent = Extract<
+  ContentMessage,
+  { type: "monocle-sdk-invoke" }
+>
 
 // Broadcast to every tab when the background-owned surfaces store changes
 // (any owner: a feature like Focus Mode, or a user-script automation). Carries
 // no payload; the SurfaceHost re-queries get-surfaces. See docs/surfaces.md.
-export type SurfacesChangedEvent = {
-  type: "monocle-surfaces-changed"
-}
+export type SurfacesChangedEvent = Extract<
+  ContentMessage,
+  { type: "monocle-surfaces-changed" }
+>
 
-export type Event =
-  | CopyToClipboardEvent
-  | InsertTextEvent
-  | NewTabEvent
-  | ScrollEvent
-  | ScreenshotEvent
-  | ToastEvent
-  | SiteSdkSyncRequestEvent
-  | SiteSdkInvokeEvent
-  | SurfacesChangedEvent
+export type Event = Extract<ContentMessage, { type: `monocle-${string}` }>
 export type BrowserEvent = Event

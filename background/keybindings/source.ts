@@ -16,7 +16,6 @@ import type {
   KeybindingBehavior,
 } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
-import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
 import { getPlatform } from "../commands/platform"
 import {
   getFilteredRootCommands,
@@ -26,13 +25,10 @@ import {
 } from "../commands/query"
 import { getAllCommandSettings } from "../commands/settings"
 import type { CommandLoadOptions } from "../commands/source"
-import {
-  allowsKeybinding,
-  getKeybindingBehavior,
-  resolveCommandName,
-} from "../utils/commands"
+import { resolveCommandName } from "../utils/commands"
 import { checkPermissions } from "../utils/permissions"
 import { filterCommandsByUrl } from "../utils/urlFilter"
+import { getKeybindingTargetMetadata } from "./targets"
 
 export type KeybindingCommandEntry = {
   id: string
@@ -48,20 +44,6 @@ const hasRequiredPermissions = async (
   return (await checkPermissions(permissions)).hasAllPermissions
 }
 
-const getCommandKeybinding = (
-  command: CommandNode,
-  commandSettings: Record<string, CommandSettings>,
-): string => {
-  if (!allowsKeybinding(command)) {
-    return ""
-  }
-
-  const configuredKeybinding = commandSettings[command.id]?.keybinding
-  const defaultKeybinding = command.keybinding
-
-  return normalizeKeybinding(configuredKeybinding || defaultKeybinding || "")
-}
-
 const addKeybindingEntry = async (
   entries: KeybindingCommandEntry[],
   seenEntries: Set<string>,
@@ -69,7 +51,11 @@ const addKeybindingEntry = async (
   context: Browser.Context,
   commandSettings: Record<string, CommandSettings>,
 ): Promise<void> => {
-  const keybinding = getCommandKeybinding(command, commandSettings)
+  const keybindingTarget = getKeybindingTargetMetadata(
+    command,
+    commandSettings[command.id],
+  )
+  const keybinding = keybindingTarget.effectiveKeybinding
   if (!keybinding) return
 
   const entryKey = `${command.id}:${keybinding}`
@@ -80,7 +66,7 @@ const addKeybindingEntry = async (
     id: command.id,
     name: await resolveCommandName(command.name, context),
     keybinding,
-    behavior: getKeybindingBehavior(command),
+    behavior: keybindingTarget.behavior,
   })
 }
 

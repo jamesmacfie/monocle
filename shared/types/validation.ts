@@ -5,6 +5,7 @@
 // shared/types/userScriptValidation.ts; both are re-exported here so message
 // handlers and tests keep one import surface.
 import { z } from "zod"
+import { PickedElementSchema } from "./picker"
 import { SiteSdkRegistrationsSchema } from "./siteSdk"
 import { UserScriptDraftSchema } from "./userScriptValidation"
 import { WorkflowSchema } from "./workflowValidation"
@@ -291,27 +292,6 @@ export const ExecuteFeatureActionMessageSchema = z.object({
 export const GetSurfacesMessageSchema = z.object({
   type: z.literal("get-surfaces"),
   url: z.string(),
-})
-
-// The structured selection a `picker` surface reports on click. Free-text
-// fields are bounded (attacker-facing — the page controls these values).
-export const PickedElementSchema = z.object({
-  selector: z.string().min(1).max(2000),
-  tagName: z.string().min(1).max(64),
-  id: z.string().max(256).optional(),
-  classes: z.array(z.string().max(256)).max(50).optional(),
-  innerText: z.string().max(2000).optional(),
-  href: z.string().max(2000).optional(),
-  role: z.string().max(64).optional(),
-  // Computed CSS values requested via the picker surface's `content.css` config
-  // (property -> value). Page-controlled, so both keys and values are bounded
-  // and the map is capped.
-  css: z
-    .record(z.string().max(128), z.string().max(2000))
-    .refine((map) => Object.keys(map).length <= 64, {
-      message: "Too many css properties",
-    })
-    .optional(),
 })
 
 // A surface interaction (e.g. dismissing a modal, or a picker reporting a

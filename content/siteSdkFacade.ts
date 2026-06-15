@@ -1,8 +1,8 @@
 import type {
   CommandIcon,
-  FormField,
   SiteSdkCommand,
   SiteSdkExecuteEvent,
+  SiteSdkFormField,
   SiteSdkInvokeRequest,
   SiteSdkResolveEvent,
   SiteSdkSearchEvent,
@@ -64,7 +64,7 @@ type MonocleSearchCommand = MonocleCommandBase & {
 
 type MonocleInputCommand = MonocleCommandBase & {
   type: "input"
-  field: Exclude<FormField, { type: "radio" }>
+  field: SiteSdkFormField
 }
 
 type MonocleDisplayCommand = MonocleCommandBase & {

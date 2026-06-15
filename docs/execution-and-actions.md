@@ -120,10 +120,10 @@ Generated actions are synthetic `Suggestion`s whose ids encode a target command 
 | `favorite` | `toggle-favorite-<id>` | always | `toggleFavoriteCommandId(targetId)` |
 | `hideCommand` | `hide-command-<id>` | when the row is settings-catalog configurable | `updateCommandSettings(targetId, { hidden: true })` + registry/search invalidation |
 | `setKeybinding` | `set-keybinding-<id>` | when `allowsKeybinding` | Handled in the UI (capture flow); background only warns if it ever reaches it |
-| `resetKeybinding` | `reset-keybinding-<id>` | when a custom keybinding setting exists | `removeCommandSetting(targetId, "keybinding")` + `refreshKeybindingRegistry()` |
-| `hideDomain` | `hide-from-domain-<id>` | when a real page URL exists | Adds a deny-URL rule for the current domain via `updateCommandUrlRules` (see [url-filtering.md](url-filtering.md)) |
+| `resetKeybinding` | `reset-keybinding-<id>` | when a custom keybinding setting exists | `clearCommandKeybindingAndRefresh(targetId)` |
+| `hideDomain` | `hide-from-domain-<id>` | when a real page URL exists | Adds a deny-URL rule for the current domain via `appendCommandDenyUrlRuleAndInvalidate` (see [url-filtering.md](url-filtering.md)) |
 
-`parseGeneratedCommandAction` matches the prefix table first, then the `-(cmd\|shift\|alt\|ctrl)-enter-action` modifier regex, then the bare `-enter-action` suffix. The `modifier`/`primary` regex ordering matters: a modifier suffix is checked before the generic `-enter-action` suffix.
+`generatedActionIds` / `parseGeneratedCommandAction` live in `shared/utils/generated-actions.ts`; `background/commands/generatedActions.ts` re-exports them for command-system imports. The same prefix/suffix constants reserve Site SDK command ids, so generated action encoding, execution parsing, and SDK validation share one protocol helper. The parser matches the prefix table first, then the `-(cmd\|shift\|alt\|ctrl)-enter-action` modifier regex, then the bare `-enter-action` suffix. The `modifier`/`primary` regex ordering matters: a modifier suffix is checked before the generic `-enter-action` suffix.
 
 ## confirmAction (two-step confirmation)
 

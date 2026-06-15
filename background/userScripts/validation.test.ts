@@ -261,6 +261,60 @@ describe("surface engine ops", () => {
     expect(result.success).toBe(false)
   })
 
+  it("rejects modal and picker surface kinds until automations support them", () => {
+    expect(
+      validateUserScriptDraft(
+        draft({
+          steps: [
+            { op: "showSurface", surfaceId: "x", kind: "modal", content: {} },
+          ],
+        }),
+      ).success,
+    ).toBe(false)
+
+    expect(
+      validateUserScriptDraft(
+        draft({
+          steps: [
+            { op: "showSurface", surfaceId: "x", kind: "picker", content: {} },
+          ],
+        }),
+      ).success,
+    ).toBe(false)
+  })
+
+  it("rejects modal/picker-only surface content fields", () => {
+    expect(
+      validateUserScriptDraft(
+        draft({
+          steps: [
+            {
+              op: "showSurface",
+              surfaceId: "x",
+              kind: "badge",
+              content: { blocks: [{ type: "markdown", text: "**hi**" }] },
+            },
+          ],
+        }),
+      ).success,
+    ).toBe(false)
+
+    expect(
+      validateUserScriptDraft(
+        draft({
+          steps: [
+            {
+              op: "showSurface",
+              surfaceId: "x",
+              kind: "overlay",
+              content: { css: ["font-family"] },
+            },
+          ],
+        }),
+      ).success,
+    ).toBe(false)
+  })
+
   it("rejects unknown fields on the content (strict)", () => {
     const result = validateUserScriptDraft(
       draft({

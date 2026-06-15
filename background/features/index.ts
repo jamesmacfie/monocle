@@ -12,6 +12,7 @@ import type {
   FeatureDescriptor,
   UserScript,
 } from "../../shared/types"
+import { UserScriptSchema } from "../../shared/types/userScriptValidation"
 import { getFeatureConfig } from "./config"
 import { elementHiderFeature } from "./elementHider"
 import { focusFeature } from "./focus"
@@ -38,6 +39,31 @@ export const getFeatureById = (
 export const getFeatureCommands = (context?: Browser.Context): CommandNode[] =>
   features.flatMap((feature) => feature.commands(context))
 
+export const validateFeatureAutomations = (
+  featureId: string,
+  automations: UserScript[],
+): UserScript[] => {
+  const valid: UserScript[] = []
+
+  for (const automation of automations) {
+    const parsed = UserScriptSchema.safeParse(automation)
+    if (parsed.success) {
+      valid.push(parsed.data)
+      continue
+    }
+
+    console.error(
+      `[features] invalid projected automation skipped for "${featureId}":`,
+      {
+        automationId: automation.id,
+        issues: parsed.error.issues,
+      },
+    )
+  }
+
+  return valid
+}
+
 // Read-only automations projected from every feature's current config. Merged
 // with stored user documents by background/userScripts/registry.ts so they run
 // through the same engine + trigger system. Projection failures are logged and
@@ -53,7 +79,12 @@ export const getFeatureAutomations = async (): Promise<UserScript[]> => {
         feature.id,
         feature.settings.defaults as Record<string, unknown>,
       )
-      projected.push(...(await feature.automations(config)))
+      projected.push(
+        ...validateFeatureAutomations(
+          feature.id,
+          await feature.automations(config),
+        ),
+      )
     } catch (error) {
       console.error(
         `[features] automations projection failed for "${feature.id}":`,

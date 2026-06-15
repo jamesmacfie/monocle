@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { v4 as uuidv4 } from "uuid"
-import type { ToastEvent } from "../../shared/types"
+import { validateContentMessage } from "../types/contentMessageValidation"
 import { getBrowserAPI } from "../utils/extension-api"
 import { Toast } from "./Toast"
 
@@ -22,12 +22,12 @@ export const ToastContainer = () => {
       _sender: chrome.runtime.MessageSender,
       sendResponse: (response?: any) => void,
     ) => {
-      if (message.type === "monocle-toast") {
-        const toastEvent = message as ToastEvent
+      const event = validateContentMessage(message)
+      if (event?.type === "monocle-toast") {
         const newToast: ToastItem = {
           id: `toast-${uuidv4()}`,
-          message: toastEvent.message,
-          level: toastEvent.level,
+          message: event.message,
+          level: event.level,
           timestamp: Date.now(),
         }
 

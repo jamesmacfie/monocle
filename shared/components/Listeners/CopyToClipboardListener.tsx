@@ -1,6 +1,6 @@
 import { useEffect } from "react"
-import type { CopyToClipboardEvent } from "../../../shared/types"
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard"
+import { validateContentMessage } from "../../types/contentMessageValidation"
 
 export default function CopyToClipboardListener() {
   const [_, copy] = useCopyToClipboard()
@@ -10,9 +10,9 @@ export default function CopyToClipboardListener() {
       _sender: chrome.runtime.MessageSender,
       sendResponse: (response?: any) => void,
     ) => {
-      if (message.type === "monocle-copyToClipboard") {
-        const copyToClipboardEvent = message as CopyToClipboardEvent
-        copy(copyToClipboardEvent.message)
+      const event = validateContentMessage(message)
+      if (event?.type === "monocle-copyToClipboard") {
+        copy(event.message)
 
         sendResponse({ received: true })
         return true

@@ -18,6 +18,10 @@ import type {
 } from "../../../shared/types"
 import type { UserScriptDraft } from "../../../shared/types/userScriptValidation"
 import type { Selector } from "../../../shared/types/workflow"
+import {
+  interpolatableStrings,
+  walkUserScriptSteps,
+} from "../../../shared/utils/user-script-introspection"
 import { collectTemplateReferences } from "../../../shared/utils/user-script-template"
 
 // ---------------------------------------------------------------------------
@@ -460,41 +464,6 @@ export const assembleDraft = (state: EditorDraftState): AssembledDraft => {
 // ---------------------------------------------------------------------------
 // Template-reference warnings (non-blocking)
 
-const INTERPOLATED_FIELDS = (step: UserScriptStep): string[] => {
-  switch (step.op) {
-    case "fill":
-      return [step.text]
-    case "toast":
-      return [step.message]
-    case "setVariable":
-      return [step.value]
-    case "navigate":
-    case "openUrl":
-      return [step.url]
-    case "clipboardWrite":
-      return [step.text]
-    default:
-      return []
-  }
-}
-
-const walkSteps = (
-  steps: UserScriptStep[],
-  visit: (step: UserScriptStep) => void,
-): void => {
-  for (const step of steps) {
-    visit(step)
-    if (step.op === "branch") {
-      walkSteps(step.then, visit)
-      if (step.else) {
-        walkSteps(step.else, visit)
-      }
-    } else if (step.op === "forEach" || step.op === "while") {
-      walkSteps(step.steps, visit)
-    }
-  }
-}
-
 /**
  * Lists `{{name}}` references that resolve to nothing the run can provide:
  * not a declared variable, not a loop binding, and not in the trigger /
@@ -505,15 +474,15 @@ export const collectTemplateWarnings = (draft: UserScriptDraft): string[] => {
   known.add("item")
   known.add("index")
 
-  walkSteps(draft.steps, (step) => {
+  walkUserScriptSteps(draft.steps, (step) => {
     if (step.op === "forEach" && step.as) {
       known.add(step.as)
     }
   })
 
   const unknown = new Set<string>()
-  walkSteps(draft.steps, (step) => {
-    for (const text of INTERPOLATED_FIELDS(step)) {
+  walkUserScriptSteps(draft.steps, (step) => {
+    for (const text of interpolatableStrings(step)) {
       for (const name of collectTemplateReferences(text)) {
         if (
           !known.has(name) &&
