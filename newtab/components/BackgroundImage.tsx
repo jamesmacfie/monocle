@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import type { UnsplashBackgroundResponse } from "../../shared/types"
+import { sendRuntimeMessage } from "../../shared/utils/extension-api"
 import { initializeBackgroundImage } from "../backgroundImageModel"
 
 interface BackgroundImageProps {
@@ -25,27 +26,16 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
   useEffect(() => {
     let isMounted = true
 
-    const requestBackground = () => {
-      const context = {
-        title: document.title,
-        url: window.location.href,
-        modifierKey: null,
-        isNewTab: true,
-      }
-
-      return new Promise<UnsplashBackgroundResponse>((resolve, reject) => {
-        chrome.runtime.sendMessage(
-          { type: "get-unsplash-background", context },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError)
-            } else {
-              resolve(response)
-            }
-          },
-        )
+    const requestBackground = () =>
+      sendRuntimeMessage<UnsplashBackgroundResponse>({
+        type: "get-unsplash-background",
+        context: {
+          title: document.title,
+          url: window.location.href,
+          modifierKey: null,
+          isNewTab: true,
+        },
       })
-    }
 
     void initializeBackgroundImage({
       cache: localStorage,

@@ -53,6 +53,11 @@ Every entry below is registered in `handleMessage`. "Direction" is always UI -> 
 | `run-user-script` | UI -> bg | `{ id, context?, paramValues? }` | `{ result: UserScriptRunResult }` | `background/messages/userScripts.ts`, `runUserScriptMessage` | Run a script by id through the engine; without `context` (options test runs) the engine targets the active tab. |
 | `get-user-script-triggers` | content -> bg | `{ url }` | `{ triggers: UserScriptPageTriggerSpec[] }` | `background/messages/userScripts.ts`, `getUserScriptTriggers` | The page pulls the armed urlMatch/elementAppears trigger specs whose script urlRules allow its URL. |
 | `user-script-trigger-fired` | content -> bg | `{ scriptId, trigger: { type, url, matchedText? } }` | `{ accepted: boolean, reason? }` | `background/messages/userScripts.ts`, `userScriptTriggerFired` | A page trigger fired; the background re-validates eligibility (sender tab + sender URL authority, armed state) before the engine runs. |
+| `get-features` | UI -> bg | `{}` | `{ features: FeatureDescriptor[] }` | `background/messages/features.ts`, `getFeatures` | Return UI-safe descriptors for every registered feature: schema, current config, projected lists, and display metadata. |
+| `update-feature-config` | UI -> bg | `{ featureId, config }` | `{ success: boolean, config }` | `background/messages/features.ts`, `updateFeatureConfig` | Validate and replace a feature's durable config, then run its `onConfigChange` hook. |
+| `execute-feature-action` | UI -> bg | `{ featureId, actionId, context?, payload? }` | `{ success: boolean, feature?: FeatureDescriptor }` | `background/messages/features.ts`, `executeFeatureAction` | Run a feature settings/action handler; `payload` carries record-list row data and the response includes a re-projected descriptor. |
+| `get-surfaces` | content/new-tab -> bg | `{ url }` | `{ surfaces: Surface[] }` | `background/messages/surfaces.ts`, `getSurfaces` | Return declarative surfaces whose URL and optional sender-tab gates admit the requesting host. |
+| `surface-action` | content/new-tab -> bg | `{ ownerId, surfaceId, actionId, value?, selection? }` | `{ ok: boolean }` | `background/messages/surfaceAction.ts`, `surfaceAction` | Report a surface gesture; `dismiss` removes the surface, feature-owned actions route to the feature's `handleAction`, command-owned actions route to a command-registered handler (`background/commands/surfaceActionHandlers.ts`), and user-script owner routing is still an explicit no-op. |
 
 Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMessage`):
 
@@ -160,7 +165,7 @@ Note this handler is **not** wrapped by `createMessageHandler`; it has its own t
 
 These three messages are the only ones the send hook does **not** attach `context` to (see `useSendMessage`):
 
-- **`get-permissions`** — `getPermissions` calls `permissions.getAll()` and maps known permission names into a boolean `access` object (`activeTab`, `bookmarks`, `browsingData`, `contextualIdentities` (Firefox only), `cookies`, `downloads`, `history`, `sessions`, `storage`, `tabs`). On failure it throws (surfaced as `{ error }` by the cross-browser wrapper).
+- **`get-permissions`** — `getPermissions` calls `permissions.getAll()` and maps known permission names into a boolean `access` object (`activeTab`, `bookmarks`, `browsingData`, `contextualIdentities` (Firefox only), `cookies`, `downloads`, `history`, `sessions`, `storage`, `tabs`, `tabGroups` (Chrome only), `management`). On failure it throws (surfaced as `{ error }` by the cross-browser wrapper).
 - **`request-permission`** — `requestPermission` calls `permissions.request` then `permissions.contains`, returning `RequestPermissionResponse` = `{ granted: boolean, error? }`.
 - **`open-permission-grant-page`** — `openPermissionGrantPage` opens `/newtab.html?grantPermission=<permission>` in a new active tab so the prompt fires from a stable extension page; returns `{ success: true }`.
 
@@ -297,14 +302,14 @@ Generic Feature-module messages (handler: `background/messages/features.ts`; see
 
 - **`get-features`** → `{ features: FeatureDescriptor[] }` — data-only projection of every registered feature (schema + current config), for the options Features pages.
 - **`update-feature-config`** `{ featureId, config }` → `{ success, config }` — validates `config` against the feature's Zod `configSchema`, persists it replace-whole to `monocle-feature-config`, then runs the feature's `onConfigChange` hook.
-- **`execute-feature-action`** `{ featureId, actionId, context? }` → `{ success }` — runs a settings-page action button via the feature's `handleAction`.
+- **`execute-feature-action`** `{ featureId, actionId, context?, payload? }` → `{ success, feature? }` — runs a settings-page action button or `record-list` row action via the feature's `handleAction`. `payload` carries scalar row/action data (`itemId`, `childId`, `value`, etc.). The response includes the re-projected feature descriptor so the options page can refresh derived rows without a second request.
 
 ### Surfaces
 
 The generic declarative-UI query (handler: `background/messages/surfaces.ts`; see [surfaces.md](surfaces.md)):
 
-- **`get-surfaces`** `{ url }` → `{ surfaces: Surface[] }` — the `SurfaceHost` (content overlay + new tab) sends its URL and receives every surface whose `urlMatch` admits it (each stamped with its `ownerId`); the host filters by kind locally. Surfaces are pushed into the store by features (e.g. Focus Mode), user-script automations, and commands (e.g. the QR-code modal); this is the read side. Change notifications arrive via the `monocle-surfaces-changed` broadcast (below).
-- **`surface-action`** `{ ownerId, surfaceId, actionId, value? }` → `{ ok }` (handler: `background/messages/surfaceAction.ts`) — a user interaction reported by the host (e.g. dismissing a modal). The host captures the gesture; the background decides what it means. v1 handles only the universal `actionId: "dismiss"` (any surface → `removeSurface`); owner-specific routing is future work (see [v_next §3](v_next/03-surfaces-and-persistent-ui.md)).
+- **`get-surfaces`** `{ url }` → `{ surfaces: Surface[] }` — the `SurfaceHost` (content overlay + new tab) sends its URL and receives every surface whose `urlMatch` admits it and whose optional `targetTabId` matches the sender tab (each stamped with its `ownerId`); the host filters by kind locally. Surfaces are pushed into the store by features (e.g. Focus Mode), user-script automations, and commands (e.g. the QR-code modal); this is the read side. Change notifications arrive via the `monocle-surfaces-changed` broadcast (below).
+- **`surface-action`** `{ ownerId, surfaceId, actionId, value?, selection? }` → `{ ok }` (handler: `background/messages/surfaceAction.ts`) — a user interaction reported by the host (e.g. dismissing a modal or a picker reporting a clicked element). The host captures the gesture; the background decides what it means. `dismiss` is universal (any surface → `removeSurface`); any other action routes to the owner — a feature's `handleAction`, or a command's handler registered via `background/commands/surfaceActionHandlers.ts` (the command-owner equivalent) — each receiving the sender tab and optional picker `selection` (which may carry the computed `css` the picker captured for the owner's requested properties). user-script owner routing is still an explicit no-op.
 
 ## Send-Side Utilities
 
@@ -314,13 +319,13 @@ The generic declarative-UI query (handler: `background/messages/surfaces.ts`; se
 
 - Builds a base context `{ title: document.title, url: window.location.href, modifierKey: <current modifier> }` and shallow-merges `contextOverride`.
 - Attaches `context` to every message **except** `get-permissions`, `request-permission`, and `open-permission-grant-page`.
-- Wraps `chrome.runtime.sendMessage` in a Promise; rejects with `chrome.runtime.lastError` if set, otherwise resolves with the raw response.
+- Sends through the shared `sendRuntimeMessage` transport (`shared/utils/extension-api.ts`), which wraps `runtime.sendMessage` in a Promise; rejects with `runtime.lastError` if set, otherwise resolves with the raw response.
 
 Its `SendableMessage` union uses context-stripped variants (`Omit<..., "context">`) for the command/keybinding messages because the hook supplies context. The current modifier key is tracked through a ref fed by `useIsModifierKeyPressed`, so modifier-aware execution (e.g. enter vs cmd-enter) reflects the live key state.
 
 ### `createPaletteSendMessage` (store)
 
-`shared/store/sendMessage.ts` exports `createPaletteSendMessage(extraContext)`, a factory used by the palette stores. It attaches `{ title, url, modifierKey: null, ...extraContext }` as `context` to every message and wraps `chrome.runtime.sendMessage` with the same `lastError` handling. New-tab stores pass `{ isNewTab: true }` as `extraContext`.
+`shared/store/sendMessage.ts` exports `createPaletteSendMessage(extraContext)`, a factory used by the palette stores. It attaches `{ title, url, modifierKey: null, ...extraContext }` as `context` to every message and sends through the same shared `sendRuntimeMessage` transport (`shared/utils/extension-api.ts`) with its `lastError` handling. New-tab stores pass `{ isNewTab: true }` as `extraContext`.
 
 ### Response And Error Shapes
 

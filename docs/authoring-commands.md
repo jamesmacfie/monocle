@@ -8,7 +8,7 @@ For the underlying contracts see [command-schema.md](./command-schema.md) (every
 
 ## The five-minute version
 
-1. Pick a category folder under `background/commands/` (browser, tools, ui, newTab, websites). For automations and features, commands are contributed by the user-script and feature subsystems instead — see the table below.
+1. Pick a category folder under `background/commands/` (browser, tools, ui, newTab, websites, extensions). For automations and features, commands are contributed by the user-script and feature subsystems instead — see the table below.
 2. Create one file exporting a typed `CommandNode`.
 3. Import and add it to that folder's `index.ts` array.
 4. Confirm the array is actually loaded by `background/commands/source.ts` (and, for keybinding/URL management surfaces, by `background/commands/userConfigurableCommands.ts`).
@@ -16,13 +16,14 @@ For the underlying contracts see [command-schema.md](./command-schema.md) (every
 
 ## Step 1: Choose a category
 
-`source.ts` assembles a `LoadedCommandEntry[]` (each entry pairs a `CommandNode` with its `CommandSourceCategory`) across eight categories. Most are static folders under `background/commands/`; two (automations, features) are contributed by other subsystems. Pick the one that matches the command's nature, not just where it is convenient.
+`source.ts` assembles a `LoadedCommandEntry[]` (each entry pairs a `CommandNode` with its `CommandSourceCategory`) across nine categories. Most are static folders under `background/commands/`; two (automations, features) are contributed by other subsystems. Pick the one that matches the command's nature, not just where it is convenient.
 
 | Category | Source | Index export | When to use | Loaded for |
 | --- | --- | --- | --- | --- |
 | `browser` | `browser/` | `browserCommands` (+ `firefoxCommands` from `browser/firefox/`) | Anything calling privileged browser APIs: tabs, windows, bookmarks, history, downloads, navigation, browsing data. Firefox-only features (containers, reader mode) go in `browser/firefox/`. | Always (Firefox set: Firefox platform only) |
 | `tools` | `tools/` | `toolCommands` | Self-contained utilities that do not depend on a specific browser API surface: UUID generator, workflow debug, snippets. (Arithmetic is now an inline calculation, not a command — see [calculations.md](./calculations.md).) | Always |
 | `ui` | `ui/` | `uiCommands` | Commands that change Monocle's own state or settings: theme toggle, allow/deny list management. | Always |
+| `extensions` | `extensions/` | `extensionsCommands` | The Extensity-style extension manager: nested groups to enable/disable/launch/uninstall installed extensions via `chrome.management`. Chrome-only; gated by the optional `management` permission. | Always |
 | `websites` | `websites/` + site SDK | `websiteCommands` (plus `loadSiteSdkCommands`) | Contextual commands scoped to a specific site via `urlRules` (GitHub prototype), plus page-owned site-SDK wrappers. | Always (visibility gated by `urlRules`) |
 | `new-tab` | `newTab/` | `newTabCommands` | Commands that only make sense on the new-tab page (clock visibility). | New-tab context only |
 | `favorites` | inline in `source.ts` | `clearFavoritesCommand` | One-off favorites management; not an author-extensible folder. | Always |
@@ -81,7 +82,7 @@ export const browserCommands = [
 ]
 ```
 
-`tools/index.ts`, `ui/index.ts`, `newTab/index.ts`, and `websites/index.ts` follow the same shape. Firefox-only commands go in `browser/firefox/index.ts` (`firefoxCommands`), which `browser/index.ts` re-exports.
+`tools/index.ts`, `ui/index.ts`, `newTab/index.ts`, `websites/index.ts`, and `extensions/index.ts` follow the same shape. Firefox-only commands go in `browser/firefox/index.ts` (`firefoxCommands`), which `browser/index.ts` re-exports.
 
 ## Step 4: Verify the category is actually loaded
 
@@ -99,6 +100,7 @@ const entries: LoadedCommandEntry[] = [
   ...mapCommandsToEntries(userScriptCommands, categories.automations),
   ...mapCommandsToEntries(getFeatureCommands(context), categories.features),
   ...mapCommandsToEntries([clearFavoritesCommand], categories.favorites),
+  ...mapCommandsToEntries(extensionsCommands, categories.extensions),
 ]
 if (context?.isNewTab) entries.push(...mapCommandsToEntries(newTabCommands, categories.newTab))
 if (platform === "firefox") entries.push(...mapCommandsToEntries(firefoxCommands, categories.browser))
@@ -107,7 +109,7 @@ return entries.filter(({ command }) => supportsPlatform(command, platform))
 
 Key facts:
 
-- All eight categories are wired here: `websites` (site-SDK wrappers + `websiteCommands`), `browser`, `tools`, `ui`, `automations` (`userScriptCommands`), `features` (`getFeatureCommands(context)`), `favorites` (`clearFavoritesCommand`), and conditionally `new-tab`. If you add a brand-new folder, you must add its `mapCommandsToEntries` line here too.
+- All nine categories are wired here: `websites` (site-SDK wrappers + `websiteCommands`), `browser`, `tools`, `ui`, `automations` (`userScriptCommands`), `features` (`getFeatureCommands(context)`), `favorites` (`clearFavoritesCommand`), `extensions` (`extensionsCommands`), and conditionally `new-tab`. If you add a brand-new folder, you must add its `mapCommandsToEntries` line here too.
 - `automations` commands come from `background/userScripts/commands.ts` and `features` commands from `background/features/` — they are contributed by those subsystems, not authored as files under `background/commands/`.
 - `newTabCommands` are only loaded when `context.isNewTab` is true.
 - `firefoxCommands` are only loaded on the Firefox platform, and the final `supportsPlatform` filter additionally drops any command whose `supportedBrowsers` excludes the active platform.

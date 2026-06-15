@@ -374,4 +374,36 @@ describe("surface-action message schema validation", () => {
       }).success,
     ).toBe(false)
   })
+
+  it("accepts a selection carrying captured computed css", () => {
+    expect(
+      validateMessage({
+        type: "surface-action",
+        ownerId: "command:inspect-element-fonts",
+        surfaceId: "picker",
+        actionId: "element-picked",
+        selection: {
+          selector: "h1",
+          tagName: "H1",
+          css: { "font-family": "Inter, sans-serif", "font-size": "32px" },
+        },
+      }).success,
+    ).toBe(true)
+  })
+
+  it("rejects a selection whose css map exceeds the cap", () => {
+    const css: Record<string, string> = {}
+    for (let i = 0; i < 65; i++) {
+      css[`prop-${i}`] = "v"
+    }
+    expect(
+      validateMessage({
+        type: "surface-action",
+        ownerId: "command:inspect-element-fonts",
+        surfaceId: "picker",
+        actionId: "element-picked",
+        selection: { selector: "h1", tagName: "H1", css },
+      }).success,
+    ).toBe(false)
+  })
 })

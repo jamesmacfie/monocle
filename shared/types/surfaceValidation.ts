@@ -41,6 +41,10 @@ export const SurfaceContentSchema = z
     text: z.string().optional(),
     countdownTo: z.number().int().nonnegative().optional(),
     blocks: z.array(ContentBlockSchema).optional(),
+    // `picker` only: CSS property names whose computed values the owner wants
+    // reported back in the PickedElement (e.g. the font inspector requests the
+    // font-* properties). Content reads getComputedStyle for these at click time.
+    css: z.array(z.string().max(128)).max(64).optional(),
   })
   .strict()
 

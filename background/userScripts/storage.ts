@@ -15,32 +15,22 @@ import {
   type UserScriptDraft,
   UserScriptSchema,
 } from "../../shared/types/userScriptValidation"
-import { getBrowserAPI } from "../../shared/utils/extension-api"
+import { createStorageArea } from "../utils/storageArea"
 import { withStorageLock } from "../utils/storageMutex"
 
 const STORAGE_KEY = "monocle-userscripts"
 
-const loadUserScriptsRaw = async (): Promise<UserScript[]> => {
-  try {
-    const result = (await getBrowserAPI().storage.local.get(
-      STORAGE_KEY,
-    )) as Record<string, UserScript[] | undefined>
-    return result[STORAGE_KEY] || []
-  } catch (error) {
-    console.error("Failed to load user scripts:", error)
-    return []
-  }
-}
+// Transport only — migration (reads) and validation + the locked CRUD (writes)
+// below are user-script-specific and stay here. See createStorageArea.
+const userScriptsArea = createStorageArea<UserScript[]>({
+  key: STORAGE_KEY,
+  defaults: () => [],
+  label: "user scripts",
+})
 
-const saveUserScripts = async (scripts: UserScript[]): Promise<void> => {
-  try {
-    await getBrowserAPI().storage.local.set({
-      [STORAGE_KEY]: scripts,
-    })
-  } catch (error) {
-    console.error("Failed to save user scripts:", error)
-  }
-}
+const loadUserScriptsRaw = (): Promise<UserScript[]> => userScriptsArea.load()
+const saveUserScripts = (scripts: UserScript[]): Promise<void> =>
+  userScriptsArea.save(scripts)
 
 /**
  * Migrates a stored document to the current schemaVersion. Version 1 is

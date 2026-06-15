@@ -73,7 +73,7 @@ export function PickerSurface({
       event.preventDefault()
       event.stopPropagation()
       event.stopImmediatePropagation()
-      onPick(surface, describeElement(event.target))
+      onPick(surface, describeElement(event.target, surface.content.css))
     }
 
     const handleKeyDown = (event: KeyboardEvent): void => {

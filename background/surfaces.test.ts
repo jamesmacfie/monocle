@@ -100,6 +100,21 @@ describe("write validation (canonical SurfaceSchema)", () => {
     expect(surfaces[0].content.blocks).toHaveLength(1)
   })
 
+  it("accepts a picker surface carrying a css property request", async () => {
+    await upsertSurface("command:inspect-element-fonts", {
+      id: "picker",
+      kind: "picker",
+      urlMatch: { allowUrls: ["https://x.com"] },
+      content: {
+        title: "Pick an element",
+        css: ["font-family", "font-size"],
+      },
+    })
+    const surfaces = await getSurfacesForUrl("https://x.com")
+    expect(surfaces).toHaveLength(1)
+    expect(surfaces[0].content.css).toEqual(["font-family", "font-size"])
+  })
+
   it("drops invalid surfaces instead of persisting them", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
     await setOwnerSurfaces("focus-mode", [

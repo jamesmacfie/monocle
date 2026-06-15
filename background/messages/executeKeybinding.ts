@@ -23,6 +23,7 @@ import {
   normalizeKeybinding,
   snapshotHasKeybindingStartingWith,
 } from "../keybindings/registry"
+import { resolveSenderTabId } from "../utils/messages"
 
 type SequenceState = {
   currentSequence: string[]
@@ -55,7 +56,7 @@ const getSequenceScopeKey = (
   message: ExecuteKeybindingMessage,
   sender?: any,
 ): string => {
-  const tabId = sender?.tab?.id ?? sender?.validationContext?.senderTab
+  const tabId = resolveSenderTabId(sender)
   const documentId = sender?.documentId
   const frameId = sender?.frameId
 

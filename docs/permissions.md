@@ -20,6 +20,7 @@ declared under `optional_permissions` and are dormant until requested.
 | `activeTab` | Required | Lets the background act on the focused tab. |
 | `storage` | Required | Backs `monocle-settings` persistence. |
 | `scripting` | Required | Lets the shortcut/action path inject the WXT content script into a tab that has no palette receiver yet. |
+| `alarms` | Required | Backs scheduled user-script triggers (`background/userScripts/alarms.ts`). |
 | `contextualIdentities` | Required (Firefox only) | Added to the required list only on the Firefox build; powers container-tab commands. |
 | `bookmarks` | Optional | Bookmark browse/open commands. |
 | `browsingData` | Optional | Clear browser data. |
@@ -28,32 +29,42 @@ declared under `optional_permissions` and are dormant until requested.
 | `history` | Optional | History search and open commands. |
 | `sessions` | Optional | Recently-closed and reopen-last-closed-tab commands. |
 | `tabs` | Optional | Tab management commands. |
+| `management` | Optional | Powers the Extensions command group (high-scrutiny: can disable/uninstall other extensions). |
+| `tabGroups` | Optional (Chrome only) | Powers the native Chrome tab-group commands; appended for non-Firefox targets only. |
 
 `host_permissions` (`api.unsplash.com`, `icons.duckduckgo.com`)
 are separate host grants for new-tab background images and favicons, not part of
 the command permission model documented here.
 
 The optional set is defined once in `wxt.config.ts` as `baseOptionalPermissions`
-and spread into both Chrome and Firefox manifests. The required list branches on
+and spread into both Chrome and Firefox manifests; Chrome additionally appends
+`tabGroups` (Firefox has no `chrome.tabGroups` API, and declaring an unknown
+optional permission there trips the build). The required list branches on
 `browser`: Firefox gets `contextualIdentities` added, Chrome does not.
 
 ## The `BrowserPermission` union
 
 The canonical permission type is `BrowserPermission` in
-`shared/types/commands.ts`:
+`shared/types/commands.ts`, derived from the single-source `BROWSER_PERMISSIONS`
+tuple (which also backs runtime validation of `request-permission` messages):
 
 ```ts
-export type BrowserPermission =
-  | "activeTab"
-  | "bookmarks"
-  | "browsingData"
-  | "contextualIdentities"
-  | "cookies"
-  | "downloads"
-  | "history"
-  | "sessions"
-  | "storage"
-  | "tabs"
+export const BROWSER_PERMISSIONS = [
+  "activeTab",
+  "bookmarks",
+  "browsingData",
+  "contextualIdentities",
+  "cookies",
+  "downloads",
+  "history",
+  "sessions",
+  "storage",
+  "tabs",
+  "tabGroups",
+  "management",
+] as const
+
+export type BrowserPermission = (typeof BROWSER_PERMISSIONS)[number]
 ```
 
 A command declares its needs through the optional `permissions` array on
@@ -74,7 +85,7 @@ These declarations live on the command nodes themselves (`permissions: [...]`).
 | `bookmarks` | `browser/bookmarks.ts` |
 | `browsingData`, `history`, `cookies`, `sessions` | `browser/clearBrowserData.ts` (declares all four together) |
 | `cookies` | also `browser/firefox/openContainerTab.tsx` and `browser/firefox/openCurrentTabInContainer.tsx` (Firefox `tabs.create({cookieStoreId})` requires it) |
-| `tabs` | `browser/closeOtherTabs.ts`, `browser/closeTabsToLeft.ts`, `browser/closeTabsToRight.ts`, `browser/copyTabUrl.ts`, `browser/gotoTab.ts`, `browser/moveCurrentTabToANewWindow.ts`, `browser/moveCurrentTabToPopupWindow.ts`, `browser/openTabs.ts` |
+| `tabs` | `browser/closeDuplicateTabs.ts`, `browser/closeOtherTabs.ts`, `browser/closeTabsToLeft.ts`, `browser/closeTabsToRight.ts`, `browser/copyTabUrl.ts`, `browser/gotoTab.ts`, `browser/moveCurrentTabToANewWindow.ts`, `browser/moveCurrentTabToPopupWindow.ts`, `browser/openTabs.ts`, `browser/tabNavigationShortcuts.ts` |
 | `downloads` | `browser/downloads.ts` |
 | `history` | `browser/history.ts` |
 | `sessions` | `browser/recentlyClosed.ts`, `browser/reopenLastClosedTab.ts` |
@@ -250,7 +261,8 @@ populated and refreshed by sending `get-permissions` to the background:
 - `background/messages/getPermissions.ts` (`getPermissions`) calls
   `permissions.getAll()` and returns `{ isLoaded: true, access }`, where `access`
   is a fixed-key boolean map. `contextualIdentities` reports `true` only on
-  Firefox; on Chrome it is hard-coded `false`.
+  Firefox (on Chrome it is hard-coded `false`); `tabGroups` is the inverse
+  Chrome-only key (absent/`false` on Firefox).
 - `loadPermissions` populates the mirror on startup; `refreshPermissions` re-reads
   it after any grant/denial/error and from the throttled hook effect.
 

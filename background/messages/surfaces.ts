@@ -5,11 +5,10 @@
 // See docs/surfaces.md.
 import type { GetSurfacesMessage } from "../../shared/types"
 import { getSurfacesForUrl } from "../surfaces"
-import { createMessageHandler } from "../utils/messages"
+import { createMessageHandler, resolveSenderTabId } from "../utils/messages"
 
 const handleGetSurfaces = async (message: GetSurfacesMessage, sender?: any) => {
-  const senderTabId: number | undefined =
-    sender?.tab?.id ?? sender?.validationContext?.senderTab
+  const senderTabId = resolveSenderTabId(sender)
   return { surfaces: await getSurfacesForUrl(message.url, senderTabId) }
 }
 

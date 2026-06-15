@@ -1,94 +1,56 @@
 import type { ActionCommandNode, Browser } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { sendToastToActiveTab } from "../utils/browser"
-import { withStorageLock } from "../utils/storageMutex"
+import { createStorageArea } from "../utils/storageArea"
 
 const STORAGE_KEY = "monocle-favoriteCommandIds"
 
-// Load favorite command IDs from storage
-const loadFavoriteCommandIds = async (): Promise<string[]> => {
-  try {
-    const result = (await getBrowserAPI().storage.local.get(
-      STORAGE_KEY,
-    )) as Record<string, string[] | undefined>
-    const favoriteIds = result[STORAGE_KEY] || []
-
-    return favoriteIds
-  } catch (error) {
-    console.error("Failed to load favorite command IDs:", error)
-    return []
-  }
-}
-
-// Save favorite command IDs to storage
-const saveFavoriteCommandIds = async (commandIds: string[]): Promise<void> => {
-  try {
-    await getBrowserAPI().storage.local.set({
-      [STORAGE_KEY]: commandIds,
-    })
-  } catch (error) {
-    console.error("Failed to save favorite command IDs:", error)
-  }
-}
+const favoritesArea = createStorageArea<string[]>({
+  key: STORAGE_KEY,
+  defaults: () => [],
+  label: "favorite command IDs",
+})
 
 // Add a command to favorites
 export const addToFavoriteCommandIds = async (
   commandId: string,
-): Promise<void> =>
-  withStorageLock(STORAGE_KEY, async () => {
-    const favoriteCommandIds = await loadFavoriteCommandIds()
-
-    // Don't add if it already exists
-    if (!favoriteCommandIds.includes(commandId)) {
-      favoriteCommandIds.push(commandId)
-      await saveFavoriteCommandIds(favoriteCommandIds)
-    }
-  })
+): Promise<void> => {
+  await favoritesArea.update((ids) =>
+    ids.includes(commandId) ? ids : [...ids, commandId],
+  )
+}
 
 // Remove a command from favorites
 export const removeFromFavoriteCommandIds = async (
   commandId: string,
-): Promise<void> =>
-  withStorageLock(STORAGE_KEY, async () => {
-    const favoriteCommandIds = await loadFavoriteCommandIds()
-    const index = favoriteCommandIds.indexOf(commandId)
-
-    if (index !== -1) {
-      favoriteCommandIds.splice(index, 1)
-      await saveFavoriteCommandIds(favoriteCommandIds)
-    }
-  })
+): Promise<void> => {
+  await favoritesArea.update((ids) => ids.filter((id) => id !== commandId))
+}
 
 // Toggle favorite status. The whole decide-and-write cycle runs inside one
-// lock (no calls to the locked add/remove helpers — the lock is not
-// re-entrant), so concurrent toggles can't both read the same stale list.
+// locked update (the lock is not re-entrant), so concurrent toggles can't both
+// read the same stale list.
 export const toggleFavoriteCommandId = async (
   commandId: string,
-): Promise<boolean> =>
-  withStorageLock(STORAGE_KEY, async () => {
-    const favoriteCommandIds = await loadFavoriteCommandIds()
-    const index = favoriteCommandIds.indexOf(commandId)
-
-    if (index !== -1) {
-      favoriteCommandIds.splice(index, 1)
-      await saveFavoriteCommandIds(favoriteCommandIds)
-      return false
+): Promise<boolean> => {
+  let added = false
+  await favoritesArea.update((ids) => {
+    if (ids.includes(commandId)) {
+      return ids.filter((id) => id !== commandId)
     }
-
-    favoriteCommandIds.push(commandId)
-    await saveFavoriteCommandIds(favoriteCommandIds)
-    return true
+    added = true
+    return [...ids, commandId]
   })
-
-export const getFavoriteCommandIds = async (): Promise<string[]> => {
-  const favoriteIds = await loadFavoriteCommandIds()
-  return favoriteIds
+  return added
 }
+
+export const getFavoriteCommandIds = async (): Promise<string[]> =>
+  favoritesArea.load()
 
 export const isCommandFavorite = async (
   commandId: string,
 ): Promise<boolean> => {
-  const favoriteCommandIds = await loadFavoriteCommandIds()
+  const favoriteCommandIds = await favoritesArea.load()
   return favoriteCommandIds.includes(commandId)
 }
 
@@ -111,7 +73,9 @@ export const toggleFavoriteCommand: ActionCommandNode = {
   },
 }
 
-// Clear favorites command
+// Clear favorites command. Uses a direct remove (not favoritesArea.remove) so a
+// storage failure surfaces to the user as an error toast — the storage-area
+// helpers deliberately swallow write errors.
 export const clearFavoritesCommand: ActionCommandNode = {
   type: "action",
   id: "clear-favorites",

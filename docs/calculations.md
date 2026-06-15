@@ -8,8 +8,7 @@ to the command results below). Calculations are the first place Monocle renders
 custom, non-list-row content inside the palette, and they do so through a shared
 declarative content schema and renderer that richer Surfaces will reuse.
 
-This doc describes verified behavior. The original design direction is
-[v_next/11-calculations.md](./v_next/11-calculations.md).
+This doc describes verified behavior.
 
 ## The shared content-block schema
 
@@ -21,8 +20,7 @@ background→UI boundary by `ContentBlockSchema` / `validateContentBlocks`
 `ContentBlock[]` into React, themed entirely through Monocle's semantic tokens
 so it renders identically in the closed content shadow root and in normal
 new-tab/options DOM. It is built on the shared component boundary
-`shared/components/ui/` (`cn`), the seed of the shadcn/ui consolidation in
-[v_next/10-shadcn.md](./v_next/10-shadcn.md).
+`shared/components/ui/` (`cn`), the seed of the shadcn/ui consolidation.
 
 The constraint is the same one Surfaces lives under: content is a **closed,
 validated schema rendered by Monocle components — never author-supplied markup**.

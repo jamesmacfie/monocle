@@ -8,11 +8,8 @@ import type {
   ThemeSettings,
   UrlRules,
 } from "../../shared/types"
-import { getBrowserAPI } from "../../shared/utils/extension-api"
+import { createStorageArea } from "../utils/storageArea"
 import { withStorageLock } from "../utils/storageMutex"
-
-// Cross-browser compatibility layer
-const browserAPI = getBrowserAPI()
 
 const STORAGE_KEY = "monocle-settings"
 
@@ -81,40 +78,26 @@ export const mergeCommandSettings = (
   return pruneCommandSettings(mergedSettings)
 }
 
-// Load settings from storage
+const settingsArea = createStorageArea<Settings>({
+  key: STORAGE_KEY,
+  defaults: () => ({ theme: {}, newTab: {}, commands: {} }),
+  label: "settings",
+})
+
+// Normalize the three sub-buckets so callers always get them even when an
+// older or partial document was stored. Transport and locking live in the
+// storage area / withStorageLock; the merge/prune semantics stay below.
 const loadSettings = async (): Promise<Settings> => {
-  try {
-    const result = (await browserAPI.storage.local.get(STORAGE_KEY)) as Record<
-      string,
-      Settings | undefined
-    >
-    const settings = result[STORAGE_KEY] || {}
-
-    return {
-      theme: settings.theme || {},
-      newTab: settings.newTab || {},
-      commands: settings.commands || {},
-    }
-  } catch (error) {
-    console.error("Failed to load settings:", error)
-    return {
-      theme: {},
-      newTab: {},
-      commands: {},
-    }
+  const settings = await settingsArea.load()
+  return {
+    theme: settings.theme || {},
+    newTab: settings.newTab || {},
+    commands: settings.commands || {},
   }
 }
 
-// Save settings to storage
-const saveSettings = async (settings: Settings): Promise<void> => {
-  try {
-    await browserAPI.storage.local.set({
-      [STORAGE_KEY]: settings,
-    })
-  } catch (error) {
-    console.error("Failed to save settings:", error)
-  }
-}
+const saveSettings = (settings: Settings): Promise<void> =>
+  settingsArea.save(settings)
 
 // Get settings for a specific command
 export const getCommandSettings = async (
@@ -315,11 +298,7 @@ export const updateNewTabSettings = async (
 
 // Clear all settings
 export const clearAllSettings = async (): Promise<void> => {
-  try {
-    await browserAPI.storage.local.remove(STORAGE_KEY)
-  } catch (error) {
-    console.error("Failed to clear settings:", error)
-  }
+  await settingsArea.remove()
 }
 
 // Get all settings

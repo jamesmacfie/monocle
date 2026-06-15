@@ -2,11 +2,11 @@
 
 Feature commands are palette commands contributed by **feature modules** rather than by a static category file. Unlike `browser`/`tools`/`ui`/`new-tab`, there is no `background/commands/features/index.ts`; the rows in this category are projected from the feature registry at command-load time. `background/commands/source.ts` (`loadCommandEntries`) calls `getFeatureCommands(context)` from `background/features/index.ts` and maps the result into the `features` category. Each registered `FeatureModule` returns its palette commands from `feature.commands(context)`; the registry simply flattens them.
 
-Today the registry holds two features: **Focus Mode** (`background/features/focus/`), which contributes one state-aware group, and **Tab Groups** (`background/features/tabGroups/`), which contributes cross-browser saved-collection commands plus a Chrome-only native-group command layer. For the registry mechanics (config/state stores, the options Features page, lifecycle) see [../features.md](../features.md); for Focus Mode's session model see [../focus-mode.md](../focus-mode.md).
+Today the registry holds three features: **Focus Mode** (`background/features/focus/`), which contributes one state-aware group; **Tab Groups** (`background/features/tabGroups/`), which contributes cross-browser saved-collection commands plus a Chrome-only native-group command layer; and **Element Hider** (`background/features/elementHider/`), which contributes a picker-launching action plus a manage action. For the registry mechanics (config/state stores, the options Features page, lifecycle) see [../features.md](../features.md); for Focus Mode's session model see [../focus-mode.md](../focus-mode.md); for Element Hider see [../element-hider.md](../element-hider.md).
 
 ## How these commands are loaded
 
-- `background/features/index.ts` holds the static registry (`const features = [focusFeature, tabGroupsFeature]`). `getFeatureCommands(context)` is `features.flatMap((f) => f.commands(context))`.
+- `background/features/index.ts` holds the static registry (`const features = [focusFeature, tabGroupsFeature, elementHiderFeature]`). `getFeatureCommands(context)` is `features.flatMap((f) => f.commands(context))`.
 - `background/commands/source.ts` maps those commands into the `features` category (`{ id: "features", label: "Features" }`) alongside the other sources. They are part of the always-on command set (not gated like new-tab commands), then run through the standard `supportsPlatform` filter.
 - The loader is synchronous, so a feature's `commands()` must be synchronous. Runtime state (e.g. whether a focus session is active) shows through **async node labels** and through which children a group resolves at navigation time, not through changing the command list.
 
@@ -30,6 +30,8 @@ Today the registry holds two features: **Focus Mode** (`background/features/focu
 | Set Group Color | `tab-groups-native-color` | `group` | Recolor the current tab's native group | Chrome only |
 | Collapse/Expand Current Group | `tab-groups-native-collapse` | `action` | Toggle the group's collapsed state | Chrome only |
 | Ungroup Current Tab | `tab-groups-native-ungroup` | `action` | Remove the current tab from its group | Chrome only |
+| Hide element on this page | `element-hider-pick` | `action` | Enter element pick-mode to hide an element on this site | All contexts |
+| Manage hidden elements | `element-hider-manage` | `action` | Open the Element Hider settings page | All contexts |
 
 ---
 
@@ -78,6 +80,15 @@ Source: `background/features/tabGroups/`. The feature splits into two command fa
 **Native groups** (`nativeCommands.ts`, Chrome only — `supportedBrowsers: ["chrome"]`, `permissions: ["tabGroups", "tabs"]`) — operate on the browser's live tab-strip groups via `chrome.tabs.group/ungroup` + `chrome.tabGroups.*` (wrapped in `background/utils/browserTabGroups.ts`); nothing is persisted. They are filtered out on Firefox by the standard `supportsPlatform` pass: add current tab to a group / new group, group all tabs in the window, rename / recolor / collapse-expand the current group, ungroup the current tab.
 
 The settings page manages saved groups through the generic `record-list` field (see [../features.md](../features.md)): per-group **Restore** / **Rename** (inline) / **Delete**, and per-tab **Pin/Unpin** on expanded rows, plus the two behavioral switches. Row actions dispatch `execute-feature-action` with a `payload`; `handleAction` (`index.ts`) routes `restore-group` / `rename-group` / `delete-group` / `toggle-pin`.
+
+## Element Hider
+
+Source: `background/features/elementHider/commands.ts`, exported as `elementHiderCommands` (a function returning the two `ActionCommandNode`s). The feature id is `element-hider` (`ELEMENT_HIDER_FEATURE_ID` in `background/features/elementHider/types.ts`). Both commands are top-level actions (not a group), color purple.
+
+- **Hide element on this page** (`element-hider-pick`, icon `EyeOff`, keywords `hide`/`element`/`block`/`declutter`/`remove`/`picker`). On a real `http(s)` page it `upsertSurface`s a tab-targeted `picker` surface owned by the feature id and URL-gated to the current page; on a non-web page it warns via toast and returns. It does not hide anything itself — content reports the picked element and the feature's `handleAction("element-picked")` saves a per-domain rule and hides it. See [../element-hider.md](../element-hider.md).
+- **Manage hidden elements** (`element-hider-manage`, icon `Eye`, keywords `hidden`/`elements`/`manage`/`unhide`/`settings`). Calls `openOptionsPage("/features/element-hider")` to deep-link to the feature's settings page. Note this feature uses its own named manage action rather than the shared `createConfigureFeatureCommand` helper / `feature-<id>-configure` id that Focus Mode and Tab Groups use.
+
+The per-domain rules, the picker round-trip, and the projected `elementAppears` automations are documented in [../element-hider.md](../element-hider.md).
 
 ## Adding a feature's commands
 

@@ -13,7 +13,7 @@ import {
 import type { PropsWithChildren } from "react"
 import { Link, useLocation } from "wouter"
 import { MonocleMark } from "../../shared/components/MonocleMark"
-import { cn } from "../lib/cn"
+import { cn } from "../../shared/components/ui/cn"
 
 const navItems = [
   { href: "/", label: "General", icon: Settings },

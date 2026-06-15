@@ -30,7 +30,7 @@ branches on `suggestion.type` via `ts-pattern`:
 | `group` | `CommandItemAction` | `Group` |
 | `search` | `CommandItemAction` (falls through `.otherwise`) | `Command` |
 | `submit` | `CommandItemSubmit` (a focusable button) | none |
-| `input` | one of `CommandItemInput`/`Select`/`Switch`/`Multi`/`Color`/`TextList` keyed off `inputField.type` | none |
+| `input` | one of `CommandItemInput`/`Textarea`/`Select`/`Switch`/`Multi`/`Color`/`TextList` keyed off `inputField.type` | none |
 | `display` | `CommandItemDisplay` | `Todo` (placeholder text) |
 
 `CommandItem.handleSelect` is the single entry point for selecting a row. It is
@@ -268,8 +268,8 @@ Keybindings / favorites: search nodes are not keybindable (non-executable) but
 receive favorite-toggle and a generated "primary" action like groups.
 
 Deep search: search results are not flattened into root deep search (deep search
-only walks `group` children — `collectDeepSearchEntries` skips any
-non-`group` command).
+only walks `group` children — `walkGroups` in
+`background/commands/searchIndex.ts` skips any non-`group` command).
 
 Illustrative example (there is currently no static `search` command in the tree; site SDK registrations in `background/commands/siteSdk/commands.ts` are the live producer of search nodes):
 
@@ -310,6 +310,7 @@ Rendering: `CommandItem` dispatches on `field.type`:
 | `field.type` | Component |
 | --- | --- |
 | `text` | `CommandItemInput` |
+| `textarea` | `CommandItemTextarea` |
 | `select` | `CommandItemSelect` |
 | `checkbox` / `switch` | `CommandItemSwitch` |
 | `multi` | `CommandItemMulti` |
@@ -326,8 +327,9 @@ executed directly.
 
 Keybindings / favorites / recents / deep search: inputs are non-executable, so
 they are not keybindable, do not record usage, and are intentionally skipped by
-deep search (`collectDeepSearchEntries` flattens only `action` and `submit`
-descendants — input rows never flatten into root search). `commandsToSuggestions`
+deep search (`walkGroups` in `background/commands/searchIndex.ts` flattens only
+`action` and `submit` descendants — input rows never flatten into root search).
+`commandsToSuggestions`
 does not attach an action menu to input suggestions.
 
 Nesting: inputs are leaves and only make sense alongside a sibling `submit`.
@@ -445,8 +447,8 @@ See [search-and-ranking.md](./search-and-ranking.md) for ranking specifics.
 - The `display` meta label is the placeholder text `Todo` in
   `CommandItemDisplay` — cosmetic, but it ships to users.
 - `commandsToSuggestions` attaches the same generated action menu (favorite,
-  hide-from-domain, set/reset keybinding) to every `action`, `submit`, `group`,
-  and `search` node. Some of these actions do not make sense for every command
+  hide-from-domain, hide-command, set/reset keybinding) to every `action`,
+  `submit`, `group`, and `search` node. Some of these actions do not make sense for every command
   and should be audited per the command-system review notes.
 - Deep search skipping `input`/`display` is intentional but easy to forget; keep
   it explicit in any future form-group work.

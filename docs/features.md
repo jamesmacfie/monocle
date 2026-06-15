@@ -53,6 +53,9 @@ type FeatureModule<TConfig> = {
   }
   // Startup lifecycle: re-arm alarms / listeners after a SW restart.
   init?: () => void | Promise<void>
+  // Read-only automations PROJECTED from this feature's config (optional). They
+  // flow through the shared user-script engine/trigger system — see below.
+  automations?: (config: TConfig) => UserScript[] | Promise<UserScript[]>
 }
 ```
 
@@ -108,6 +111,36 @@ express. It is the one field type whose data is *not* draft-edited:
 
 Tab Groups (`background/features/tabGroups/`) is the first consumer; see
 [commands/features.md](./commands/features.md).
+
+### Feature-owned automations
+
+A feature can contribute **page-load (and other-trigger) behavior** without any
+new runtime: the optional `automations(config)` hook **projects** read-only
+`UserScript` documents from the feature's config, and they flow through the
+existing user-script engine and trigger system (see
+[user-scripts.md](./user-scripts.md)).
+
+- **Projected, never stored.** The hook recomputes from current config on every
+  read; the config is the single source of truth. (This mirrors how Focus Mode
+  projects *surfaces* rather than persisting them.) The merge happens in
+  `background/userScripts/registry.ts` (`getAllAutomations` / `getAutomationById`),
+  which the engine, trigger engine, alarm sync, and options listing read from.
+  The user-script storage mutators are untouched — feature documents never enter
+  `monocle-userscripts`, and `addUserScript` rejects a feature-owned draft.
+- **Tagged + deterministic.** Each projected doc carries
+  `owner: { kind: "feature", featureId }` and a stable id
+  (`featureAutomationId(featureId, key)` → `feature:<id>:<key>`, which cannot
+  collide with the UUIDs of stored user docs). Each must validate against
+  `UserScriptSchema`.
+- **Read-only in the UI.** The Automations options page partitions on
+  `isFeatureAutomation` and lists feature automations under "Managed by features"
+  with a link back to the feature's settings — no edit/delete/toggle. They are
+  also **excluded from palette command generation** (the feature owns its own
+  commands).
+- Element Hider (`background/features/elementHider/`,
+  [element-hider.md](./element-hider.md)) is the first consumer: it projects one
+  `elementAppears` automation per saved rule, scoped by the rule's URL pattern,
+  whose single step `hideElement`s the selector.
 
 ---
 

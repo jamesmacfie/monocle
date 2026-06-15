@@ -5,6 +5,7 @@ import type {
   CheckKeybindingConflictResponse,
   SettingsCatalogCommand,
 } from "../../shared/types"
+import { sendRuntimeMessage } from "../../shared/utils/extension-api"
 import {
   getKeyString,
   normalizeKeybinding,
@@ -55,32 +56,32 @@ const getConflictContext = (command: SettingsCatalogCommand) => {
   }
 }
 
-const checkConflict = (keybinding: string, command: SettingsCatalogCommand) =>
-  new Promise<ConflictCheckResult>((resolve) => {
-    chrome.runtime.sendMessage(
-      {
-        type: "check-keybinding-conflict",
-        keybinding,
-        excludeCommandId: command.id,
-        context: getConflictContext(command),
-      },
-      (
-        response:
-          | (CheckKeybindingConflictResponse & { error?: string })
-          | undefined,
-      ) => {
-        if (chrome.runtime.lastError || response?.error) {
-          resolve(NO_CONFLICT_RESULT)
-          return
-        }
+const checkConflict = async (
+  keybinding: string,
+  command: SettingsCatalogCommand,
+): Promise<ConflictCheckResult> => {
+  try {
+    const response = await sendRuntimeMessage<
+      (CheckKeybindingConflictResponse & { error?: string }) | undefined
+    >({
+      type: "check-keybinding-conflict",
+      keybinding,
+      excludeCommandId: command.id,
+      context: getConflictContext(command),
+    })
 
-        resolve({
-          conflict: response?.conflictingCommand ?? null,
-          requirementViolation: response?.requirementViolation?.message ?? null,
-        })
-      },
-    )
-  })
+    if (response?.error) {
+      return NO_CONFLICT_RESULT
+    }
+
+    return {
+      conflict: response?.conflictingCommand ?? null,
+      requirementViolation: response?.requirementViolation?.message ?? null,
+    }
+  } catch {
+    return NO_CONFLICT_RESULT
+  }
+}
 
 export function KeybindingDialog({
   command,

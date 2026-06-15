@@ -175,8 +175,9 @@ state-machine model, and the background message handler.
 
 - `cache: localStorage`
 - `requestBackground`: sends `{ type: "get-unsplash-background", context }` to
-  the background via `chrome.runtime.sendMessage` and resolves/rejects on the
-  response (rejecting on `chrome.runtime.lastError`).
+  the background via `sendRuntimeMessage` (`shared/utils/extension-api.ts`),
+  which is a Promise wrapper over `runtime.sendMessage` that rejects on
+  `runtime.lastError`.
 - `preloadImage`: a module-level helper that loads the URL into an `Image()` and
   resolves on `onload` / rejects on `onerror`.
 - `onBackground` / `onFallback`: state setters guarded by an `isMounted` flag so
@@ -225,8 +226,13 @@ keeps the last-known-good image.
 ### Unsplash fetch (`background/messages/getUnsplashBackground.ts`)
 
 Registered in `background/messages/index.ts` under
-`{ type: "get-unsplash-background" }`. The handler `getUnsplashBackground`
-delegates to the testable `fetchUnsplashBackground({ accessKey })`.
+`{ type: "get-unsplash-background" }`. The handler `getUnsplashBackground` reads
+`backgroundCategories` from `getNewTabSettings()`, maps them to search queries
+via `getCategoryQueries` (`shared/utils/unsplash-categories.ts`), and — when one
+or more categories are enabled — picks one query at random per request so
+backgrounds rotate across the user's chosen categories. It then delegates to the
+testable `fetchUnsplashBackground({ accessKey, query })` (an omitted `query`
+means a fully random photo).
 
 - The access key comes from `import.meta.env.WXT_UNSPLASH_ACCESS_KEY ||
   import.meta.env.EXTENSION_PUBLIC_UNSPLASH_ACCESS_KEY` (env prefixes allowed by
@@ -235,7 +241,8 @@ delegates to the testable `fetchUnsplashBackground({ accessKey })`.
   rather than throwing — the page then shows the gradient.
 - With a key, it GETs
   `https://api.unsplash.com/photos/random?orientation=landscape&w=1920&h=1080`
-  with an `Authorization: Client-ID <key>` header. A non-OK status throws
+  (plus `&query=<category>` when a category query was selected) with an
+  `Authorization: Client-ID <key>` header. A non-OK status throws
   `Unsplash API error: <status>`, which is caught and converted into an `error`
   response.
 - A success maps the `UnsplashPhoto` into an `UnsplashBackgroundResponse`:

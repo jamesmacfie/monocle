@@ -8,8 +8,7 @@
 // smooths the score across runs so a single odd use doesn't whipsaw ranking.
 // searchIndex.ts caches the derived rank map behind its own TTL; this module
 // just owns the stats and the math. See docs/search-and-ranking.md.
-import { getBrowserAPI } from "../../shared/utils/extension-api"
-import { withStorageLock } from "../utils/storageMutex"
+import { createStorageArea } from "../utils/storageArea"
 
 interface CommandUsageStats {
   commandId: string
@@ -31,37 +30,13 @@ const EMA_SMOOTHING_FACTOR = 0.2 // Alpha for exponential moving average
 const RECENCY_DECAY_RATE = 0.099 // Half-life of 7 days: ln(2)/7
 const TIME_BOOST_FACTOR = 0.5 // Maximum boost factor for time-of-day similarity
 
-// Load usage data from storage
-const loadUsageData = async (): Promise<StoredUsageData> => {
-  try {
-    const result = (await getBrowserAPI().storage.local.get(
-      USAGE_STORAGE_KEY,
-    )) as Record<string, StoredUsageData | undefined>
-    return (
-      result[USAGE_STORAGE_KEY] || {
-        commandStats: {},
-        lastCleanup: Date.now(),
-      }
-    )
-  } catch (error) {
-    console.error("Failed to load usage data:", error)
-    return {
-      commandStats: {},
-      lastCleanup: Date.now(),
-    }
-  }
-}
+const usageArea = createStorageArea<StoredUsageData>({
+  key: USAGE_STORAGE_KEY,
+  defaults: () => ({ commandStats: {}, lastCleanup: Date.now() }),
+  label: "command usage",
+})
 
-// Save usage data to storage
-const saveUsageData = async (data: StoredUsageData): Promise<void> => {
-  try {
-    await getBrowserAPI().storage.local.set({
-      [USAGE_STORAGE_KEY]: data,
-    })
-  } catch (error) {
-    console.error("Failed to save usage data:", error)
-  }
-}
+const loadUsageData = (): Promise<StoredUsageData> => usageArea.load()
 
 // Initialize empty stats for a command
 const createEmptyStats = (commandId: string): CommandUsageStats => {
@@ -136,58 +111,48 @@ export const calculateCommandScore = (
   return newEmaScore
 }
 
-// Record a command usage event. Serialized per storage key: concurrent
-// executions (e.g. the same keybinding fired in two tabs) would otherwise
-// interleave between load and save and drop an increment.
+// Record a command usage event. The locked update serializes concurrent
+// executions (e.g. the same keybinding fired in two tabs) that would otherwise
+// interleave between load and save and drop an increment. The mutator
+// increments frequency, stamps recency and the current-hour histogram bucket,
+// recomputes the EMA, and opportunistically prunes data older than the cleanup
+// interval.
 export const recordCommandUsage = async (
   commandId: string,
   parentNames?: string[],
-): Promise<void> =>
-  withStorageLock(USAGE_STORAGE_KEY, async () => {
-    await recordCommandUsageUnlocked(commandId, parentNames)
-  })
-
-// The mutate-and-save body, run inside recordCommandUsage's storage lock:
-// increments frequency, stamps recency and the current-hour histogram bucket,
-// recomputes the EMA, and opportunistically prunes data older than the cleanup
-// interval. Must only be called while holding the lock — it does an
-// unsynchronized load/save round-trip.
-const recordCommandUsageUnlocked = async (
-  commandId: string,
-  parentNames?: string[],
 ): Promise<void> => {
-  const now = Date.now()
-  const currentHour = new Date(now).getHours()
+  await usageArea.update((usageData) => {
+    const now = Date.now()
+    const currentHour = new Date(now).getHours()
 
-  const usageData = await loadUsageData()
+    // Get or create stats for this command
+    const stats =
+      usageData.commandStats[commandId] || createEmptyStats(commandId)
 
-  // Get or create stats for this command
-  const stats = usageData.commandStats[commandId] || createEmptyStats(commandId)
+    // Update stats
+    stats.totalUsage += 1
+    stats.lastUsed = now
+    stats.hourlyUsage[currentHour] += 1
 
-  // Update stats
-  stats.totalUsage += 1
-  stats.lastUsed = now
-  stats.hourlyUsage[currentHour] += 1
+    // Store parent context if provided (for nested commands)
+    if (parentNames && parentNames.length > 0) {
+      stats.parentNames = parentNames
+    }
 
-  // Store parent context if provided (for nested commands)
-  if (parentNames && parentNames.length > 0) {
-    stats.parentNames = parentNames
-  }
+    // Update EMA score
+    stats.emaScore = calculateCommandScore(stats, currentHour)
 
-  // Update EMA score
-  const newScore = calculateCommandScore(stats, currentHour)
-  stats.emaScore = newScore
+    // Save updated stats
+    usageData.commandStats[commandId] = stats
 
-  // Save updated stats
-  usageData.commandStats[commandId] = stats
+    // Check if we need to clean up old data
+    if (shouldCleanupData(usageData.lastCleanup)) {
+      cleanupOldData(usageData)
+      usageData.lastCleanup = now
+    }
 
-  // Check if we need to clean up old data
-  if (shouldCleanupData(usageData.lastCleanup)) {
-    await cleanupOldData(usageData)
-    usageData.lastCleanup = now
-  }
-
-  await saveUsageData(usageData)
+    return usageData
+  })
 }
 
 // Get usage stats for a command
@@ -229,8 +194,9 @@ const shouldCleanupData = (lastCleanup: number): boolean => {
   return daysSinceCleanup >= CLEANUP_INTERVAL_DAYS
 }
 
-// Clean up very old usage data to prevent storage bloat
-const cleanupOldData = async (usageData: StoredUsageData): Promise<void> => {
+// Clean up very old usage data to prevent storage bloat. Mutates in place; the
+// caller persists the result via the usage area's locked update.
+const cleanupOldData = (usageData: StoredUsageData): void => {
   const cutoffTime = Date.now() - CLEANUP_INTERVAL_DAYS * 24 * 60 * 60 * 1000
 
   // Remove commands that haven't been used in the cleanup interval

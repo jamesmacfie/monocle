@@ -180,6 +180,7 @@ Because rows are durable commands, keybindings (assigned on the keyboard setting
 - `monocle-userscripts` key, `withStorageLock` CRUD, independent lifecycle from `monocle-settings` (`background/userScripts/storage.ts`). Writes re-validate the full document.
 - Messages (`background/messages/userScripts.ts`, schemas in `shared/types/validation.ts`): `get-user-scripts`, `add-user-script`, `update-user-script`, `delete-user-script`, `run-user-script` (context optional — options-page test runs target the active tab), `get-user-script-triggers` (content → bg), `user-script-trigger-fired` (content → bg).
 - CRUD handlers invalidate the search index and rebuild the keybinding registry; delete also removes dangling `CommandSettings` for the generated command id (the snippets housekeeping pattern).
+- **Feature-owned automations.** A document carries an optional `owner` field (absent ⇒ `{kind:"user"}`). Features can contribute read-only automations projected from their config (`FeatureModule.automations`, see [features.md](./features.md)). The unified read surface is `background/userScripts/registry.ts` (`getAllAutomations` / `getAutomationById`) — the union of stored user docs + feature projections — which the engine, trigger engine, alarm sync, and `get-user-scripts` listing read from. Feature documents are never stored (`addUserScript` rejects a feature-owned draft) and are excluded from palette command generation; the options list shows them read-only under "Managed by features".
 
 ## Options builder
 

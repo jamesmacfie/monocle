@@ -23,6 +23,20 @@ export async function withErrorHandling<T, R>(
 }
 
 /**
+ * Resolve the originating tab id from a runtime message sender.
+ *
+ * The id lives in one of two places depending on the browser and path: the raw
+ * `sender.tab.id`, or the `validationContext.senderTab` that
+ * `createCrossBrowserMessageHandler` stamps onto the sender (see runtime.ts).
+ * `validationContext.senderTab` can be `null`, which is normalized to
+ * `undefined` here. Handlers that need the sender tab should call this instead
+ * of re-deriving the fallback inline.
+ */
+export function resolveSenderTabId(sender?: any): number | undefined {
+  return sender?.tab?.id ?? sender?.validationContext?.senderTab ?? undefined
+}
+
+/**
  * Creates a message handler with error wrapping
  * @param handler - The handler function
  * @param errorMessage - Error message for failures

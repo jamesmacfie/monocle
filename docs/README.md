@@ -76,7 +76,8 @@ If you are adding a command, the fast path is
 ## Specialized subsystems
 
 - [surfaces.md](./surfaces.md) — The Surfaces primitive: a background-owned,
-  owner-namespaced store of declarative overlays/badges rendered by one generic
+  owner-namespaced store of declarative overlays, badges, modals, and pickers
+  rendered by one generic
   `SurfaceHost`; the `get-surfaces` query and `monocle-surfaces-changed`
   broadcast. The reusable basis for feature and automation page UI.
 - [features.md](./features.md) — The Feature-module registry: how a feature
@@ -86,6 +87,9 @@ If you are adding a command, the fast path is
 - [focus-mode.md](./focus-mode.md) — Focus Mode, the first feature: blocklist,
   timed/Pomodoro sessions, the hard-block content overlay, and the new-tab
   status widget.
+- [element-hider.md](./element-hider.md) — Element Hider, the third feature:
+  the interactive `picker` surface, generic `surface-action` owner routing, and
+  feature-owned (projected) automations that re-hide elements on page load.
 - [calculations.md](./calculations.md) — Inline calculations: the shared
   `ContentBlock` schema + `ContentBlocks` renderer, the background calculation
   provider registry (Math/Units via mathjs, Time via `Intl`), how results are

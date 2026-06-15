@@ -1,6 +1,6 @@
 // Shared shadcn-style Dialog, built on @radix-ui/react-dialog and the project's
 // `--color-*` theme tokens. Part of the shared/components/ui/ boundary (the
-// shadcn-consolidation seed; see docs/v_next/10-shadcn.md).
+// shadcn-consolidation seed).
 //
 // The one departure from stock shadcn: DialogContent accepts a `container` prop
 // threaded to the Radix Portal. Surfaces render this in the CLOSED content

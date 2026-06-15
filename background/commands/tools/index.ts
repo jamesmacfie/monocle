@@ -1,5 +1,6 @@
 import { copyUuidV4 } from "./copyUuidV4"
 import { debugWorkflow } from "./debugWorkflow"
+import { inspectElementFonts } from "./inspectElementFonts"
 import { createSnippet, insertSnippet } from "./snippets"
 import { urlAsQrCode } from "./urlAsQrCode"
 
@@ -9,4 +10,5 @@ export const toolCommands = [
   createSnippet,
   insertSnippet,
   urlAsQrCode,
+  inspectElementFonts,
 ]

@@ -64,7 +64,7 @@ The background owns:
 - **Settings persistence** — stored under `monocle-settings` in `chrome.storage.local`, routed through `background/commands/settings.ts`. See [settings.md](./settings.md).
 - **Permissions** — required and optional permission checks and requests. See [permissions.md](./permissions.md).
 - **Keybindings** — canonicalization, registry, and execution. See [keybindings.md](./keybindings.md).
-- **Workflow forwarding** — receives `execute-workflow` and forwards it to the active tab's content script. See [workflow-automation.md](./workflow-automation.md).
+- **Workflow forwarding** — receives `execute-workflow` and forwards it to the resolved target tab's content script. See [workflow-automation.md](./workflow-automation.md).
 - **User scripts** — declarative automation documents stored under `monocle-userscripts`, validated/interpreted entirely in the background (`background/userScripts/`: storage, engine, trigger engine, alarms, command generation). See [user-scripts.md](./user-scripts.md).
 - **Feature modules** — the `background/features/` registry of `FeatureModule`s, each contributing palette commands, a declarative settings page, runtime state, and a lifecycle hook. Durable config (`monocle-feature-config`) and runtime state (`monocle-feature-state`) live in dedicated stores. See [features.md](./features.md).
 - **Surfaces** — the owner-namespaced declarative-UI store (`monocle-surfaces`, `background/surfaces.ts`) of overlays/badges rendered by the generic `SurfaceHost`. The reusable basis for feature and automation page UI. See [surfaces.md](./surfaces.md).
@@ -117,7 +117,7 @@ monocle/
 │   ├── messages/        # message router and handlers
 │   ├── keybindings/     # registry
 │   ├── userScripts/     # user-script storage, engine, triggers, alarms, commands
-│   ├── features/        # feature-module registry (config/state, focus-mode)
+│   ├── features/        # feature-module registry (config/state, focus-mode, tabGroups, elementHider)
 │   ├── surfaces.ts      # owner-namespaced declarative overlay/badge store
 │   ├── workflows/       # workflow target resolution + forwarding
 │   └── utils/           # privileged browser API helpers, contentPalette
@@ -144,7 +144,7 @@ The build is driven by WXT (`wxt.config.ts`) with the React module.
 - `manifestVersion: 3`, `targetBrowsers: ["chrome", "firefox"]`, `modules: ["@wxt-dev/module-react"]`, `imports: false` (no WXT auto-imports).
 - The `manifest` is generated as a function of `{ browser, command }`:
   - **Permissions** are browser-specific. Chrome gets `["scripting", "activeTab", "alarms", "storage"]`; Firefox additionally gets `contextualIdentities`. `alarms` powers scheduled user-script triggers.
-  - **Optional permissions** (`bookmarks`, `browsingData`, `cookies`, `downloads`, `history`, `sessions`, `tabs`) are declared once and requested on demand at runtime.
+  - **Optional permissions** (`bookmarks`, `browsingData`, `cookies`, `downloads`, `history`, `sessions`, `tabs`, `management`, plus Chrome-only `tabGroups`) are declared once and requested on demand at runtime.
   - **Host permissions** cover external hosts: Unsplash API, DuckDuckGo icons.
   - **CSP** for extension pages is computed by `getExtensionPagesCsp`; the dev `serve` command relaxes `connect-src`/`script-src` to allow `localhost`/`ws` for HMR.
   - The toolbar **action shortcut** `_execute_action` is bound to `Cmd/Ctrl+Shift+K`, declared for all browser/command combos except Firefox `serve`.

@@ -108,8 +108,16 @@ export const buildStableSelector = (element: Element): string => {
   return parts.join(" > ")
 }
 
-/** Build the rich PickedElement payload reported back to the owning feature. */
-export const describeElement = (element: Element): PickedElement => {
+/**
+ * Build the rich PickedElement payload reported back to the owning feature.
+ * When `cssProps` is provided (from the picker surface's `content.css` config),
+ * the element's computed values for those properties are captured too — the
+ * only place this can happen, since content holds the live DOM element.
+ */
+export const describeElement = (
+  element: Element,
+  cssProps?: string[],
+): PickedElement => {
   const selection: PickedElement = {
     selector: buildStableSelector(element),
     tagName: element.tagName,
@@ -138,6 +146,20 @@ export const describeElement = (element: Element): PickedElement => {
   const role = element.getAttribute("role")
   if (role) {
     selection.role = role
+  }
+
+  if (cssProps && cssProps.length > 0) {
+    const computed = window.getComputedStyle(element)
+    const css: Record<string, string> = {}
+    for (const prop of cssProps) {
+      const value = computed.getPropertyValue(prop).trim()
+      if (value) {
+        css[prop] = value
+      }
+    }
+    if (Object.keys(css).length > 0) {
+      selection.css = css
+    }
   }
 
   return selection

@@ -67,4 +67,33 @@ describe("PickerSurface", () => {
       }),
     )
   })
+
+  it("captures computed css for the properties the surface requests", () => {
+    const heading = document.createElement("h1")
+    heading.id = "title"
+    heading.style.fontFamily = "Inter, sans-serif"
+    heading.style.fontSize = "32px"
+    document.body.appendChild(heading)
+    const onPick = vi.fn()
+    const surface: Surface = {
+      ...pickerSurface,
+      content: { ...pickerSurface.content, css: ["font-family", "font-size"] },
+    }
+
+    render(
+      <PickerSurface surface={surface} onPick={onPick} onCancel={vi.fn()} />,
+    )
+
+    fireEvent.click(heading)
+
+    expect(onPick).toHaveBeenCalledWith(
+      surface,
+      expect.objectContaining({
+        css: expect.objectContaining({
+          "font-family": "Inter, sans-serif",
+          "font-size": "32px",
+        }),
+      }),
+    )
+  })
 })

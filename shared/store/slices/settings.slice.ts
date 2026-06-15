@@ -6,7 +6,7 @@ import type {
   ThemeMode,
   ThemeSettings,
 } from "../../../shared/types"
-import { getBrowserAPI } from "../../utils/extension-api"
+import { getBrowserAPI, sendRuntimeMessage } from "../../utils/extension-api"
 
 // Cross-browser compatibility layer
 const browserAPI = getBrowserAPI()
@@ -16,15 +16,7 @@ const STORAGE_KEY = "monocle-settings"
 
 // Shared get-permissions round-trip used by the load/refresh thunks
 const fetchPermissions = () =>
-  new Promise<PermissionSettings>((resolve, reject) => {
-    browserAPI.runtime.sendMessage({ type: "get-permissions" }, (response) => {
-      if (browserAPI.runtime.lastError) {
-        reject(browserAPI.runtime.lastError)
-      } else {
-        resolve(response as PermissionSettings)
-      }
-    })
-  })
+  sendRuntimeMessage<PermissionSettings>({ type: "get-permissions" })
 
 // Settings state structure
 interface SettingsState {

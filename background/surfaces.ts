@@ -8,12 +8,10 @@
 // gating reuses matchesUrlPattern. See docs/surfaces.md.
 import type { Surface } from "../shared/types"
 import { validateSurface } from "../shared/types"
-import { getBrowserAPI } from "../shared/utils/extension-api"
 import { broadcastToAllTabs } from "./utils/browserTabs"
+import { createStorageArea } from "./utils/storageArea"
 import { withStorageLock } from "./utils/storageMutex"
 import { matchesUrlPattern } from "./utils/urlFilter"
-
-const browserAPI = getBrowserAPI()
 
 const STORAGE_KEY = "monocle-surfaces"
 
@@ -29,26 +27,17 @@ const isSessionOwner = (ownerId: string): boolean =>
 
 type SurfaceStore = Record<string, Surface[]>
 
-const loadStore = async (): Promise<SurfaceStore> => {
-  try {
-    const result = (await browserAPI.storage.local.get(STORAGE_KEY)) as Record<
-      string,
-      SurfaceStore | undefined
-    >
-    return result[STORAGE_KEY] || {}
-  } catch (error) {
-    console.error("[surfaces] Failed to load surfaces:", error)
-    return {}
-  }
-}
+// Transport only — the locked mutations, validation, and broadcast below are
+// surfaces-specific and stay here. See createStorageArea.
+const surfacesArea = createStorageArea<SurfaceStore>({
+  key: STORAGE_KEY,
+  defaults: () => ({}),
+  label: "surfaces",
+})
 
-const saveStore = async (store: SurfaceStore): Promise<void> => {
-  try {
-    await browserAPI.storage.local.set({ [STORAGE_KEY]: store })
-  } catch (error) {
-    console.error("[surfaces] Failed to save surfaces:", error)
-  }
-}
+const loadStore = (): Promise<SurfaceStore> => surfacesArea.load()
+const saveStore = (store: SurfaceStore): Promise<void> =>
+  surfacesArea.save(store)
 
 const broadcastChanged = async (): Promise<void> => {
   await broadcastToAllTabs({ type: "monocle-surfaces-changed" })

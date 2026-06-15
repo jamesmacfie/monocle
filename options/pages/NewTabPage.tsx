@@ -13,30 +13,19 @@ import {
   updateClockVisibility,
 } from "../../shared/store/slices/settings.slice"
 import type { UnsplashBackgroundResponse } from "../../shared/types"
+import { sendRuntimeMessage } from "../../shared/utils/extension-api"
 import { UNSPLASH_CATEGORIES } from "../../shared/utils/unsplash-categories"
 import { Button, Panel, Switch } from "../components/ui"
 
 const requestBackground = () =>
-  new Promise<UnsplashBackgroundResponse>((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      {
-        type: "get-unsplash-background",
-        context: {
-          title: document.title,
-          url: window.location.href,
-          modifierKey: null,
-          isNewTab: true,
-        },
-      },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError)
-          return
-        }
-
-        resolve(response)
-      },
-    )
+  sendRuntimeMessage<UnsplashBackgroundResponse>({
+    type: "get-unsplash-background",
+    context: {
+      title: document.title,
+      url: window.location.href,
+      modifierKey: null,
+      isNewTab: true,
+    },
   })
 
 export function NewTabPage() {

@@ -303,10 +303,19 @@ export const PickedElementSchema = z.object({
   innerText: z.string().max(2000).optional(),
   href: z.string().max(2000).optional(),
   role: z.string().max(64).optional(),
+  // Computed CSS values requested via the picker surface's `content.css` config
+  // (property -> value). Page-controlled, so both keys and values are bounded
+  // and the map is capped.
+  css: z
+    .record(z.string().max(128), z.string().max(2000))
+    .refine((map) => Object.keys(map).length <= 64, {
+      message: "Too many css properties",
+    })
+    .optional(),
 })
 
 // A surface interaction (e.g. dismissing a modal, or a picker reporting a
-// clicked element). See docs/v_next/03-surfaces-and-persistent-ui.md §3.
+// clicked element). See docs/surfaces.md.
 export const SurfaceActionMessageSchema = z.object({
   type: z.literal("surface-action"),
   ownerId: z.string().min(1, "Owner ID cannot be empty"),

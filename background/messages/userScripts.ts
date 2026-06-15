@@ -37,7 +37,7 @@ import {
   getPageTriggersForUrl,
   handleTriggerFired,
 } from "../userScripts/triggerEngine"
-import { createMessageHandler } from "../utils/messages"
+import { createMessageHandler, resolveSenderTabId } from "../utils/messages"
 
 const handleGetUserScripts = async (
   _message: GetUserScriptsMessage,
@@ -109,7 +109,7 @@ const handleUserScriptTriggerFired = async (
   return await handleTriggerFired({
     scriptId: message.scriptId,
     trigger: message.trigger,
-    senderTabId: sender?.tab?.id ?? sender?.validationContext?.senderTab,
+    senderTabId: resolveSenderTabId(sender),
     senderUrl: sender?.url ?? sender?.tab?.url,
   })
 }

@@ -11,8 +11,7 @@
 // source of truth, which also validates every write to the store), so the type
 // and its validator can never drift. The `modal` kind is a centered, dismissible
 // card that renders structured `content.blocks` through the shared ContentBlocks
-// renderer (the first surface body to do so). See docs/surfaces.md and
-// docs/v_next/03-surfaces-and-persistent-ui.md.
+// renderer (the first surface body to do so). See docs/surfaces.md.
 import type { z } from "zod"
 import type {
   SurfaceContentSchema,

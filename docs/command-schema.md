@@ -153,12 +153,15 @@ export type SuggestionExecutionPayload = Record<string, string | string[]>
 ### `BrowserPermission`
 
 ```ts
-export type BrowserPermission =
-  | "activeTab" | "bookmarks" | "browsingData" | "contextualIdentities"
-  | "cookies" | "downloads" | "history" | "sessions" | "storage" | "tabs"
+export const BROWSER_PERMISSIONS = [
+  "activeTab", "bookmarks", "browsingData", "contextualIdentities",
+  "cookies", "downloads", "history", "sessions", "storage", "tabs",
+  "tabGroups", "management",
+] as const
+export type BrowserPermission = (typeof BROWSER_PERMISSIONS)[number]
 ```
 
-Source: `shared/types/commands.ts`, `BrowserPermission`. These are the optional permission strings a command may request; see [permissions.md](permissions.md) for the grant flow.
+Source: `shared/types/commands.ts`, `BROWSER_PERMISSIONS` / `BrowserPermission`. These are the optional permission strings a command may request; the `BrowserPermission` type and the runtime validation of permission-request messages both derive from the single `BROWSER_PERMISSIONS` tuple. See [permissions.md](permissions.md) for the grant flow.
 
 ## `ActionLabel` (shared by action, submit, search)
 
@@ -463,7 +466,7 @@ For `action`, `submit`, `group`, and `search` nodes, `commandsToSuggestions` att
 
 - A primary `…-enter-action` (`executionContext.type === "primary"`, keybinding `enter`).
 - One `…-{modifier}-enter-action` per defined `modifierActionLabel` (`type: "modifier"`, keybinding `<{modifier}-enter>`).
-- A favorite toggle, a hide-from-domain action (when a domain is available), and set/reset custom keybinding actions (when `allowsKeybinding` is true).
+- A favorite toggle, a hide-from-domain action (when a domain is available), a hide-command action (when `isSettingsCatalogConfigurable` is true), and set/reset custom keybinding actions (when `allowsKeybinding` is true).
 
 The `actions` array and `executionContext` are entirely background-generated — authors do not write them. See [execution-and-actions.md](execution-and-actions.md) for the full action-menu catalog and how `executionContext` routes execution.
 

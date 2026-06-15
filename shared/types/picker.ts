@@ -22,4 +22,9 @@ export type PickedElement = {
   // Present for anchors / media so a feature can act on the link target.
   href?: string
   role?: string
+  // Computed style values for the CSS properties an owner requested via the
+  // picker surface's `content.css` config (property name -> resolved value).
+  // Read in content from window.getComputedStyle at click time; absent when no
+  // properties were requested. The font inspector is the first consumer.
+  css?: Record<string, string>
 }

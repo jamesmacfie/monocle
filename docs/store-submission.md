@@ -25,19 +25,23 @@ Two commonly feared areas turned out to be in good shape:
   extension never executes page-supplied code (see
   [Site SDK and remote-code policy](#site-sdk-and-remote-code-policy)).
 - **The permission structure is what reviewers want.** The required set is
-  minimal (`activeTab`, `storage`, `scripting`); everything sensitive (`tabs`,
-  `history`, `bookmarks`, `cookies`, `browsingData`, `downloads`, `sessions`)
-  is optional, requested on demand, and re-checked at execution time
-  (`background/utils/permissions.ts`, `ensurePermissions`).
+  minimal (`activeTab`, `storage`, `scripting`, `alarms` — plus
+  `contextualIdentities` on Firefox for container commands); everything
+  sensitive (`tabs`, `history`, `bookmarks`, `cookies`, `browsingData`,
+  `downloads`, `sessions`, `management`, and `tabGroups` on Chrome) is
+  optional, requested on demand, and re-checked at execution time
+  (`background/utils/permissions.ts`, `checkPermissions`, called from
+  `background/commands/execution.ts`).
 
 ## Hard blockers (fail before a human reviews)
 
 These must be fixed before either store will accept a submission:
 
-1. **Icons.** The manifest declares a single 48px icon
-   (`wxt.config.ts`, the `icons` block). Chrome requires a 128×128 store icon
-   and at least one screenshot in the listing; missing either is an automatic
-   rejection. Provide 16/32/48/128 manifest icons plus listing assets.
+1. **Listing assets.** The manifest already declares 16/32/48/128 icons
+   (`wxt.config.ts`, the `icons` block), so the manifest side is covered.
+   Chrome still requires a 128×128 *store* icon and at least one screenshot in
+   the listing itself; missing either is an automatic rejection. Confirm the
+   declared PNGs exist in `public/images/` and prepare the listing assets.
 2. **Firefox `data_collection_permissions`.** Mandatory for all new
    extensions submitted to AMO since November 2025, under
    `browser_specific_settings.gecko`. Omitting it or declaring it incorrectly
@@ -115,8 +119,9 @@ Sub-risks inside this:
 
 ### Permissions
 
-- Required set is minimal: Chrome gets `scripting`, `activeTab`, `storage`
-  (`wxt.config.ts`).
+- Required set is minimal: Chrome gets `scripting`, `activeTab`, `storage`,
+  `alarms` (the last powers scheduled user-script triggers) (`wxt.config.ts`).
+  Firefox additionally requires `contextualIdentities` for container commands.
 - `host_permissions` is two specific hosts (`api.unsplash.com`,
   `icons.duckduckgo.com`), not `<all_urls>`.
 - All sensitive permissions are optional and requested at runtime
@@ -262,9 +267,11 @@ single biggest lever for shortening human review.
   `host_permissions` and CSP — Unsplash backgrounds and DuckDuckGo favicons
   (`background/utils/favicon.ts`). No analytics or telemetry of any kind.
 - **Storage**: local-only; no `storage.sync`, nothing transmitted off-device.
-- **Clipboard**: write-only, via explicit copy commands
-  (`shared/hooks/useCopyToClipboard.tsx`). The clipboard workflow types are
-  declared but unimplemented.
+- **Clipboard**: write-only — explicit copy commands
+  (`shared/hooks/useCopyToClipboard.tsx`) and the user-script engine's
+  privileged `clipboardWrite` op. There is no clipboard *read* path, and
+  clipboard is not part of the content workflow vocabulary
+  (`shared/types/workflow.ts`).
 - **`server/`**: a local dev fixture server, not referenced by the extension
   at runtime; `localhost` appears in the CSP only for dev `serve` builds.
 

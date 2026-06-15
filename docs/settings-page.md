@@ -2,8 +2,8 @@
 
 > **Status: Phase 1 plus management pages implemented.** Monocle now has a WXT
 > options page with General, New Tab, Commands, Favorites, Keyboard, Snippets,
-> Automations, URL Rules, and About sections. Later sections in this document
-> remain future design unless explicitly described as implemented.
+> Automations, Features, URL Rules, and About sections. Later sections in this
+> document remain future design unless explicitly described as implemented.
 
 Monocle's configuration is split between **palette-native quick actions** and a
 dedicated **settings page**. The palette remains the fastest way to toggle or
@@ -31,7 +31,7 @@ Wouter hash routes, Tailwind, and local shadcn-style primitives.
 
 | Concern | How it's configured today | Source |
 | --- | --- | --- |
-| Options page | General, New Tab, Commands, Favorites, Keyboard, Snippets, Automations, URL Rules, and About pages | `entrypoints/options/`, `options/` |
+| Options page | General, New Tab, Commands, Favorites, Keyboard, Snippets, Automations, Features, URL Rules, and About pages | `entrypoints/options/`, `options/` |
 | Open settings | `open-settings` command opens `options.html#/` | `background/commands/ui/openSettings.ts` |
 | Theme (`light`/`dark`/`system`) | General page selector; `toggle-theme` command still exists | `options/pages/GeneralPage.tsx`, `background/commands/ui/theme.ts` |
 | New-tab clock visibility | New Tab page switch; `toggle-clock-visibility` still exists under `new-tab-clock` | `options/pages/NewTabPage.tsx`, `background/commands/newTab/` |
@@ -137,6 +137,7 @@ A left sidebar with these sections (Wouter hash routes in parentheses):
 | **Keyboard Shortcuts** | `#/keyboard` | All bindings in one table, conflicts, reset. |
 | **Snippets** | `#/snippets` | Manage saved text snippets (create/edit/delete; bodies support insert-time placeholders). |
 | **Automations** | `#/automations` | Build, test, import/export, and arm user scripts (implemented — see [user-scripts.md](./user-scripts.md)). |
+| **Features** | `#/features` | Feature-module settings pages (implemented — see [features.md](./features.md)). |
 | **URL Rules** | `#/url-rules` | Per-command allow/deny rule overview and bulk clearing. |
 | **Permissions** | `#/permissions` | Grant/revoke optional permissions. |
 | **Data & Privacy** | `#/data` | Export/import settings, granular reset, usage analytics, clear-data shortcuts. |
@@ -316,44 +317,39 @@ Future management depth:
   the `get-permissions` round-trip and the Chrome/Firefox grant flows behind
   `PermissionActions` / `requestPermission` ([permissions.md](./permissions.md)).
 
-### 4.5 New-tab background categories (Unsplash) — future
+### 4.5 New-tab background categories (Unsplash) — implemented
 
-The MVP New Tab page exposes the existing background cache state and a manual
-refresh control. Category preferences remain deferred until the Unsplash fetch
-path actually consumes them.
+The user can **opt into** which kinds of Unsplash imagery the new-tab background
+draws from, via a grid of **on/off toggles, one per category**. This lives
+**only in the settings page** — deliberately *not* a palette command, since it's
+a multi-value preference, not a quick action.
 
-Future idea: let the user **opt into** which kinds of Unsplash imagery the
-new-tab background draws from, via a grid of **on/off toggles, one per
-category**. This would live **only in the settings page** — deliberately *not* a
-palette command, since it's a multi-value preference, not a quick action.
-
-**Exists today.** `newTab.backgroundCategories?: string[]` is already declared in
-`shared/types/settings.ts` but is **unused** — nothing writes it and the fetch
-ignores it. `getUnsplashBackground` (`background/messages/getUnsplashBackground.ts`)
-requests `https://api.unsplash.com/photos/random?orientation=landscape&w=1920&h=1080`
-with no topic/query filter, so backgrounds are fully random. So this feature is
-mostly **wiring an already-reserved field**, not a new data shape.
+**Exists today.** `newTab.backgroundCategories?: string[]` is declared in
+`shared/types/settings.ts` and is now **wired end to end**: the New Tab options
+page writes it and `getUnsplashBackground`
+(`background/messages/getUnsplashBackground.ts`) reads it. When categories are
+enabled the background is no longer fully random.
 
 **Data model.** Reuse the existing `newTab.backgroundCategories: string[]` —
-the set of *enabled* category keys. **Empty/absent = current behavior** (fully
-random, no filter). No type change required; persisted via the existing
-`updateNewTabSettings` (lodash deep-merge, so it composes with `clock`/`greeting`).
+the set of *enabled* category keys. **Empty/absent = fully random** (no filter).
+No type change was required. The options page persists it via the
+`updateBackgroundCategories` Redux thunk (a direct read-modify-write of
+`monocle-settings`), not via `updateNewTabSettings`.
 
-**Category list.** Unsplash's old `/categories` endpoint is deprecated; the modern
-equivalent is **Topics** (stable public slugs). The settings UI shows a curated,
-fixed list mapped to topic slugs, e.g. `wallpapers`, `nature`, `3d-renders`,
-`textures-patterns`, `architecture-interior`, `travel`, `street-photography`,
-`animals`, `experimental`, `people`, `business-work`, `food-drink`. The
-display-name → slug mapping is a constant the settings page and the fetch share.
+**Category list.** Unsplash's old `/categories` endpoint is deprecated, so the
+fetch filters the random-photo endpoint with a `query` term rather than topic
+ids. The curated list lives in `shared/utils/unsplash-categories.ts`
+(`UNSPLASH_CATEGORIES`): each entry has a stable `key` (persisted), a `label`
+(shown), and an Unsplash `query` term. `getCategoryQueries` maps stored keys to
+their query terms, dropping unknown keys.
 
 **Fetch wiring.** `getUnsplashBackground` reads
-`getNewTabSettings().backgroundCategories` and, when non-empty, appends
-`&topics=<comma-separated slugs>` to the random-photo request (the `/photos/random`
-endpoint accepts a `topics` filter; `query` is the fallback if topic slugs prove
-unreliable). Reading from settings in the background keeps a single source of
-truth; alternatively the new-tab UI (which already has the value in Redux) could
-pass the selection in the `get-unsplash-background` message — recommend the
-background-reads-settings approach for consistency with other settings consumers.
+`getNewTabSettings().backgroundCategories`, maps them through
+`getCategoryQueries`, and when several categories are enabled **picks one query
+at random per request** (so backgrounds rotate across the chosen categories),
+passing it as `query` on the `/photos/random` request. Empty means no `query`
+(fully random). Reading from settings in the background keeps a single source of
+truth.
 
 **Cache invalidation.** The background is cached under a single `localStorage` key
 (`monocle-unsplash-background`, see `newtab/backgroundImageModel.ts`). Changing the
@@ -376,13 +372,20 @@ when these land.
 
 ### 5.1 User scripts
 
+> **Largely implemented as Automations.** The declarative-workflow flavor below
+> shipped: the full workflow vocabulary is implemented and a user-script engine,
+> storage (`monocle-userscripts`), triggers, and an options builder exist. See
+> [user-scripts.md](./user-scripts.md) and [workflow-automation.md](./workflow-automation.md).
+> The JavaScript flavor remains deliberately unbuilt (store-policy). The original
+> design below is kept for historical context.
+
 Page-scoped automation the user authors themselves. Two distinct flavors, with
 very different risk profiles:
 
 - **Declarative workflows** (lower risk) — author steps using the existing
   workflow model ([workflow-automation.md](./workflow-automation.md)). Safe-ish
-  because the executor is constrained, but today only `click` + `wait` are
-  implemented, so a workflow authoring UI is gated on executor breadth.
+  because the executor is constrained. (The full content step vocabulary is now
+  implemented; the original design wrote this when only `click` + `wait` existed.)
 - **JavaScript user scripts** (higher risk) — Greasemonkey-style scripts run on
   matching pages. The sanctioned MV3 path is the **`chrome.userScripts` API**
   (not `eval`/injected `<script>`), which has its own permission and toggle. This
@@ -519,8 +522,8 @@ Future changes:
 | `CommandSettings.config?: Record<string, unknown>` | `shared/types/settings.ts` | **Nested → needs a `config` branch in `mergeCommandSettings` + test.** |
 | `CommandNodeBase.settingsSchema?: FormField[]` | `shared/types/commands.ts` | Declarative; rendered by existing `CommandItem/*`. |
 | `update-command-setting` gains `"config"` variant | `shared/types/validation.ts`, `background/messages/updateCommandSetting.ts` | Validate against `settingsSchema`. |
-| Wire `newTab.backgroundCategories` (Unsplash topics) | `background/messages/getUnsplashBackground.ts`, settings UI | **No type change** (field already reserved); fetch reads it and appends `&topics=…`; empty = random; refresh cache on change. |
-| New `monocle-userscripts` key | *(future)* | Separate key, like favorites/usage. |
+| Wire `newTab.backgroundCategories` (Unsplash query terms) — **implemented** | `background/messages/getUnsplashBackground.ts`, `shared/utils/unsplash-categories.ts`, `options/pages/NewTabPage.tsx` | **No type change** (field already reserved); fetch reads it, maps keys to query terms, and picks one `query` at random per request; empty = random. |
+| `monocle-userscripts` key — **implemented** | `background/userScripts/` | Separate key, like favorites/usage; see [user-scripts.md](./user-scripts.md). |
 
 ---
 

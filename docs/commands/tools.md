@@ -1,6 +1,6 @@
 # Tool Commands
 
-Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are five tool commands today: a UUID generator, a workflow debug command, the snippet pair (create + insert), and the QR-code command.
+Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are six tool commands today: a UUID generator, a workflow debug command, the snippet pair (create + insert), the QR-code command, and the font inspector.
 
 > Arithmetic used to be a `calculator` group command here. It has been replaced by inline **calculations** — type `1 + 89` at the palette root and the answer appears under the search input; Enter copies it. See [../calculations.md](../calculations.md).
 
@@ -13,8 +13,9 @@ Tool commands are general-purpose utilities that are not tied to a browser API s
 | Create Snippet | `create-snippet` | `group` | Form (name + multi-line body) that saves a reusable text snippet | Persists to the `monocle-snippets` storage key; body uses the `textarea` form field |
 | Insert Snippet | `insert-snippet` | `group` | List saved snippets; selecting one inserts its body at the page caret | Cmd-enter copies instead; falls back to clipboard + toast when no input is focused |
 | Website URL as QR code | `url-as-qr-code` | `action` | Show a QR code for the current page in a modal surface | First command to trigger a [Surface](../surfaces.md); QR generated background-side as SVG |
+| Inspect element fonts | `inspect-element-fonts` | `action` | Pick an element and copy a clean one-line font summary | First command to use the `picker` surface + command-owner `surface-action` routing; copies via the content clipboard path |
 
-All five are registered in `background/commands/tools/index.ts`:
+All six are registered in `background/commands/tools/index.ts`:
 
 ```ts
 export const toolCommands = [
@@ -23,6 +24,7 @@ export const toolCommands = [
   createSnippet,
   insertSnippet,
   urlAsQrCode,
+  inspectElementFonts,
 ]
 ```
 
@@ -86,6 +88,23 @@ This is the **first command that triggers a [Surface](../surfaces.md)** — the 
 There is no copy step — the QR appears in the modal to scan directly. Owner ids prefixed `command:` are per-session, so `initSurfaces` clears any stale QR modal on a fresh browser start.
 
 Test coverage: QR generation in `background/utils/qr.test.ts` (svg+xml data URL, valid `image` block, scales with data length); the modal kind + dismiss in `shared/components/SurfaceHost.dom.test.tsx`; store `command:` cleanup + `ownerId` stamping in `background/surfaces.test.ts`; and `surface-action` message validation in `shared/types/feature-validation.test.ts`.
+
+---
+
+## Inspect element fonts
+
+Source: `background/commands/tools/inspectElementFonts.ts`, exported as `inspectElementFonts` (`ActionCommandNode`). Id `inspect-element-fonts`, icon `TextSearch`. A "what font is this" command (the WhatFont pattern), and the **first command to consume the `picker` surface** and **command-owner `surface-action` routing**.
+
+The flow spans the two surface mechanisms it introduced (see [../surfaces.md](../surfaces.md)):
+
+1. On execute it reads `context.url`; non-`http(s)` pages get a `"Font inspection only works on web pages"` warning toast and it returns (pick-mode needs a content script + `SurfaceHost`).
+2. Otherwise it `upsertSurface`s a `picker` surface under owner `command:inspect-element-fonts`, URL-gated to the page and `targetTabId`-scoped to the active tab. Its `content.css` lists the `font-*` properties to capture (`font-family`, `font-size`, `font-weight`, `font-style`, `line-height`, `color`).
+3. When the user clicks an element, content (`content/picker/selector.ts`) reads `window.getComputedStyle` for those properties and posts a `surface-action { actionId: "element-picked", selection }` where `selection.css` is the computed map.
+4. `background/messages/surfaceAction.ts` routes the `command:` owner to the handler the command registered via `registerCommandSurfaceActionHandler` (`background/commands/surfaceActionHandlers.ts`). The handler clears the picker (`removeSurface`), formats the captured `css` into a clean one-line summary — `family · size[/line-height] · weight[ italic] · hex-color`, e.g. `Stuff Text · 28px/32px · 500 · #6D00C6` (mirroring WhatFont: the family is resolved to its primary face, the color is hex, and default/`normal` values are dropped) — and, because the MV3 service worker has no clipboard, sends that same string as both `monocle-copyToClipboard` and a success `monocle-toast` to the tab, reusing the existing content clipboard path. A pick that reported no usable font styles gets a warning toast instead.
+
+Owner ids prefixed `command:` are per-session, so a stale picker is cleared by `initSurfaces` on browser start.
+
+Test coverage: `background/commands/tools/inspectElementFonts.test.ts` (execute pushes the picker with the font `css` request; non-web pages warn; the handler copies + toasts the compact summary — primary family, `size/line-height`, hex color, dropped `normal`s, italic noted — and warns when no css was captured); command-owner routing in `background/messages/surfaceAction.test.ts`; computed-style capture in `content/picker/PickerSurface.dom.test.tsx`; and `PickedElement.css` / picker `content.css` validation in `shared/types/validation.test.ts` + `background/surfaces.test.ts`.
 
 ---
 

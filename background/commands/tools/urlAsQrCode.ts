@@ -8,7 +8,7 @@ import { qrCodeSvgDataUrl } from "../../utils/qr"
 // pushes a `modal` surface containing the QR as an `image` content block; the
 // generic SurfaceHost renders it over the page. Owner id is `command:<id>` so
 // the modal is treated as per-session (cleared on startup, like automations).
-// See docs/surfaces.md and docs/v_next/03-surfaces-and-persistent-ui.md.
+// See docs/surfaces.md.
 const OWNER_ID = "command:url-as-qr-code"
 const SURFACE_ID = "qr"
 

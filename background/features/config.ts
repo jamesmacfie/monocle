@@ -4,41 +4,21 @@
 // (`monocle-feature-state`). Config is replace-whole on write — the options
 // settings page is its single writer — so there is no merge-branch complexity
 // like CommandSettings.urlRules needs. See docs/features.md.
-import { getBrowserAPI } from "../../shared/utils/extension-api"
-import { withStorageLock } from "../utils/storageMutex"
-
-const browserAPI = getBrowserAPI()
-
-const STORAGE_KEY = "monocle-feature-config"
+import { createStorageArea } from "../utils/storageArea"
 
 type FeatureConfigStore = Record<string, Record<string, unknown>>
 
-const loadStore = async (): Promise<FeatureConfigStore> => {
-  try {
-    const result = (await browserAPI.storage.local.get(STORAGE_KEY)) as Record<
-      string,
-      FeatureConfigStore | undefined
-    >
-    return result[STORAGE_KEY] || {}
-  } catch (error) {
-    console.error("[features] Failed to load feature config:", error)
-    return {}
-  }
-}
-
-const saveStore = async (store: FeatureConfigStore): Promise<void> => {
-  try {
-    await browserAPI.storage.local.set({ [STORAGE_KEY]: store })
-  } catch (error) {
-    console.error("[features] Failed to save feature config:", error)
-  }
-}
+const configArea = createStorageArea<FeatureConfigStore>({
+  key: "monocle-feature-config",
+  defaults: () => ({}),
+  label: "feature config",
+})
 
 // Raw persisted config for a feature (without defaults applied).
 export const getStoredFeatureConfig = async (
   featureId: string,
 ): Promise<Record<string, unknown> | undefined> => {
-  const store = await loadStore()
+  const store = await configArea.load()
   return store[featureId]
 }
 
@@ -56,9 +36,6 @@ export const getFeatureConfig = async <TConfig extends Record<string, unknown>>(
 export const setFeatureConfig = async (
   featureId: string,
   config: Record<string, unknown>,
-): Promise<void> =>
-  withStorageLock(STORAGE_KEY, async () => {
-    const store = await loadStore()
-    store[featureId] = config
-    await saveStore(store)
-  })
+): Promise<void> => {
+  await configArea.update((store) => ({ ...store, [featureId]: config }))
+}

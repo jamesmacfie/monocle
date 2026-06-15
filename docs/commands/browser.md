@@ -71,6 +71,8 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `scroll-half-page-down` / `scroll-half-page-up` | Scroll half page down/up | action | — | — | all | Viewport-relative |
 | `scroll-full-page-down` / `scroll-full-page-up` | Scroll page down/up | action | — | — | all | Viewport-relative |
 | `scroll-far-left` / `scroll-far-right` | Scroll to horizontal edge | action | — | — | all | Horizontal edge aliases |
+| `zoom-in` / `zoom-out` | Zoom in/out | action | — | — | all | Step active-tab zoom by 0.1 (clamped 0.25–5) via `tabs.getZoom`/`setZoom` |
+| `zoom-reset` | Reset zoom | action | — | — | all | `tabs.setZoom(0)` restores the per-origin default |
 | `scroll-to-top` | Scroll to top | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
 | `scroll-to-bottom` | Scroll to bottom | action | — | — | all | Sends `monocle-scroll` to active tab; smooth scroll |
 | `search-selection` | Search selection | group | — | — | all | One child per search provider (Google today); reads the page selection via `scripting` and opens a search tab. Children `search-selection-<provider>` |
@@ -278,6 +280,13 @@ commands also work from closed-overlay keybindings. The event supports:
 - legacy vertical edges (`direction: "top" | "bottom"`);
 - line/viewport/pixel deltas on the `x` or `y` axis;
 - horizontal/vertical edge targets.
+
+### Zoom actions
+`zoom-in`, `zoom-out`, and `zoom-reset` (`background/commands/browser/zoomShortcuts.ts`,
+`zoomShortcutCommands`) act on the active tab's zoom factor via `tabs.getZoom` /
+`tabs.setZoom` (`callBrowserAPI`). In/out step by `0.1`, clamped to `0.25`–`5`
+and rounded to avoid floating-point drift; reset calls `setZoom(0)` to restore
+the per-origin default. No permission is declared.
 
 ### `copy-tab-url` (group, `tabs`)
 Lists one `copy-tab-url-<id>` action per tab in the current window (filtered to titled tabs), each named after the tab title with a resolved favicon. Executing copies that tab's URL via the active tab's clipboard message and toasts.

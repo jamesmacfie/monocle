@@ -40,6 +40,8 @@ No action needed; listed so nobody re-implements them. Monocle ids per
 | `gototab` / `gototabbytitle` | `goto-tab` / `open-tabs` groups (palette search beats per-shortcut match patterns) |
 | `togglepin` / `togglemute` | `toggle-pin-current-tab`, `toggle-mute-current-tab` |
 | `movetableft` / `movetabright` / `movetabtonewwindow` | `move-tab-left/right`, `move-current-tab-to-a-new-window` (+ popup-window variant) |
+| `zoomin` / `zoomout` / `zoomreset` | `zoom-in`, `zoom-out`, `zoom-reset` (`tabs.setZoom`) |
+| `fullscreen` | `toggle-fullscreen` (`windows.update({state})`) |
 | `reopentab` | `reopen-last-closed-tab` (+ the richer `recently-closed` group) |
 | `newwindow` / `newprivatewindow` / `closewindow` | `open-new-window`, `open-new-private-window`, `close-current-window` |
 | `openbookmark*` | `bookmarks` group (deep search); `add-bookmark` |
@@ -65,8 +67,6 @@ exercises. Grouped by pattern, easiest first.
 
 | Proposed command | Shortkeys source | Mechanics |
 | --- | --- | --- |
-| Zoom in / out / reset | `zoomin`/`zoomout`/`zoomreset` | `tabs.getZoom` → `tabs.setZoom(±0.1)`, `setZoom(0)` to reset. Three actions, or one group with modifier labels. |
-| Toggle fullscreen | `fullscreen` | `windows.getCurrent` → `windows.update({state})`. |
 | Move tab to first / last | `movetabtofirst`/`movetabtolast` | `tabs.move({index: 0 / -1})` — completes the existing move-tab family. |
 | Sort tabs by title | `sorttabs` | Query, `localeCompare` on unpinned, sequential `tabs.move`. |
 | Suspend (discard) tab | `discardtab` | Activate neighbor first, then `tabs.discard` — mirrors Shortkeys' active-tab workaround. |
@@ -92,7 +92,12 @@ exercises. Grouped by pattern, easiest first.
 | Proposed command | Shortkeys source | Mechanics |
 | --- | --- | --- |
 | Open URL from clipboard (current/new tab) | `openclipboardurl*` | Optional `clipboardRead` request at execute time (Shortkeys does the same), inject `navigator.clipboard.readText()`, prefix `https://`, navigate. |
-| Tab groups: group / ungroup / toggle / name / collapse | `grouptab` etc. | `chrome.tabs.group`/`ungroup`, `tabGroups.update`; optional `tabGroups` permission; `supportedBrowsers: ["chrome"]` (the existing Firefox-gating mechanism — Firefox container commands are the mirror image). Name/group-title input via a palette form field. |
+
+Tab groups (`grouptab` etc.) are **already shipped** as part of the Tab Groups
+feature (`background/features/tabGroups/`): Chrome-only native commands (add tab
+to group, group window, rename/recolor/collapse/ungroup) gated
+`supportedBrowsers: ["chrome"]` + optional `tabGroups` permission, exactly as
+this row would have proposed. No action needed.
 
 ## Not easy, or not worth copying
 
@@ -126,13 +131,16 @@ exercises. Grouped by pattern, easiest first.
 
 ## Suggested implementation order
 
-1. Zoom group, fullscreen, move-to-first/last, toggle bookmark, copy
-   title+URL variants — pure background, zero risk, rounds out parity.
+1. Move-to-first/last, toggle bookmark, copy title+URL variants — pure
+   background, zero risk, rounds out parity. (Zoom and fullscreen already
+   shipped — see the "Already covered" table.)
 2. Video controls group, next/previous page, print, focus-first-input —
    the injection pattern, high keybinding value.
 3. Search-selection group, open-URL-from-clipboard — small new surface
    (selection read, optional `clipboardRead`).
-4. Tab groups (Chrome-only) — the one real new permission conversation.
+
+Tab groups (Chrome-only) — the one real new permission conversation — has
+since shipped as the Tab Groups feature (`background/features/tabGroups/`).
 
 Each lands per `docs/authoring-commands.md`: category file +
 registration + catalog row in `docs/commands/browser.md` (or `tools.md`),

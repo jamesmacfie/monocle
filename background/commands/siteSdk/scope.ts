@@ -1,4 +1,5 @@
 import type { Browser } from "../../../shared/types"
+import { resolveSenderTabId } from "../../utils/messages"
 
 export type SiteSdkScope = {
   key: string
@@ -32,7 +33,7 @@ export const createSiteSdkScopeFromSender = (
   sender: any,
   context?: Browser.Context,
 ): SiteSdkScope | undefined => {
-  const tabId = sender?.tab?.id ?? sender?.validationContext?.senderTab
+  const tabId = resolveSenderTabId(sender)
   const frameId = sender?.frameId ?? 0
 
   if (typeof tabId !== "number" || frameId !== 0) {

@@ -1,113 +1,84 @@
 import type { Snippet } from "../../shared/types"
-import { getBrowserAPI } from "../../shared/utils/extension-api"
-import { withStorageLock } from "../utils/storageMutex"
+import { createStorageArea } from "../utils/storageArea"
 
-const STORAGE_KEY = "monocle-snippets"
+const snippetsArea = createStorageArea<Snippet[]>({
+  key: "monocle-snippets",
+  defaults: () => [],
+  label: "snippets",
+})
 
-// Load snippets from storage
-const loadSnippets = async (): Promise<Snippet[]> => {
-  try {
-    const result = (await getBrowserAPI().storage.local.get(
-      STORAGE_KEY,
-    )) as Record<string, Snippet[] | undefined>
-    return result[STORAGE_KEY] || []
-  } catch (error) {
-    console.error("Failed to load snippets:", error)
-    return []
-  }
-}
-
-// Save snippets to storage
-const saveSnippets = async (snippets: Snippet[]): Promise<void> => {
-  try {
-    await getBrowserAPI().storage.local.set({
-      [STORAGE_KEY]: snippets,
-    })
-  } catch (error) {
-    console.error("Failed to save snippets:", error)
-  }
-}
-
-export const getSnippets = async (): Promise<Snippet[]> => {
-  return loadSnippets()
-}
+export const getSnippets = async (): Promise<Snippet[]> => snippetsArea.load()
 
 export const getSnippet = async (id: string): Promise<Snippet | undefined> => {
-  const snippets = await loadSnippets()
+  const snippets = await snippetsArea.load()
   return snippets.find((snippet) => snippet.id === id)
 }
 
 export const addSnippet = async (input: {
   name: string
   body: string
-}): Promise<Snippet> =>
-  withStorageLock(STORAGE_KEY, async () => {
-    const snippets = await loadSnippets()
-    const now = Date.now()
-    const snippet: Snippet = {
-      id: crypto.randomUUID(),
-      name: input.name,
-      body: input.body,
-      createdAt: now,
-      updatedAt: now,
-    }
+}): Promise<Snippet> => {
+  const now = Date.now()
+  const snippet: Snippet = {
+    id: crypto.randomUUID(),
+    name: input.name,
+    body: input.body,
+    createdAt: now,
+    updatedAt: now,
+  }
 
-    snippets.push(snippet)
-    await saveSnippets(snippets)
-    return snippet
-  })
+  await snippetsArea.update((snippets) => [...snippets, snippet])
+  return snippet
+}
 
 export const updateSnippet = async (
   id: string,
   updates: Partial<Pick<Snippet, "name" | "body">>,
-): Promise<Snippet | undefined> =>
-  withStorageLock(STORAGE_KEY, async () => {
-    const snippets = await loadSnippets()
+): Promise<Snippet | undefined> => {
+  let updated: Snippet | undefined
+  await snippetsArea.update((snippets) => {
     const index = snippets.findIndex((snippet) => snippet.id === id)
-
     if (index === -1) {
-      return undefined
+      return snippets
     }
 
-    const updated: Snippet = {
-      ...snippets[index],
-      ...updates,
-      updatedAt: Date.now(),
-    }
-
-    snippets[index] = updated
-    await saveSnippets(snippets)
-    return updated
+    updated = { ...snippets[index], ...updates, updatedAt: Date.now() }
+    const next = [...snippets]
+    next[index] = updated
+    return next
   })
+  return updated
+}
 
 // Bump and persist the {i} counter for a snippet, returning the value to
 // render for this insertion. Unknown ids still render 1 so an insertion
 // never fails over counter bookkeeping.
-export const incrementSnippetCounter = async (id: string): Promise<number> =>
-  withStorageLock(STORAGE_KEY, async () => {
-    const snippets = await loadSnippets()
+export const incrementSnippetCounter = async (id: string): Promise<number> => {
+  let nextValue = 1
+  await snippetsArea.update((snippets) => {
     const index = snippets.findIndex((snippet) => snippet.id === id)
-
     if (index === -1) {
-      return 1
+      return snippets
     }
 
-    const nextValue = (snippets[index].insertCounter ?? 0) + 1
-    snippets[index] = { ...snippets[index], insertCounter: nextValue }
-    await saveSnippets(snippets)
-    return nextValue
+    nextValue = (snippets[index].insertCounter ?? 0) + 1
+    const next = [...snippets]
+    next[index] = { ...snippets[index], insertCounter: nextValue }
+    return next
   })
+  return nextValue
+}
 
-export const deleteSnippet = async (id: string): Promise<boolean> =>
-  withStorageLock(STORAGE_KEY, async () => {
-    const snippets = await loadSnippets()
+export const deleteSnippet = async (id: string): Promise<boolean> => {
+  let deleted = false
+  await snippetsArea.update((snippets) => {
     const index = snippets.findIndex((snippet) => snippet.id === id)
-
     if (index === -1) {
-      return false
+      return snippets
     }
 
-    snippets.splice(index, 1)
-    await saveSnippets(snippets)
-    return true
+    deleted = true
+    return snippets.filter((snippet) => snippet.id !== id)
   })
+  return deleted
+}

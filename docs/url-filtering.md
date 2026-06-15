@@ -109,7 +109,10 @@ Precedence, highest first:
 
 1. **Global hidden flag** — if `CommandSettings.hidden === true`, hide before
    considering the URL or any rules.
-2. **Empty URL guard** — if there is no current URL, show unless hidden.
+2. **Empty URL guard** — if there is no current URL, show unless hidden. This
+   guard lives in the callers (`filterCommandsByUrl` and `isCommandVisibleForUrl`),
+   which short-circuit before invoking `shouldShowCommand`; the rule-based steps
+   below only run once a URL is present.
 3. **User deny list** — if the URL matches any user `denyUrls`, hide. (Highest priority; cannot be overridden.)
 4. **User allow list** — if the user has a non-empty `allowUrls`, the command is shown **only** if the URL matches it, and command-defined rules below are ignored.
 5. **Command deny list** — if the URL matches any command `denyUrls`, hide.

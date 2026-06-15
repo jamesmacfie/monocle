@@ -7,6 +7,7 @@
 import type { Browser } from "../../shared/types"
 import type { Workflow, WorkflowResult } from "../../shared/types/workflow"
 import { getActiveTab, queryTabs, sendTabMessage } from "../utils/browser"
+import { resolveSenderTabId } from "../utils/messages"
 
 type TabLike = {
   id?: number
@@ -42,7 +43,7 @@ const isUsableTabId = (tabId: unknown): tabId is number => {
 }
 
 const getSenderTabId = (sender?: any): number | undefined => {
-  const tabId = sender?.tab?.id ?? sender?.validationContext?.senderTab
+  const tabId = resolveSenderTabId(sender)
   return isUsableTabId(tabId) ? tabId : undefined
 }
 

@@ -288,13 +288,16 @@ read on demand from the background, not from this slice.
   the new `theme.mode`, writes the whole document back, then updates state.
 - `updateClockVisibility(show)`: reads the current document, shallow-merges
   `newTab.clock.show`, writes back, then updates state.
+- `updateBackgroundCategories(categories)`: reads the current document,
+  shallow-merges `newTab.backgroundCategories`, writes back, then updates state.
 
-`updateThemeMode` and `updateClockVisibility` are the only two places the UI
-writes `monocle-settings` directly (bypassing `background/commands/settings.ts`).
-Both do a manual read-modify-write spread of the whole document, which is safe
-because they touch a single leaf each, but it means they do not benefit from
-the background pruning/merge helpers. All other settings writes go through the
-background API or the `update-command-setting` message.
+`updateThemeMode`, `updateClockVisibility`, and `updateBackgroundCategories` are
+the only places the UI writes `monocle-settings` directly (bypassing
+`background/commands/settings.ts`). Each does a manual read-modify-write spread
+of the whole document, which is safe because they touch a single leaf each, but
+it means they do not benefit from the background pruning/merge helpers. All other
+settings writes go through the background API or the `update-command-setting`
+message.
 
 ## Settings catalog mirror (`shared/store/slices/settingsCatalog.slice.ts`)
 
@@ -339,6 +342,7 @@ giving the options page responsive controls.
 | --- | --- |
 | `selectThemeMode` | `theme.mode ?? "system"` |
 | `selectClockVisibility` | `newTab.clock?.show ?? true` |
+| `selectBackgroundCategories` | `newTab.backgroundCategories ?? []` |
 | `selectPermissions` | `permissions` |
 
 ## How each consumer reads its settings

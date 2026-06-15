@@ -1,11 +1,11 @@
 import { LayoutTemplate } from "lucide-react"
 import { useMemo, useState } from "react"
 import { KeybindingDisplay } from "../../shared/components/KeybindingDisplay"
+import { cn } from "../../shared/components/ui/cn"
 import type {
   SettingsCatalogCommand,
   UpdateCommandKeybindingsConflict,
 } from "../../shared/types"
-import { cn } from "../lib/cn"
 import {
   getKeybindingTemplate,
   getTemplatePreviewRows,

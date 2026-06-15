@@ -1,9 +1,9 @@
 # Surfaces (declarative UI primitive)
 
 > **Status: implemented.** A background-owned, owner-namespaced store of
-> declarative UI surfaces (overlays + badges) that content and the new tab
-> render through one generic host. Focus Mode and user-script automations are
-> the first consumers.
+> declarative UI surfaces (overlays, badges, modals, and pickers) that content
+> and the new tab render through one generic host. Focus Mode and user-script
+> automations are the first consumers.
 
 A **surface** is a piece of persistent, declarative UI that the background owns
 and content renders — modeled on toasts (the background holds the UI state,
@@ -23,7 +23,7 @@ rest of the codebase (see [store-submission.md](./store-submission.md) and the
 
 ```ts
 // shared/types/surface.ts
-type SurfaceKind = "overlay" | "badge" | "modal"
+type SurfaceKind = "overlay" | "badge" | "modal" | "picker"
 
 type SurfaceContent = {
   icon?: IconName        // a Lucide name; rendered by the icon registry
@@ -38,6 +38,7 @@ type Surface = {
   ownerId?: string                 // stamped onto returned surfaces by getSurfacesForUrl
   kind: SurfaceKind
   urlMatch?: { allowUrls?: string[]; denyUrls?: string[] }  // reuses matchesUrlPattern
+  targetTabId?: number             // optional tab gate for tab-specific surfaces
   blocking?: boolean               // overlay only: intercept pointer/scroll
   content: SurfaceContent
 }
@@ -57,12 +58,32 @@ type Surface = {
   element inside the closed content shadow root so the dialog stays themed (by
   the `:host` `--color-*` tokens) and contained — Radix's default portal to
   `document.body` would escape the shadow root.
+- **picker** — the one *interactive* kind. While a picker surface is present
+  the content host enters element pick-mode (`content/picker/PickerSurface.tsx`):
+  it highlights the element under the cursor and, on click, resolves a stable CSS
+  selector (`content/picker/selector.ts`) and posts a `surface-action`
+  (`actionId: "element-picked"`) carrying a rich `PickedElement`
+  (`shared/types/picker.ts`: selector + tag/id/classes/innerText/href/role,
+  plus an optional `css` map — see next). An owner may also set an optional
+  `content.css` (a list of CSS property
+  names); content reads `window.getComputedStyle` for those at click time and
+  returns them in `selection.css` (property → value) — the only place this can
+  happen, since content holds the live element. The font inspector
+  (`command:inspect-element-fonts`) requests the `font-*` properties this way.
+  Escape posts `dismiss`. Crucially it **never mutates the page** — it captures
+  the gesture and reports it; the owner decides what the selection means
+  (Element Hider hides it; the font inspector copies its computed fonts).
+  Content-only: the new tab never renders pickers. See
+  [element-hider.md](./element-hider.md).
 - **`countdownTo`** is a generic live countdown — not specific to any feature.
 - **`blocks`** is the same closed, validated `ContentBlock[]` vocabulary the
   palette uses for calculations (`shared/types/content.ts` +
   `contentValidation.ts`) — structured data, never author markup.
 - **`urlMatch`** gates where a surface applies. Absent = everywhere. (A badge
   typically omits it so it always shows on the new tab.)
+- **`targetTabId`** optionally narrows a surface to one browser tab. This is used
+  for interactive, tab-specific surfaces such as the Element Hider picker; absent
+  keeps the existing URL-only behavior.
 - **`ownerId`** is not part of the stored shape; `getSurfacesForUrl` stamps it
   onto each returned surface so the host can target it in a `surface-action`.
 
@@ -79,7 +100,7 @@ service-worker death within a session):
 | `clearOwnerSurfaces(ownerId)` | Remove an owner's surfaces. |
 | `upsertSurface(ownerId, surface)` | Add/replace one surface by id (the automation path). |
 | `removeSurface(ownerId, surfaceId)` | Remove one surface. |
-| `getSurfacesForUrl(url)` | Every surface (all owners) whose `urlMatch` admits `url`. |
+| `getSurfacesForUrl(url, senderTabId?)` | Every surface (all owners) whose `urlMatch` and optional `targetTabId` admit the sender. |
 | `initSurfaces()` | Startup: drop per-session (`userscript:*`) owners; features rebuild their own in `init`. |
 
 Every mutation persists, then broadcasts `monocle-surfaces-changed` to all tabs
@@ -97,8 +118,8 @@ owners are not prefixed — they rebuild their own surfaces in `init()`.
 
 One generic renderer, mounted like `ToastContainer`:
 
-- `<SurfaceHost kinds={["overlay", "modal"]} />` in `content/scripts.tsx`
-  (closed shadow root, beside the palette).
+- `<SurfaceHost kinds={["overlay", "modal", "picker"]} />` in
+  `content/scripts.tsx` (closed shadow root, beside the palette).
 - `<SurfaceHost kinds={["badge"]} />` in `newtab/NewTabApp.tsx`.
 
 On mount, on SPA navigation (`content/utils/spaNavigation.ts`,
@@ -114,16 +135,27 @@ and renders icons through the shared icon registry.
 
 - `get-surfaces { url }` → `{ surfaces: Surface[] }` (handler:
   `background/messages/surfaces.ts`). The background returns every surface whose
-  `urlMatch` admits the URL (each stamped with its `ownerId`); the host filters
-  by kind locally.
-- `surface-action { ownerId, surfaceId, actionId, value? }` (handler:
+  `urlMatch` admits the URL and whose optional `targetTabId` matches the sender
+  tab (each stamped with its `ownerId`); the host filters by kind locally.
+- `surface-action { ownerId, surfaceId, actionId, value?, selection? }` (handler:
   `background/messages/surfaceAction.ts`) — a user interaction the host reports
-  back. The host captures the gesture; the background decides what it means. v1
-  implements only the universal `actionId: "dismiss"` (any surface can be closed
-  → `removeSurface`). Owner-specific routing (a feature's `handleAction` or a
-  user-script handler, mirroring `execute-feature-action`) is the next step but
-  deliberately out of scope — see
-  [v_next §3](./v_next/03-surfaces-and-persistent-ui.md).
+  back. The host captures the gesture; the background decides what it means.
+  - `actionId: "dismiss"` is universal: any surface can be closed → `removeSurface`.
+  - Any **other** action is routed to the surface's **owner**:
+    - **Feature** owners (a bare feature id) are dispatched to the feature's
+      `handleAction` — the same entry point that backs `execute-feature-action`
+      — with the picker `selection` and the sender tab in the
+      `FeatureActionContext`. So a feature reacts to a surface gesture exactly
+      as to a settings-page button.
+    - **Command** owners (`command:<id>`) are dispatched to a handler the command
+      registered via `background/commands/surfaceActionHandlers.ts`
+      (`registerCommandSurfaceActionHandler`) at module load — the command-side
+      equivalent of `handleAction`, receiving the same `{ selection, tab }`
+      context. The font inspector uses this to read the picked element's
+      computed fonts and copy them. (user-script owner routing is still future
+      work; unknown owners are a no-op.)
+  - `selection` is the `PickedElement` set by the `picker` kind (including its
+    optional captured `css`).
 
 See [messaging.md](./messaging.md).
 

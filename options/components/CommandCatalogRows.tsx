@@ -1,8 +1,8 @@
 import { ChevronDown, ChevronRight, Globe2, Keyboard, Star } from "lucide-react"
 import { KeybindingDisplay } from "../../shared/components/KeybindingDisplay"
+import { cn } from "../../shared/components/ui/cn"
 import type { SettingsCatalogCommand } from "../../shared/types"
 import { getRuleCount } from "../lib/catalog"
-import { cn } from "../lib/cn"
 import { CommandIdentity } from "./CommandIdentity"
 import { Badge, Button, Checkbox, Switch } from "./ui"
 
