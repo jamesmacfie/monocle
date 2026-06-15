@@ -161,17 +161,31 @@ const surfaceMatchesUrl = (surface: Surface, url: string): boolean => {
   return true
 }
 
+/** True when a surface's optional tab gate admits the sender tab. */
+const surfaceMatchesTab = (surface: Surface, senderTabId?: number): boolean => {
+  if (surface.targetTabId === undefined) {
+    return true
+  }
+  return senderTabId === surface.targetTabId
+}
+
 /**
  * Every surface (across all owners) whose urlMatch admits the given URL. Each
  * returned surface is stamped with its `ownerId` so the host can target it in a
  * `surface-action` (e.g. dismiss) — the stored shape stays owner-namespaced.
  */
-export const getSurfacesForUrl = async (url: string): Promise<Surface[]> => {
+export const getSurfacesForUrl = async (
+  url: string,
+  senderTabId?: number,
+): Promise<Surface[]> => {
   const store = await loadStore()
   const surfaces: Surface[] = []
   for (const [ownerId, ownerSurfaces] of Object.entries(store)) {
     for (const surface of ownerSurfaces) {
-      if (surfaceMatchesUrl(surface, url)) {
+      if (
+        surfaceMatchesUrl(surface, url) &&
+        surfaceMatchesTab(surface, senderTabId)
+      ) {
         surfaces.push({ ...surface, ownerId })
       }
     }

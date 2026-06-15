@@ -10,15 +10,21 @@ import type {
   Browser,
   CommandNode,
   FeatureDescriptor,
+  UserScript,
 } from "../../shared/types"
 import { getFeatureConfig } from "./config"
+import { elementHiderFeature } from "./elementHider"
 import { focusFeature } from "./focus"
 import { tabGroupsFeature } from "./tabGroups"
 import type { FeatureModule } from "./types"
 
 // Static registry. Promote to dynamic registration only once a second/third
 // feature validates the shape (see docs/features.md).
-const features: FeatureModule<any>[] = [focusFeature, tabGroupsFeature]
+const features: FeatureModule<any>[] = [
+  focusFeature,
+  tabGroupsFeature,
+  elementHiderFeature,
+]
 
 export const getFeatures = (): FeatureModule<any>[] => features
 
@@ -31,6 +37,32 @@ export const getFeatureById = (
 // loader, so this stays sync; runtime state shows through async node labels.
 export const getFeatureCommands = (context?: Browser.Context): CommandNode[] =>
   features.flatMap((feature) => feature.commands(context))
+
+// Read-only automations projected from every feature's current config. Merged
+// with stored user documents by background/userScripts/registry.ts so they run
+// through the same engine + trigger system. Projection failures are logged and
+// skipped — a broken feature never takes down the user's automations.
+export const getFeatureAutomations = async (): Promise<UserScript[]> => {
+  const projected: UserScript[] = []
+  for (const feature of features) {
+    if (!feature.automations || !feature.settings) {
+      continue
+    }
+    try {
+      const config = await getFeatureConfig(
+        feature.id,
+        feature.settings.defaults as Record<string, unknown>,
+      )
+      projected.push(...(await feature.automations(config)))
+    } catch (error) {
+      console.error(
+        `[features] automations projection failed for "${feature.id}":`,
+        error,
+      )
+    }
+  }
+  return projected
+}
 
 // Data-only projection of a single feature for the options page. Config is
 // merged over defaults; record-list rows are projected via settings.lists.

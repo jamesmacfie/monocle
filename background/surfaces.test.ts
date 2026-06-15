@@ -150,6 +150,24 @@ describe("getSurfacesForUrl URL gating", () => {
     expect(await getSurfacesForUrl("https://app.safe.com/")).toHaveLength(0)
     expect(await getSurfacesForUrl("https://other.com/")).toHaveLength(1)
   })
+
+  it("includes tab-scoped surfaces only for the matching sender tab", async () => {
+    await upsertSurface("element-hider", {
+      id: "picker",
+      kind: "picker",
+      targetTabId: 42,
+      urlMatch: { allowUrls: ["https://example.com/page"] },
+      content: { title: "Pick" },
+    })
+
+    expect(await getSurfacesForUrl("https://example.com/page")).toHaveLength(0)
+    expect(await getSurfacesForUrl("https://example.com/page", 7)).toHaveLength(
+      0,
+    )
+    expect(
+      await getSurfacesForUrl("https://example.com/page", 42),
+    ).toHaveLength(1)
+  })
 })
 
 describe("broadcast", () => {

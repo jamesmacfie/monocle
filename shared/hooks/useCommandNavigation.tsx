@@ -287,7 +287,7 @@ export function useCommandNavigation(
 
     // Calculation rows are not commands: selecting one copies its value to the
     // clipboard (copy-and-stay so the user can refine the query) rather than
-    // executing or navigating. See docs/v_next/11-calculations.md.
+    // executing or navigating. See docs/calculations.md.
     const type = selectedCommand.type
     if (type === "calculation") {
       const copied = await copyToClipboard(selectedCommand.copyValue)

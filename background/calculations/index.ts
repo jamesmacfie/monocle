@@ -7,7 +7,7 @@ import type { CalculationProvider } from "./types"
 
 // The registered calculation providers. A sibling to background/features —
 // each provider is data plus one pure parse function. New providers are added
-// here. See docs/v_next/11-calculations.md.
+// here. See docs/calculations.md.
 const providers: CalculationProvider[] = [
   mathProvider,
   unitsProvider,

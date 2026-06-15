@@ -2,13 +2,23 @@
 // the Surfaces primitive. It queries get-surfaces with the current URL (on
 // mount, on SPA navigation, and on every monocle-surfaces-changed broadcast),
 // then renders the surfaces of the kinds it owns: `overlay` (full-viewport,
-// optionally blocking) and `badge` (corner chip). Surfaces are declarative
-// data — this component is the only code that turns them into DOM, so there is
-// no arbitrary HTML/JS. Mounted in the content shadow root and on the new tab,
-// like ToastContainer. See docs/surfaces.md.
+// optionally blocking), `badge` (corner chip), `modal` (dismissible card), and
+// `picker` (interactive element pick-mode — content-only). Surfaces are
+// declarative data — this component is the only code that turns them into DOM,
+// so there is no arbitrary HTML/JS. The `picker` kind is the one interactive
+// case: PickerSurface attaches page-level listeners and reports the clicked
+// element back via `surface-action`; it still never mutates the page. Mounted
+// in the content shadow root and on the new tab, like ToastContainer. See
+// docs/surfaces.md.
 import { useCallback, useEffect, useState } from "react"
+import { PickerSurface } from "../../content/picker/PickerSurface"
 import { trackSpaNavigation } from "../../content/utils/spaNavigation"
-import type { GetSurfacesResponse, Surface, SurfaceKind } from "../types"
+import type {
+  GetSurfacesResponse,
+  PickedElement,
+  Surface,
+  SurfaceKind,
+} from "../types"
 import { getBrowserAPI, sendRuntimeMessageSafe } from "../utils/extension-api"
 import { ContentBlocks } from "./ContentBlocks"
 import { getIconComponent } from "./iconRegistry"
@@ -22,7 +32,11 @@ import {
 
 // Report a surface interaction back to the background (the host captures the
 // gesture; the background decides what it means). v1 only uses "dismiss".
-const sendSurfaceAction = (surface: Surface, actionId: string): void => {
+const sendSurfaceAction = (
+  surface: Surface,
+  actionId: string,
+  selection?: PickedElement,
+): void => {
   if (!surface.ownerId) {
     return
   }
@@ -31,6 +45,7 @@ const sendSurfaceAction = (surface: Surface, actionId: string): void => {
     ownerId: surface.ownerId,
     surfaceId: surface.id,
     actionId,
+    ...(selection ? { selection } : {}),
   })
 }
 
@@ -262,6 +277,18 @@ export function SurfaceHost({ kinds }: { kinds: SurfaceKind[] }) {
         }
         if (surface.kind === "overlay") {
           return <OverlaySurface key={key} surface={surface} />
+        }
+        if (surface.kind === "picker") {
+          return (
+            <PickerSurface
+              key={key}
+              surface={surface}
+              onPick={(target, selection) =>
+                sendSurfaceAction(target, "element-picked", selection)
+              }
+              onCancel={(target) => sendSurfaceAction(target, "dismiss")}
+            />
+          )
         }
         return <BadgeSurface key={key} surface={surface} />
       })}

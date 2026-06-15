@@ -96,6 +96,15 @@ export const addUserScript = async (
   draft: UserScriptDraft,
 ): Promise<UserScript> =>
   withStorageLock(STORAGE_KEY, async () => {
+    // Feature automations are projected at read time, never stored. Reject a
+    // draft that claims feature ownership so the user-script store stays the
+    // exclusive home of user-authored documents.
+    if (draft.owner && draft.owner.kind !== "user") {
+      throw new Error(
+        "Feature-owned automations cannot be created via the user-script store",
+      )
+    }
+
     const scripts = await getUserScripts()
 
     if (scripts.length >= USER_SCRIPT_MAX_COUNT) {

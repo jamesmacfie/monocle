@@ -555,6 +555,22 @@ const UserScriptBaseShape = {
     })
     .strict()
     .optional(),
+  // Ownership tag. Optional so existing stored documents (which omit it)
+  // validate unchanged; feature-projected documents set {kind:"feature"} so
+  // they pass the engine's run-time re-validation under .strict(). User-owned
+  // creation of feature-owned documents is blocked at the storage layer, not
+  // here — the schema only needs to ACCEPT the shape.
+  owner: z
+    .union([
+      z.object({ kind: z.literal("user") }).strict(),
+      z
+        .object({
+          kind: z.literal("feature"),
+          featureId: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
+        })
+        .strict(),
+    ])
+    .optional(),
 }
 
 /** Full stored document (storage validation, import). */

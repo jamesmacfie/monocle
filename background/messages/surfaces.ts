@@ -7,8 +7,10 @@ import type { GetSurfacesMessage } from "../../shared/types"
 import { getSurfacesForUrl } from "../surfaces"
 import { createMessageHandler } from "../utils/messages"
 
-const handleGetSurfaces = async (message: GetSurfacesMessage) => {
-  return { surfaces: await getSurfacesForUrl(message.url) }
+const handleGetSurfaces = async (message: GetSurfacesMessage, sender?: any) => {
+  const senderTabId: number | undefined =
+    sender?.tab?.id ?? sender?.validationContext?.senderTab
+  return { surfaces: await getSurfacesForUrl(message.url, senderTabId) }
 }
 
 export const getSurfaces = createMessageHandler(

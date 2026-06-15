@@ -9,7 +9,7 @@ import { cn } from "../ui/cn"
 // Calculations are the first consumer (rendered inside a palette row); richer
 // Surfaces content will reuse this same component. Blocks are display-only:
 // they never capture focus or steal arrow keys, so a block stack hosted inside
-// a cmdk row stays a single selectable unit. See docs/v_next/11-calculations.md.
+// a cmdk row stays a single selectable unit. See docs/calculations.md.
 
 interface ContentBlocksProps {
   blocks: ContentBlock[]

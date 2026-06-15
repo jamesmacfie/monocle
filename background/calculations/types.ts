@@ -15,7 +15,7 @@ export type CalculationResult = {
 // synchronous, local, and side-effect-free: no network, no permissions, no
 // await. It returns null when it cannot parse the query (the common case) and
 // a result when it can. Higher `priority` wins ordering when several providers
-// match. See docs/v_next/11-calculations.md.
+// match. See docs/calculations.md.
 export type CalculationProvider = {
   id: string
   name: string

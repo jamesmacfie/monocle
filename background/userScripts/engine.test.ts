@@ -316,6 +316,55 @@ describe("engine ops and policy", () => {
     expect(result.success).toBe(false)
     expect(result.error).toMatch(/disabled/)
   })
+
+  it("applies non-manual cooldown per tab, not globally per script", async () => {
+    executeWorkflowMock.mockImplementation(succeedWorkflows())
+
+    const script = await addUserScript({
+      schemaVersion: 1,
+      name: "Auto hide",
+      enabled: true,
+      triggers: [{ type: "urlMatch" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "hideElement",
+          target: { strategy: "css", value: ".ad" },
+          all: true,
+        },
+      ],
+    })
+
+    const first = await runUserScript(script.id, {
+      context,
+      invocation: {
+        kind: "trigger",
+        tabId: 7,
+        trigger: { type: "urlMatch", url: context.url },
+      },
+    })
+    const secondSameTab = await runUserScript(script.id, {
+      context,
+      invocation: {
+        kind: "trigger",
+        tabId: 7,
+        trigger: { type: "urlMatch", url: context.url },
+      },
+    })
+    const thirdOtherTab = await runUserScript(script.id, {
+      context,
+      invocation: {
+        kind: "trigger",
+        tabId: 8,
+        trigger: { type: "urlMatch", url: context.url },
+      },
+    })
+
+    expect(first.success).toBe(true)
+    expect(secondSameTab.success).toBe(false)
+    expect(secondSameTab.error).toMatch(/cooling down/)
+    expect(thirdOtherTab.success).toBe(true)
+  })
 })
 
 describe("forEach over elements", () => {

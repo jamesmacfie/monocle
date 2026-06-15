@@ -14,7 +14,12 @@ import { z } from "zod"
 import { ContentBlockSchema } from "./contentValidation"
 import { ICON_NAMES } from "./icons"
 
-export const SurfaceKindSchema = z.enum(["overlay", "badge", "modal"])
+// `picker` is an interactive, ephemeral kind: it puts the content host into
+// element pick-mode (highlight on hover, report the clicked element back via
+// `surface-action`). Unlike the render-only kinds, the host attaches page-level
+// listeners while a picker is present; the surface itself never mutates the
+// page. See docs/surfaces.md.
+export const SurfaceKindSchema = z.enum(["overlay", "badge", "modal", "picker"])
 
 // Optional URL gate (reuses the command url-rule pattern via matchesUrlPattern).
 // Absent = the surface applies everywhere.
@@ -48,6 +53,9 @@ export const SurfaceSchema = z
     ownerId: z.string().optional(),
     kind: SurfaceKindSchema,
     urlMatch: SurfaceUrlMatchSchema.optional(),
+    // Optional tab gate for interactive or tab-specific surfaces. Absent keeps
+    // the existing URL-only behavior used by focus overlays, badges, and modals.
+    targetTabId: z.number().int().positive().optional(),
     // Overlay only: intercept pointer/scroll (a hard block).
     blocking: z.boolean().optional(),
     content: SurfaceContentSchema,

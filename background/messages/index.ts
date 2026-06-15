@@ -47,7 +47,7 @@ import {
 } from "./userScripts"
 
 export const handleMessage = async (rawMessage: unknown, sender?: any) => {
-  // Validate the incoming message with comprehensi security checks
+  // Validate the incoming message with comprehensive security checks.
   const validation = validateIncomingMessage(rawMessage, sender)
 
   if (!validation.success) {
@@ -184,10 +184,10 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
       return await executeFeatureAction(msg)
     })
     .with({ type: "get-surfaces" }, async (msg) => {
-      return await getSurfaces(msg)
+      return await getSurfaces(msg, sender)
     })
     .with({ type: "surface-action" }, async (msg) => {
-      return await surfaceAction(msg)
+      return await surfaceAction(msg, sender)
     })
     .otherwise(() => {
       throw new Error(`Unknown message type: ${message.type}`)

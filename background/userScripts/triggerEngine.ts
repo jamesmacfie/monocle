@@ -19,7 +19,7 @@ import { userScriptCommandId } from "../../shared/types/userScripts"
 import { getCommandSettings } from "../commands/settings"
 import { isCommandVisibleForUrl } from "../utils/urlFilter"
 import { runUserScript } from "./engine"
-import { getUserScripts } from "./storage"
+import { getAllAutomations } from "./registry"
 
 const isPageTrigger = (
   trigger: UserScriptTrigger,
@@ -67,7 +67,7 @@ export const getPageTriggersForUrl = async (
     return []
   }
 
-  const scripts = await getUserScripts()
+  const scripts = await getAllAutomations()
   const specs: UserScriptPageTriggerSpec[] = []
 
   for (const script of scripts) {
@@ -128,7 +128,7 @@ export const handleTriggerFired = async (
   // available — a page cannot claim a different URL to widen eligibility.
   const effectiveUrl = input.senderUrl ?? input.trigger.url
 
-  const scripts = await getUserScripts()
+  const scripts = await getAllAutomations()
   const script = scripts.find((candidate) => candidate.id === input.scriptId)
   if (!script || !script.enabled) {
     return { accepted: false, reason: "Unknown or disabled script" }

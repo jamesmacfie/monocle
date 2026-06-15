@@ -293,14 +293,27 @@ export const GetSurfacesMessageSchema = z.object({
   url: z.string(),
 })
 
-// A surface interaction (e.g. dismissing a modal). See
-// docs/v_next/03-surfaces-and-persistent-ui.md §3.
+// The structured selection a `picker` surface reports on click. Free-text
+// fields are bounded (attacker-facing — the page controls these values).
+export const PickedElementSchema = z.object({
+  selector: z.string().min(1).max(2000),
+  tagName: z.string().min(1).max(64),
+  id: z.string().max(256).optional(),
+  classes: z.array(z.string().max(256)).max(50).optional(),
+  innerText: z.string().max(2000).optional(),
+  href: z.string().max(2000).optional(),
+  role: z.string().max(64).optional(),
+})
+
+// A surface interaction (e.g. dismissing a modal, or a picker reporting a
+// clicked element). See docs/v_next/03-surfaces-and-persistent-ui.md §3.
 export const SurfaceActionMessageSchema = z.object({
   type: z.literal("surface-action"),
   ownerId: z.string().min(1, "Owner ID cannot be empty"),
   surfaceId: z.string().min(1, "Surface ID cannot be empty"),
   actionId: z.string().min(1, "Action ID cannot be empty"),
   value: z.string().optional(),
+  selection: PickedElementSchema.optional(),
 })
 
 // Union schema for all message types

@@ -55,8 +55,8 @@ import {
   lowerContentStep,
   retargetForLoopIteration,
 } from "./lowering"
+import { getAutomationById } from "./registry"
 import { checkRunCommandPolicy } from "./runCommandPolicy"
-import { getUserScript } from "./storage"
 
 // ---------------------------------------------------------------------------
 // Command bridge (dependency-injected — see file header)
@@ -83,7 +83,7 @@ export const registerUserScriptCommandBridge = (
 // per-worker-lifetime, which is the right scope for re-entrancy guards)
 
 const runningRuns = new Set<string>()
-const lastNonManualRunByScript = new Map<string, number>()
+const lastNonManualRunByTarget = new Map<string, number>()
 const NON_MANUAL_COOLDOWN_MS = 5000
 // Generous runaway guard on total executed steps per run: legitimate loops
 // can exceed the 100-document-step cap, but nothing legitimate needs this.
@@ -140,7 +140,7 @@ export const runUserScript = async (
     completedSteps: 0,
   })
 
-  const script = await getUserScript(scriptId)
+  const script = await getAutomationById(scriptId)
   if (!script) {
     return fail(`User script not found: ${scriptId}`)
   }
@@ -176,11 +176,11 @@ export const runUserScript = async (
   }
 
   if (!isManualRun) {
-    const lastRun = lastNonManualRunByScript.get(scriptId) ?? 0
+    const lastRun = lastNonManualRunByTarget.get(runKey) ?? 0
     if (Date.now() - lastRun < NON_MANUAL_COOLDOWN_MS) {
       return fail(`User script "${script.name}" is cooling down`)
     }
-    lastNonManualRunByScript.set(scriptId, Date.now())
+    lastNonManualRunByTarget.set(runKey, Date.now())
   }
 
   runningRuns.add(runKey)

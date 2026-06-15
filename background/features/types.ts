@@ -5,7 +5,13 @@
 // declarative settings page (schema + config validation + action handlers),
 // and an optional startup lifecycle hook. See docs/features.md.
 import type { z } from "zod"
-import type { Browser, CommandIcon, CommandNode } from "../../shared/types"
+import type {
+  Browser,
+  CommandIcon,
+  CommandNode,
+  PickedElement,
+  UserScript,
+} from "../../shared/types"
 import type {
   FeatureActionPayload,
   FeatureSettingsSchema,
@@ -14,9 +20,14 @@ import type {
 
 // Context handed to a settings-page action handler. Kept minimal; grows as
 // features need it. `payload` carries record-list row data (itemId/childId/…).
+// `selection`/`tab` are populated when the action originates from a surface
+// gesture (e.g. a `picker` reporting a clicked element via surface-action)
+// rather than a settings-page button.
 export type FeatureActionContext = {
   context?: Browser.Context
   payload?: FeatureActionPayload
+  selection?: PickedElement
+  tab?: { id: number; url?: string }
 }
 
 export type FeatureSettings<TConfig> = {
@@ -56,4 +67,10 @@ export type FeatureModule<TConfig = Record<string, unknown>> = {
   settings?: FeatureSettings<TConfig>
   // Startup lifecycle: re-arm alarms / register listeners after a SW restart.
   init?: () => void | Promise<void>
+  // Read-only automations PROJECTED from this feature's config. They flow
+  // through the same user-script engine/trigger system as user documents
+  // (merged in by background/userScripts/registry.ts) but are never stored.
+  // Each must validate against UserScriptSchema and carry owner:{kind:"feature"}
+  // with a deterministic id (featureAutomationId). See docs/features.md.
+  automations?: (config: TConfig) => UserScript[] | Promise<UserScript[]>
 }

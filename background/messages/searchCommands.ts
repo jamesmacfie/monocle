@@ -196,8 +196,7 @@ const handleSearchCommands = async (
   // Inline calculations run only at the root query: every provider parses the
   // raw query and any non-null results are prepended as ephemeral rows. They
   // are not commands, so they bypass favorites, usage ranking, and the index.
-  // A query no provider parses simply yields none. See
-  // docs/v_next/11-calculations.md.
+  // A query no provider parses simply yields none. See docs/calculations.md.
   if (isRootSearch) {
     const calculations = runCalculationProviders(message.query, context)
     if (calculations.length > 0) {

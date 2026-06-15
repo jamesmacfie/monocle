@@ -303,7 +303,18 @@ export interface UserScript {
     kind: "local" | "imported"
     importedAt?: number
   }
+  // Ownership (a separate axis from `source`, which is import provenance).
+  // Absent or {kind:"user"} = a user-authored document stored in
+  // `monocle-userscripts`. {kind:"feature"} = a read-only document PROJECTED
+  // at read time from a feature's config (never persisted to the user-script
+  // store), letting a feature contribute page-load automations through the
+  // same engine + trigger system. See docs/features.md and docs/user-scripts.md.
+  owner?: UserScriptOwner
 }
+
+export type UserScriptOwner =
+  | { kind: "user" }
+  | { kind: "feature"; featureId: string }
 
 // Keybindings/hidden/favorites intentionally do NOT live on the document —
 // the generated command id (`userscript-<uuid>`) participates in the
@@ -348,3 +359,18 @@ export const parseUserScriptCommandId = (commandId: string): string | null =>
   commandId.startsWith("userscript-")
     ? commandId.slice("userscript-".length)
     : null
+
+/** True when an automation is projected from a feature's config (read-only). */
+export const isFeatureAutomation = (
+  script: Pick<UserScript, "owner">,
+): script is UserScript & {
+  owner: { kind: "feature"; featureId: string }
+} => script.owner?.kind === "feature"
+
+/**
+ * Deterministic id for a feature-projected automation. The `feature:` prefix
+ * (with `:`) cannot collide with the `crypto.randomUUID()` ids of stored user
+ * documents. Keep `key` short — the document `id` is capped at 100 chars.
+ */
+export const featureAutomationId = (featureId: string, key: string): string =>
+  `feature:${featureId}:${key}`

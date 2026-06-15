@@ -226,7 +226,7 @@ export interface DisplaySuggestion extends SuggestionBase {
 // `content` blocks inside a real cmdk row (so it stays in the keyboard
 // navigation path) and, on select, copies `copyValue` to the clipboard rather
 // than executing a command. Never persisted: excluded from favorites, usage
-// ranking, and the search index. See docs/v_next/11-calculations.md.
+// ranking, and the search index. See docs/calculations.md.
 export interface CalculationSuggestion extends SuggestionBase {
   type: "calculation"
   content: ContentBlock[]

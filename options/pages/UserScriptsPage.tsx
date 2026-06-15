@@ -31,7 +31,7 @@ import {
   selectUserScriptsUpdatingIds,
   updateUserScript,
 } from "../../shared/store/slices/userScripts.slice"
-import type { UserScript } from "../../shared/types"
+import { isFeatureAutomation, type UserScript } from "../../shared/types"
 import type { UserScriptDraft } from "../../shared/types/userScriptValidation"
 import {
   summarizeUserScript,
@@ -91,6 +91,12 @@ export function UserScriptsPage() {
   const error = useAppSelector(selectUserScriptsError)
   const updatingIds = useAppSelector(selectUserScriptsUpdatingIds)
   const snippets = useAppSelector(selectSnippets)
+
+  // Feature-owned automations are read-only here (their config is the source of
+  // truth, managed in the feature's settings page); only user-authored ones get
+  // the editable table.
+  const userScripts = scripts.filter((script) => !isFeatureAutomation(script))
+  const featureScripts = scripts.filter(isFeatureAutomation)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importState, setImportState] = useState<ImportState>({
@@ -159,8 +165,8 @@ export function UserScriptsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Automations</h1>
           <div className="mt-1 text-sm text-[var(--color-fg-muted)]">
-            {scripts.length} saved automations — declarative scripts that run
-            from the palette or on triggers you arm
+            {userScripts.length} saved automations — declarative scripts that
+            run from the palette or on triggers you arm
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -248,7 +254,7 @@ export function UserScriptsPage() {
               </tr>
             </thead>
             <tbody>
-              {scripts.map((script) => {
+              {userScripts.map((script) => {
                 const updating = updatingIds.includes(script.id)
                 const Icon = getIconComponent(script.icon ?? "") ?? Workflow
 
@@ -327,7 +333,7 @@ export function UserScriptsPage() {
             </tbody>
           </table>
         </div>
-        {scripts.length === 0 && (
+        {userScripts.length === 0 && (
           <div className="p-8 text-center text-sm text-[var(--color-fg-muted)]">
             {loading
               ? "Loading automations…"
@@ -335,6 +341,44 @@ export function UserScriptsPage() {
           </div>
         )}
       </Panel>
+
+      {featureScripts.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">Managed by features</h2>
+            <div className="mt-1 text-sm text-[var(--color-fg-muted)]">
+              Automations contributed by features. They run on their triggers
+              but are read-only here — manage them in the feature's settings.
+            </div>
+          </div>
+          <Panel className="divide-y divide-[var(--color-border)]">
+            {featureScripts.map((script) => {
+              const Icon = getIconComponent(script.icon ?? "") ?? Workflow
+              return (
+                <div
+                  key={script.id}
+                  className="flex items-center justify-between gap-4 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Icon className="h-4 w-4 shrink-0 text-[var(--color-fg-muted)]" />
+                      <span className="truncate">{script.name}</span>
+                    </div>
+                    <div className="mt-0.5 line-clamp-2 text-sm text-[var(--color-fg-muted)]">
+                      {userScriptBlurb(script)}
+                    </div>
+                  </div>
+                  <Button asChild size="sm" variant="secondary">
+                    <Link href={`/features/${script.owner?.featureId ?? ""}`}>
+                      Manage in settings
+                    </Link>
+                  </Button>
+                </div>
+              )
+            })}
+          </Panel>
+        </section>
+      )}
 
       <Dialog
         open={importState.stage !== "closed"}

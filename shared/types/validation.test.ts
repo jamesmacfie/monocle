@@ -333,3 +333,45 @@ describe("workflow schema validation", () => {
     ).toBe(false)
   })
 })
+
+describe("surface-action message schema validation", () => {
+  it("accepts a picker selection payload", () => {
+    expect(
+      validateMessage({
+        type: "surface-action",
+        ownerId: "element-hider",
+        surfaceId: "picker",
+        actionId: "element-picked",
+        selection: {
+          selector: ".cookie-banner",
+          tagName: "DIV",
+          classes: ["a", "b"],
+          innerText: "We use cookies",
+        },
+      }).success,
+    ).toBe(true)
+  })
+
+  it("accepts a bare dismiss with no selection", () => {
+    expect(
+      validateMessage({
+        type: "surface-action",
+        ownerId: "focus-mode",
+        surfaceId: "overlay",
+        actionId: "dismiss",
+      }).success,
+    ).toBe(true)
+  })
+
+  it("rejects a selection missing the required selector", () => {
+    expect(
+      validateMessage({
+        type: "surface-action",
+        ownerId: "element-hider",
+        surfaceId: "picker",
+        actionId: "element-picked",
+        selection: { tagName: "DIV" },
+      }).success,
+    ).toBe(false)
+  })
+})

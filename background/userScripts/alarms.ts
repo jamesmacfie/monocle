@@ -12,7 +12,7 @@ import type { UserScript, UserScriptTrigger } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { matchesUrlPattern } from "../utils/urlFilter"
 import { runUserScript } from "./engine"
-import { getUserScripts } from "./storage"
+import { getAllAutomations } from "./registry"
 
 const ALARM_PREFIX = "userscript:"
 
@@ -76,7 +76,7 @@ export const syncUserScriptAlarms = async (): Promise<void> => {
     }
   }
 
-  const scripts = await getUserScripts()
+  const scripts = await getAllAutomations()
   for (const script of scripts) {
     if (!script.enabled) {
       continue
@@ -163,7 +163,7 @@ const handleAlarm = async (alarm: { name: string }): Promise<void> => {
     return
   }
 
-  const scripts = await getUserScripts()
+  const scripts = await getAllAutomations()
   const script = scripts.find((candidate) => candidate.id === parsed.scriptId)
   if (!script || !script.enabled || !armedTrigger(script, parsed.type)) {
     // The document changed since the alarm was created; drop and re-sync.
@@ -175,7 +175,7 @@ const handleAlarm = async (alarm: { name: string }): Promise<void> => {
 }
 
 const runStartupScripts = async (): Promise<void> => {
-  const scripts = await getUserScripts()
+  const scripts = await getAllAutomations()
   for (const script of scripts) {
     if (script.enabled && armedTrigger(script, "onStartup")) {
       await runScheduledScript(script, "onStartup")
@@ -207,7 +207,13 @@ export const initializeUserScriptAlarms = (): void => {
 
   browserAPI.storage?.onChanged?.addListener(
     (changes: Record<string, unknown>, areaName: string) => {
-      if (areaName === "local" && "monocle-userscripts" in changes) {
+      // Feature config changes can add/remove projected automations (which may
+      // carry scheduled triggers), so re-sync on either store.
+      if (
+        areaName === "local" &&
+        ("monocle-userscripts" in changes ||
+          "monocle-feature-config" in changes)
+      ) {
         syncUserScriptAlarms().catch(console.error)
       }
     },

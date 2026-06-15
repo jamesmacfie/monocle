@@ -27,10 +27,10 @@ import { invalidateSearchIndex } from "../commands/searchIndex"
 import { removeCommandSettings } from "../commands/settings"
 import { refreshKeybindingRegistry } from "../keybindings/registry"
 import { runUserScript } from "../userScripts/engine"
+import { getAllAutomations } from "../userScripts/registry"
 import {
   updateUserScript as changeUserScript,
   addUserScript as createUserScript,
-  getUserScripts as listUserScripts,
   deleteUserScript as removeUserScript,
 } from "../userScripts/storage"
 import {
@@ -42,7 +42,9 @@ import { createMessageHandler } from "../utils/messages"
 const handleGetUserScripts = async (
   _message: GetUserScriptsMessage,
 ): Promise<GetUserScriptsResponse> => {
-  return { scripts: await listUserScripts() }
+  // Includes feature-projected (read-only) automations; the options page tags
+  // and partitions them. Mutations still target stored user docs only.
+  return { scripts: await getAllAutomations() }
 }
 
 const handleAddUserScript = async (
