@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -51,6 +51,9 @@
     <main>
       <!-- HERO -->
       <section class="hero wrap" id="top">
+        <span class="hero__pill"
+          ><span class="dot"></span> Chrome &amp; Firefox · MV3</span
+        >
         <h1 class="hero__headline">Run your browser from the&nbsp;keyboard.</h1>
         <p class="hero__lede">
           Monocle is a command palette for Chrome and Firefox. Press
@@ -263,16 +266,24 @@ toast  "Logged in ✓"</code></pre>
             snippets, and a site SDK — all behind the same shortcut.
           </p>
         </div>
-        <div class="grid grid--3">
-          <div class="card reveal">
+        <div class="bento">
+          <div class="card reveal span-3 tall">
             <span class="card__icon">◑</span>
             <h3>Ten live themes</h3>
             <p>
               Solarized, Monokai, Nord, the Catppuccin family, One Dark, Dracula
-              — plus System, Light, and Dark. Preview as you arrow through them.
+              — plus System, Light, and Dark. Arrow through the list and the
+              palette restyles under your cursor before you commit.
             </p>
+            <ul class="pills" style="margin-bottom: 0">
+              <li class="pill">Nord</li>
+              <li class="pill">Dracula</li>
+              <li class="pill">Catppuccin</li>
+              <li class="pill">One Dark</li>
+              <li class="pill">Solarized</li>
+            </ul>
           </div>
-          <div class="card reveal">
+          <div class="card reveal span-3">
             <span class="card__icon">⊘</span>
             <h3>Focus Mode</h3>
             <p>
@@ -280,7 +291,7 @@ toast  "Logged in ✓"</code></pre>
               hard-block overlay you can't click past.
             </p>
           </div>
-          <div class="card reveal">
+          <div class="card reveal span-3">
             <span class="card__icon">▦</span>
             <h3>Tab Groups</h3>
             <p>
@@ -288,29 +299,28 @@ toast  "Logged in ✓"</code></pre>
               mute, and Firefox containers and all — and restore it later.
             </p>
           </div>
-          <div class="card reveal">
+          <div class="card reveal span-2">
             <span class="card__icon">=</span>
-            <h3>Inline calculations</h3>
+            <h3>Calculations</h3>
             <p>
-              Type <code>1 mile in km</code>, <code>5'10" in cm</code>, or
-              <code>time in Tokyo</code> straight into search. Enter copies the
-              result.
+              Type <code>1 mile in km</code> or <code>time in Tokyo</code>
+              straight into search. Enter copies the result.
             </p>
           </div>
-          <div class="card reveal">
+          <div class="card reveal span-2">
             <span class="card__icon">¶</span>
             <h3>Snippets</h3>
             <p>
-              Reusable text with placeholders — dates, counters, the current
-              URL, a fresh UUID — inserted at your caret on any page.
+              Reusable text with placeholders — dates, counters, the URL, a
+              fresh UUID — inserted at your caret.
             </p>
           </div>
-          <div class="card reveal">
+          <div class="card reveal span-2">
             <span class="card__icon">⌘</span>
             <h3>History &amp; bookmarks</h3>
             <p>
-              History grouped by time and bookmarks browsed by folder, both
-              searchable from the root without opening a panel.
+              Grouped by time and browsed by folder, both searchable from the
+              root without opening a panel.
             </p>
           </div>
         </div>

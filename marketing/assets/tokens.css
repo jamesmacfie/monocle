@@ -1,44 +1,56 @@
-/* Hallmark · macrostructure: Workbench · genre: atmospheric · nav: N9 · footer: Ft5
- * theme: custom · vibe: "late-night, keyboard-lit, phosphor mint, precise"
- * paper: oklch(15% 0.015 270) · accent: oklch(79% 0.16 167)
- * display: Bricolage Grotesque · body: Geist · mono: Geist Mono
+/* Hallmark · redesign · studied-DNA (source: url https://www.raycast.com/)
+ * pre-emit critique: P5 H5 E5 S4 R5 V4
+ * macrostructure: Workbench (kept) · genre: atmospheric · nav: N6 sticky-glass · footer: Ft5
+ * theme: studied-DNA · vibe: "near-black product surface, hairline glass, mint phosphor glow"
+ * paper: oklch(14% 0.006 264) · accent: oklch(80% 0.17 168) (brand mint)
+ * observed: Raycast Night — neutral near-black, glass-effect cards, generous radii, soft glows
+ * display + body: Geist · mono: Geist Mono
  * axes: dark / geometric-sans / chromatic-phosphor
- * studied: no · context: inferred · 2026-06-15
  */
 
 :root {
-  /* paper — dark slate, tinted toward the product panel hue (270°) */
-  --color-paper: oklch(15% 0.015 270); /* page background */
+  /* paper — neutral near-black, the Raycast "Night" canvas (faint cool tint only) */
+  --color-paper: oklch(14% 0.006 264); /* page background */
   --color-paper-2: oklch(
-    19% 0.018 270
-  ); /* elevated: demo palette, sticky bar, code blocks */
+    17.5% 0.007 264
+  ); /* elevated: cards, sticky bar, code */
   --color-paper-3: oklch(
-    24% 0.02 270
-  ); /* second elevation: kbd chips, hovered rows */
+    22% 0.008 264
+  ); /* second elevation: kbd, hovered rows */
+
+  /* glass — translucent white overlays for card fills (Raycast glass-effect) */
+  --color-glass: oklch(100% 0 0 / 0.025);
+  --color-glass-2: oklch(100% 0 0 / 0.05);
 
   /* ink */
-  --color-ink: oklch(93% 0.008 260); /* headings, primary text */
-  --color-ink-2: oklch(76% 0.01 260); /* body text */
-  --color-muted: oklch(60% 0.012 260); /* captions, meta, annotations */
+  --color-ink: oklch(97% 0.002 264); /* headings, primary text */
+  --color-ink-2: oklch(74% 0.006 264); /* body text */
+  --color-muted: oklch(56% 0.008 264); /* captions, meta, annotations */
 
-  /* rules */
-  --color-rule: oklch(30% 0.015 270); /* hairlines, figure borders */
-  --color-rule-2: oklch(25% 0.015 270); /* secondary dividers */
+  /* rules — hairline glass borders (white at low alpha, the signature Raycast edge) */
+  --color-rule: oklch(100% 0 0 / 0.1);
+  --color-rule-2: oklch(100% 0 0 / 0.055);
 
-  /* accent — brand mint (#12e0a0 normalized to OKLCH) */
-  --color-accent: oklch(
-    79% 0.16 167
-  ); /* CTA fill, active row indicator, mark */
-  --color-accent-ink: oklch(17% 0.02 270); /* text on accent fills */
-  --color-focus: oklch(82% 0.19 167); /* :focus-visible rings only */
-  --color-accent-dim: oklch(79% 0.16 167 / 0.14);
+  /* accent — brand mint (#12e0a0), nudged brighter for the dark canvas */
+  --color-accent: oklch(80% 0.17 168); /* CTA fill, active row, mark */
+  --color-accent-ink: oklch(20% 0.02 264); /* text on accent fills */
+  --color-focus: oklch(84% 0.19 168); /* :focus-visible rings only */
+  --color-accent-dim: oklch(80% 0.17 168 / 0.16);
 
-  /* atmospheric bloom (background only) */
-  --bloom-mint: oklch(79% 0.16 167 / 0.07);
+  /* glow + bloom — soft mint light, the floating-window halo */
+  --glow: oklch(80% 0.17 168 / 0.22);
+  --bloom: oklch(80% 0.17 168 / 0.1);
 
-  /* fonts */
-  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
-  --font-body: "Geist", system-ui, sans-serif;
+  /* shadows — depth via dark drop + faint top inner highlight */
+  --shadow-card:
+    0 1px 0 oklch(100% 0 0 / 0.05) inset, 0 8px 24px oklch(0% 0 0 / 0.34);
+  --shadow-figure:
+    0 1px 0 oklch(100% 0 0 / 0.06) inset, 0 32px 80px oklch(0% 0 0 / 0.55);
+  --shadow-nav: 0 1px 0 oklch(100% 0 0 / 0.04);
+
+  /* fonts — one restrained SF-like sans (Geist), mono for chrome */
+  --font-display: "Geist", system-ui, -apple-system, sans-serif;
+  --font-body: "Geist", system-ui, -apple-system, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
 
   --text-xs: 0.75rem;
@@ -47,8 +59,8 @@
   --text-lg: 1.25rem;
   --text-xl: 1.5rem;
   --text-2xl: 2rem;
-  --text-display-s: clamp(2rem, 3vw + 1rem, 3rem);
-  --text-display: clamp(2.75rem, 5vw + 1rem, 5.5rem);
+  --text-display-s: clamp(2.1rem, 3vw + 1rem, 3.25rem);
+  --text-display: clamp(2.25rem, 5.5vw + 1rem, 6rem);
 
   /* spacing */
   --space-2xs: 0.25rem;
@@ -61,18 +73,20 @@
   --space-3xl: 6rem;
   --space-4xl: 8rem;
 
-  --radius-sm: 6px; /* kbd chips, buttons */
-  --radius-md: 10px; /* demo palette rows, code block */
-  --radius-lg: 14px; /* figures, cards, demo palette shell */
+  /* radii — generous, Raycast-scale */
+  --radius-sm: 8px; /* kbd chips, buttons */
+  --radius-md: 12px; /* rows, code blocks */
+  --radius-lg: 16px; /* cards */
+  --radius-xl: 22px; /* product-window figures, demo shell */
 
   --rule-hair: 1px;
   --page-gutter: clamp(1rem, 4vw, 2.5rem);
-  --page-max: 72rem; /* 1152px content column */
+  --page-max: 75rem;
 
   /* motion */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-fast: 120ms;
   --dur-base: 200ms;
-  --dur-slow: 300ms;
+  --dur-slow: 320ms;
 }
