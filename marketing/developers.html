@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Developers — Monocle</title>
+    <meta
+      name="description"
+      content="Monocle's architecture for developers: runtime modes, the background service worker, Redux store, core data flows, the CommandNode schema, the message protocol, storage shape, the window.Monocle site SDK, and the tech stack."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html">Guide</a></li>
+        <li><a href="developers.html" aria-current="page">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <main>
+      <section class="section wrap">
+        <p class="eyebrow">Developer reference</p>
+        <h1 class="hero__headline" style="font-size: var(--text-display-s); max-width: 20ch; margin: 0 0 var(--space-md)">
+          How Monocle is put together.
+        </h1>
+        <p class="lede">
+          Monocle is a WXT extension in TypeScript, React, and Redux. The
+          background service worker owns everything privileged; the UI renders
+          plain suggestion data and talks to the background over a validated
+          message protocol. This page walks the architecture, the data flows,
+          the schema, and the wire format.
+        </p>
+        <ul class="pills">
+          <li class="pill"><a href="#architecture" style="color: inherit">Architecture</a></li>
+          <li class="pill"><a href="#flows" style="color: inherit">Data flows</a></li>
+          <li class="pill"><a href="#schema" style="color: inherit">Command schema</a></li>
+          <li class="pill"><a href="#messages" style="color: inherit">Messages</a></li>
+          <li class="pill"><a href="#storage" style="color: inherit">Storage</a></li>
+          <li class="pill"><a href="#sdk" style="color: inherit">Site SDK</a></li>
+          <li class="pill"><a href="#stack" style="color: inherit">Stack</a></li>
+        </ul>
+      </section>
+
+      <!-- ARCHITECTURE -->
+      <section class="section--tight wrap" id="architecture">
+        <h2>Architecture</h2>
+        <p>
+          The same React command palette runs in two contexts, plus an options
+          page. A single background service worker is the source of truth.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Mode</th><th>Context</th><th>Entrypoint</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Content overlay</strong></td><td>Closed shadow DOM injected into every page</td><td><code>entrypoints/content.tsx</code></td></tr>
+              <tr><td><strong>New tab</strong></td><td>Extension HTML replacing the browser new-tab page</td><td><code>entrypoints/newtab/</code></td></tr>
+              <tr><td><strong>Options</strong></td><td>Extension HTML settings page</td><td><code>entrypoints/options/</code></td></tr>
+              <tr><td><strong>Background</strong></td><td>MV3 service worker — commands, APIs, storage, keybindings</td><td><code>entrypoints/background.ts</code></td></tr>
+              <tr><td><strong>Site SDK shim</strong></td><td>MAIN-world content script installing <code>window.Monocle</code></td><td><code>entrypoints/site-sdk.content.ts</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Ownership boundaries</h3>
+        <div class="grid grid--2">
+          <div class="card">
+            <h4>Background owns</h4>
+            <p class="muted" style="margin-top: var(--space-xs)">
+              Command definitions and executor functions · all browser API
+              access · settings persistence · permission grants and checks · the
+              keybinding registry · workflow forwarding · user scripts and
+              triggers · feature modules and state · surfaces.
+            </p>
+          </div>
+          <div class="card">
+            <h4>UI owns</h4>
+            <p class="muted" style="margin-top: var(--space-xs)">
+              Rendering <code>Suggestion</code> values (never executable
+              functions) · local Redux for navigation, search, and form values ·
+              capturing keystrokes and forwarding them · sending typed messages.
+              Shared components must work in both the closed shadow DOM and
+              normal document DOM.
+            </p>
+          </div>
+        </div>
+
+        <h3>Redux store</h3>
+        <p>
+          Each palette mode mounts its own store from a shared factory. Key
+          slices: <code>settings</code> (theme, new-tab prefs, permission
+          mirror), <code>navigation</code> (page stack, search values, child
+          commands, inline form values), <code>commandPalette</code> (overlay
+          visibility), <code>keybinding</code> (capture state),
+          <code>settingsCatalog</code>, <code>snippets</code>,
+          <code>userScripts</code>, and <code>features</code> for the options
+          page.
+        </p>
+      </section>
+
+      <!-- DATA FLOWS -->
+      <section class="section wrap" id="flows">
+        <h2>Core data flows</h2>
+
+        <h3>Command loading, search &amp; execution</h3>
+        <ol class="flow">
+          <li><div>UI sends <code>get-commands { context }</code> on mount; the background loads root commands, applies browser/context compatibility and URL filtering, computes favorites, ranks, and returns <code>Suggestion[]</code> for the empty state.</div></li>
+          <li><div>Typing (debounced ~200&nbsp;ms) sends <code>search-commands { query, parentPath?, seq }</code>; the background scores an in-memory, URL-filtered search index incrementally and returns the top-N, with deep-search matches inline. Stale <code>seq</code> responses are dropped.</div></li>
+          <li><div>Selecting an action/submit sends <code>execute-command { id, context, formValues? }</code>; the background resolves the node, checks merged permissions, runs the executor, and records usage.</div></li>
+        </ol>
+
+        <h3>Nested navigation</h3>
+        <ol class="flow">
+          <li><div>Selecting a <code>group</code> or <code>search</code> sends <code>get-children-commands</code>; the background resolves dynamic children (or search results) and converts them to suggestions.</div></li>
+          <li><div>The <code>navigation</code> slice pushes a new page with the children, a reset search value, and inherited form defaults. Escape pops it and restores the prior search state.</div></li>
+        </ol>
+
+        <h3>Keybindings</h3>
+        <ol class="flow">
+          <li><div>A global keydown outside editable elements is normalized to a canonical string (<code>&lt;cmd-shift-k&gt;</code>) and sent as <code>execute-keybinding</code>.</div></li>
+          <li><div>The background registry resolves exact matches or sequence prefixes, scoped per sender tab + document, with an 800&nbsp;ms chord window. A match executes through the same command path, or opens the palette at that command.</div></li>
+        </ol>
+
+        <h3>Workflow forwarding</h3>
+        <ol class="flow">
+          <li><div>A command or the user-script engine calls <code>execute-workflow { workflow, context, tabId? }</code>; the background resolves the target tab, validates against the workflow schema, and forwards <code>execute-workflow-content</code> to the tab.</div></li>
+          <li><div>The content executor in <code>content/workflow/</code> runs each step and returns a <code>WorkflowResult</code> (including <code>getText</code> extractions) back up the chain.</div></li>
+        </ol>
+
+        <h3>Surfaces (declarative UI)</h3>
+        <ol class="flow">
+          <li><div>A feature, automation, or command writes to the owner-namespaced surfaces store; every mutation broadcasts <code>monocle-surfaces-changed</code>.</div></li>
+          <li><div>Each <code>SurfaceHost</code> queries <code>get-surfaces { url }</code>, renders the kinds it owns (overlay/modal/picker in content, badge on the new tab), and reports interactions via <code>surface-action</code>. <code>dismiss</code> removes the surface; any other action routes to the owner's handler.</div></li>
+        </ol>
+      </section>
+
+      <!-- COMMAND SCHEMA -->
+      <section class="section wrap" id="schema">
+        <h2>The command schema</h2>
+        <p>
+          Commands are typed <code>CommandNode</code> values — a discriminated
+          union on <code>type</code>. The UI never receives these; it receives
+          <code>Suggestion</code> values converted in the background, with
+          <code>execute</code>, <code>children</code>, and
+          <code>getResults</code> functions staying server-side.
+        </p>
+
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Type</th><th>Behavior</th></tr></thead>
+            <tbody>
+              <tr><td><code>action</code></td><td>Executable command. Checks permissions, optionally confirms, runs, records usage.</td></tr>
+              <tr><td><code>submit</code></td><td>Form button. Collects sibling <code>input</code> values, validates, executes.</td></tr>
+              <tr><td><code>group</code></td><td>Dynamic container; selecting opens a child page. May opt into deep search.</td></tr>
+              <tr><td><code>search</code></td><td>Dynamic search page; typing re-fetches results from the background.</td></tr>
+              <tr><td><code>input</code></td><td>One inline form field; value lives in navigation form state.</td></tr>
+              <tr><td><code>display</code></td><td>Static, non-executable row for headings and empty/error states.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Shared fields</h3>
+        <pre><code>type CommandNode = {
+  id: string                       // stable, kebab-case; favorites/settings/binding key
+  type: "action" | "submit" | "group" | "search" | "input" | "display"
+  name: AsyncValue&lt;string | string[]&gt;   // array = breadcrumb for deep-search rows
+  description?: AsyncValue&lt;string&gt;
+  icon?: AsyncValue&lt;CommandIcon&gt;   // lucide | url | svg
+  keywords?: AsyncValue&lt;string[]&gt;
+  permissions?: BrowserPermission[]      // inherited by group children
+  urlRules?: { allowUrls?: string[]; denyUrls?: string[] }
+  supportedBrowsers?: ("chrome" | "firefox")[]
+  keybinding?: string              // author default, e.g. "&lt;cmd-t&gt;"
+  keybindingBehavior?: "execute" | "openPaletteAtCommand"
+}
+
+type AsyncValue&lt;T&gt; = T | ((context: Browser.Context) =&gt; Promise&lt;T&gt;)</code></pre>
+        <p class="muted">
+          Most display fields are an <code>AsyncValue</code> — a literal or a
+          function of context, resolved once per palette fetch. Keep resolvers
+          cheap; they run together in a <code>Promise.all</code>.
+        </p>
+
+        <h3>Form fields</h3>
+        <p>
+          A form is a <code>group</code> of <code>input</code> nodes plus one
+          <code>submit</code>. Field variants:
+          <code>text</code>, <code>textarea</code>, <code>select</code>,
+          <code>checkbox</code>/<code>switch</code>, <code>multi</code>,
+          <code>text-list</code>, <code>color</code>, and <code>number</code>.
+          Text-like fields store strings; <code>multi</code> and
+          <code>text-list</code> store arrays in UI state and are comma-joined
+          for older executors.
+        </p>
+      </section>
+
+      <!-- MESSAGES -->
+      <section class="section wrap" id="messages">
+        <h2>Message protocol</h2>
+        <p>
+          UI&nbsp;→&nbsp;background goes over <code>chrome.runtime.sendMessage</code>;
+          background&nbsp;→&nbsp;tab goes over <code>chrome.tabs.sendMessage</code>.
+          Every message is sender-checked and validated against a Zod
+          discriminated union; handlers return <code>{ error }</code> rather
+          than throwing.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Message</th><th>Dir</th><th>Does</th></tr></thead>
+            <tbody>
+              <tr><td><code>get-commands</code></td><td>UI→bg</td><td>Root empty state: favorites + ranked suggestions.</td></tr>
+              <tr><td><code>search-commands</code></td><td>UI→bg</td><td>Scored, sequenced search results with deep matches.</td></tr>
+              <tr><td><code>get-children-commands</code></td><td>UI→bg</td><td>Resolve a group's children or a search page's results.</td></tr>
+              <tr><td><code>execute-command</code></td><td>UI→bg</td><td>Permission-check and run a command with form values.</td></tr>
+              <tr><td><code>execute-keybinding</code></td><td>UI→bg</td><td>Resolve a keystroke against the registry / sequences.</td></tr>
+              <tr><td><code>request-permission</code> · <code>get-permissions</code></td><td>UI→bg</td><td>Request an optional permission; read current grants.</td></tr>
+              <tr><td><code>update-command-setting</code></td><td>UI→bg</td><td>Persist keybinding, hidden, or URL-rule changes.</td></tr>
+              <tr><td><code>execute-workflow</code></td><td>UI→bg</td><td>Validate and forward a workflow to the target tab.</td></tr>
+              <tr><td><code>execute-workflow-content</code></td><td>bg→tab</td><td>Run workflow steps in the content executor.</td></tr>
+              <tr><td><code>get-surfaces</code> · <code>surface-action</code></td><td>tab↔bg</td><td>Fetch URL-matched surfaces; report interactions.</td></tr>
+              <tr><td><code>get-features</code> · <code>update-feature-config</code> · <code>execute-feature-action</code></td><td>UI→bg</td><td>Read feature descriptors, persist config, run actions.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The context object rides on most messages:
+        </p>
+        <pre><code>interface Context {
+  url: string                  // non-empty, required
+  title: string
+  modifierKey: "shift" | "cmd" | "alt" | "ctrl" | null
+  isNewTab?: boolean
+}</code></pre>
+      </section>
+
+      <!-- STORAGE -->
+      <section class="section wrap" id="storage">
+        <h2>Storage</h2>
+        <p>
+          Everything is <code>chrome.storage.local</code> — no sync, no cloud.
+          State is split across independent keys so features evolve
+          separately.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Key</th><th>Holds</th></tr></thead>
+            <tbody>
+              <tr><td><code>monocle-settings</code></td><td>Theme, new-tab prefs, and per-command settings (<code>keybinding</code>, <code>hidden</code>, <code>urlRules</code>).</td></tr>
+              <tr><td><code>monocle-favoriteCommandIds</code></td><td>Favorited command ids.</td></tr>
+              <tr><td><code>monocle-commandUsage</code></td><td>Usage stats for ranking (90-day auto-cleanup).</td></tr>
+              <tr><td><code>monocle-snippets</code></td><td>Saved snippets.</td></tr>
+              <tr><td><code>monocle-userscripts</code></td><td>Automation documents.</td></tr>
+              <tr><td><code>monocle-feature-config</code> / <code>-state</code></td><td>Durable feature config and transient runtime state, keyed by feature id.</td></tr>
+              <tr><td><code>monocle-surfaces</code></td><td>Owner-namespaced declarative surfaces (session owners cleared on startup).</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">
+          <code>updateCommandSettings</code> shallow-merges top-level fields but
+          deep-merges <code>urlRules</code> one level, so updating an allow list
+          preserves the deny list. Empty entries are pruned.
+        </p>
+      </section>
+
+      <!-- SITE SDK -->
+      <section class="section wrap" id="sdk">
+        <h2>The <code>window.Monocle</code> site SDK</h2>
+        <p>
+          Any page can register session-only, non-privileged commands. The page
+          posts declarative descriptors to an isolated content bridge, which
+          validates them and hands the background extension-owned
+          <code>CommandNode</code> wrappers. Callbacks stay in the page; only
+          string callback ids cross the boundary.
+        </p>
+        <div class="split">
+          <div class="split--code">
+            <pre><code>const handle = window.Monocle.commands.register({
+  namespace: "docs",
+  name: "Docs",
+  icon: { type: "lucide", name: "BookOpen" },
+  commands: [{
+    id: "open-search",
+    type: "action",
+    name: "Open Site Search",
+    placement: "root",
+    actionLabel: "Open",
+    onExecute() {
+      document
+        .querySelector("[type='search']")
+        ?.focus()
+    },
+  }],
+})
+
+handle.update([/* … */])
+handle.dispose()</code></pre>
+          </div>
+          <div>
+            <h4>Guarantees</h4>
+            <ul>
+              <li><strong>Session-only</strong> — scoped to the tab, top-frame document, and origin; never persisted.</li>
+              <li><strong>Non-privileged</strong> — no browser APIs, no permission requests, no global keybindings.</li>
+              <li><strong>Validated</strong> — strict Zod schema, capped counts and depth, safe icons, protocol allow-list.</li>
+              <li><strong>Same rules as built-ins</strong> — site commands respect URL rules, favorites, and ranking.</li>
+            </ul>
+            <p><a class="link-arrow" href="reviewers.html#sdk">The full SDK security model →</a></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- STACK -->
+      <section class="section wrap" id="stack">
+        <h2>Tech stack</h2>
+        <div class="grid grid--2">
+          <div>
+            <h4>Core</h4>
+            <ul>
+              <li><strong>WXT</strong> — MV3 build, manifest generation, Chrome + Firefox targets</li>
+              <li><strong>React + Redux Toolkit</strong> — UI and state</li>
+              <li><strong>CMDK</strong> — list rendering and keyboard nav (<code>shouldFilter={false}</code>; ranking is server-side)</li>
+              <li><strong>shadcn/ui</strong> — dialog and form primitives, portal-aware for the shadow root</li>
+            </ul>
+          </div>
+          <div>
+            <h4>Validation &amp; utilities</h4>
+            <ul>
+              <li><strong>Zod</strong> — message, settings, and document validation</li>
+              <li><strong>ts-pattern</strong> — message routing</li>
+              <li><strong>mathjs</strong> (hardened) — calculations, background-only</li>
+              <li><strong>date-fns</strong> · <strong>Intl</strong> — snippet dates, time conversions</li>
+              <li><strong>TypeScript</strong> (strict) · <strong>Biome</strong> · <strong>Vitest</strong></li>
+            </ul>
+          </div>
+        </div>
+        <div class="note">
+          <span class="note__title">Build from source</span>
+          <p>
+            <code>corepack enable</code> (pins pnpm 11), then
+            <code>pnpm install</code>. Develop with <code>pnpm run dev:chrome</code>
+            or <code>dev:firefox</code>; build with <code>pnpm run build</code> /
+            <code>build:firefox</code>. Type-check with <code>pnpm run tsc</code>,
+            test with <code>pnpm test</code>.
+          </p>
+        </div>
+      </section>
+
+      <section class="cta-final wrap">
+        <h2 class="cta-final__line">Extend it with your own automations.</h2>
+        <a class="btn btn--accent btn--lg" href="guide-getting-started.html">Read the automation guide</a>
+      </section>
+    </main>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

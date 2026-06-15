@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cookbook — Monocle automations</title>
+    <meta
+      name="description"
+      content="Complete, copyable Monocle automation examples: auto-fill a login, extract and copy metadata, dismiss cookie banners, bulk-process with forEach, and click-through pagination with while."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html" aria-current="page">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <div class="docs">
+      <aside class="docs__side">
+        <nav aria-label="Automation guide">
+          <h4>Getting started</h4>
+          <a href="guide-getting-started.html">Overview &amp; first run</a>
+          <a href="guide-concepts.html">How automations work</a>
+          <h4>Reference</h4>
+          <a href="guide-triggers.html">Triggers</a>
+          <a href="guide-steps.html">Steps &amp; operations</a>
+          <a href="guide-variables.html">Variables &amp; selectors</a>
+          <h4>Going further</h4>
+          <a href="guide-examples.html" aria-current="page">Cookbook</a>
+          <a href="guide-safety.html">Limits, safety &amp; sharing</a>
+        </nav>
+      </aside>
+
+      <main class="docs__main">
+        <p class="docs__crumb"><a href="automations.html">Automations</a> / Cookbook</p>
+        <h1>Cookbook</h1>
+        <p class="lede">
+          Five complete automations you can adapt. Each one is a full document —
+          copy it, tweak the selectors and scope, and it's yours. The builder's
+          <strong>Add Examples</strong> button installs a similar curated set,
+          and <strong>Test on Active Tab</strong> lets you run any of them
+          step-by-step to debug before you arm a trigger.
+        </p>
+
+        <h2>Auto-fill a dev login</h2>
+        <p>
+          A <strong>manual</strong> automation (plus a keybinding) that pulls a
+          username and password from snippets and fills the dev login form. The
+          credentials are resolved in the background and never logged; the
+          <code>{{user}}</code> and <code>{{pass}}</code> templates are expanded
+          before the page sees them.
+        </p>
+        <pre><code>{
+  "name": "Dev login",
+  "icon": "LogIn",
+  "color": "teal",
+  "enabled": true,
+  "urlRules": { "allowUrls": ["dev.example.com"] },
+  "triggers": [{ "type": "manual" }],
+  "vars": {
+    "user": { "kind": "snippet", "snippetId": "dev-username" },
+    "pass": { "kind": "snippet", "snippetId": "dev-password" }
+  },
+  "steps": [
+    {
+      "op": "fill",
+      "target": { "strategy": "css", "value": "#username" },
+      "text": "{{user}}"
+    },
+    {
+      "op": "fill",
+      "target": { "strategy": "css", "value": "#password" },
+      "text": "{{pass}}"
+    },
+    {
+      "op": "click",
+      "target": { "strategy": "text", "value": "Sign in" }
+    },
+    {
+      "op": "wait",
+      "for": { "urlIncludes": "dashboard" },
+      "timeoutMs": 5000
+    },
+    {
+      "op": "toast",
+      "level": "success",
+      "message": "Logged in"
+    }
+  ]
+}</code></pre>
+        <div class="note">
+          <span class="note__title">Keybinding</span>
+          <p>
+            Bind this script's command to a shortcut like
+            <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd>. A non-shift modifier is
+            required so the binding still fires while an <code>&lt;input&gt;</code>
+            is focused.
+          </p>
+        </div>
+
+        <h2>Extract article metadata &amp; copy</h2>
+        <p>
+          A <strong>manual</strong> automation that reads the page heading, falls
+          back to the document title when there's no <code>h1</code>, formats the
+          metadata, and copies it to the clipboard. It uses two runtime
+          variables, a <code>branch</code> whose <code>then</code> runs
+          <code>getText</code> and whose <code>else</code> runs
+          <code>setVariable</code>, and pipes (<code>| trim</code>,
+          <code>| slice</code>) to clean up the values.
+        </p>
+        <pre><code>{
+  "name": "Copy article metadata",
+  "icon": "Copy",
+  "color": "blue",
+  "enabled": true,
+  "triggers": [{ "type": "manual" }],
+  "vars": {
+    "heading": { "kind": "runtime" },
+    "metadata": { "kind": "runtime" }
+  },
+  "steps": [
+    {
+      "op": "branch",
+      "if": {
+        "kind": "elementExists",
+        "selector": { "strategy": "css", "value": "h1" }
+      },
+      "then": [
+        {
+          "op": "getText",
+          "from": { "strategy": "css", "value": "h1" },
+          "toVar": "heading"
+        }
+      ],
+      "else": [
+        {
+          "op": "setVariable",
+          "name": "heading",
+          "value": "{title}"
+        }
+      ]
+    },
+    {
+      "op": "setVariable",
+      "name": "metadata",
+      "value": "**{{heading | trim}}**\n\n{url}\n\nCopied at {timestamp}"
+    },
+    {
+      "op": "clipboardWrite",
+      "text": "{{metadata}}"
+    },
+    {
+      "op": "toast",
+      "level": "success",
+      "message": "Copied: {{heading | slice:0:60}}"
+    }
+  ]
+}</code></pre>
+
+        <h2>Dismiss cookie banners automatically</h2>
+        <p>
+          A <strong>manual</strong> trigger plus an <strong>elementAppears</strong>
+          trigger that fires when an "Accept all" button shows up. A
+          <code>branch</code> clicks the button and confirms with a success
+          toast when it exists, or shows an info toast otherwise — so a manual
+          run is harmless even when no banner is present.
+        </p>
+        <pre><code>{
+  "name": "Dismiss cookie banner",
+  "icon": "Cookie",
+  "color": "amber",
+  "enabled": true,
+  "triggers": [
+    { "type": "manual" },
+    {
+      "type": "elementAppears",
+      "selector": { "strategy": "text", "value": "Accept all" },
+      "oncePerPage": true,
+      "throttleMs": 250,
+      "disarmed": false
+    }
+  ],
+  "steps": [
+    {
+      "op": "branch",
+      "if": {
+        "kind": "elementExists",
+        "selector": { "strategy": "text", "value": "Accept all" }
+      },
+      "then": [
+        {
+          "op": "click",
+          "target": { "strategy": "text", "value": "Accept all" }
+        },
+        {
+          "op": "toast",
+          "level": "success",
+          "message": "Cookie banner dismissed"
+        }
+      ],
+      "else": [
+        {
+          "op": "toast",
+          "level": "info",
+          "message": "No cookie banner found"
+        }
+      ]
+    }
+  ]
+}</code></pre>
+
+        <h2>Bulk process with forEach</h2>
+        <p>
+          A <strong>manual</strong> automation that checks every checkbox on the
+          page by looping over them with <code>forEach</code>. Because the
+          <code>check</code> step's selector is structurally identical to the
+          loop's selector, it is <strong>pinned</strong> to the current match on
+          each iteration — acting on "this checkbox" without any templating.
+        </p>
+        <pre><code>{
+  "name": "Check every checkbox",
+  "icon": "ListChecks",
+  "color": "green",
+  "enabled": true,
+  "triggers": [{ "type": "manual" }],
+  "steps": [
+    {
+      "op": "forEach",
+      "over": {
+        "elements": { "strategy": "css", "value": "input[type='checkbox']" }
+      },
+      "as": "item",
+      "maxIterations": 50,
+      "steps": [
+        {
+          "op": "check",
+          "target": { "strategy": "css", "value": "input[type='checkbox']" }
+        }
+      ]
+    },
+    {
+      "op": "toast",
+      "level": "success",
+      "message": "All {{index}} checkboxes checked"
+    }
+  ]
+}</code></pre>
+
+        <h2>Click-through pagination with while</h2>
+        <p>
+          A <strong>manual</strong> automation that clicks a "Load more" button
+          repeatedly until it disappears. The <code>while</code> loop runs as
+          long as the button exists, capped at <code>maxIterations: 10</code> as
+          a safety net, with a <code>wait</code> inside so the page has time to
+          render the next batch.
+        </p>
+        <pre><code>{
+  "name": "Click 'Load more' until done",
+  "icon": "ArrowDownToLine",
+  "color": "indigo",
+  "enabled": true,
+  "triggers": [{ "type": "manual" }],
+  "steps": [
+    {
+      "op": "while",
+      "condition": {
+        "kind": "elementExists",
+        "selector": { "strategy": "text", "value": "Load more" }
+      },
+      "maxIterations": 10,
+      "steps": [
+        {
+          "op": "click",
+          "target": { "strategy": "text", "value": "Load more" }
+        },
+        {
+          "op": "wait",
+          "for": { "timeMs": 1000 }
+        }
+      ]
+    },
+    {
+      "op": "toast",
+      "level": "success",
+      "message": "Loaded all content"
+    }
+  ]
+}</code></pre>
+
+        <div class="note">
+          <span class="note__title">Reach for the reference</span>
+          <p>
+            For the building blocks behind these recipes, see
+            <a href="guide-steps.html">Steps &amp; operations</a> for the verb
+            vocabulary and <a href="guide-variables.html">Variables &amp;
+            selectors</a> for templates, pipes, and how to target elements. When
+            you're ready to arm triggers or share a script, read
+            <a href="guide-safety.html">Limits, safety &amp; sharing</a>.
+          </p>
+        </div>
+
+        <div class="pager">
+          <a href="guide-variables.html"><span>Prev</span>← Variables &amp; selectors</a>
+          <a href="guide-safety.html"><span>Next</span>Limits, safety &amp; sharing →</a>
+        </div>
+      </main>
+    </div>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

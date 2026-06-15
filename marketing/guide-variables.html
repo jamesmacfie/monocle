@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Variables &amp; selectors — Monocle automations</title>
+    <meta
+      name="description"
+      content="Monocle automation variables and interpolation: literal, snippet, and runtime variables; {{var}} templates and pipe transforms; page-context placeholders; and CSS vs text selectors."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html" aria-current="page">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <div class="docs">
+      <aside class="docs__side">
+        <nav aria-label="Automation guide">
+          <h4>Getting started</h4>
+          <a href="guide-getting-started.html">Overview &amp; first run</a>
+          <a href="guide-concepts.html">How automations work</a>
+          <h4>Reference</h4>
+          <a href="guide-triggers.html">Triggers</a>
+          <a href="guide-steps.html">Steps &amp; operations</a>
+          <a href="guide-variables.html" aria-current="page">Variables &amp; selectors</a>
+          <h4>Going further</h4>
+          <a href="guide-examples.html">Cookbook</a>
+          <a href="guide-safety.html">Limits, safety &amp; sharing</a>
+        </nav>
+      </aside>
+
+      <main class="docs__main">
+        <p class="docs__crumb"><a href="automations.html">Automations</a> / Variables &amp; selectors</p>
+        <h1>Variables &amp; selectors</h1>
+        <p class="lede">
+          Variables give an automation its data; selectors give it its targets.
+          Interpolation expands variables into a step's fields in the background,
+          before the page ever runs — so the page only ever sees finished values,
+          and the parts that address the page stay fixed and reviewable.
+        </p>
+
+        <h2>The three kinds of variable</h2>
+        <p>
+          A variable is a named value declared in the automation's
+          <code>vars</code> block. There are three kinds, distinguished by where
+          the value comes from.
+        </p>
+
+        <h3>Literal</h3>
+        <p>A fixed string baked into the document.</p>
+        <pre><code>vars:
+  companyName: { kind: "literal", value: "Acme Corp" }</code></pre>
+
+        <h3>Snippet</h3>
+        <p>
+          References a saved snippet by id. The snippet body is resolved and its
+          placeholders are interpolated at run time, in the background. Use this
+          for credentials and any multi-use text you'd rather keep in one place.
+        </p>
+        <pre><code>vars:
+  loginEmail: { kind: "snippet", snippetId: "abc123" }</code></pre>
+
+        <h3>Runtime</h3>
+        <p>
+          Set during the run by a <code>getText</code> or <code>setVariable</code>
+          step. Declared empty; filled with live page data as the automation
+          executes.
+        </p>
+        <pre><code>vars:
+  confirmationCode: { kind: "runtime" }</code></pre>
+
+        <h2>Template syntax</h2>
+        <p>
+          Interpolatable fields — such as <code>fill.text</code>,
+          <code>setVariable.value</code>, <code>toast.message</code>, and
+          <code>navigate.url</code> — use <code>{{…}}</code> templates. The engine
+          expands them in the background before the step is dispatched.
+        </p>
+        <ul>
+          <li><code>{{varName}}</code> — a declared variable.</li>
+          <li><code>{{trigger.type}}</code>, <code>{{trigger.url}}</code>, <code>{{trigger.matchedText}}</code> — the fire context that started the run.</li>
+          <li><code>{{params.fieldId}}</code> — an input from a manual trigger's form (if the automation defines parameters).</li>
+          <li><code>{{snippet:snippetId}}</code> — an inline snippet reference.</li>
+          <li><code>{{index}}</code>, <code>{{item}}</code> — loop scope inside a <code>forEach</code> body (<code>{{item}}</code> is the current element's text; <code>{{index}}</code> is the 0-based iteration).</li>
+        </ul>
+
+        <h3>Page-context placeholders</h3>
+        <p>
+          Templates may also use snippet placeholders, resolved by the engine
+          from the current page and clock. These are the same placeholders the
+          Snippets feature uses.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Placeholder</th>
+                <th>Expands to</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>{url}</code></td>
+                <td>The current page's full URL.</td>
+              </tr>
+              <tr>
+                <td><code>{title}</code></td>
+                <td>The current page's title.</td>
+              </tr>
+              <tr>
+                <td><code>{domain}</code></td>
+                <td>The page's host (domain).</td>
+              </tr>
+              <tr>
+                <td><code>{path}</code></td>
+                <td>The URL path.</td>
+              </tr>
+              <tr>
+                <td><code>{uuid}</code></td>
+                <td>A freshly generated UUID.</td>
+              </tr>
+              <tr>
+                <td><code>{timestamp}</code></td>
+                <td>The current timestamp.</td>
+              </tr>
+              <tr>
+                <td><code>{date:FORMAT}</code></td>
+                <td>The current date, formatted by <code>FORMAT</code>.</td>
+              </tr>
+              <tr>
+                <td><code>{i}</code></td>
+                <td>A persisted counter, shared with palette snippet insertion.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>Pipes</h2>
+        <p>
+          A template value can chain a fixed set of transforms with the
+          <code>|</code> operator. Pipes apply left to right, take literal
+          arguments, and run no flags.
+        </p>
+        <pre><code>"Search for: {{params.query | upper | slice:0:50 | encodeUriComponent}}"</code></pre>
+        <div class="pills">
+          <span class="pill"><code>trim</code> — strip surrounding whitespace</span>
+          <span class="pill"><code>upper</code> — uppercase</span>
+          <span class="pill"><code>lower</code> — lowercase</span>
+          <span class="pill"><code>slice:a:b</code> — substring by index</span>
+          <span class="pill"><code>replace:from:to</code> — first match only</span>
+          <span class="pill"><code>encodeUriComponent</code> — URL-safe encoding</span>
+          <span class="pill"><code>length</code> — string length</span>
+        </div>
+
+        <h2>What is never interpolated</h2>
+        <div class="note note--warn">
+          <span class="note__title">Selectors, CSS bodies, and URL patterns are never templated</span>
+          <p>
+            These fields are <strong>addresses, not data</strong>. They are never
+            run through <code>{{…}}</code> interpolation, so they stay fixed and
+            fully reviewable in an import summary. A templated selector would be
+            impossible to review — you couldn't tell what an automation actually
+            touches — so the boundary is deliberate and hard.
+          </p>
+        </div>
+
+        <h2>Selectors</h2>
+        <p>
+          Every step that targets an element uses a <strong>selector</strong>.
+          There are two strategies. A selector's optional <code>index</code> picks
+          the Nth match (0-based); omitting it means the first match.
+        </p>
+
+        <h3>CSS</h3>
+        <p>
+          Queries the page with <code>querySelectorAll</code>. An invalid CSS
+          selector throws an error.
+        </p>
+        <pre><code>{ "strategy": "css", "value": "#username", "index": 0 }</code></pre>
+
+        <h3>Text</h3>
+        <p>
+          Walks the DOM tree matching an element's text content.
+          <code>exact: false</code> (the default) matches a substring;
+          <code>exact: true</code> requires the full text to match.
+          Whitespace-only and hidden elements are skipped. <code>within</code>
+          scopes the search to a subtree, and <code>index</code> picks the Nth
+          match after filtering.
+        </p>
+        <pre><code>{
+  "strategy": "text",
+  "value": "Sign in",
+  "exact": false,
+  "within": { "strategy": "css", "value": "form#login" },
+  "index": 0
+}</code></pre>
+
+        <h2>Where this comes together</h2>
+        <div class="grid grid--2">
+          <a class="card" href="guide-steps.html">
+            <h3>Steps &amp; operations →</h3>
+            <p>Where selectors are actually used: the full verb vocabulary, from <code>fill</code> and <code>click</code> to loops and branches.</p>
+          </a>
+          <a class="card" href="guide-examples.html">
+            <h3>Cookbook →</h3>
+            <p>Complete, copyable automations that put variables, pipes, and selectors to work end to end.</p>
+          </a>
+        </div>
+
+        <div class="pager">
+          <a href="guide-steps.html"><span>Previous</span>← Steps &amp; operations</a>
+          <a href="guide-examples.html"><span>Next</span>Cookbook →</a>
+        </div>
+      </main>
+    </div>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Steps &amp; operations — Monocle automations</title>
+    <meta
+      name="description"
+      content="The full Monocle automation vocabulary: page steps (click, fill, getText, hide…), engine operations (navigate, clipboard, runCommand…), and control flow (branch, forEach, while)."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html" aria-current="page">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <div class="docs">
+      <aside class="docs__side">
+        <nav aria-label="Automation guide">
+          <h4>Getting started</h4>
+          <a href="guide-getting-started.html">Overview &amp; first run</a>
+          <a href="guide-concepts.html">How automations work</a>
+          <h4>Reference</h4>
+          <a href="guide-triggers.html">Triggers</a>
+          <a href="guide-steps.html" aria-current="page">Steps &amp; operations</a>
+          <a href="guide-variables.html">Variables &amp; selectors</a>
+          <h4>Going further</h4>
+          <a href="guide-examples.html">Cookbook</a>
+          <a href="guide-safety.html">Limits, safety &amp; sharing</a>
+        </nav>
+      </aside>
+
+      <main class="docs__main">
+        <p class="docs__crumb"><a href="automations.html">Automations</a> / Steps &amp; operations</p>
+        <h1>Steps &amp; operations</h1>
+        <p class="lede">
+          Every automation is a list of steps, run in order. Each step does one
+          thing. Steps come in two flavours: <strong>content steps</strong> are
+          DOM actions that run inside the page — click a button, fill a field,
+          read some text. <strong>Engine steps</strong> are privileged
+          operations and control flow that run in the background, in between the
+          content segments — navigate, copy to the clipboard, branch, loop. The
+          engine batches contiguous content steps into one segment, runs them in
+          the page, then takes back over for the next engine op.
+        </p>
+
+        <h2>Page steps</h2>
+        <p>
+          These are page-side DOM interactions. They arrive at the content
+          script with every variable already expanded — there is no templating
+          in the page.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Op</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>click</code></td><td>Click an element — left/middle/right button, single or double, with optional modifier keys.</td></tr>
+              <tr><td><code>wait</code></td><td>Pause until a condition holds: a simple sleep (<code>timeMs</code>), an element reaching a state, a <code>urlIncludes</code> change, or document <code>readyState</code>.</td></tr>
+              <tr><td><code>fill</code></td><td>Set an input's value the way the page expects it (React, Vue, plain DOM), with a configurable clear mode and fired events.</td></tr>
+              <tr><td><code>type</code></td><td>Simulate keystrokes one at a time — lower fidelity than <code>fill</code>, but works in exotic editors.</td></tr>
+              <tr><td><code>key</code></td><td>Send a key combo (e.g. <code>Control</code> + <code>A</code>) to the active element.</td></tr>
+              <tr><td><code>select</code></td><td>Choose a <code>&lt;select&gt;</code> option by value, label, or index.</td></tr>
+              <tr><td><code>check</code> / <code>uncheck</code></td><td>Set a checkbox to a known state (idempotent).</td></tr>
+              <tr><td><code>submit</code></td><td>Submit a form; if the target isn't a form, submits its closest enclosing form.</td></tr>
+              <tr><td><code>hover</code></td><td>Hover an element — e.g. to reveal a dropdown.</td></tr>
+              <tr><td><code>focus</code> / <code>blur</code></td><td>Move keyboard focus onto or off an element.</td></tr>
+              <tr><td><code>scroll</code></td><td>Scroll the window or an element to top/bottom/center, to coordinates, or into view; auto or smooth.</td></tr>
+              <tr><td><code>getText</code></td><td>Read an element's text or an attribute into a variable for later steps.</td></tr>
+              <tr><td><code>removeElement</code></td><td>Remove an element from the page (destructive). Optionally remove every match.</td></tr>
+              <tr><td><code>hideElement</code></td><td>Hide an element via a scoped <code>display: none</code> rule (reversible — reload to undo).</td></tr>
+              <tr><td><code>injectCss</code></td><td>Inject a block of CSS into the page under a scope key.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>A few representative steps:</p>
+        <pre><code>- op: click
+  target: { strategy: "text", value: "Sign in" }
+  button: "left"
+  modifiers: ["Control"]   # Alt | Control | Meta | Shift</code></pre>
+
+        <pre><code>- op: fill
+  target: { strategy: "css", value: "input[name='email']" }
+  text: "{{email}}"
+  clear: "select-all"      # "select-all" (default) | "backspace" | "none"
+  fire: { input: true, change: true }</code></pre>
+
+        <pre><code># Wait for an element to disappear…
+- op: wait
+  for: { selector: { strategy: "css", value: ".spinner" }, state: "hidden" }
+  timeoutMs: 5000
+
+# …or wait for a simple sleep / URL change
+- op: wait
+  for: { urlIncludes: "dashboard" }</code></pre>
+
+        <pre><code>- op: getText
+  from: { strategy: "css", value: "h1" }
+  attr: "textContent"      # "textContent" (default) | "value" | any attribute
+  toVar: "pageTitle"</code></pre>
+
+        <div class="note">
+          <span class="note__title">getText, hide vs remove</span>
+          <p>
+            <code>getText</code> reads an element's text (or a named attribute)
+            into a variable so later steps can interpolate it — the captured
+            value is returned in the workflow result only and is
+            <strong>never logged</strong>. <code>hideElement</code> is
+            reversible: it injects a scoped CSS rule, so a reload brings the
+            element back. <code>removeElement</code> is destructive — it deletes
+            the node outright.
+          </p>
+        </div>
+
+        <h2>Engine operations</h2>
+        <p>
+          Engine steps run in the background between content segments. They
+          handle navigation, the clipboard, notifications, surfaces, and
+          messaging. Their interpolatable fields (URLs, text, messages) are
+          expanded background-side before use.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Op</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>setVariable</code></td><td>Set a runtime variable to an interpolated value for use in later steps.</td></tr>
+              <tr><td><code>toast</code></td><td>Show a brief notification — <code>success</code>, <code>error</code>, or <code>info</code>.</td></tr>
+              <tr><td><code>navigate</code></td><td>Navigate the script's pinned tab to a URL and wait for load (15s max). Destroys the content context — see the note below.</td></tr>
+              <tr><td><code>openUrl</code></td><td>Open a URL with a <code>disposition</code> of <code>newTab</code> (default), <code>currentTab</code>, or <code>newWindow</code>.</td></tr>
+              <tr><td><code>clipboardWrite</code></td><td>Copy interpolated text to the clipboard.</td></tr>
+              <tr><td><code>insertSnippet</code></td><td>Insert a snippet at the page's last-focused editable, or fill a target with it; placeholders are interpolated.</td></tr>
+              <tr><td><code>showSurface</code> / <code>hideSurface</code></td><td>Push or remove a declarative UI surface. Automations can only produce <code>overlay</code> and <code>badge</code> kinds (not <code>modal</code> or <code>picker</code>).</td></tr>
+              <tr><td><code>runCommand</code></td><td>Execute another Monocle command — subject to the policy below.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <pre><code>- op: setVariable
+  name: "result"
+  value: "{{heading | trim}} at {{trigger.url}}"
+
+- op: clipboardWrite
+  text: "Heading: {{heading}}\nURL: {url}"
+
+- op: toast
+  level: "success"          # "success" | "error" | "info" (default: "info")
+  message: "Saved {{count}} records"</code></pre>
+
+        <pre><code>- op: openUrl
+  url: "https://www.google.com/search?q={{params.query | encodeUriComponent}}"
+  disposition: "newTab"     # "newTab" (default) | "currentTab" | "newWindow"</code></pre>
+
+        <div class="note note--warn">
+          <span class="note__title">navigate is flat-only</span>
+          <p>
+            <code>navigate</code> destroys the page's content context, so it
+            <strong>cannot run inside a <code>branch</code> or loop body</strong>
+            — only at the top level of a flat script. The same restriction
+            applies to <code>openUrl</code> with <code>currentTab</code>. Putting
+            navigation inside control flow would fragment the engine's flow
+            state, so it is forbidden.
+          </p>
+        </div>
+
+        <h2>runCommand &amp; its policy</h2>
+        <p>
+          <code>runCommand</code> lets an automation execute another Monocle
+          command by id — for example, to reload the tab or copy the current
+          URL. Because it crosses into the rest of the command system, it is
+          tightly policed.
+        </p>
+        <pre><code>- op: runCommand
+  commandId: "copy-current-url"</code></pre>
+        <div class="note note--warn">
+          <span class="note__title">runCommand policy</span>
+          <p>
+            <strong>Always denied</strong>, for every run: commands that require
+            confirmation, other user scripts (no recursion), and the
+            debug-workflow tool.
+          </p>
+          <p>
+            For <strong>non-manual runs</strong> (anything fired by a trigger),
+            <code>runCommand</code> is further restricted to a static allowlist
+            of navigation, tab, and read-only commands. Manual runs may call any
+            non-denied command; triggered runs may call only these:
+          </p>
+          <div class="pills">
+            <span class="pill"><code>go-back</code></span>
+            <span class="pill"><code>go-forward</code></span>
+            <span class="pill"><code>go-to-parent-url</code></span>
+            <span class="pill"><code>go-to-root-url</code></span>
+            <span class="pill"><code>reload-current-tab</code></span>
+            <span class="pill"><code>hard-reload-current-tab</code></span>
+            <span class="pill"><code>scroll-to-top</code></span>
+            <span class="pill"><code>scroll-to-bottom</code></span>
+            <span class="pill"><code>open-new-tab</code></span>
+            <span class="pill"><code>duplicate-current-tab</code></span>
+            <span class="pill"><code>focus-next-tab</code></span>
+            <span class="pill"><code>focus-previous-tab</code></span>
+            <span class="pill"><code>focus-first-tab</code></span>
+            <span class="pill"><code>focus-last-tab</code></span>
+            <span class="pill"><code>focus-last-active-tab</code></span>
+            <span class="pill"><code>toggle-pin-current-tab</code></span>
+            <span class="pill"><code>toggle-mute-current-tab</code></span>
+            <span class="pill"><code>copy-current-url</code></span>
+            <span class="pill"><code>copy-current-title</code></span>
+            <span class="pill"><code>copy-title-and-url</code></span>
+            <span class="pill"><code>copy-title-and-url-as-markdown</code></span>
+            <span class="pill"><code>focus-first-input</code></span>
+          </div>
+        </div>
+
+        <h2>Control flow</h2>
+        <p>
+          Three engine ops shape how steps run: <code>branch</code> chooses a
+          path, <code>forEach</code> repeats over a list, and <code>while</code>
+          repeats while a condition holds. All three are evaluated in the
+          background with live page state, so a condition can react to what the
+          page actually looks like at that moment.
+        </p>
+
+        <h3>branch</h3>
+        <p>
+          Run one set of steps or another depending on a condition. The
+          <code>else</code> arm is optional.
+        </p>
+        <pre><code>- op: branch
+  if: { kind: "elementExists", selector: { strategy: "css", value: ".error-message" } }
+  then:
+    - op: toast
+      level: "error"
+      message: "Form has errors"
+  else:
+    - op: submit
+      target: { strategy: "css", value: "form" }</code></pre>
+
+        <p>The condition kinds:</p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Kind</th>
+                <th>True when…</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>elementExists</code></td><td>The selector matches anything on the page.</td></tr>
+              <tr><td><code>elementVisible</code></td><td>The selector matches and the element is visible.</td></tr>
+              <tr><td><code>elementText</code></td><td>The element's text compares against a value. Operators: <code>equals</code>, <code>equalsIgnoreCase</code>, <code>notEquals</code>, <code>contains</code>, <code>notContains</code>, <code>startsWith</code>, <code>endsWith</code>.</td></tr>
+              <tr><td><code>urlIncludes</code></td><td>The current URL contains the given string.</td></tr>
+              <tr><td><code>varCompare</code></td><td>A variable compares against a value. Operators: all of the <code>elementText</code> operators, plus <code>greaterThan</code> and <code>lessThan</code> (numeric).</td></tr>
+              <tr><td><code>varMatches</code></td><td>A variable matches a regular expression (pattern ≤ 200 chars, no flags).</td></tr>
+              <tr><td><code>not</code></td><td>Logical NOT of another condition (<code>of</code>).</td></tr>
+              <tr><td><code>allOf</code></td><td>Logical AND of 1–10 conditions.</td></tr>
+              <tr><td><code>anyOf</code></td><td>Logical OR of 1–10 conditions.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>forEach</h3>
+        <p>
+          Repeat a body of steps once per item. Loop over the elements a
+          selector matches, or over the lines of a variable. <code>as</code>
+          names the loop variable (default <code>item</code>) and
+          <code>maxIterations</code> caps the count (default 50).
+        </p>
+        <pre><code>- op: forEach
+  over: { elements: { strategy: "css", value: "input[type='checkbox']" } }
+  as: "item"
+  maxIterations: 50
+  steps:
+    - op: check
+      target: { strategy: "css", value: "input[type='checkbox']" }</code></pre>
+        <div class="note">
+          <span class="note__title">Pinning &amp; loop scope</span>
+          <p>
+            Inside the loop, <code>{{item}}</code> (or your <code>as</code> name)
+            holds the current element's text and <code>{{index}}</code> holds the
+            0-based iteration number; both are scoped to the body and restored
+            afterwards. <strong>Pinning</strong> is the convenient part: a body
+            step whose selector is exactly the loop's selector is automatically
+            bound to the current item — so the <code>check</code> above ticks
+            each checkbox in turn, with no templating needed.
+          </p>
+        </div>
+        <p>Or iterate a variable's lines:</p>
+        <pre><code>- op: forEach
+  over: { variable: "emailList" }
+  as: "email"
+  steps:
+    - op: fill
+      target: { strategy: "css", value: "input[type='email']" }
+      text: "{{email}}"</code></pre>
+
+        <h3>while</h3>
+        <p>
+          Repeat the body while a condition stays true, up to
+          <code>maxIterations</code>. Ideal for "click until it's gone"
+          patterns like pagination.
+        </p>
+        <pre><code>- op: while
+  condition: { kind: "elementExists", selector: { strategy: "text", value: "Load more" } }
+  maxIterations: 10
+  steps:
+    - op: click
+      target: { strategy: "text", value: "Load more" }
+    - op: wait
+      for: { timeMs: 500 }</code></pre>
+
+        <p>
+          Step values come from variables, and elements come from selectors —
+          see <a href="guide-variables.html">Variables &amp; selectors</a> for
+          <code>{{var}}</code> templates, pipes, and the two selector
+          strategies. For loop caps, nesting depth, and the runaway protections
+          that bound all of this, see
+          <a href="guide-safety.html">Limits, safety &amp; sharing</a>.
+        </p>
+
+        <div class="pager">
+          <a href="guide-triggers.html"><span>Previous</span>← Triggers</a>
+          <a href="guide-variables.html"><span>Next</span>Variables &amp; selectors →</a>
+        </div>
+      </main>
+    </div>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

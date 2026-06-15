@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Automations — Monocle</title>
+    <meta
+      name="description"
+      content="Monocle automations are declarative, data-driven workflows — not code. Trigger them manually, on page load, when an element appears, or on a schedule. Fill forms, click flows, scrape text, and more."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html" aria-current="page">Automations</a></li>
+        <li><a href="guide-getting-started.html">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <main>
+      <section class="section wrap">
+        <p class="eyebrow">Automations</p>
+        <h1 class="hero__headline" style="font-size: var(--text-display); max-width: 16ch; margin: 0 0 var(--space-md)">
+          Teach your browser the things you do twice.
+        </h1>
+        <p class="lede">
+          Automations are the repetitive web tasks you do every day — filling a
+          login, clicking through a flow, dismissing a banner, scraping text to
+          your clipboard — captured once and replayed on a keystroke, a page
+          load, or a schedule.
+        </p>
+        <div class="hero__ctas" style="justify-content: flex-start; margin-top: var(--space-lg)">
+          <a class="btn btn--accent" href="guide-getting-started.html">Start the guide</a>
+          <a class="btn btn--outline" href="guide-examples.html">See the cookbook</a>
+        </div>
+      </section>
+
+      <!-- WHAT THEY ARE -->
+      <section class="section--tight wrap">
+        <div class="split">
+          <div>
+            <h2>Data, not code.</h2>
+            <p>
+              An automation is a structured document — fields, steps, and
+              conditions with a fixed set of verbs and capped nesting. There is
+              no <code>eval</code>, no JavaScript, and no arbitrary-code step,
+              and there never will be.
+            </p>
+            <p>
+              That single decision is what makes automations safe to share,
+              trivial to review before you run them, easy to debug, and
+              compliant with the Chrome Web Store and Firefox AMO. You can read
+              exactly what one will do before it does it.
+            </p>
+            <a class="link-arrow" href="guide-concepts.html">How they work, in depth →</a>
+          </div>
+          <div class="split--code">
+            <div class="code-label">automation document</div>
+            <pre><code>name:     "Dev login"
+scope:    dev.example.com
+trigger:  manual
+vars:
+  user:   snippet → dev-username
+  pass:   snippet → dev-password
+steps:
+  fill   #username  → {{user}}
+  fill   #password  → {{pass}}
+  click  "Sign in"
+  wait   url ⊃ "/dashboard"
+  toast  "Logged in ✓"</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- HOW THEY WORK -->
+      <section class="section wrap">
+        <div class="section__head">
+          <h2>How a run unfolds</h2>
+          <p>
+            The background service worker coordinates; the content script does
+            the DOM work. Sensitive operations stay in the background and are
+            never logged.
+          </p>
+        </div>
+        <ol class="flow">
+          <li class="reveal"><div><strong>A trigger fires.</strong> You pick the automation from the palette, press its shortcut, or a page-load / element / schedule trigger arms it.</div></li>
+          <li class="reveal"><div><strong>The engine reads the document by id</strong> and re-validates its structure before running anything.</div></li>
+          <li class="reveal"><div><strong>Variables are interpolated in the background.</strong> <code>{{var}}</code> templates, snippet placeholders, and page context are all resolved here — the page never learns templating.</div></li>
+          <li class="reveal"><div><strong>Contiguous DOM steps batch into a segment</strong> and run in the content script as one workflow: click, fill, wait, getText, hide, and the rest.</div></li>
+          <li class="reveal"><div><strong>Privileged ops run between segments</strong> in the background — navigate, clipboard, run another command, show a surface — and conditions are evaluated against live page state.</div></li>
+          <li class="reveal"><div><strong>Results aggregate</strong> and a success or error toast closes the loop. Extracted text feeds into later steps.</div></li>
+        </ol>
+      </section>
+
+      <!-- TRIGGERS / STEPS overview -->
+      <section class="section wrap">
+        <div class="grid grid--2">
+          <div>
+            <h3>Six ways to trigger</h3>
+            <p class="muted">When an automation runs.</p>
+            <ul>
+              <li><strong>Manual</strong> — from the palette or a keybinding, optionally with a form of parameters.</li>
+              <li><strong>URL match</strong> — when a matching page loads or navigates (SPA-aware).</li>
+              <li><strong>Element appears</strong> — when a selector first shows up on the page.</li>
+              <li><strong>Interval</strong> — every N minutes via the alarm system.</li>
+              <li><strong>Schedule</strong> — daily at a local time.</li>
+              <li><strong>On startup</strong> — when the browser starts.</li>
+            </ul>
+            <a class="link-arrow" href="guide-triggers.html">Trigger reference →</a>
+          </div>
+          <div>
+            <h3>A vocabulary of verbs</h3>
+            <p class="muted">What an automation can do.</p>
+            <ul>
+              <li><strong>Page steps</strong> — click, fill, type, key, select, check, submit, hover, focus, scroll, wait, getText, hideElement, removeElement, injectCss.</li>
+              <li><strong>Engine ops</strong> — setVariable, toast, navigate, openUrl, clipboardWrite, runCommand, insertSnippet, showSurface.</li>
+              <li><strong>Control flow</strong> — branch (if/else), forEach, while, with conditions and capped loops.</li>
+            </ul>
+            <a class="link-arrow" href="guide-steps.html">Steps &amp; operations →</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- WHAT WE SHIP -->
+      <section class="section wrap">
+        <div class="section__head">
+          <h2>What's available today</h2>
+          <p>
+            Automations are driven by you — but Monocle gives you a running
+            start.
+          </p>
+        </div>
+        <div class="grid grid--3">
+          <div class="card reveal">
+            <span class="card__icon">⊞</span>
+            <h3>Curated examples</h3>
+            <p>
+              The options builder ships a set of example automations covering
+              every trigger type and most of the step vocabulary. Add them with
+              one click and edit from there.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">⊘</span>
+            <h3>Feature-owned automations</h3>
+            <p>
+              Some features project their own read-only automations into the
+              engine. Element Hider's re-hide-on-load rules are real
+              automations, shown on the Automations page and managed for you.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">⇄</span>
+            <h3>Import &amp; export</h3>
+            <p>
+              Share automations as JSON. Imports arrive with non-manual triggers
+              disarmed and show a full review summary — every URL, trigger, and
+              risky op — before you save.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- A FEW THINGS YOU CAN BUILD -->
+      <section class="section wrap">
+        <div class="section__head">
+          <h2>A few things you can build</h2>
+          <p>Each of these is a handful of declarative steps.</p>
+        </div>
+        <div class="grid grid--2">
+          <div class="card reveal">
+            <h3>Auto-fill a dev login</h3>
+            <p>
+              Keep credentials in snippets, fill the form, click sign-in, wait
+              for the dashboard, and toast success — bound to a shortcut you can
+              fire from the login page.
+            </p>
+          </div>
+          <div class="card reveal">
+            <h3>Dismiss cookie banners</h3>
+            <p>
+              An <em>element appears</em> trigger watching for “Accept all”
+              clicks it the moment it shows up, with a manual fallback.
+            </p>
+          </div>
+          <div class="card reveal">
+            <h3>Scrape a heading to the clipboard</h3>
+            <p>
+              <code>getText</code> the page's <code>h1</code>, format it with the
+              URL and a timestamp, and write the lot to your clipboard.
+            </p>
+          </div>
+          <div class="card reveal">
+            <h3>Click “Load more” until it's gone</h3>
+            <p>
+              A <code>while</code> loop clicks the pagination button and waits,
+              capped at a safe number of iterations, until the page is fully
+              expanded.
+            </p>
+          </div>
+        </div>
+        <p style="margin-top: var(--space-lg)">
+          <a class="link-arrow" href="guide-examples.html">Read the full cookbook, with documents →</a>
+        </p>
+      </section>
+
+      <!-- SAFETY -->
+      <section class="section--tight wrap">
+        <div class="note">
+          <span class="note__title">Built to be trusted</span>
+          <p>
+            Automations can't run arbitrary JavaScript, can't reach the network,
+            and can't phone home — <code>clipboardWrite</code> and
+            <code>openUrl</code> are the only outbound actions, and both show up
+            in the import review. Runs are capped (one per script per tab,
+            bounded loops, a 5,000-step ceiling), and imported documents land
+            disarmed.
+            <a class="link-arrow" href="guide-safety.html">Limits, safety &amp; sharing →</a>
+          </p>
+        </div>
+      </section>
+
+      <section class="cta-final wrap">
+        <h2 class="cta-final__line">Build your first automation.</h2>
+        <a class="btn btn--accent btn--lg" href="guide-getting-started.html">Open the getting-started guide</a>
+        <p class="cta-final__alt">
+          <a href="guide-triggers.html">Triggers</a> ·
+          <a href="guide-steps.html">Steps</a> ·
+          <a href="guide-variables.html">Variables</a> ·
+          <a href="guide-examples.html">Cookbook</a>
+        </p>
+      </section>
+    </main>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

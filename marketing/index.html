@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Monocle — a command palette for your browser</title>
+    <meta
+      name="description"
+      content="Monocle puts a fast, keyboard-driven command palette on every page and your new tab. Press Cmd+Shift+K, type, and run browser actions, tabs, history, bookmarks, automations, and site commands. Chrome and Firefox."
+    />
+    <meta property="og:title" content="Monocle — a command palette for your browser" />
+    <meta
+      property="og:description"
+      content="Press Cmd+Shift+K on any page. Search tabs, history, bookmarks, and hundreds of browser commands. Build your own automations. No mouse required."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button
+        class="nav-toggle"
+        data-nav-toggle
+        aria-expanded="false"
+        aria-controls="nav-links"
+      >
+        Menu
+      </button>
+      <a class="btn btn--accent" href="#install">Install</a>
+    </header>
+
+    <main>
+      <!-- HERO -->
+      <section class="hero wrap" id="top">
+        <h1 class="hero__headline">Run your browser from the&nbsp;keyboard.</h1>
+        <p class="hero__lede">
+          Monocle is a command palette for Chrome and Firefox. Press
+          <kbd data-key="palette">⌘⇧K</kbd> on any page, type what you want —
+          tabs, history, bookmarks, browser actions, your own automations, site
+          commands — and hit Enter.
+        </p>
+        <div class="hero__ctas" id="install">
+          <a class="btn btn--accent btn--lg" href="#install">Add to Chrome</a>
+          <a class="btn btn--outline btn--lg" href="#install">Add to Firefox</a>
+        </div>
+        <p class="hero__hint">
+          Free · open development · works in Chrome and Firefox (MV3)
+        </p>
+
+        <!-- Live demo palette -->
+        <div
+          class="demo"
+          data-demo
+          data-typing="false"
+          role="img"
+          aria-label="The Monocle command palette: a search field filtering a list of browser commands such as Reload current tab, Capture screenshot, and Close duplicate tabs."
+        >
+          <div class="demo__input">
+            <span class="demo__query" data-demo-query></span
+            ><span class="demo__caret"></span
+            ><span class="demo__placeholder">Search for commands…</span>
+          </div>
+          <p class="demo__group-label">Suggestions</p>
+          <ul class="demo__list" data-demo-list>
+            <li class="demo__row" data-keywords="reload refresh tab">
+              <span class="demo__name">Reload current tab</span>
+              <span class="demo__meta"><kbd data-key="mod">⌘</kbd><kbd>R</kbd></span>
+            </li>
+            <li class="demo__row" data-keywords="capture screenshot page">
+              <span class="demo__name">Capture screenshot</span>
+              <span class="demo__meta">Command</span>
+            </li>
+            <li class="demo__row" data-keywords="mute audio tab sound">
+              <span class="demo__name">Mute current tab</span>
+              <span class="demo__meta">Command</span>
+            </li>
+            <li class="demo__row" data-keywords="close duplicate tabs dup">
+              <span class="demo__name">Close duplicate tabs</span>
+              <span class="demo__meta">Command</span>
+            </li>
+            <li class="demo__row" data-keywords="bookmark add save page">
+              <span class="demo__name">Add Bookmark</span>
+              <span class="demo__meta">Group</span>
+            </li>
+            <li class="demo__row" data-keywords="history search visited">
+              <span class="demo__name">History</span>
+              <span class="demo__meta">Group</span>
+            </li>
+            <li class="demo__row" data-keywords="theme switch dark nord dracula">
+              <span class="demo__name">Themes</span>
+              <span class="demo__meta">Group</span>
+            </li>
+            <li class="demo__row" data-keywords="focus mode block distraction">
+              <span class="demo__name">Start Focus</span>
+              <span class="demo__meta">Command</span>
+            </li>
+          </ul>
+          <div class="demo__footer">
+            <span>Run <kbd data-demo-enter>↵</kbd></span>
+            <span>Actions <kbd data-key="alt">⌥</kbd></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- THREE KEYS -->
+      <section class="section wrap" aria-labelledby="keys-heading">
+        <div class="section__head">
+          <h2 id="keys-heading">Three keys.</h2>
+          <p>No menus to hunt through, no mouse to reach for. Open, type, run.</p>
+        </div>
+        <ol class="keys__steps">
+          <li class="keys__step reveal">
+            <kbd class="keys__cap" data-key="palette">⌘⇧K</kbd>
+            <h3>Open</h3>
+            <p>
+              The palette appears over whatever page you're on — or front and
+              center on your new tab.
+            </p>
+          </li>
+          <li class="keys__step reveal">
+            <kbd class="keys__cap">a–z</kbd>
+            <h3>Type</h3>
+            <p>
+              Search is instant, and results are ranked by how you actually use
+              them. Favorites float to the top.
+            </p>
+          </li>
+          <li class="keys__step reveal">
+            <kbd class="keys__cap">↵</kbd>
+            <h3>Run</h3>
+            <p>
+              Enter runs the command. <kbd data-key="mod">⌘</kbd
+              ><kbd>↵</kbd> runs its alternate action — like “open in a new tab.”
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <!-- TOUR -->
+      <section class="section wrap" aria-label="Product tour">
+        <article class="tour__block reveal">
+          <div class="tour__copy">
+            <h2>Every command, one search away.</h2>
+            <p>
+              Reload, mute, capture a screenshot, close duplicate tabs, clear
+              browsing data, manage windows — the actions your browser hides in
+              menus, surfaced behind a single shortcut. Groups expand into
+              nested pages, and forms take input inline without leaving the
+              keyboard.
+            </p>
+            <a class="link-arrow" href="features.html">See every feature →</a>
+          </div>
+          <div class="tour__panel mini" aria-hidden="true">
+            <div class="mini__row is-active">
+              <span>Close duplicate tabs</span><span class="mini__meta">Command</span>
+            </div>
+            <div class="mini__row">
+              <span>Move tab to new window</span><span class="mini__meta">Command</span>
+            </div>
+            <div class="mini__row">
+              <span>Clear Browser Data</span><span class="mini__meta">Group</span>
+            </div>
+            <div class="mini__row">
+              <span>Copy title + URL as Markdown</span><span class="mini__meta">⌘⇧C</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="tour__block tour__block--flip reveal">
+          <div class="tour__copy">
+            <h2>Automations you build yourself.</h2>
+            <p>
+              Record the repetitive web tasks you do every day — fill a form,
+              click through a flow, dismiss a banner, scrape text to your
+              clipboard. Automations are declarative documents, not code: safe
+              to share, easy to review, triggered on demand, on page load, or on
+              a schedule.
+            </p>
+            <a class="link-arrow" href="automations.html">Explore automations →</a>
+          </div>
+          <div class="tour__panel split--code" aria-hidden="true">
+            <div class="code-label">automation · steps</div>
+            <pre><code>fill   #email     → {{user}}
+fill   #password  → {{secret}}
+click  "Sign in"
+wait   url ⊃ "/dashboard"
+toast  "Logged in ✓"</code></pre>
+          </div>
+        </article>
+
+        <article class="tour__block reveal">
+          <div class="tour__copy">
+            <h2>A calm new tab.</h2>
+            <p>
+              Monocle can replace your new tab page: a large clock, a daily
+              background photo with photographer credit, and the palette front
+              and center. Same commands, same shortcuts, zero clutter.
+            </p>
+          </div>
+          <div class="tour__panel mini" aria-hidden="true">
+            <div style="font-family: var(--font-display); font-size: 3rem; font-weight: 800; color: var(--color-ink); letter-spacing: -0.03em;">
+              9:41
+            </div>
+            <div class="mini__meta" style="margin-bottom: var(--space-sm)">
+              Friday, 15 June
+            </div>
+            <div class="mini__row is-active">
+              <span>Search for commands…</span><span class="mini__meta">⌘⇧K</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="tour__block tour__block--flip reveal">
+          <div class="tour__copy">
+            <h2>Commands that know where you are.</h2>
+            <p>
+              On github.com, Monocle adds repo, pull request, and issue
+              navigation — Conversation, Commits, Checks, Files Changed — and a
+              Toggle Star action. They appear only there. Per-command URL rules
+              decide visibility, and you manage your own allow and deny lists
+              from the palette itself.
+            </p>
+          </div>
+          <div class="tour__panel mini" aria-hidden="true">
+            <div class="mini__meta" style="margin-bottom: var(--space-xs)">
+              github.com/monocle/monocle · pull/214
+            </div>
+            <div class="mini__row is-active">
+              <span>Files Changed</span><span class="mini__meta">Go to</span>
+            </div>
+            <div class="mini__row"><span>Checks</span><span class="mini__meta">Go to</span></div>
+            <div class="mini__row"><span>Commits</span><span class="mini__meta">Go to</span></div>
+            <div class="mini__row"><span>Toggle Star</span><span class="mini__meta">Action</span></div>
+          </div>
+        </article>
+      </section>
+
+      <!-- FEATURE GRID -->
+      <section class="section wrap" aria-labelledby="more-heading">
+        <div class="section__head">
+          <h2 id="more-heading">And a good deal more.</h2>
+          <p>
+            Themes, focus sessions, saved tab groups, inline calculations,
+            snippets, and a site SDK — all behind the same shortcut.
+          </p>
+        </div>
+        <div class="grid grid--3">
+          <div class="card reveal">
+            <span class="card__icon">◑</span>
+            <h3>Ten live themes</h3>
+            <p>
+              Solarized, Monokai, Nord, the Catppuccin family, One Dark, Dracula
+              — plus System, Light, and Dark. Preview as you arrow through them.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">⊘</span>
+            <h3>Focus Mode</h3>
+            <p>
+              Block distracting sites with a timed or Pomodoro session and a
+              hard-block overlay you can't click past.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">▦</span>
+            <h3>Tab Groups</h3>
+            <p>
+              Save the current window's tabs as a named group — pinned state,
+              mute, and Firefox containers and all — and restore it later.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">=</span>
+            <h3>Inline calculations</h3>
+            <p>
+              Type <code>1 mile in km</code>, <code>5'10" in cm</code>, or
+              <code>time in Tokyo</code> straight into search. Enter copies the
+              result.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">¶</span>
+            <h3>Snippets</h3>
+            <p>
+              Reusable text with placeholders — dates, counters, the current
+              URL, a fresh UUID — inserted at your caret on any page.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">⌘</span>
+            <h3>History &amp; bookmarks</h3>
+            <p>
+              History grouped by time and bookmarks browsed by folder, both
+              searchable from the root without opening a panel.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SITE SDK -->
+      <section class="section wrap" aria-labelledby="sdk-heading">
+        <div class="split">
+          <div>
+            <p class="eyebrow">window.Monocle</p>
+            <h2 id="sdk-heading">Your site can join in.</h2>
+            <p>
+              Any page can register its own commands through
+              <code>window.Monocle</code> — open its search, jump to a section,
+              run a saved query — with no extension permissions and no build
+              step.
+            </p>
+            <ul class="stack" style="list-style: none; padding: 0">
+              <li>
+                <strong>Session-only.</strong> Commands live as long as the page
+                does.
+              </li>
+              <li>
+                <strong>Non-privileged.</strong> Site commands run in the page;
+                they can't touch browser APIs or bind global shortcuts.
+              </li>
+              <li>
+                <strong>Validated at the boundary.</strong> Strict schema, size
+                limits, safe icons — checked before the extension sees a thing.
+              </li>
+            </ul>
+            <p>
+              <a class="link-arrow" href="developers.html">Read the developer reference →</a>
+            </p>
+          </div>
+          <div class="split--code">
+            <div class="code-label">page javascript</div>
+            <pre><code>window.Monocle.commands.register({
+  namespace: "docs",
+  name: "Docs",
+  icon: { type: "lucide", name: "BookOpen" },
+  commands: [{
+    id: "open-search",
+    type: "action",
+    name: "Open Site Search",
+    placement: "root",
+    onExecute() {
+      document
+        .querySelector("[type='search']")
+        ?.focus()
+    },
+  }],
+})</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- PERMISSIONS -->
+      <section class="section--tight wrap">
+        <div class="note">
+          <span class="note__title">Permissions, on demand</span>
+          <p>
+            Monocle installs with the minimum it needs. History, bookmarks, and
+            container access are optional permissions — the palette asks the
+            first time you use a command that needs one, and execution is
+            re-checked in the background every time. Nothing is collected, and
+            nothing leaves your device.
+            <a class="link-arrow" href="reviewers.html">Security &amp; privacy →</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- FINAL CTA -->
+      <section class="cta-final wrap">
+        <h2 class="cta-final__line">
+          Press <kbd data-key="palette">⌘⇧K</kbd> and keep your hands where they
+          are.
+        </h2>
+        <a class="btn btn--accent btn--lg" href="#install">Install Monocle</a>
+        <p class="cta-final__alt">
+          <a href="#install">Chrome</a> · <a href="#install">Firefox</a> ·
+          <a href="developers.html">Build from source</a>
+        </p>
+      </section>
+    </main>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" />
+          Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

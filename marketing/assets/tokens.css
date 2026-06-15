@@ -1,0 +1,78 @@
+/* Hallmark · macrostructure: Workbench · genre: atmospheric · nav: N9 · footer: Ft5
+ * theme: custom · vibe: "late-night, keyboard-lit, phosphor mint, precise"
+ * paper: oklch(15% 0.015 270) · accent: oklch(79% 0.16 167)
+ * display: Bricolage Grotesque · body: Geist · mono: Geist Mono
+ * axes: dark / geometric-sans / chromatic-phosphor
+ * studied: no · context: inferred · 2026-06-15
+ */
+
+:root {
+  /* paper — dark slate, tinted toward the product panel hue (270°) */
+  --color-paper: oklch(15% 0.015 270); /* page background */
+  --color-paper-2: oklch(
+    19% 0.018 270
+  ); /* elevated: demo palette, sticky bar, code blocks */
+  --color-paper-3: oklch(
+    24% 0.02 270
+  ); /* second elevation: kbd chips, hovered rows */
+
+  /* ink */
+  --color-ink: oklch(93% 0.008 260); /* headings, primary text */
+  --color-ink-2: oklch(76% 0.01 260); /* body text */
+  --color-muted: oklch(60% 0.012 260); /* captions, meta, annotations */
+
+  /* rules */
+  --color-rule: oklch(30% 0.015 270); /* hairlines, figure borders */
+  --color-rule-2: oklch(25% 0.015 270); /* secondary dividers */
+
+  /* accent — brand mint (#12e0a0 normalized to OKLCH) */
+  --color-accent: oklch(
+    79% 0.16 167
+  ); /* CTA fill, active row indicator, mark */
+  --color-accent-ink: oklch(17% 0.02 270); /* text on accent fills */
+  --color-focus: oklch(82% 0.19 167); /* :focus-visible rings only */
+  --color-accent-dim: oklch(79% 0.16 167 / 0.14);
+
+  /* atmospheric bloom (background only) */
+  --bloom-mint: oklch(79% 0.16 167 / 0.07);
+
+  /* fonts */
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-body: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-display-s: clamp(2rem, 3vw + 1rem, 3rem);
+  --text-display: clamp(2.75rem, 5vw + 1rem, 5.5rem);
+
+  /* spacing */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+  --space-4xl: 8rem;
+
+  --radius-sm: 6px; /* kbd chips, buttons */
+  --radius-md: 10px; /* demo palette rows, code block */
+  --radius-lg: 14px; /* figures, cards, demo palette shell */
+
+  --rule-hair: 1px;
+  --page-gutter: clamp(1rem, 4vw, 2.5rem);
+  --page-max: 72rem; /* 1152px content column */
+
+  /* motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
+}

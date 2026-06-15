@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Features — Monocle</title>
+    <meta
+      name="description"
+      content="Every Monocle command and feature: tab and window control, history, bookmarks, themes, Focus Mode, Tab Groups, Element Hider, inline calculations, snippets, and GitHub-aware commands."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html" aria-current="page">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <main>
+      <section class="section wrap">
+        <p class="eyebrow">Features</p>
+        <h1 class="hero__headline" style="font-size: var(--text-display-s); max-width: 18ch; margin: 0 0 var(--space-md)">
+          Everything your browser can do, on the keyboard.
+        </h1>
+        <p class="lede">
+          Monocle ships with hundreds of built-in commands and a handful of
+          deeper features. Type a few letters and any of them is one keystroke
+          away. Here's the full picture.
+        </p>
+        <ul class="pills">
+          <li class="pill"><a href="#palette" style="color: inherit">Command palette</a></li>
+          <li class="pill"><a href="#tabs" style="color: inherit">Tabs &amp; windows</a></li>
+          <li class="pill"><a href="#library" style="color: inherit">History &amp; bookmarks</a></li>
+          <li class="pill"><a href="#themes" style="color: inherit">Themes</a></li>
+          <li class="pill"><a href="#focus" style="color: inherit">Focus Mode</a></li>
+          <li class="pill"><a href="#groups" style="color: inherit">Tab Groups</a></li>
+          <li class="pill"><a href="#hider" style="color: inherit">Element Hider</a></li>
+          <li class="pill"><a href="#calc" style="color: inherit">Calculations</a></li>
+          <li class="pill"><a href="#snippets" style="color: inherit">Snippets</a></li>
+          <li class="pill"><a href="#github" style="color: inherit">GitHub</a></li>
+        </ul>
+      </section>
+
+      <!-- THE PALETTE -->
+      <section class="section--tight wrap" id="palette">
+        <div class="section__head">
+          <h2>The command palette</h2>
+          <p>
+            The heart of Monocle. One shortcut, every command, ranked by how you
+            use them.
+          </p>
+        </div>
+        <div class="grid grid--3">
+          <div class="card reveal">
+            <span class="card__icon">⌕</span>
+            <h3>Instant search</h3>
+            <p>
+              Full-text matching across a command's name, keywords, description,
+              breadcrumb, and keybinding — exact, prefix, word-boundary,
+              substring, then fuzzy, in that order.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">★</span>
+            <h3>Usage ranking &amp; favorites</h3>
+            <p>
+              Results are scored by frequency, recency (7-day half-life), and
+              time-of-day habit. Star anything to pin it to the top of the empty
+              state.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">⤓</span>
+            <h3>Deep search</h3>
+            <p>
+              Individual bookmarks, tabs, and history entries surface in root
+              search without opening their group — type the title, hit Enter.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">⇥</span>
+            <h3>Nested pages &amp; forms</h3>
+            <p>
+              Groups expand into child pages; forms take text, selects, toggles,
+              and multi-value fields inline — all without touching the mouse.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">↵</span>
+            <h3>Primary &amp; alternate actions</h3>
+            <p>
+              Enter runs a command; <kbd data-key="mod">⌘</kbd><kbd>↵</kbd> runs
+              its alternate (e.g. open in a new tab). <kbd data-key="alt">⌥</kbd>
+              opens a per-command action menu.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="card__icon">⌨</span>
+            <h3>Custom keybindings</h3>
+            <p>
+              Bind any command to a shortcut or a multi-stroke sequence
+              (<code>g g</code>), with conflict detection. High-risk actions are
+              held back from binding on purpose.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- BUILT-IN COMMAND CATALOG -->
+      <section class="section wrap" id="tabs">
+        <div class="section__head">
+          <h2>Built-in commands</h2>
+          <p>
+            A working catalog of what's in the palette out of the box. Every row
+            is searchable and bindable.
+          </p>
+        </div>
+
+        <div class="cmd-group">
+          <h3>Tabs</h3>
+          <div class="cmd-list">
+            <div class="cmd"><span class="cmd__name">Open new tab</span><span class="cmd__desc">Create a blank tab; modifiers control position and focus.</span></div>
+            <div class="cmd"><span class="cmd__name">Duplicate current tab</span><span class="cmd__desc">Duplicate the active tab, optionally to the left or in the background.</span></div>
+            <div class="cmd"><span class="cmd__name">Close current tab</span><span class="cmd__desc">Close the active tab.</span></div>
+            <div class="cmd"><span class="cmd__name">Close duplicate tabs</span><span class="cmd__desc">Close duplicate URLs across every window, keeping one (prefers pinned).</span></div>
+            <div class="cmd"><span class="cmd__name">Close other / left / right tabs</span><span class="cmd__desc">Close everything but the active tab, or everything to one side of it.</span></div>
+            <div class="cmd"><span class="cmd__name">Move tab left / right</span><span class="cmd__desc">Shift the active tab's position, wrapping at the window edge.</span></div>
+            <div class="cmd"><span class="cmd__name">Pin / Unpin current tab</span><span class="cmd__desc">State-aware toggle for the active tab's pinned state.</span></div>
+            <div class="cmd"><span class="cmd__name">Mute / Unmute current tab</span><span class="cmd__desc">State-aware toggle for the active tab's audio.</span></div>
+            <div class="cmd"><span class="cmd__name">Go to tab · Open Tabs</span><span class="cmd__desc">Jump to any open tab across windows, with deep search.</span></div>
+            <div class="cmd"><span class="cmd__name">Copy tab URL</span><span class="cmd__desc">Pick a tab and copy its URL.</span></div>
+          </div>
+        </div>
+
+        <div class="cmd-group">
+          <h3>Windows</h3>
+          <div class="cmd-list">
+            <div class="cmd"><span class="cmd__name">Open new window</span><span class="cmd__desc">Create a new browser window.</span></div>
+            <div class="cmd"><span class="cmd__name">Open new private window</span><span class="cmd__desc">Open an incognito / private window.</span></div>
+            <div class="cmd"><span class="cmd__name">Close current window</span><span class="cmd__desc">Close the active window.</span></div>
+            <div class="cmd"><span class="cmd__name">Move tab to new / popup window</span><span class="cmd__desc">Pull the active tab into a fresh focused or popup window.</span></div>
+            <div class="cmd"><span class="cmd__name">Toggle fullscreen</span><span class="cmd__desc">Switch between fullscreen and normal window modes.</span></div>
+          </div>
+        </div>
+
+        <div class="cmd-group">
+          <h3>Navigation &amp; scrolling</h3>
+          <div class="cmd-list">
+            <div class="cmd"><span class="cmd__name">Go back / forward</span><span class="cmd__desc">Move through history; labels reflect availability.</span></div>
+            <div class="cmd"><span class="cmd__name">Reload / Hard reload / Stop</span><span class="cmd__desc">Reload, hard-reload bypassing cache, or stop the load in progress.</span></div>
+            <div class="cmd"><span class="cmd__name">Go to parent / root URL</span><span class="cmd__desc">Walk one level up the path, or jump to the domain root.</span></div>
+            <div class="cmd"><span class="cmd__name">View page source</span><span class="cmd__desc">Open the current page's source in a new tab.</span></div>
+            <div class="cmd"><span class="cmd__name">Scroll top / bottom / by line / by page</span><span class="cmd__desc">Vim-style scrolling (j/k/h/l), half-page and full-page jumps.</span></div>
+            <div class="cmd"><span class="cmd__name">Zoom in / out / reset</span><span class="cmd__desc">Adjust page zoom in 0.1 steps, or reset to the per-origin default.</span></div>
+            <div class="cmd"><span class="cmd__name">Increment / decrement URL number</span><span class="cmd__desc">Bump the last number in the URL up or down.</span></div>
+          </div>
+        </div>
+
+        <div class="cmd-group">
+          <h3>Copy &amp; capture</h3>
+          <div class="cmd-list">
+            <div class="cmd"><span class="cmd__name">Copy URL · without params · domain</span><span class="cmd__desc">Copy the full URL, just protocol+host+path, or the hostname.</span></div>
+            <div class="cmd"><span class="cmd__name">Copy page title · canonical URL</span><span class="cmd__desc">Copy the tab title, or the page's canonical link.</span></div>
+            <div class="cmd"><span class="cmd__name">Copy title + URL · as Markdown</span><span class="cmd__desc">Copy both together, plain or as an escaped Markdown link.</span></div>
+            <div class="cmd"><span class="cmd__name">Capture screenshot</span><span class="cmd__desc">Capture the visible tab — Enter copies, ⌘ downloads as a PNG.</span></div>
+            <div class="cmd"><span class="cmd__name">Search selection</span><span class="cmd__desc">Search the current page selection with a provider.</span></div>
+          </div>
+        </div>
+
+        <div class="cmd-group" id="library">
+          <h3>Library — bookmarks, history, downloads</h3>
+          <div class="cmd-list">
+            <div class="cmd"><span class="cmd__name">Bookmarks</span><span class="cmd__desc">Browse the full bookmark tree by folder, with deep search.</span></div>
+            <div class="cmd"><span class="cmd__name">Add Bookmark</span><span class="cmd__desc">Bookmark the current page with a title, URL, and folder.</span></div>
+            <div class="cmd"><span class="cmd__name">History</span><span class="cmd__desc">Search history grouped by Today, Yesterday, Last Week, Last Month, Older.</span></div>
+            <div class="cmd"><span class="cmd__name">Recently Closed · Reopen Last Closed Tab</span><span class="cmd__desc">Restore recently closed tabs and windows.</span></div>
+            <div class="cmd"><span class="cmd__name">Downloads</span><span class="cmd__desc">List recent completed downloads and reveal them in the file manager.</span></div>
+          </div>
+        </div>
+
+        <div class="cmd-group">
+          <h3>Clear data &amp; settings</h3>
+          <div class="cmd-list">
+            <div class="cmd"><span class="cmd__name">Clear Browser Data</span><span class="cmd__desc">Clear this site's cookies, or any data type across a chosen time span.</span></div>
+            <div class="cmd"><span class="cmd__name">Browser Management <span class="muted">(Chrome)</span></span><span class="cmd__desc">Jump to internal <code>chrome://</code> settings pages.</span></div>
+            <div class="cmd"><span class="cmd__name">Monocle Settings</span><span class="cmd__desc">Open the full options page.</span></div>
+            <div class="cmd"><span class="cmd__name">Manage Allow / Deny List · Clear Favorites</span><span class="cmd__desc">Edit per-command URL visibility, or clear all favorites at once.</span></div>
+          </div>
+        </div>
+
+        <div class="cmd-group">
+          <h3>Tools</h3>
+          <div class="cmd-list">
+            <div class="cmd"><span class="cmd__name">Copy UUID v4</span><span class="cmd__desc">Generate and copy a fresh UUID.</span></div>
+            <div class="cmd"><span class="cmd__name">Website URL as QR code</span><span class="cmd__desc">Show the current URL as a scannable QR code in a modal.</span></div>
+            <div class="cmd"><span class="cmd__name">Inspect element fonts</span><span class="cmd__desc">Pick an element and copy its computed font summary.</span></div>
+            <div class="cmd"><span class="cmd__name">Create / Insert Snippet</span><span class="cmd__desc">Save reusable text, then insert it at the page caret.</span></div>
+          </div>
+        </div>
+
+        <div class="cmd-group">
+          <h3>Firefox only</h3>
+          <div class="cmd-list">
+            <div class="cmd"><span class="cmd__name">Open container tab</span><span class="cmd__desc">Open a new tab in any Multi-Account Container profile.</span></div>
+            <div class="cmd"><span class="cmd__name">Open current tab in container</span><span class="cmd__desc">Reopen the current page in a different container.</span></div>
+            <div class="cmd"><span class="cmd__name">Toggle Reader Mode</span><span class="cmd__desc">Enable or disable Firefox Reader Mode for the active tab.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- THEMES -->
+      <section class="section wrap" id="themes">
+        <div class="split">
+          <div>
+            <h2>Ten themes, previewed live</h2>
+            <p>
+              Arrow through the <strong>Themes</strong> command and the palette
+              restyles under your cursor before you commit. System mode follows
+              your OS light/dark preference and re-applies when it changes.
+            </p>
+            <ul class="pills">
+              <li class="pill">System</li>
+              <li class="pill">Light</li>
+              <li class="pill">Dark</li>
+              <li class="pill">Solarized Light</li>
+              <li class="pill">Solarized Dark</li>
+              <li class="pill">Monokai</li>
+              <li class="pill">Nord</li>
+              <li class="pill">Catppuccin Latte</li>
+              <li class="pill">Catppuccin Frappé</li>
+              <li class="pill">Catppuccin Macchiato</li>
+              <li class="pill">Catppuccin Mocha</li>
+              <li class="pill">One Dark</li>
+              <li class="pill">Dracula</li>
+            </ul>
+            <p class="muted">
+              <strong>Toggle Theme</strong> cycles System → Light → Dark. Both
+              palette modes and the new-tab page share the choice.
+            </p>
+          </div>
+          <div class="tour__panel mini" aria-hidden="true">
+            <div class="mini__row"><span>System</span><span class="mini__meta">Theme</span></div>
+            <div class="mini__row is-active"><span>Nord</span><span class="mini__meta">Theme · preview</span></div>
+            <div class="mini__row"><span>Dracula</span><span class="mini__meta">Theme</span></div>
+            <div class="mini__row"><span>Catppuccin Mocha</span><span class="mini__meta">Theme</span></div>
+            <div class="mini__row"><span>One Dark</span><span class="mini__meta">Theme</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FEATURE MODULES -->
+      <section class="section wrap">
+        <div class="section__head">
+          <h2>Feature modules</h2>
+          <p>
+            Beyond commands, Monocle bundles a few deeper features — each with
+            its own settings page and page UI, all rendered through the same
+            declarative surface system.
+          </p>
+        </div>
+
+        <div class="card--feature card reveal" id="focus" style="margin-bottom: var(--space-lg)">
+          <h3>Focus Mode</h3>
+          <p>
+            Block distracting sites while you work. Maintain a URL blocklist,
+            then start an indefinite, timed (30 / 60 minute), or Pomodoro
+            session. Blocked pages get a full-screen hard-block overlay you
+            can't click past, and your new tab shows a live countdown badge.
+            Session timing is timestamp-based with a single end alarm — no
+            per-second background work.
+          </p>
+          <ul class="pills">
+            <li class="pill">Start Focus</li>
+            <li class="pill">Start for 30 / 60 Minutes</li>
+            <li class="pill">Start Pomodoro</li>
+            <li class="pill">Stop Focus</li>
+            <li class="pill">Configure Focus Mode</li>
+          </ul>
+        </div>
+
+        <div class="card--feature card reveal" id="groups" style="margin-bottom: var(--space-lg)">
+          <h3>Tab Groups</h3>
+          <p>
+            Save the current window's tabs as a named collection — preserving
+            each tab's pinned state, muted audio, and (on Firefox) its container
+            — and restore the whole set later. On Chrome, a second set of
+            commands drives native tab groups: add to group, group the window,
+            rename, recolor, collapse, and ungroup.
+          </p>
+          <ul class="pills">
+            <li class="pill">Save Tabs as Group</li>
+            <li class="pill">Restore Tab Group</li>
+            <li class="pill">Add Tab to Group <span class="muted">(Chrome)</span></li>
+            <li class="pill">Rename / Recolor / Collapse <span class="muted">(Chrome)</span></li>
+          </ul>
+        </div>
+
+        <div class="card--feature card reveal" id="hider">
+          <h3>Element Hider</h3>
+          <p>
+            “Hide element on this page” puts the page into pick-mode — hover to
+            highlight, click to hide. Monocle generates a stable selector, saves
+            a per-domain rule, and hides the element immediately. It re-hides on
+            every future page load through a read-only automation, so a stale
+            selector can never block an unrelated element.
+          </p>
+          <ul class="pills">
+            <li class="pill">Hide element on this page</li>
+            <li class="pill">Manage hidden elements</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- CALCULATIONS -->
+      <section class="section wrap" id="calc">
+        <div class="split">
+          <div>
+            <h2>Inline calculations</h2>
+            <p>
+              Start typing math, a unit conversion, or a time-zone lookup and
+              the answer appears right above your search results. Enter copies
+              it and keeps the palette open. Three providers cover it:
+            </p>
+            <ul>
+              <li><strong>Math</strong> — <code>1 + 89</code>, <code>sqrt(16)</code>, <code>2 * 3</code></li>
+              <li><strong>Units</strong> — <code>1 mile in km</code>, <code>5 kg to lb</code>, <code>5'10" in cm</code>, <code>6 stone 4 lb</code></li>
+              <li><strong>Time</strong> — <code>time in Auckland</code>, <code>time in New York</code></li>
+            </ul>
+            <p class="muted">
+              Powered by a hardened mathjs (injection functions disabled, in the
+              background only) and <code>Intl.DateTimeFormat</code>. Results are
+              ephemeral — never stored, never ranked.
+            </p>
+          </div>
+          <div class="tour__panel mini" aria-hidden="true">
+            <div class="mini__meta">5'10" in cm</div>
+            <div class="mini__row is-active"><span>177.8 cm</span><span class="mini__meta">Units · ↵ copies</span></div>
+            <div class="mini__meta" style="margin-top: var(--space-sm)">time in Tokyo</div>
+            <div class="mini__row"><span>10:41 PM</span><span class="mini__meta">Time</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SNIPPETS -->
+      <section class="section wrap" id="snippets">
+        <div class="split">
+          <div class="tour__panel split--code" aria-hidden="true" style="order: 0">
+            <div class="code-label">snippet body</div>
+            <pre><code>Hi, thanks for reaching out on {date:PP}.
+
+Ref: {uuid}
+— sent from {domain}</code></pre>
+          </div>
+          <div>
+            <h2>Snippets</h2>
+            <p>
+              Save reusable text and insert it at your caret on any page. Bodies
+              support placeholders resolved at insert time — and snippets can
+              carry their own custom shortcut (a modifier is required so it fires
+              while you're typing in a field).
+            </p>
+            <ul>
+              <li><code>{date:FORMAT}</code> — any date-fns format, plus <code>{date}</code> / <code>{time}</code> / <code>{datetime}</code></li>
+              <li><code>{url}</code> · <code>{title}</code> · <code>{domain}</code> · <code>{path}</code></li>
+              <li><code>{uuid}</code> · <code>{timestamp}</code> · <code>{i}</code> (a persisted counter)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- GITHUB / CONTEXTUAL -->
+      <section class="section wrap" id="github">
+        <div class="section__head">
+          <h2>Commands that know where you are</h2>
+          <p>
+            Built-in contextual commands appear only on the sites they belong
+            to. The GitHub integration is the flagship.
+          </p>
+        </div>
+        <div class="grid grid--2">
+          <div class="card reveal">
+            <h3>Go to &amp; Search</h3>
+            <p>
+              Jump to Code, Issues, Pull Requests, Actions, Releases, Branches,
+              Commits, Wiki, Discussions, Insights, Security, or Settings — plus
+              in-page and global code search.
+            </p>
+          </div>
+          <div class="card reveal">
+            <h3>My GitHub &amp; Create</h3>
+            <p>
+              Your open PRs, PRs awaiting review, assigned issues, and
+              notifications; quick-create a new issue, PR, release, or
+              discussion.
+            </p>
+          </div>
+          <div class="card reveal">
+            <h3>PR &amp; issue navigation</h3>
+            <p>
+              On a pull request: Conversation, Commits, Checks, Files Changed,
+              and back to Code. On an issue: Conversation and Code.
+            </p>
+          </div>
+          <div class="card reveal">
+            <h3>Toggle Star</h3>
+            <p>
+              Star or unstar the current repository without leaving the
+              keyboard. Visibility is driven by per-command URL rules.
+            </p>
+          </div>
+        </div>
+        <p style="margin-top: var(--space-lg)">
+          <a class="link-arrow" href="developers.html">How URL rules and the site SDK work →</a>
+        </p>
+      </section>
+
+      <section class="cta-final wrap">
+        <h2 class="cta-final__line">Ready when your hands are.</h2>
+        <a class="btn btn--accent btn--lg" href="index.html#install">Install Monocle</a>
+      </section>
+    </main>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

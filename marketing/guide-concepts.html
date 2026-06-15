@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How automations work — Monocle</title>
+    <meta
+      name="description"
+      content="How Monocle automations execute: the trigger-to-DOM pipeline, segmentation, background-side interpolation, and why automations are data and never code."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html" aria-current="page">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <div class="docs">
+      <aside class="docs__side">
+        <nav aria-label="Automation guide">
+          <h4>Getting started</h4>
+          <a href="guide-getting-started.html">Overview &amp; first run</a>
+          <a href="guide-concepts.html" aria-current="page">How automations work</a>
+          <h4>Reference</h4>
+          <a href="guide-triggers.html">Triggers</a>
+          <a href="guide-steps.html">Steps &amp; operations</a>
+          <a href="guide-variables.html">Variables &amp; selectors</a>
+          <h4>Going further</h4>
+          <a href="guide-examples.html">Cookbook</a>
+          <a href="guide-safety.html">Limits, safety &amp; sharing</a>
+        </nav>
+      </aside>
+
+      <main class="docs__main">
+        <p class="docs__crumb"><a href="automations.html">Automations</a> / How automations work</p>
+        <h1>How automations work</h1>
+        <p class="lede">
+          An automation is a declarative document, not a program. You describe
+          the work — the steps, the variables, the conditions — and Monocle's
+          background engine carries it out, handing the DOM work to a content
+          script running in your page. Understanding that split is the key to
+          writing automations that behave predictably.
+        </p>
+
+        <h2>The execution pipeline</h2>
+        <p>
+          Whether an automation starts from the palette, a keybinding, a
+          matching page, or a schedule, every run unfolds the same way. The
+          background service worker coordinates; the content script touches the
+          page.
+        </p>
+        <ol class="flow">
+          <li><div>A <strong>trigger fires</strong> — a manual selection, a page that matches the scope, an element that appears, an interval, a schedule, or browser startup.</div></li>
+          <li><div>The <strong>engine reads the stored document by id</strong>. It always reads fresh from storage, so the run reflects the document as it exists now, not a cached copy.</div></li>
+          <li><div>Variables are <strong>interpolated in the background</strong> — <code>{{var}}</code> templates, snippet bodies, and trigger context are expanded before the page is involved.</div></li>
+          <li><div>Contiguous <strong>content steps batch into a segment</strong>, are lowered to a workflow, and run in the page all at once.</div></li>
+          <li><div><strong>Engine ops run between segments</strong> — navigate, clipboard, <code>runCommand</code> — and <strong>conditions evaluate against live page state</strong> as <code>branch</code>, <code>forEach</code>, and <code>while</code> are reached.</div></li>
+          <li><div>Results <strong>aggregate</strong> across segments, and a <strong>success or error toast</strong> reports the outcome (unless suppressed).</div></li>
+          <li><div>Text captured by <code>getText</code> <strong>feeds later steps</strong> — into conditions, templates, and clipboard writes downstream.</div></li>
+        </ol>
+
+        <h2>Segmentation</h2>
+        <p>
+          The engine doesn't ship your steps to the page one at a time. It
+          partitions them: a run of <strong>content (DOM) steps</strong> batches
+          into a single <em>segment</em> that executes in the page atomically,
+          and an <strong>engine step</strong> interrupts between segments to run
+          in the background. The next segment of content steps follows, and so
+          on.
+        </p>
+        <pre><code>[content step, content step, content step]   ← segment 1 (runs in page)
+[engine step]                                ← runs in background
+[content step, content step]                 ← segment 2 (runs in page)
+[branch → content steps inside]              ← segment 3 (branches recurse)
+[getText]                                    ← end of segment 4, extract vars
+[engine step]                                ← engine op with extracted vars</code></pre>
+        <p>
+          This partition is what makes the model work. Sensitive operations —
+          resolving credentials, writing the clipboard, deciding which branch to
+          take — stay in the background and never reach the page. And because a
+          segment returns its results before the next engine step runs, a
+          <code>getText</code> result is available to feed the very next
+          condition: fill a form, submit, wait for the response page, read the
+          confirmation text, then copy it.
+        </p>
+
+        <h2>Interpolation happens in the background</h2>
+        <p>
+          Every interpolatable field — <code>fill.text</code>,
+          <code>setVariable.value</code>, <code>toast.message</code>,
+          <code>navigate.url</code> — is expanded in the background, before the
+          content script sees anything. <code>{{var}}</code> templates and
+          snippet placeholders are resolved into plain strings up front.
+        </p>
+        <p>
+          The content executor never learns templating. It receives finished
+          values and sets them on the page. And one field type is
+          <strong>never</strong> interpolated: <strong>selectors</strong> (along
+          with CSS bodies and URL patterns). They are addresses, not data — a
+          templated selector would be unreviewable in an import summary, so it is
+          a hard boundary.
+        </p>
+
+        <h2>Data, not code</h2>
+        <div class="note">
+          <span class="note__title">A hard boundary</span>
+          <p>
+            There is no <code>eval</code>, no <code>new Function</code>, and no
+            arbitrary-JavaScript step — and there never will be. An automation is
+            a structured document with fixed verbs and capped nesting:
+            configuration, not a program. That single constraint is what makes
+            automations safe to share, straightforward to review, easy to debug
+            step by step, and compliant with Chrome Web Store and Firefox AMO
+            policies.
+          </p>
+        </div>
+
+        <h2>The document shape</h2>
+        <p>
+          Every automation is a stored document with a fixed shape. The id
+          doubles as the generated palette command id; the rest describes
+          presentation, scope, when it runs, the values it uses, and the work
+          itself.
+        </p>
+        <pre><code>{
+  "id": "9f8e7d6c-…",                    // UUID; becomes the command id
+  "schemaVersion": 1,
+  "name": "Auto-fill login",             // 1–100 chars
+  "description": "Optional narrative",   // 1–2000 chars
+  "icon": "LogIn",                       // Lucide icon name
+  "color": "teal",                       // preset color
+  "enabled": true,                       // master switch
+  "urlRules": {
+    "allowUrls": ["dev.example.com"],    // pages it may touch
+    "denyUrls": []                       // pages it must not
+  },
+  "triggers": [{ "type": "manual" }],    // when it runs
+  "vars": {                              // named values
+    "user": { "kind": "snippet", "snippetId": "a1b2…" },
+    "password": { "kind": "literal", "value": "pwd123" }
+  },
+  "steps": [                             // the work
+    { "op": "fill", "target": { "strategy": "css", "value": "#username" }, "text": "{{user}}" },
+    { "op": "click", "target": { "strategy": "text", "value": "Sign in" } }
+  ],
+  "options": {
+    "showResultToast": true              // show the success/error toast
+  }
+}</code></pre>
+
+        <h2>Concurrency</h2>
+        <div class="note">
+          <span class="note__title">One run at a time</span>
+          <p>
+            Only one run of a given automation happens per tab at once. If a
+            trigger fires while that script is already running on the tab, the
+            re-entrant run is <strong>dropped</strong>, not queued. Non-manual
+            runs of the same script on the same tab also observe a
+            <strong>5-second cooldown</strong> between fires, which keeps a noisy
+            page or a tight interval from starting a trigger storm.
+          </p>
+        </div>
+
+        <div class="pager">
+          <a href="guide-getting-started.html"><span>Previous</span>← Overview &amp; first run</a>
+          <a href="guide-triggers.html"><span>Next</span>Triggers →</a>
+        </div>
+      </main>
+    </div>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Getting started with automations — Monocle</title>
+    <meta
+      name="description"
+      content="Get started building Monocle automations: what they are, where to find the builder, and a step-by-step walkthrough of your first automation."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html" aria-current="page">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <div class="docs">
+      <aside class="docs__side">
+        <nav aria-label="Automation guide">
+          <h4>Getting started</h4>
+          <a href="guide-getting-started.html" aria-current="page">Overview &amp; first run</a>
+          <a href="guide-concepts.html">How automations work</a>
+          <h4>Reference</h4>
+          <a href="guide-triggers.html">Triggers</a>
+          <a href="guide-steps.html">Steps &amp; operations</a>
+          <a href="guide-variables.html">Variables &amp; selectors</a>
+          <h4>Going further</h4>
+          <a href="guide-examples.html">Cookbook</a>
+          <a href="guide-safety.html">Limits, safety &amp; sharing</a>
+        </nav>
+      </aside>
+
+      <main class="docs__main">
+        <p class="docs__crumb"><a href="automations.html">Automations</a> / Getting started</p>
+        <h1>Getting started with automations</h1>
+        <p class="lede">
+          Automations let you capture a repetitive web task once and replay it
+          on a keystroke, a page load, or a schedule. This guide takes you from
+          zero to a working automation, then on to the full reference. No
+          programming required — automations are declarative documents, not
+          code.
+        </p>
+
+        <h2>What you'll need</h2>
+        <p>
+          Just Monocle, installed in Chrome or Firefox. Everything happens in
+          the extension's options page — there's nothing to install, no account,
+          and no server.
+        </p>
+
+        <h2>Open the builder</h2>
+        <ol class="flow">
+          <li><div>Open the palette with <kbd data-key="palette">⌘⇧K</kbd> and run <strong>Monocle Settings</strong> (or right-click the extension icon → Options).</div></li>
+          <li><div>Go to the <strong>Automations</strong> section.</div></li>
+          <li><div>Click <strong>Add Examples</strong> to drop in a set of curated automations covering every trigger type and most of the step vocabulary — the fastest way to see what's possible.</div></li>
+        </ol>
+        <div class="note">
+          <span class="note__title">Tip</span>
+          <p>
+            Every automation you create also becomes a palette command
+            (<code>userscript-&lt;id&gt;</code>), so you can run it by name from
+            anywhere — and give it a keybinding later.
+          </p>
+        </div>
+
+        <h2>The mental model in one minute</h2>
+        <p>
+          An automation is a stored document with four moving parts. Keep these
+          in mind and the rest of the guide falls into place:
+        </p>
+        <ul>
+          <li><strong>Triggers</strong> — when it runs (manually, on a matching page, when an element appears, on an interval, on a schedule, at startup).</li>
+          <li><strong>Scope</strong> — the URL allow/deny rules that decide which pages it's allowed to touch.</li>
+          <li><strong>Variables</strong> — named values: fixed literals, references to snippets, or runtime values captured during the run.</li>
+          <li><strong>Steps</strong> — the work: page actions like click and fill, engine ops like navigate and clipboard, and control flow like branch and loops.</li>
+        </ul>
+        <p>
+          <a class="link-arrow" href="guide-concepts.html">See exactly how a run unfolds →</a>
+        </p>
+
+        <h2>Build your first automation</h2>
+        <p>
+          Let's auto-fill a development login. Create a new automation and give
+          it a name, an icon, and a scope so it only runs where it should.
+        </p>
+        <pre><code>name:    "Dev login"
+icon:    LogIn
+scope:   allowUrls: ["dev.example.com"]
+trigger: manual</code></pre>
+
+        <h3>1. Store the credentials as variables</h3>
+        <p>
+          Keep the username and password in snippets, then reference them from
+          the automation. Snippet-backed variables are resolved in the
+          background and never logged.
+        </p>
+        <pre><code>vars:
+  user: { kind: "snippet", snippetId: "dev-username" }
+  pass: { kind: "snippet", snippetId: "dev-password" }</code></pre>
+
+        <h3>2. Add the steps</h3>
+        <p>
+          Fill the two fields, click the button, wait for the dashboard, and
+          confirm with a toast. The <code>{{user}}</code> and
+          <code>{{pass}}</code> templates are expanded before the page ever sees
+          them.
+        </p>
+        <pre><code>steps:
+  - fill   { target: "#username", text: "{{user}}" }
+  - fill   { target: "#password", text: "{{pass}}" }
+  - click  { target: text "Sign in" }
+  - wait   { for: { urlIncludes: "dashboard" }, timeoutMs: 5000 }
+  - toast  { level: "success", message: "Logged in" }</code></pre>
+
+        <h3>3. Test it</h3>
+        <p>
+          Open the dev site, then use <strong>Test on Active Tab</strong> in the
+          builder to run the automation and see a per-step outcome list. Fix any
+          selector that didn't match, and you're done.
+        </p>
+
+        <h3>4. Give it a shortcut (optional)</h3>
+        <p>
+          In Monocle's keyboard settings, bind this automation's command to a
+          shortcut like <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>L</kbd>. A non-shift
+          modifier is required so the binding still fires while a form field is
+          focused.
+        </p>
+
+        <h2>Where to go next</h2>
+        <ul>
+          <li><a href="guide-concepts.html">How automations work</a> — segmentation, interpolation, and the execution pipeline.</li>
+          <li><a href="guide-triggers.html">Triggers</a> — the six ways an automation can start.</li>
+          <li><a href="guide-steps.html">Steps &amp; operations</a> — the full verb vocabulary.</li>
+          <li><a href="guide-variables.html">Variables &amp; selectors</a> — templates, pipes, and finding elements.</li>
+          <li><a href="guide-examples.html">Cookbook</a> — complete, copyable automations.</li>
+          <li><a href="guide-safety.html">Limits, safety &amp; sharing</a> — caps, the trust model, import/export.</li>
+        </ul>
+
+        <div class="pager">
+          <span></span>
+          <a href="guide-concepts.html"><span>Next</span>How automations work →</a>
+        </div>
+      </main>
+    </div>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

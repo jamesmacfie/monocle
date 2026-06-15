@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Limits, safety &amp; sharing — Monocle automations</title>
+    <meta
+      name="description"
+      content="Monocle automation guardrails: execution caps, structural rules, the trust model, the credentials caveat, and safe import/export."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html" aria-current="page">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <div class="docs">
+      <aside class="docs__side">
+        <nav aria-label="Automation guide">
+          <h4>Getting started</h4>
+          <a href="guide-getting-started.html">Overview &amp; first run</a>
+          <a href="guide-concepts.html">How automations work</a>
+          <h4>Reference</h4>
+          <a href="guide-triggers.html">Triggers</a>
+          <a href="guide-steps.html">Steps &amp; operations</a>
+          <a href="guide-variables.html">Variables &amp; selectors</a>
+          <h4>Going further</h4>
+          <a href="guide-examples.html">Cookbook</a>
+          <a href="guide-safety.html" aria-current="page">Limits, safety &amp; sharing</a>
+        </nav>
+      </aside>
+
+      <main class="docs__main">
+        <p class="docs__crumb"><a href="automations.html">Automations</a> / Limits, safety &amp; sharing</p>
+        <h1>Limits, safety &amp; sharing</h1>
+        <p class="lede">
+          Automations are powerful, but they're bounded on purpose. Every limit
+          on this page exists for one reason: so a runaway loop, a buggy
+          selector, or a script you imported from someone else can't quietly
+          cause harm. The guardrails are enforced when you save and re-checked
+          when a script actually runs.
+        </p>
+
+        <h2>Execution caps</h2>
+        <p>
+          These are the hard ceilings on what a single automation can be and do.
+          They keep documents small enough to review and runs short enough to
+          stay safe.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Limit</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Scripts per browser</td>
+                <td>200</td>
+              </tr>
+              <tr>
+                <td>Steps per script (including nested)</td>
+                <td>100</td>
+              </tr>
+              <tr>
+                <td>Control-flow nesting depth</td>
+                <td>3</td>
+              </tr>
+              <tr>
+                <td>Loop iterations (per loop)</td>
+                <td>50 default, hard max 1000</td>
+              </tr>
+              <tr>
+                <td>Total executed steps per run</td>
+                <td>5000 (runaway protection)</td>
+              </tr>
+              <tr>
+                <td>Triggers per script</td>
+                <td>5 (at most one of each non-manual type)</td>
+              </tr>
+              <tr>
+                <td>Variables</td>
+                <td>50</td>
+              </tr>
+              <tr>
+                <td>Manual-trigger parameters</td>
+                <td>10</td>
+              </tr>
+              <tr>
+                <td>String fields</td>
+                <td>&le;2000 chars</td>
+              </tr>
+              <tr>
+                <td>CSS / clipboard bodies</td>
+                <td>&le;10000 chars</td>
+              </tr>
+              <tr>
+                <td>Regex patterns</td>
+                <td>&le;200 chars, no user-supplied flags</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <span class="note__title">Checked twice</span>
+          <p>
+            Every cap is enforced when you save a document and re-checked by the
+            engine at run time. A script that somehow slips past one gate still
+            stops at the other.
+          </p>
+        </div>
+
+        <h2>Structural rules</h2>
+        <p>
+          A few rules aren't about size — they're about keeping the execution
+          model coherent. These constraints are what let the engine reason about
+          a run with confidence:
+        </p>
+        <ul>
+          <li>
+            <strong>Navigation can't live inside branches or loops.</strong>
+            <code>navigate</code> (or <code>openUrl</code> with
+            <code>currentTab</code>) destroys the content context, so it's only
+            allowed at the top level of a flat script — never inside a
+            <code>branch</code> or loop body.
+          </li>
+          <li>
+            <strong>One concurrent run per script per tab.</strong> If a trigger
+            fires while the script is already running on that tab, the new run is
+            dropped, not queued.
+          </li>
+          <li>
+            <strong>A 5-second cooldown between non-manual runs</strong> of the
+            same script on the same tab, so a trigger storm can't hammer a page.
+          </li>
+          <li>
+            <strong>Imported scripts arrive with non-manual triggers
+            disarmed.</strong> Nothing fires on its own until you explicitly arm
+            it in the editor.
+          </li>
+        </ul>
+
+        <h2>What automations cannot do</h2>
+        <p>
+          The most important guarantees are the things an automation simply
+          can't express. This is a deliberate boundary, not a missing feature:
+        </p>
+        <div class="note">
+          <span class="note__title">Hard boundaries</span>
+          <p>
+            <strong>No arbitrary JavaScript.</strong> There is no
+            <code>eval</code>, no <code>new Function</code>, and no
+            <code>runJs</code> step — and there never will be. It's a policy
+            boundary, not an oversight.
+          </p>
+          <p>
+            <strong>No page mutation outside the prescribed steps.</strong> A
+            script can only do what the fixed step vocabulary allows; it can't
+            create or run code on the page.
+          </p>
+          <p>
+            <strong>No remote code.</strong> Every step comes from the stored
+            document — never fetched from the network at run time.
+          </p>
+          <p>
+            <strong>No data exfiltration.</strong> Automations don't phone home.
+            <code>clipboardWrite</code> and <code>openUrl</code> are the only
+            outbound actions, and both are surfaced in the import review.
+          </p>
+        </div>
+
+        <h2>The credentials caveat</h2>
+        <p>
+          Automations can fill login forms by pulling a username and password
+          from snippets. That's genuinely useful — and it comes with one honest
+          warning.
+        </p>
+        <div class="note note--warn">
+          <span class="note__title">Read this before storing a password</span>
+          <p>
+            Snippet-backed credentials live <strong>unencrypted</strong> in
+            <code>chrome.storage.local</code>. Monocle encrypts nothing itself;
+            it relies on the browser and operating system for disk encryption.
+          </p>
+          <p>
+            Use this only for low-stakes dev and test credentials. For
+            high-value accounts, reach for a real password manager with autofill
+            — not an automation.
+          </p>
+          <p>
+            Credentials are interpolated in the background and are never logged;
+            they reach the page only through the <code>fill</code> step's native
+            value-setter.
+          </p>
+        </div>
+
+        <h2>Import &amp; export</h2>
+        <p>
+          Sharing an automation is just moving a JSON document — and the
+          importer treats anything from outside as untrusted until you say
+          otherwise.
+        </p>
+        <h3>Import</h3>
+        <p>
+          Drop a JSON file into the importer. Monocle strips the
+          <code>id</code> and timestamps, validates the rest, and
+          <strong>disarms every non-manual trigger</strong>. Before anything is
+          saved, a review dialog lays out exactly what the script would do:
+        </p>
+        <ul>
+          <li>Every URL pattern in its scope</li>
+          <li>Each trigger's type and fire condition</li>
+          <li>An op-class summary (click, fill, branch, and so on)</li>
+          <li>Snippets it references</li>
+          <li>URLs it would open</li>
+          <li>Clipboard and command usage</li>
+        </ul>
+        <p>You save the script only after you've reviewed that summary.</p>
+        <h3>Export</h3>
+        <p>
+          Export saves the document as JSON. Note what's <em>not</em> in the
+          file: keybindings, favorites, and per-command URL-rule overrides are
+          left out, because they live in command settings rather than the
+          automation document itself.
+        </p>
+
+        <h2>Runtime limits at a glance</h2>
+        <p>
+          The limits that bite during an actual run, in one place:
+        </p>
+        <ul>
+          <li><strong>Concurrency</strong> — one concurrent run per script per tab.</li>
+          <li><strong>Cooldown</strong> — 5 seconds between non-manual runs of the same script on the same tab.</li>
+          <li><strong>Runaway cap</strong> — 5000 executed steps per run.</li>
+          <li><strong>Loops</strong> — 50 iterations by default, hard max 1000.</li>
+          <li><strong>Timeouts</strong> — <code>wait</code> steps default to 5 seconds; navigation has a 15-second maximum.</li>
+        </ul>
+        <p>
+          Exceed any of these and the run stops with an error toast — it never
+          fails silently.
+        </p>
+
+        <div class="grid grid--2">
+          <div class="card">
+            <h3>Build something first</h3>
+            <p>
+              Limits make more sense once you've written a script. Start with the
+              walkthrough.
+            </p>
+            <p><a class="link-arrow" href="guide-getting-started.html">Getting started →</a></p>
+          </div>
+          <div class="card">
+            <h3>See it all in action</h3>
+            <p>
+              The cookbook has complete, copyable automations that stay well
+              inside every cap here.
+            </p>
+            <p><a class="link-arrow" href="guide-examples.html">Cookbook →</a></p>
+          </div>
+        </div>
+
+        <div class="pager">
+          <a href="guide-examples.html"><span>Prev</span>← Cookbook</a>
+          <a href="automations.html"><span>More</span>Back to Automations →</a>
+        </div>
+      </main>
+    </div>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

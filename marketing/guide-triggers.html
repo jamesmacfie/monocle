@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Triggers — Monocle automations</title>
+    <meta
+      name="description"
+      content="The six ways a Monocle automation can run: manual, URL match, element appears, interval, schedule, and on startup."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="guide-getting-started.html" aria-current="page">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <div class="docs">
+      <aside class="docs__side">
+        <nav aria-label="Automation guide">
+          <h4>Getting started</h4>
+          <a href="guide-getting-started.html">Overview &amp; first run</a>
+          <a href="guide-concepts.html">How automations work</a>
+          <h4>Reference</h4>
+          <a href="guide-triggers.html" aria-current="page">Triggers</a>
+          <a href="guide-steps.html">Steps &amp; operations</a>
+          <a href="guide-variables.html">Variables &amp; selectors</a>
+          <h4>Going further</h4>
+          <a href="guide-examples.html">Cookbook</a>
+          <a href="guide-safety.html">Limits, safety &amp; sharing</a>
+        </nav>
+      </aside>
+
+      <main class="docs__main">
+        <p class="docs__crumb"><a href="automations.html">Automations</a> / Triggers</p>
+        <h1>Triggers</h1>
+        <p class="lede">
+          Triggers decide <strong>when</strong> an automation runs. A script can
+          carry up to five triggers, and at most one of each non-manual type —
+          so a single automation might run from the palette, when a matching page
+          loads, and again on a daily schedule. There are six trigger types in
+          all.
+        </p>
+
+        <div class="note">
+          <span class="note__title">Before you arm anything</span>
+          <p>
+            Imported automations arrive with every non-manual trigger
+            <strong>disarmed</strong>. They won't fire on their own until you
+            open the automation in the builder and explicitly arm them. Manual
+            triggers always run on demand.
+          </p>
+        </div>
+
+        <h2>manual</h2>
+        <p>
+          Runs when you select the automation from the palette or press its
+          keybinding. The bread-and-butter trigger for one-off tasks, form
+          filling, and data extraction.
+        </p>
+        <p>
+          A manual trigger can also define a <strong>parameter form</strong> — a
+          set of <code>text</code>, <code>textarea</code>, and <code>select</code>
+          fields. When you run the automation, the palette shows that form first,
+          and your answers land in <code>{{params.fieldId}}</code> variables you
+          can interpolate into steps.
+        </p>
+        <pre><code>{
+  "type": "manual",
+  "parameters": [
+    { id: "query", label: "Search for", type: "text", required: true },
+    { id: "lang",  label: "Language",   type: "select", options: [
+      { value: "en", label: "English" },
+      { value: "es", label: "Spanish" }
+    ]}
+  ]
+}</code></pre>
+
+        <h2>urlMatch</h2>
+        <p>
+          Fires when a page within the script's scope loads, or when a
+          single-page-app navigation happens inside it.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Field</th><th>Default</th><th>What it does</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>on: ["load", "spa"]</code></td>
+                <td>both</td>
+                <td>Fire on a full page load, an SPA navigation, or both.</td>
+              </tr>
+              <tr>
+                <td><code>oncePerPage</code></td>
+                <td><code>true</code></td>
+                <td>Only fire once per page; resets on a real navigation.</td>
+              </tr>
+              <tr>
+                <td><code>delayMs</code></td>
+                <td><code>0</code></td>
+                <td>Wait 0–10000&nbsp;ms before firing — useful for pages that render dynamically.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <pre><code>{
+  "type": "urlMatch",
+  "on": ["load", "spa"],
+  "oncePerPage": true,
+  "delayMs": 1000
+}</code></pre>
+
+        <h2>elementAppears</h2>
+        <p>
+          Fires when a DOM element matching a selector first appears on an
+          allowed page — handy for content that loads late.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Field</th><th>Default</th><th>What it does</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>selector</code></td>
+                <td>—</td>
+                <td>CSS- or text-based selector for the element to watch.</td>
+              </tr>
+              <tr>
+                <td><code>oncePerPage</code></td>
+                <td><code>true</code></td>
+                <td>Only fire once per page.</td>
+              </tr>
+              <tr>
+                <td><code>throttleMs</code></td>
+                <td><code>1000</code></td>
+                <td>Minimum 250–60000&nbsp;ms between fires — an observer-storm guard.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="pills">
+          <span class="pill">Auto-dismiss cookie banners</span>
+          <span class="pill">Auto-hide ads</span>
+        </p>
+        <pre><code>{
+  "type": "elementAppears",
+  "selector": { strategy: "text", value: "Accept all" },
+  "oncePerPage": true,
+  "throttleMs": 250
+}</code></pre>
+
+        <h2>interval</h2>
+        <p>
+          Runs every N minutes using <code>chrome.alarms</code>. The browser
+          wakes the extension on the interval, finds the first open tab matching
+          the script's <code>urlRules</code>, and runs there; if no tab matches,
+          the run is skipped.
+        </p>
+        <ul>
+          <li><code>everyMinutes</code> — 1 to 10080 (one minute up to seven days).</li>
+        </ul>
+        <div class="note">
+          <span class="note__title">Firefox note</span>
+          <p>The interval trigger requires the <code>tabs</code> permission on Firefox.</p>
+        </div>
+        <pre><code>{
+  "type": "interval",
+  "everyMinutes": 30
+}</code></pre>
+
+        <h2>schedule</h2>
+        <p>
+          Runs daily at a specific local time, re-arming itself each day. It
+          uses the same tab-matching behavior as <code>interval</code>: it finds
+          the first open tab matching the script's scope, and skips if none is
+          found.
+        </p>
+        <ul>
+          <li><code>at: "HH:MM"</code> — 24-hour format, in your browser's local time.</li>
+        </ul>
+        <pre><code>{
+  "type": "schedule",
+  "at": "09:00"
+}</code></pre>
+
+        <h2>onStartup</h2>
+        <p>
+          Runs when the browser starts.
+        </p>
+        <p class="pills">
+          <span class="pill">Open your daily dashboard</span>
+          <span class="pill">Run maintenance</span>
+        </p>
+        <pre><code>{
+  "type": "onStartup"
+}</code></pre>
+
+        <h2>Scope governs where they act</h2>
+        <p>
+          A trigger decides when an automation runs; the script's scope — its URL
+          allow/deny rules — governs which pages a trigger is allowed to act on.
+          A <code>urlMatch</code> or <code>elementAppears</code> trigger only
+          fires on pages within scope, and <code>interval</code> and
+          <code>schedule</code> look for a matching tab before running. See
+          <a href="guide-variables.html">Variables &amp; selectors</a> for how to
+          target elements, and <a href="guide-steps.html">Steps &amp; operations</a>
+          for what runs once a trigger fires.
+        </p>
+
+        <div class="pager">
+          <a href="guide-concepts.html"><span>Previous</span>← How automations work</a>
+          <a href="guide-steps.html"><span>Next</span>Steps &amp; operations →</a>
+        </div>
+      </main>
+    </div>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>
