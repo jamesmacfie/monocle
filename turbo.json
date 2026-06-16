@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": { "dependsOn": ["^build"], "outputs": [".output/**"] },
+    "build:firefox": { "dependsOn": ["^build"], "outputs": [".output/**"] },
+    "build:zip": { "dependsOn": ["^build"], "outputs": [".output/**"] },
+    "build:firefox:zip": { "dependsOn": ["^build"], "outputs": [".output/**"] },
+    "test": { "dependsOn": ["^build"] },
+    "tsc": {},
+    "dev": { "cache": false, "persistent": true },
+    "dev:chrome": { "cache": false, "persistent": true },
+    "dev:firefox": { "cache": false, "persistent": true }
+  }
+}

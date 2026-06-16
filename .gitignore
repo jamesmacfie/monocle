@@ -9,6 +9,9 @@ dist
 .output
 .wxt
 
+# turbo
+.turbo
+
 # misc
 .DS_Store
 

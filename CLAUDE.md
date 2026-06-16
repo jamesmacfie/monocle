@@ -164,22 +164,37 @@ Always use `pnpm`, not `npm` or `yarn`.
 
 ## Repository Shape
 
+This is a pnpm + Turborepo monorepo. Today there is one workspace package,
+`apps/extension` (the WXT extension); `packages/*` is reserved for shared code
+to be extracted later. Root scripts (`pnpm run build`, `test`, `tsc`, `dev:*`)
+delegate to the package through Turbo; `fmt`/`fmt:check` run biome via
+`pnpm --filter`. `apps/marketing/` is hand-authored static HTML with no build
+step and no `package.json`, so pnpm skips it as a workspace package.
+
 ```text
 monocle/
-├── entrypoints/         # WXT background, content, and new-tab entrypoints
-├── background/          # Service worker, commands, messages, keybindings,
-│                        #   userScripts (storage/engine/triggers/alarms),
-│                        #   features (registry/config/state, focus/, tabGroups/, elementHider/), surfaces,
-│                        #   calculations (inline-calculation provider registry)
-├── content/             # Content-script overlay, workflow executor
-│                        #   (content/workflow/), user-script trigger service
-├── newtab/              # Browser new-tab replacement
-├── options/             # Browser options/settings page
-├── shared/              # Shared React components, hooks, store, types, utils
-├── docs/                # Feature and subsystem reference docs
-├── server/              # Local support server
-└── test-inputs.html     # Manual workflow/input fixture page
+├── package.json         # Workspace root: Turbo orchestrator scripts
+├── turbo.json           # Task pipeline (build/test/tsc/dev, .output caching)
+├── pnpm-workspace.yaml   # packages: apps/* + packages/*
+├── apps/
+│   ├── extension/       # The WXT extension (its own package.json + configs:
+│   │   │                #   wxt.config.ts, tsconfig.json, biome.json, vitest)
+│   │   ├── entrypoints/ # WXT background, content, and new-tab entrypoints
+│   │   ├── background/  # Service worker, commands, messages, keybindings,
+│   │   │                #   userScripts (storage/engine/triggers/alarms),
+│   │   │                #   features (registry/config/state, focus/, tabGroups/, elementHider/), surfaces,
+│   │   │                #   calculations (inline-calculation provider registry)
+│   │   ├── content/     # Content-script overlay, workflow executor
+│   │   │                #   (content/workflow/), user-script trigger service
+│   │   ├── newtab/      # Browser new-tab replacement
+│   │   ├── options/     # Browser options/settings page
+│   │   ├── shared/      # Shared React components, hooks, store, types, utils
+│   │   └── test-inputs.html  # Manual workflow/input fixture page
+│   └── marketing/       # Static marketing/docs HTML site (no build, no package.json)
+└── docs/                # Feature and subsystem reference docs
 ```
+
+All paths in the feature docs and below are relative to `apps/extension/`.
 
 The important boundaries are:
 
@@ -493,7 +508,8 @@ These are the easy traps to avoid:
 
 ## Development Commands
 
-Use pnpm scripts:
+Run these from the repo root; Turbo delegates to `apps/extension` (or run them
+inside `apps/extension/` directly):
 
 ```bash
 pnpm run dev
@@ -503,12 +519,13 @@ pnpm run tsc
 pnpm run fmt:check
 pnpm run build
 pnpm run build:firefox
-pnpm run build:zip
-pnpm run build:firefox:zip
 ```
 
-`pnpm run fmt` writes formatting changes. `pnpm test` runs the focused Vitest
-suite, but manual browser checks are still required for extension API behavior.
+`build:zip` / `build:firefox:zip` exist on the extension package (run via
+`pnpm --filter @monocle/extension run build:zip` or from inside the package).
+`pnpm run fmt` writes formatting changes (biome, via `pnpm --filter`).
+`pnpm test` runs the focused Vitest suite, but manual browser checks are still
+required for extension API behavior.
 
 ## Working Rules For Future Changes
 
