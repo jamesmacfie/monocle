@@ -9,7 +9,7 @@ export default function NewTabListener() {
       sendResponse: (response?: any) => void,
     ) => {
       const event = validateContentMessage(message)
-      if (event?.type === "monocle-newTab") {
+      if (event?.type === "monocle-tab-open") {
         try {
           const url = new URL(event.url)
           // Only allow safe URL schemes

@@ -20,7 +20,7 @@ declared under `optional_permissions` and are dormant until requested.
 | `activeTab` | Required | Lets the background act on the focused tab. |
 | `storage` | Required | Backs `monocle-settings` persistence. |
 | `scripting` | Required | Lets the shortcut/action path inject the WXT content script into a tab that has no palette receiver yet. |
-| `alarms` | Required | Backs scheduled user-script triggers (`background/userScripts/alarms.ts`). |
+| `alarms` | Required | Backs scheduled automation triggers (`background/automations/alarms.ts`). |
 | `contextualIdentities` | Required (Firefox only) | Added to the required list only on the Firefox build; powers container-tab commands. |
 | `bookmarks` | Optional | Bookmark browse/open commands. |
 | `browsingData` | Optional | Clear browser data. |
@@ -46,7 +46,7 @@ optional permission there trips the build). The required list branches on
 
 The canonical permission type is `BrowserPermission` in
 `shared/types/commands.ts`, derived from the single-source `BROWSER_PERMISSIONS`
-tuple (which also backs runtime validation of `request-permission` messages):
+tuple (which also backs runtime validation of `monocle-permission-request` messages):
 
 ```ts
 export const BROWSER_PERMISSIONS = [
@@ -178,8 +178,8 @@ the current (content-script or new-tab) context.
 | Context | Path |
 | --- | --- |
 | Firefox, `browser.permissions.request` available directly | Calls `permissions.request` then `permissions.contains` in-page; no background round-trip. |
-| Firefox, permissions API not callable in-page | Sends `open-permission-grant-page`, closes the menu, and shows an info toast asking the user to grant in the opened Monocle tab. |
-| Chrome (and Firefox sandboxed fallback) | Sends `request-permission` to the background, which performs the request and returns post-request browser truth. |
+| Firefox, permissions API not callable in-page | Sends `monocle-permission-grant-page-open`, closes the menu, and shows an info toast asking the user to grant in the opened Monocle tab. |
+| Chrome (and Firefox sandboxed fallback) | Sends `monocle-permission-request` to the background, which performs the request and returns post-request browser truth. |
 
 After any path that completes in-page or via the background, the component
 dispatches `refreshPermissions()` and then shows a success or warning toast
@@ -199,7 +199,7 @@ structured browser error.
 
 Some Firefox contexts (notably the sandboxed content overlay) cannot satisfy the
 user-gesture requirement for `permissions.request`. In that case
-`PermissionActions` sends `open-permission-grant-page`.
+`PermissionActions` sends `monocle-permission-grant-page-open`.
 `background/messages/openPermissionGrantPage.ts` opens a new active tab at:
 
 ```
@@ -256,7 +256,7 @@ for the full execution path.
 
 The Redux mirror (`shared/store/slices/settings.slice.ts`,
 `permissions: { isLoaded, access }`) exists only for UI responsiveness. It is
-populated and refreshed by sending `get-permissions` to the background:
+populated and refreshed by sending `monocle-permissions-get` to the background:
 
 - `background/messages/getPermissions.ts` (`getPermissions`) calls
   `permissions.getAll()` and returns `{ isLoaded: true, access }`, where `access`
@@ -331,8 +331,8 @@ Automated coverage exists for `requestPermission`, `openPermissionGrantPage`, an
 ## Related docs
 
 - [architecture.md](architecture.md) — runtime modes and background boundary.
-- [messaging.md](messaging.md) — `get-permissions`, `request-permission`,
-  `open-permission-grant-page` message shapes.
+- [messaging.md](messaging.md) — `monocle-permissions-get`, `monocle-permission-request`,
+  `monocle-permission-grant-page-open` message shapes.
 - [command-schema.md](command-schema.md) — the `permissions` field on command
   nodes.
 - [execution-and-actions.md](execution-and-actions.md) — execution flow and the

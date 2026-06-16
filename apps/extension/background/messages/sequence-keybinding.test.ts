@@ -53,7 +53,7 @@ const installChromeStubs = () => {
 const press = (key: string): Promise<any> =>
   executeKeybinding(
     {
-      type: "execute-keybinding",
+      type: "monocle-keybinding-execute",
       keybinding: key,
       context,
     } as ExecuteKeybindingMessage,

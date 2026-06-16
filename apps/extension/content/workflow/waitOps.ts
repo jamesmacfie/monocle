@@ -1,7 +1,7 @@
 // Architecture: content layer. The `wait` workflow operation — polling for
 // time, selector state, URL, and document readyState conditions. Part of the
 // workflow executor op modules (see content/workflow/executor.ts for the
-// dispatch table); user-script wait steps and engine condition probes lower
+// dispatch table); automation wait steps and engine condition probes lower
 // onto this same implementation.
 import type {
   Selector,

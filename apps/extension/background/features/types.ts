@@ -6,11 +6,11 @@
 // and an optional startup lifecycle hook. See docs/features.md.
 import type { z } from "zod"
 import type {
+  Automation,
   Browser,
   CommandIcon,
   CommandNode,
   PickedElement,
-  UserScript,
 } from "../../shared/types"
 import type {
   FeatureActionPayload,
@@ -68,9 +68,9 @@ export type FeatureModule<TConfig = Record<string, unknown>> = {
   // Startup lifecycle: re-arm alarms / register listeners after a SW restart.
   init?: () => void | Promise<void>
   // Read-only automations PROJECTED from this feature's config. They flow
-  // through the same user-script engine/trigger system as user documents
-  // (merged in by background/userScripts/registry.ts) but are never stored.
-  // Each must validate against UserScriptSchema and carry owner:{kind:"feature"}
+  // through the same automation engine/trigger system as user documents
+  // (merged in by background/automations/registry.ts) but are never stored.
+  // Each must validate against AutomationSchema and carry owner:{kind:"feature"}
   // with a deterministic id (featureAutomationId). See docs/features.md.
-  automations?: (config: TConfig) => UserScript[] | Promise<UserScript[]>
+  automations?: (config: TConfig) => Automation[] | Promise<Automation[]>
 }

@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { RequestToastMessage } from "../../shared/types"
+import type { ShowToastMessage } from "../../shared/types"
 import { useSendMessage } from "./useSendMessage"
 
 export function useToast() {
@@ -7,8 +7,8 @@ export function useToast() {
 
   return React.useCallback(
     (level: "info" | "warning" | "success" | "error", message: string) => {
-      const toastMessage: RequestToastMessage = {
-        type: "request-toast",
+      const toastMessage: ShowToastMessage = {
+        type: "monocle-toast-show",
         level,
         message,
       }

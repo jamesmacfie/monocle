@@ -4,8 +4,8 @@
 // op here has a matching executor case and public-schema entry (the lockstep
 // invariant in docs/workflow-automation.md). Privileged operations (navigate,
 // open URL, clipboard write, run command) are NOT workflow steps — they are
-// user-script engine operations executed in the background between content
-// segments (background/userScripts/engine.ts).
+// automation engine operations executed in the background between content
+// segments (background/automations/engine.ts).
 
 /** Root workflow definition sent to the content executor. */
 export type Workflow = {
@@ -182,7 +182,7 @@ export type HideElementStep = BaseStep & {
   target: Selector
   all?: boolean
   // Groups injected hide rules under one <style data-monocle-style="key">
-  // element so a caller (e.g. a user script) can scope its page edits.
+  // element so a caller (e.g. a automation) can scope its page edits.
   scopeKey?: string
 }
 

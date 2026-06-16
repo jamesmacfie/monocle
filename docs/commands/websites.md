@@ -88,7 +88,7 @@ Each sub-group is built from the parsed `GithubPageDetails` (the owner/repo are 
 
 #### Toggle Star
 
-`createToggleStarCommand` builds an `action` (id `github-toggle-star`, icon `Star`, color `yellow`, `actionLabel: "Toggle"`). On execute it runs `toggleStarWorkflow` - a one-step `click` workflow targeting the CSS selector `.starring-container button` (`strategy: "css"`, `index: 0`, with `scrollIntoView`/`ensureVisible`). Execution goes through the shared workflow path: `resolveWorkflowTargetTabId`, a `toggle-ui` message to close the overlay, a 200 ms delay, then `executeWorkflowOnTargetTab`; success/failure are reported as targeted `monocle-toast` messages.
+`createToggleStarCommand` builds an `action` (id `github-toggle-star`, icon `Star`, color `yellow`, `actionLabel: "Toggle"`). On execute it runs `toggleStarWorkflow` - a one-step `click` workflow targeting the CSS selector `.starring-container button` (`strategy: "css"`, `index: 0`, with `scrollIntoView`/`ensureVisible`). Execution goes through the shared workflow path: `resolveWorkflowTargetTabId`, a `monocle-ui-toggle` message to close the overlay, a 200 ms delay, then `executeWorkflowOnTargetTab`; success/failure are reported as targeted `monocle-toast` messages.
 
 This is best-effort DOM automation, not a GitHub API integration. The `.starring-container button` selector is brittle and can break if GitHub changes its markup. See [../workflow-automation.md](../workflow-automation.md) for the full content-step vocabulary the executor supports (`toggleStarWorkflow` itself uses only a single `click` step).
 

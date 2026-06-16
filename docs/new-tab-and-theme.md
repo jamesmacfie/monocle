@@ -88,7 +88,7 @@ behaviors in the background:
   context.isNewTab` condition), so contextual `urlRules` do not hide or surface
   commands there. See [url-filtering.md](url-filtering.md).
 - **Keybindings resolve in new-tab context.** `useGlobalKeybindings({ isNewTab:
-  true })` sends `execute-keybinding` with the new-tab context, and the
+  true })` sends `monocle-keybinding-execute` with the new-tab context, and the
   background registry builds a context-aware snapshot, so a new-tab command's
   custom keybinding only matches when the incoming context includes `isNewTab`.
   See [keybindings.md](keybindings.md).
@@ -174,7 +174,7 @@ state-machine model, and the background message handler.
 `initializeBackgroundImage` with:
 
 - `cache: localStorage`
-- `requestBackground`: sends `{ type: "get-unsplash-background", context }` to
+- `requestBackground`: sends `{ type: "monocle-unsplash-background-get", context }` to
   the background via `sendRuntimeMessage` (`shared/utils/extension-api.ts`),
   which is a Promise wrapper over `runtime.sendMessage` that rejects on
   `runtime.lastError`.
@@ -226,7 +226,7 @@ keeps the last-known-good image.
 ### Unsplash fetch (`background/messages/getUnsplashBackground.ts`)
 
 Registered in `background/messages/index.ts` under
-`{ type: "get-unsplash-background" }`. The handler `getUnsplashBackground` reads
+`{ type: "monocle-unsplash-background-get" }`. The handler `getUnsplashBackground` reads
 `backgroundCategories` from `getNewTabSettings()`, maps them to search queries
 via `getCategoryQueries` (`shared/utils/unsplash-categories.ts`), and — when one
 or more categories are enabled — picks one query at random per request so
@@ -455,7 +455,7 @@ browser-E2E tests**, so still verify manually:
 
 - [architecture.md](architecture.md) — runtime modes, boundaries, data flows.
 - [messaging.md](messaging.md) — full background message protocol, including
-  `get-unsplash-background`.
+  `monocle-unsplash-background-get`.
 - [settings.md](settings.md) — settings storage shape, persistence, Redux mirror.
 - [permissions.md](permissions.md) — optional permission grant flows.
 - [keybindings.md](keybindings.md) — context-aware keybinding resolution.

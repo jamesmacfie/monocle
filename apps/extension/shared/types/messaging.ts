@@ -3,6 +3,13 @@
 // validation twins of these types live in shared/types/validation.ts; the
 // router is background/messages/index.ts. docs/messaging.md is the full
 // catalog.
+
+import type {
+  Automation,
+  AutomationPageTriggerSpec,
+  AutomationRunResult,
+} from "./automations"
+import type { AutomationDraft } from "./automationValidation"
 import type { Browser } from "./browser"
 import type { KeybindingRequirementViolation } from "./commands"
 import type { PickedElement } from "./picker"
@@ -11,12 +18,6 @@ import type { SettingsCatalogResponse } from "./settingsCatalog"
 import type { SiteSdkRegistration } from "./siteSdk"
 import type { Snippet } from "./snippets"
 import type { Suggestion } from "./ui"
-import type {
-  UserScript,
-  UserScriptPageTriggerSpec,
-  UserScriptRunResult,
-} from "./userScripts"
-import type { UserScriptDraft } from "./userScriptValidation"
 import type { Workflow, WorkflowResult } from "./workflow"
 
 export type CommandExecutionScope = {
@@ -25,8 +26,10 @@ export type CommandExecutionScope = {
   searchValue?: string
 }
 
+export type CommandRef = { id: string; name: string }
+
 export type ExecuteCommandMessage = {
-  type: "execute-command"
+  type: "monocle-command-execute"
   id: string
   context: Browser.Context
   formValues?: Record<string, string | string[]>
@@ -35,18 +38,18 @@ export type ExecuteCommandMessage = {
 }
 
 export type ExecuteKeybindingMessage = {
-  type: "execute-keybinding"
+  type: "monocle-keybinding-execute"
   keybinding: string
   context: Browser.Context
 }
 
 export type GetKeybindingStateMessage = {
-  type: "get-keybinding-state"
+  type: "monocle-keybinding-state-get"
   context: Browser.Context
 }
 
 export type GetChildrenMessage = {
-  type: "get-children-commands"
+  type: "monocle-command-children-get"
   id: string
   context: Browser.Context
   parentPath?: string[]
@@ -55,12 +58,12 @@ export type GetChildrenMessage = {
 }
 
 export type GetCommandsMessage = {
-  type: "get-commands"
+  type: "monocle-commands-get"
   context: Browser.Context
 }
 
 export type SearchCommandsMessage = {
-  type: "search-commands"
+  type: "monocle-commands-search"
   context: Browser.Context
   query: string
   // Empty/undefined = root palette; otherwise the command-page parent path
@@ -78,41 +81,34 @@ export interface SearchCommandsResponse {
   query: string
 }
 
-// Two directions, deliberately distinct types. `show-toast` is background ->
-// tab: the background tells a specific UI to render a toast. `request-toast` is
-// UI -> background: a UI asks the background to fan a toast out to the relevant
-// surface(s). They are not interchangeable; see docs/messaging.md.
+// A UI (or a background command) asks the background to surface a toast. The
+// handler rate-limits, then renders it on the active tab via the distinct
+// background -> tab `monocle-toast` event. See docs/messaging.md.
 export type ShowToastMessage = {
-  type: "show-toast"
-  level: "info" | "warning" | "success" | "error"
-  message: string
-}
-
-export type RequestToastMessage = {
-  type: "request-toast"
+  type: "monocle-toast-show"
   level: "info" | "warning" | "success" | "error"
   message: string
 }
 
 type UpdateKeybindingSettingMessage = {
-  type: "update-command-setting"
-  commandId: string
+  type: "monocle-command-setting-update"
+  id: string
   setting: "keybinding"
   value?: string | null
   context?: Browser.Context
 }
 
 type UpdateUrlRulesSettingMessage = {
-  type: "update-command-setting"
-  commandId: string
+  type: "monocle-command-setting-update"
+  id: string
   setting: "urlRules"
   value: CommandUrlRulesSetting
   context?: Browser.Context
 }
 
 type UpdateHiddenSettingMessage = {
-  type: "update-command-setting"
-  commandId: string
+  type: "monocle-command-setting-update"
+  id: string
   setting: "hidden"
   value: boolean
   context?: Browser.Context
@@ -124,7 +120,7 @@ export type UpdateCommandSettingMessage =
   | UpdateHiddenSettingMessage
 
 export type UpdateCommandKeybindingsMessage = {
-  type: "update-command-keybindings"
+  type: "monocle-command-keybindings-update"
   updates: Array<{
     commandId: string
     keybinding?: string | null
@@ -144,19 +140,13 @@ export type KeybindingConflictType = "exact" | "shadowed-by-open-palette"
 export type KeybindingConflictWarning = {
   type: "prefix-overlap"
   direction: "candidate-extends-existing" | "existing-extends-candidate"
-  command: {
-    id: string
-    name: string
-  }
+  command: CommandRef
   keybinding: string
 }
 
 export type CheckKeybindingConflictResponse = {
   hasConflict: boolean
-  conflictingCommand: {
-    id: string
-    name: string
-  } | null
+  conflictingCommand: CommandRef | null
   // Present only when hasConflict is true.
   conflictType?: KeybindingConflictType
   // Present only when non-empty.
@@ -174,10 +164,7 @@ export type UpdateCommandKeybindingsConflict = {
   commandId: string
   keybinding: string
   // Absent for requirement violations (no other command is involved).
-  conflictingCommand?: {
-    id: string
-    name: string
-  }
+  conflictingCommand?: CommandRef
   // Present only for non-exact skips (e.g. open-palette shadowing) and
   // requirement violations.
   reason?: KeybindingConflictType | "requirement-not-met"
@@ -190,20 +177,20 @@ export type UpdateCommandKeybindingsResponse = {
 }
 
 export type GetSettingsCatalogMessage = {
-  type: "get-settings-catalog"
+  type: "monocle-settings-catalog-get"
   platform?: Browser.Platform
 }
 
 export type GetSettingsCatalogResponse = SettingsCatalogResponse
 
 export type SetCommandFavoriteMessage = {
-  type: "set-command-favorite"
-  commandId: string
+  type: "monocle-command-favorite-set"
+  id: string
   favorite: boolean
 }
 
 export type GetSnippetsMessage = {
-  type: "get-snippets"
+  type: "monocle-snippets-get"
   context?: Browser.Context
 }
 
@@ -212,7 +199,7 @@ export type GetSnippetsResponse = {
 }
 
 export type AddSnippetMessage = {
-  type: "add-snippet"
+  type: "monocle-snippet-add"
   name: string
   body: string
   context?: Browser.Context
@@ -223,7 +210,7 @@ export type AddSnippetResponse = {
 }
 
 export type UpdateSnippetMessage = {
-  type: "update-snippet"
+  type: "monocle-snippet-update"
   id: string
   name?: string
   body?: string
@@ -235,7 +222,7 @@ export type UpdateSnippetResponse = {
 }
 
 export type DeleteSnippetMessage = {
-  type: "delete-snippet"
+  type: "monocle-snippet-delete"
   id: string
   context?: Browser.Context
 }
@@ -245,28 +232,28 @@ export type DeleteSnippetResponse = {
 }
 
 export type CheckKeybindingConflictMessage = {
-  type: "check-keybinding-conflict"
+  type: "monocle-keybinding-conflict-check"
   keybinding: string
   excludeCommandId?: string
   context?: Browser.Context
 }
 
 export type GetUnsplashBackgroundMessage = {
-  type: "get-unsplash-background"
+  type: "monocle-unsplash-background-get"
   context: Browser.Context
 }
 
 export type GetPermissionsMessage = {
-  type: "get-permissions"
+  type: "monocle-permissions-get"
 }
 
 export type RequestPermissionMessage = {
-  type: "request-permission"
+  type: "monocle-permission-request"
   permission: string
 }
 
 export type OpenPermissionGrantPageMessage = {
-  type: "open-permission-grant-page"
+  type: "monocle-permission-grant-page-open"
   permission: string
 }
 
@@ -276,7 +263,7 @@ export interface RequestPermissionResponse {
 }
 
 export type ExecuteWorkflowMessage = {
-  type: "execute-workflow"
+  type: "monocle-workflow-execute"
   workflow: Workflow
   context: Browser.Context
   tabId?: number
@@ -287,76 +274,76 @@ export interface ExecuteWorkflowResponse {
 }
 
 export type SiteSdkSyncMessage = {
-  type: "site-sdk-sync"
+  type: "monocle-site-sdk-sync"
   context: Browser.Context
   registrations: SiteSdkRegistration[]
 }
 
-// User script messages (handled in background/messages/userScripts.ts).
+// Automation messages (handled in background/messages/automations.ts).
 
-export type GetUserScriptsMessage = {
-  type: "get-user-scripts"
+export type GetAutomationsMessage = {
+  type: "monocle-automations-get"
 }
 
-export type GetUserScriptsResponse = {
-  scripts: UserScript[]
+export type GetAutomationsResponse = {
+  automations: Automation[]
 }
 
-export type AddUserScriptMessage = {
-  type: "add-user-script"
-  script: UserScriptDraft
+export type AddAutomationMessage = {
+  type: "monocle-automation-add"
+  automation: AutomationDraft
 }
 
-export type AddUserScriptResponse = {
-  script: UserScript
+export type AddAutomationResponse = {
+  automation: Automation
 }
 
-export type UpdateUserScriptMessage = {
-  type: "update-user-script"
+export type UpdateAutomationMessage = {
+  type: "monocle-automation-update"
   id: string
-  script: UserScriptDraft
+  automation: AutomationDraft
 }
 
-export type UpdateUserScriptResponse = {
-  script: UserScript | null
+export type UpdateAutomationResponse = {
+  automation: Automation | null
 }
 
-export type DeleteUserScriptMessage = {
-  type: "delete-user-script"
+export type DeleteAutomationMessage = {
+  type: "monocle-automation-delete"
   id: string
 }
 
-export type DeleteUserScriptResponse = {
+export type DeleteAutomationResponse = {
   deleted: boolean
 }
 
-export type RunUserScriptMessage = {
-  type: "run-user-script"
+export type RunAutomationMessage = {
+  type: "monocle-automation-run"
   id: string
   // Absent for options-page test runs; the engine targets the active tab.
   context?: Browser.Context
   paramValues?: Record<string, string>
 }
 
-export type RunUserScriptResponse = {
-  result: UserScriptRunResult
+export type RunAutomationResponse = {
+  result: AutomationRunResult
 }
 
 // Content -> background trigger plumbing (see
-// background/userScripts/triggerEngine.ts and content/userScriptTriggers.ts).
+// background/automations/triggerEngine.ts and content/automationTriggers.ts).
 
-export type GetUserScriptTriggersMessage = {
-  type: "get-user-script-triggers"
+export type GetAutomationTriggersMessage = {
+  type: "monocle-automation-triggers-get"
   url: string
 }
 
-export type GetUserScriptTriggersResponse = {
-  triggers: UserScriptPageTriggerSpec[]
+export type GetAutomationTriggersResponse = {
+  triggers: AutomationPageTriggerSpec[]
 }
 
-export type UserScriptTriggerFiredMessage = {
-  type: "user-script-trigger-fired"
-  scriptId: string
+export type AutomationTriggerFiredMessage = {
+  type: "monocle-automation-trigger-fired"
+  automationId: string
   trigger: {
     type: "urlMatch" | "elementAppears"
     url: string
@@ -364,7 +351,7 @@ export type UserScriptTriggerFiredMessage = {
   }
 }
 
-export type UserScriptTriggerFiredResponse = {
+export type AutomationTriggerFiredResponse = {
   accepted: boolean
   reason?: string
 }
@@ -373,17 +360,17 @@ export type UserScriptTriggerFiredResponse = {
 // Responses are typed in ./feature.ts.
 
 export type GetFeaturesMessage = {
-  type: "get-features"
+  type: "monocle-features-get"
 }
 
 export type UpdateFeatureConfigMessage = {
-  type: "update-feature-config"
+  type: "monocle-feature-config-update"
   featureId: string
   config: Record<string, unknown>
 }
 
 export type ExecuteFeatureActionMessage = {
-  type: "execute-feature-action"
+  type: "monocle-feature-action-execute"
   featureId: string
   actionId: string
   context?: Browser.Context
@@ -395,17 +382,17 @@ export type ExecuteFeatureActionMessage = {
 // ./surface.ts. The SurfaceHost queries this on mount/navigation/broadcast.
 
 export type GetSurfacesMessage = {
-  type: "get-surfaces"
+  type: "monocle-surfaces-get"
   url: string
 }
 
 // A user interaction inside a surface (content/new-tab -> background). The host
 // captures the gesture and reports it; the background decides what it means.
 // `dismiss` is universal; non-dismiss actions route to feature owners through
-// handleAction. user-script/command owner-specific routing remains future work.
+// handleAction. automation/command owner-specific routing remains future work.
 // See docs/surfaces.md.
 export type SurfaceActionMessage = {
-  type: "surface-action"
+  type: "monocle-surface-action"
   ownerId: string
   surfaceId: string
   actionId: string
@@ -424,7 +411,6 @@ export type Message =
   | ExecuteKeybindingMessage
   | GetKeybindingStateMessage
   | ShowToastMessage
-  | RequestToastMessage
   | UpdateCommandSettingMessage
   | UpdateCommandKeybindingsMessage
   | GetSettingsCatalogMessage
@@ -440,13 +426,13 @@ export type Message =
   | OpenPermissionGrantPageMessage
   | ExecuteWorkflowMessage
   | SiteSdkSyncMessage
-  | GetUserScriptsMessage
-  | AddUserScriptMessage
-  | UpdateUserScriptMessage
-  | DeleteUserScriptMessage
-  | RunUserScriptMessage
-  | GetUserScriptTriggersMessage
-  | UserScriptTriggerFiredMessage
+  | GetAutomationsMessage
+  | AddAutomationMessage
+  | UpdateAutomationMessage
+  | DeleteAutomationMessage
+  | RunAutomationMessage
+  | GetAutomationTriggersMessage
+  | AutomationTriggerFiredMessage
   | GetFeaturesMessage
   | UpdateFeatureConfigMessage
   | ExecuteFeatureActionMessage

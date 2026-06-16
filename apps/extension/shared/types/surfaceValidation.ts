@@ -1,12 +1,12 @@
 // Architecture: shared/ validation layer for the Surfaces primitive
 // (./surface.ts). A Surface crosses the background<->UI boundary and is pushed
-// into the store by three kinds of owner — features, commands, and user-script
+// into the store by three kinds of owner — features, commands, and automation
 // automations — so this Zod schema is the SINGLE SOURCE OF TRUTH:
 //   - surface.ts derives its TS types from it (`z.infer`), so type and schema
 //     cannot drift;
 //   - background/surfaces.ts validates every write against it, closing the
-//     silent-accept gap (previously only user-scripts were validated);
-//   - userScriptValidation reuses these schemas (extended with tighter caps on
+//     silent-accept gap (previously only automations were validated);
+//   - automationValidation reuses these schemas (extended with tighter caps on
 //     attacker-facing free-text), so the two can never diverge again.
 // Content is the closed content-block vocabulary (./contentValidation) — never
 // author-supplied markup. See docs/surfaces.md.

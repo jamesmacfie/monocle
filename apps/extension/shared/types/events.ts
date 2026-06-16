@@ -5,7 +5,7 @@ import type { ContentMessage } from "./contentMessageValidation"
 
 export type CopyToClipboardEvent = Extract<
   ContentMessage,
-  { type: "monocle-copyToClipboard" }
+  { type: "monocle-clipboard-write" }
 >
 
 // Insert text at the caret of the page's last-focused editable element.
@@ -13,10 +13,10 @@ export type CopyToClipboardEvent = Extract<
 // can fall back (e.g. to a clipboard copy) when nothing was focused.
 export type InsertTextEvent = Extract<
   ContentMessage,
-  { type: "monocle-insertText" }
+  { type: "monocle-text-insert" }
 >
 
-export type NewTabEvent = Extract<ContentMessage, { type: "monocle-newTab" }>
+export type NewTabEvent = Extract<ContentMessage, { type: "monocle-tab-open" }>
 
 export type ScrollEvent = Extract<ContentMessage, { type: "monocle-scroll" }>
 
@@ -32,16 +32,16 @@ export type ToastEvent = Extract<ContentMessage, { type: "monocle-toast" }>
 
 export type SiteSdkSyncRequestEvent = Extract<
   ContentMessage,
-  { type: "monocle-sdk-sync-request" }
+  { type: "monocle-site-sdk-sync-request" }
 >
 
 export type SiteSdkInvokeEvent = Extract<
   ContentMessage,
-  { type: "monocle-sdk-invoke" }
+  { type: "monocle-site-sdk-invoke" }
 >
 
 // Broadcast to every tab when the background-owned surfaces store changes
-// (any owner: a feature like Focus Mode, or a user-script automation). Carries
+// (any owner: a feature like Focus Mode, or a automation automation). Carries
 // no payload; the SurfaceHost re-queries get-surfaces. See docs/surfaces.md.
 export type SurfacesChangedEvent = Extract<
   ContentMessage,

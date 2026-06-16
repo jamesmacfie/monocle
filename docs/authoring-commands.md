@@ -8,7 +8,7 @@ For the underlying contracts see [command-schema.md](./command-schema.md) (every
 
 ## The five-minute version
 
-1. Pick a category folder under `background/commands/` (browser, tools, ui, newTab, websites, extensions). For automations and features, commands are contributed by the user-script and feature subsystems instead — see the table below.
+1. Pick a category folder under `background/commands/` (browser, tools, ui, newTab, websites, extensions). For automations and features, commands are contributed by the automation and feature subsystems instead — see the table below.
 2. Create one file exporting a typed `CommandNode`.
 3. Import and add it to that folder's `index.ts` array.
 4. Confirm the array is actually loaded by `background/commands/source.ts` (and, for keybinding/URL management surfaces, by `background/commands/userConfigurableCommands.ts`).
@@ -27,7 +27,7 @@ For the underlying contracts see [command-schema.md](./command-schema.md) (every
 | `websites` | `websites/` + site SDK | `websiteCommands` (plus `loadSiteSdkCommands`) | Contextual commands scoped to a specific site via `urlRules` (GitHub prototype), plus page-owned site-SDK wrappers. | Always (visibility gated by `urlRules`) |
 | `new-tab` | `newTab/` | `newTabCommands` | Commands that only make sense on the new-tab page (clock visibility). | New-tab context only |
 | `favorites` | inline in `source.ts` | `clearFavoritesCommand` | One-off favorites management; not an author-extensible folder. | Always |
-| `automations` | `background/userScripts/` | `userScriptCommands` | Generated palette commands for user-script automations (`userscript-<uuid>`). Authored as automation documents, not hand-written nodes. See [user-scripts.md](./user-scripts.md). | Always |
+| `automations` | `background/automations/` | `automationCommands` | Generated palette commands for automation automations (`automation-<uuid>`). Authored as automation documents, not hand-written nodes. See [automations.md](./automations.md). | Always |
 | `features` | `background/features/` | `getFeatureCommands(context)` | Commands contributed by feature modules (e.g. Focus Mode). Authored by registering a `FeatureModule`, not by adding a node here. See [features.md](./features.md). | Always (context-dependent per feature) |
 
 Notes:
@@ -58,7 +58,7 @@ export const copyUuidV4: ActionCommandNode = {
     const activeTab = await getActiveTab()
     if (activeTab?.id) {
       await sendTabMessage(activeTab.id, {
-        type: "monocle-copyToClipboard",
+        type: "monocle-clipboard-write",
         message: uuid,
       })
     }
@@ -97,7 +97,7 @@ const entries: LoadedCommandEntry[] = [
   ...mapCommandsToEntries(toolCommands, categories.tools),
   ...mapCommandsToEntries(uiCommands, categories.ui),
   ...mapCommandsToEntries(websiteCommands, categories.websites),
-  ...mapCommandsToEntries(userScriptCommands, categories.automations),
+  ...mapCommandsToEntries(automationCommands, categories.automations),
   ...mapCommandsToEntries(getFeatureCommands(context), categories.features),
   ...mapCommandsToEntries([clearFavoritesCommand], categories.favorites),
   ...mapCommandsToEntries(extensionsCommands, categories.extensions),
@@ -109,8 +109,8 @@ return entries.filter(({ command }) => supportsPlatform(command, platform))
 
 Key facts:
 
-- All nine categories are wired here: `websites` (site-SDK wrappers + `websiteCommands`), `browser`, `tools`, `ui`, `automations` (`userScriptCommands`), `features` (`getFeatureCommands(context)`), `favorites` (`clearFavoritesCommand`), `extensions` (`extensionsCommands`), and conditionally `new-tab`. If you add a brand-new folder, you must add its `mapCommandsToEntries` line here too.
-- `automations` commands come from `background/userScripts/commands.ts` and `features` commands from `background/features/` — they are contributed by those subsystems, not authored as files under `background/commands/`.
+- All nine categories are wired here: `websites` (site-SDK wrappers + `websiteCommands`), `browser`, `tools`, `ui`, `automations` (`automationCommands`), `features` (`getFeatureCommands(context)`), `favorites` (`clearFavoritesCommand`), `extensions` (`extensionsCommands`), and conditionally `new-tab`. If you add a brand-new folder, you must add its `mapCommandsToEntries` line here too.
+- `automations` commands come from `background/automations/commands.ts` and `features` commands from `background/features/` — they are contributed by those subsystems, not authored as files under `background/commands/`.
 - `newTabCommands` are only loaded when `context.isNewTab` is true.
 - `firefoxCommands` are only loaded on the Firefox platform, and the final `supportsPlatform` filter additionally drops any command whose `supportedBrowsers` excludes the active platform.
 

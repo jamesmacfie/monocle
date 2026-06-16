@@ -79,7 +79,7 @@ Source: `background/features/tabGroups/`. The feature splits into two command fa
 
 **Native groups** (`nativeCommands.ts`, Chrome only — `supportedBrowsers: ["chrome"]`, `permissions: ["tabGroups", "tabs"]`) — operate on the browser's live tab-strip groups via `chrome.tabs.group/ungroup` + `chrome.tabGroups.*` (wrapped in `background/utils/browserTabGroups.ts`); nothing is persisted. They are filtered out on Firefox by the standard `supportsPlatform` pass: add current tab to a group / new group, group all tabs in the window, rename / recolor / collapse-expand the current group, ungroup the current tab.
 
-The settings page manages saved groups through the generic `record-list` field (see [../features.md](../features.md)): per-group **Restore** / **Rename** (inline) / **Delete**, and per-tab **Pin/Unpin** on expanded rows, plus the two behavioral switches. Row actions dispatch `execute-feature-action` with a `payload`; `handleAction` (`index.ts`) routes `restore-group` / `rename-group` / `delete-group` / `toggle-pin`.
+The settings page manages saved groups through the generic `record-list` field (see [../features.md](../features.md)): per-group **Restore** / **Rename** (inline) / **Delete**, and per-tab **Pin/Unpin** on expanded rows, plus the two behavioral switches. Row actions dispatch `monocle-feature-action-execute` with a `payload`; `handleAction` (`index.ts`) routes `restore-group` / `rename-group` / `delete-group` / `toggle-pin`.
 
 ## Element Hider
 

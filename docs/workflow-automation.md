@@ -1,8 +1,8 @@
 # Workflow Automation
 
-Monocle's workflow system is the typed DOM-automation vocabulary executed by the content script, plus the background-to-content execution path and the public message schema. It is the substrate user scripts lower onto (see [user-scripts.md](./user-scripts.md)): a workflow is always a flat list of **content-executable** steps — privileged operations (navigate, open URL, clipboard, run command) are user-script engine operations, never workflow steps.
+Monocle's workflow system is the typed DOM-automation vocabulary executed by the content script, plus the background-to-content execution path and the public message schema. It is the substrate automations lower onto (see [automations.md](./automations.md)): a workflow is always a flat list of **content-executable** steps — privileged operations (navigate, open URL, clipboard, run command) are automation engine operations, never workflow steps.
 
-The system's hardest invariant is **lockstep**: the public `execute-workflow` schema accepts exactly the operations the executor implements, and a new op lands as one unit — type, schema entry, executor case, and tests. Unsupported ops fail loudly (`Unsupported step operation: <op>`), never silently.
+The system's hardest invariant is **lockstep**: the public `monocle-workflow-execute` schema accepts exactly the operations the executor implements, and a new op lands as one unit — type, schema entry, executor case, and tests. Unsupported ops fail loudly (`Unsupported step operation: <op>`), never silently.
 
 ## Status at a glance
 
@@ -12,18 +12,18 @@ The system's hardest invariant is **lockstep**: the public `execute-workflow` sc
 | Public message schema (`shared/types/workflowValidation.ts`) | Accepts all 17 implemented ops |
 | Execution routing (`background/workflows/execution.ts`) | Implemented (explicit tab / sender / context URL / active tab) |
 | Content executor (`content/workflow/`) | Implemented for the full vocabulary |
-| Variable interpolation (`{{var}}`) | Background-side, in the user-script engine — content receives expanded strings; the executor never templates |
-| Privileged ops (navigate, clipboard, openUrl, runCommand) | User-script engine ops (`background/userScripts/engine.ts`), not workflow steps |
+| Variable interpolation (`{{var}}`) | Background-side, in the automation engine — content receives expanded strings; the executor never templates |
+| Privileged ops (navigate, clipboard, openUrl, runCommand) | Automation engine ops (`background/automations/engine.ts`), not workflow steps |
 | Debug tool command | Implemented (`debug-workflow`) |
 
 ## End-to-end execution path
 
 ```
-command.execute() / user-script engine segment / debug tool
+command.execute() / automation engine segment / debug tool
   -> executeWorkflowOnTargetTab()        background/workflows/execution.ts
        -> resolveWorkflowTargetTabId()   pick target tab
        -> WorkflowSchema.safeParse(workflow)
-       -> sendTabMessage(tabId, { type: "execute-workflow-content", workflow, context })
+       -> sendTabMessage(tabId, { type: "monocle-workflow-content-execute", workflow, context })
   -> content listener                    shared/hooks/useCommandPaletteStateRedux.tsx
        -> validateContentMessage(message)
        -> workflowExecutor.executeWorkflow(workflow)   content/workflow/executor.ts
@@ -34,8 +34,8 @@ command.execute() / user-script engine segment / debug tool
 
 Entry surfaces in the background:
 
-- **The public message handler** `background/messages/executeWorkflow.ts` handles the `execute-workflow` message. Messages reach it only after passing the schema (see [Validation](#validation-public-schema)).
-- **The user-script engine** (`background/userScripts/engine.ts`) lowers each contiguous content segment of a script to a `Workflow` and calls `executeWorkflowOnTargetTab` directly. It also uses one-step probe workflows (`wait`, `getText`) to answer branch/loop conditions.
+- **The public message handler** `background/messages/executeWorkflow.ts` handles the `monocle-workflow-execute` message. Messages reach it only after passing the schema (see [Validation](#validation-public-schema)).
+- **The automation engine** (`background/automations/engine.ts`) lowers each contiguous content segment of a script to a `Workflow` and calls `executeWorkflowOnTargetTab` directly. It also uses one-step probe workflows (`wait`, `getText`) to answer branch/loop conditions.
 - **Direct background callers** such as the debug tool (`background/commands/tools/debugWorkflow.ts`) and the GitHub website prototype call `executeWorkflowOnTargetTab` with in-code workflows. These bypass the message schema because the workflow never crosses the untrusted UI boundary, but the executor independently rejects unsupported ops.
 
 ### Target tab resolution
@@ -48,11 +48,11 @@ Entry surfaces in the background:
 4. **Active tab fallback** only when no context target exists.
 5. Otherwise throws `"No workflow target tab found"`.
 
-`executeWorkflowOnTargetTab` validates the workflow with `WorkflowSchema` before sending `execute-workflow-content` to the resolved tab and passes the response through `unwrapWorkflowResult`, which coerces anything malformed into `{ success: false, error: "Workflow execution returned an invalid result" }`.
+`executeWorkflowOnTargetTab` validates the workflow with `WorkflowSchema` before sending `monocle-workflow-content-execute` to the resolved tab and passes the response through `unwrapWorkflowResult`, which coerces anything malformed into `{ success: false, error: "Workflow execution returned an invalid result" }`.
 
 ### Content listener
 
-The content script injects the real content runner from `content/components/ContentCommandPalette.tsx`; the shared listener lives in `shared/hooks/useCommandPaletteStateRedux.tsx` so new-tab/content palette state stays shared without importing `content/` from `shared/`. The listener validates `execute-workflow-content` with `ContentMessageSchema`, keeps the listener synchronous, and responds via `sendResponse` (returning a Promise from the listener is treated as the response by some runtimes). It logs only the workflow name and step count, never the full spec.
+The content script injects the real content runner from `content/components/ContentCommandPalette.tsx`; the shared listener lives in `shared/hooks/useCommandPaletteStateRedux.tsx` so new-tab/content palette state stays shared without importing `content/` from `shared/`. The listener validates `monocle-workflow-content-execute` with `ContentMessageSchema`, keeps the listener synchronous, and responds via `sendResponse` (returning a Promise from the listener is treated as the response by some runtimes). It logs only the workflow name and step count, never the full spec.
 
 ## The executor module (`content/workflow/`)
 
@@ -123,7 +123,7 @@ CSS lookups use `querySelectorAll` (invalid selectors throw — fail loudly); te
 | `hideElement` | Hide element(s) via injected style | `target`, `all?`, `scopeKey?` | Marker attribute + `display: none !important` rule under `<style data-monocle-style="scopeKey">`; reversible by removing that style element |
 | `injectCss` | Inject scoped CSS | `css`, `scopeKey?` | Appends into the same scoped style element |
 
-`scopeKey` is stamped by the user-script engine (`userscript-<id>`) so one script's page edits stay grouped.
+`scopeKey` is stamped by the automation engine (`automation-<id>`) so one script's page edits stay grouped.
 
 ### Results
 
@@ -137,13 +137,13 @@ type WorkflowResult = {
 type StepResult = { stepId?: string; success: boolean; error?: string; duration?: number }
 ```
 
-The executor runs steps in order and returns on the first failure (`"Step <op> failed: <error>"`). `vars` is returned on success **and** failure so partial extractions remain visible — the user-script engine threads them into later segments and conditions.
+The executor runs steps in order and returns on the first failure (`"Step <op> failed: <error>"`). `vars` is returned on success **and** failure so partial extractions remain visible — the automation engine threads them into later segments and conditions.
 
 ## Validation (public schema)
 
 `shared/types/workflowValidation.ts` defines the Zod schemas (re-exported from `shared/types/validation.ts`). `WorkflowStepSchema` is a strict discriminated union over exactly the 17 implemented ops; unknown ops and unknown fields are rejected at the message boundary. `injectCss` bodies are capped at 10k chars; selectors must be non-empty; `select.by` must name a value, label, or index.
 
-Messages also pass the security wrapper in `background/utils/validation.ts` (rate limiting, 1MB total / 10k-char-per-string size limits) before schema validation. Direct background callers that bypass the public `execute-workflow` message are still validated before the workflow crosses into content, and content validates the resulting `execute-workflow-content` message before executing.
+Messages also pass the security wrapper in `background/utils/validation.ts` (rate limiting, 1MB total / 10k-char-per-string size limits) before schema validation. Direct background callers that bypass the public `monocle-workflow-execute` message are still validated before the workflow crosses into content, and content validates the resulting `monocle-workflow-content-execute` message before executing.
 
 ## Retry and timeout
 
@@ -157,11 +157,11 @@ Messages also pass the security wrapper in `background/utils/validation.ts` (rat
 2. A new op lands as one unit: type, schema entry, executor case, tests.
 3. Unsupported ops fail loudly, never silently succeed.
 
-User scripts add a corollary, tested in `background/userScripts/lowering.test.ts`: every content-classified user-script step must lower to a step `WorkflowStepSchema` accepts — a script that validates can never reach an executor case that fails as unsupported.
+Automations add a corollary, tested in `background/automations/lowering.test.ts`: every content-classified automation step must lower to a step `WorkflowStepSchema` accepts — a script that validates can never reach an executor case that fails as unsupported.
 
 ## Debug tool command
 
-`background/commands/tools/debugWorkflow.ts` exports the `debug-workflow` action ("Debug Workflow - Click Submit Button") to exercise the whole path against a real page: resolves the tab, closes the palette, clicks the first `Submit` text target, and toasts the outcome. User scripts deny it as a `runCommand` target.
+`background/commands/tools/debugWorkflow.ts` exports the `debug-workflow` action ("Debug Workflow - Click Submit Button") to exercise the whole path against a real page: resolves the tab, closes the palette, clicks the first `Submit` text target, and toasts the outcome. Automations deny it as a `runCommand` target.
 
 ## Manual test checklist
 
@@ -170,7 +170,7 @@ Automated tests use a `linkedom` DOM (`content/workflow/executor.test.ts`, `cont
 - Run **Debug Workflow**; confirm the palette closes first and the Submit target is clicked (or a clear error toast appears).
 - `fill` on a React-controlled input: confirm the framework sees the value (input/change fire).
 - `select`, `check`/`uncheck`, `submit` on the fixture form.
-- `getText` into a var, surfaced via a user-script toast.
+- `getText` into a var, surfaced via an automation toast.
 - `hideElement` / `injectCss`: confirm the scoped `<style data-monocle-style>` element appears and removal restores the page.
 - Hidden target with `ensureVisible: true`: fails with "Element is not visible".
 - `wait` conditions: `visible`, `hidden`, `detached`, `urlIncludes`, `readyState`, and a timeout failure.
@@ -185,7 +185,7 @@ Automated tests use a `linkedom` DOM (`content/workflow/executor.test.ts`, `cont
 
 ## Related docs
 
-- [User scripts](./user-scripts.md) — the declarative automation layer that lowers onto workflows.
+- [Automations](./automations.md) — the declarative automation layer that lowers onto workflows.
 - [Architecture](./architecture.md) — runtime modes, boundaries, and the background/content split.
-- [Messaging](./messaging.md) — the `execute-workflow` / `execute-workflow-content` protocol.
+- [Messaging](./messaging.md) — the `monocle-workflow-execute` / `monocle-workflow-content-execute` protocol.
 - [Commands: tools](./commands/tools.md) — where the `debug-workflow` command is cataloged.

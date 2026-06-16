@@ -5,7 +5,7 @@
 // persistent and URL-scoped. Surfaces are DATA, never markup: a trusted
 // bundled component renders the fixed fields, so there is no arbitrary HTML/JS
 // — the same store-safe-harbor posture as the rest of the codebase. Any
-// feature, user-script automation, OR command can push surfaces.
+// feature, automation automation, OR command can push surfaces.
 //
 // These types are DERIVED from the Zod schema in ./surfaceValidation (the single
 // source of truth, which also validates every write to the store), so the type

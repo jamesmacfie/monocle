@@ -440,7 +440,7 @@ describe("representative browser tab commands", () => {
     // Palette is hidden before the visible-area capture so it isn't in the shot.
     expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
       1,
-      { type: "hide-ui" },
+      { type: "monocle-ui-hide" },
       expect.any(Function),
     )
     expect(chromeApi.tabs.captureVisibleTab).toHaveBeenCalledWith(

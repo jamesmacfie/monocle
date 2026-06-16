@@ -67,7 +67,7 @@ If you are adding a command, the fast path is
   flows (Chrome vs Firefox), inheritance, and execution-time checks vs the
   Redux mirror.
 - [settings.md](./settings.md) — Settings storage shape (`monocle-settings`),
-  command settings, merge/prune semantics, the `update-command-setting`
+  command settings, merge/prune semantics, the `monocle-command-setting-update`
   message, and the Redux mirror.
 - [settings-page.md](./settings-page.md) — Options-page settings catalog, global
   hidden commands, favorites, keyboard shortcuts, URL rules, and future
@@ -78,7 +78,7 @@ If you are adding a command, the fast path is
 - [surfaces.md](./surfaces.md) — The Surfaces primitive: a background-owned,
   owner-namespaced store of declarative overlays, badges, modals, and pickers
   rendered by one generic
-  `SurfaceHost`; the `get-surfaces` query and `monocle-surfaces-changed`
+  `SurfaceHost`; the `monocle-surfaces-get` query and `monocle-surfaces-changed`
   broadcast. The reusable basis for feature and automation page UI.
 - [features.md](./features.md) — The Feature-module registry: how a feature
   contributes commands, a typed config + settings page, runtime state, and
@@ -88,7 +88,7 @@ If you are adding a command, the fast path is
   timed/Pomodoro sessions, the hard-block content overlay, and the new-tab
   status widget.
 - [element-hider.md](./element-hider.md) — Element Hider, the third feature:
-  the interactive `picker` surface, generic `surface-action` owner routing, and
+  the interactive `picker` surface, generic `monocle-surface-action` owner routing, and
   feature-owned (projected) automations that re-hide elements on page load.
 - [calculations.md](./calculations.md) — Inline calculations: the shared
   `ContentBlock` schema + `ContentBlocks` renderer, the background calculation
@@ -100,7 +100,7 @@ If you are adding a command, the fast path is
 - [workflow-automation.md](./workflow-automation.md) — The implemented workflow
   step vocabulary (the content executor in `content/workflow/`), target-tab
   routing, public validation, the lockstep invariant, and the debug command.
-- [user-scripts.md](./user-scripts.md) — User scripts ("Automations"):
+- [automations.md](./automations.md) — Automations ("Automations"):
   declarative user-authored automation documents — schema and caps, triggers
   (manual, urlMatch, elementAppears, schedules), the engine
   (interpolation/segments/lowering/control flow), runCommand policy, the
@@ -144,7 +144,7 @@ If you are adding a command, the fast path is
   commands: the GitHub prototype (urlRules-scoped repo/PR/issue actions,
   Toggle Star workflow) and how that differs from the page-owned SDK.
 - [commands/automations.md](./commands/automations.md) — The Automations
-  category: the user-scripts group, generated per-script rows, and the
+  category: the automations group, generated per-script rows, and the
   Create/Manage commands.
 - [commands/features.md](./commands/features.md) — The Features category:
   commands contributed by feature modules, including the Focus Mode commands.

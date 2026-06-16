@@ -22,7 +22,7 @@ export const debugWorkflow: ActionCommandNode = {
 
     try {
       tabId = await resolveWorkflowTargetTabId({ context })
-      await sendTabMessage(tabId, { type: "toggle-ui" } as any).catch(
+      await sendTabMessage(tabId, { type: "monocle-ui-toggle" } as any).catch(
         () => undefined,
       )
       await delay(200)
@@ -78,7 +78,7 @@ export const debugWorkflow: ActionCommandNode = {
       }
 
       await showToast({
-        type: "show-toast",
+        type: "monocle-toast-show",
         level: "error",
         message,
       })

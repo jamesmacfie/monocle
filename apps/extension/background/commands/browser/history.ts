@@ -132,7 +132,7 @@ function createHistoryItemCommand(item: HistoryItem): CommandNode {
             const activeTab = await getActiveTab()
             if (activeTab) {
               await sendTabMessage(activeTab.id, {
-                type: "monocle-newTab",
+                type: "monocle-tab-open",
                 url: item.url,
               })
 

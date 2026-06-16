@@ -113,7 +113,7 @@ export const navigateToCommand = createAsyncThunk<
 
       // Request children from background script
       const response = await extra.sendMessage({
-        type: "get-children-commands",
+        type: "monocle-command-children-get",
         id,
         parentPath,
       })
@@ -220,7 +220,7 @@ export const refreshCurrentPage = createAsyncThunk<
       // Re-fetch children for the current parent command
       const parentPath = currentPage.parentPath.slice(0, -1) // Remove current page ID to get parent path
       const response = await extra.sendMessage({
-        type: "get-children-commands",
+        type: "monocle-command-children-get",
         id: currentPage.id,
         parentPath,
         searchValue: currentPage.searchValue,
@@ -288,7 +288,7 @@ export const searchCurrentPage = createAsyncThunk<
       }
 
       const response = await extra.sendMessage({
-        type: "search-commands",
+        type: "monocle-commands-search",
         query,
         parentPath: pageId === "root" ? [] : parentPath,
         seq,

@@ -1,5 +1,5 @@
 // Architecture: content layer (tests). Focused coverage for the workflow
-// operations added for user scripts — form ops (fill/select/check/submit),
+// operations added for automations — form ops (fill/select/check/submit),
 // DOM ops (getText/removeElement/hideElement/injectCss), and interaction ops
 // (hover/focus/type/key) — using the shared linkedom fixture in testDom.ts.
 // Together with executor.test.ts this is the executor half of the lockstep

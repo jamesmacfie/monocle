@@ -12,7 +12,7 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "execute-keybinding",
+          type: "monocle-keybinding-execute",
           keybinding: "<cmd-,>",
           context,
         },
@@ -23,7 +23,7 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "execute-keybinding",
+          type: "monocle-keybinding-execute",
           keybinding: "<alt-left>, <cmd-shift-/>",
           context,
         },
@@ -36,7 +36,7 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "execute-keybinding",
+          type: "monocle-keybinding-execute",
           keybinding: "<cmd>",
           context,
         },
@@ -49,8 +49,8 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "update-command-setting",
-          commandId: "open-new-tab",
+          type: "monocle-command-setting-update",
+          id: "open-new-tab",
           setting: "keybinding",
           value: "⌘ ⇧ K",
           context,
@@ -62,8 +62,8 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "update-command-setting",
-          commandId: "open-new-tab",
+          type: "monocle-command-setting-update",
+          id: "open-new-tab",
           setting: "urlRules",
           value: {
             allowUrls: ["ftp://example.com/*"],
@@ -79,8 +79,8 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "update-command-setting",
-          commandId: "open-new-tab",
+          type: "monocle-command-setting-update",
+          id: "open-new-tab",
           setting: "keybinding",
           value: "",
           context,
@@ -92,8 +92,8 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "update-command-setting",
-          commandId: "open-new-tab",
+          type: "monocle-command-setting-update",
+          id: "open-new-tab",
           setting: "urlRules",
           value: {
             allowUrls: ["*://*.example.com/*"],
@@ -110,8 +110,8 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "update-command-setting",
-          commandId: "open-new-tab",
+          type: "monocle-command-setting-update",
+          id: "open-new-tab",
           setting: "hidden",
           value: true,
           context,
@@ -123,7 +123,7 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "get-settings-catalog",
+          type: "monocle-settings-catalog-get",
           platform: "chrome",
         },
         {},
@@ -133,8 +133,8 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "set-command-favorite",
-          commandId: "open-new-tab",
+          type: "monocle-command-favorite-set",
+          id: "open-new-tab",
           favorite: false,
         },
         {},
@@ -144,8 +144,8 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "set-command-favorite",
-          commandId: "../open-new-tab",
+          type: "monocle-command-favorite-set",
+          id: "../open-new-tab",
           favorite: true,
         },
         {},
@@ -157,7 +157,7 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "open-permission-grant-page",
+          type: "monocle-permission-grant-page-open",
           permission: "bookmarks",
         },
         {},
@@ -167,7 +167,7 @@ describe("message business validation", () => {
     expect(
       validateIncomingMessage(
         {
-          type: "open-permission-grant-page",
+          type: "monocle-permission-grant-page-open",
           permission: "unknown",
         },
         {},
@@ -180,7 +180,7 @@ describe("message business validation", () => {
     // Firefox add-on ids are email-style or GUID-style, so @ and {} are valid.
     const childrenFor = (id: string) =>
       validateIncomingMessage(
-        { type: "get-children-commands", id, parentPath: [], context },
+        { type: "monocle-command-children-get", id, parentPath: [], context },
         {},
       ).success
 

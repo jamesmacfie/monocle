@@ -1,7 +1,7 @@
 // Architecture: content layer utility. Best-effort SPA navigation detection:
 // history events (popstate/hashchange) plus a low-frequency href poll that
 // catches hash-only changes and replaceState-heavy routers. Shared by the
-// user-script trigger service and the SurfaceHost so the detection logic lives
+// automation trigger service and the SurfaceHost so the detection logic lives
 // in one place. Returns a cleanup function.
 
 const SPA_POLL_INTERVAL_MS = 1000

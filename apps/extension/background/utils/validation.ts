@@ -213,28 +213,28 @@ function validateBusinessLogic(message: ValidatedMessage): {
   error?: string
 } {
   switch (message.type) {
-    case "execute-command":
-    case "get-children-commands":
+    case "monocle-command-execute":
+    case "monocle-command-children-get":
       if (!isValidCommandId(message.id)) {
         return { valid: false, error: "Invalid command ID format" }
       }
       break
 
-    case "set-command-favorite":
-      if (!isValidCommandId(message.commandId)) {
+    case "monocle-command-favorite-set":
+      if (!isValidCommandId(message.id)) {
         return { valid: false, error: "Invalid command ID format" }
       }
       break
 
-    case "execute-keybinding": {
+    case "monocle-keybinding-execute": {
       if (!isValidKeybinding(message.keybinding)) {
         return { valid: false, error: "Invalid keybinding format" }
       }
       break
     }
 
-    case "update-command-setting": {
-      if (!isValidCommandId(message.commandId)) {
+    case "monocle-command-setting-update": {
+      if (!isValidCommandId(message.id)) {
         return { valid: false, error: "Invalid command ID format" }
       }
 
@@ -283,7 +283,7 @@ function validateBusinessLogic(message: ValidatedMessage): {
       break
     }
 
-    case "update-command-keybindings": {
+    case "monocle-command-keybindings-update": {
       const seenCommandIds = new Set<string>()
 
       for (const update of message.updates) {
@@ -319,8 +319,8 @@ function validateBusinessLogic(message: ValidatedMessage): {
       break
     }
 
-    case "request-permission":
-    case "open-permission-grant-page": {
+    case "monocle-permission-request":
+    case "monocle-permission-grant-page-open": {
       // Validate permission name against the single source of truth
       // (BROWSER_PERMISSIONS in shared/types/commands.ts).
       if (

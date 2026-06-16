@@ -34,7 +34,7 @@ export const loadFeatures = createAsyncThunk<
 >("features/load", async (_, { extra, rejectWithValue }) => {
   try {
     const response = (await getSendMessage(extra)({
-      type: "get-features",
+      type: "monocle-features-get",
     })) as GetFeaturesResponse | { error?: string }
 
     if ("error" in response && response.error) {
@@ -58,7 +58,7 @@ export const updateFeatureConfig = createAsyncThunk<
   async ({ featureId, config }, { extra, rejectWithValue }) => {
     try {
       const response = (await getSendMessage(extra)({
-        type: "update-feature-config",
+        type: "monocle-feature-config-update",
         featureId,
         config,
       })) as UpdateFeatureConfigResponse & { error?: string }
@@ -89,7 +89,7 @@ export const executeFeatureAction = createAsyncThunk<
   async ({ featureId, actionId, payload }, { extra, rejectWithValue }) => {
     try {
       const response = (await getSendMessage(extra)({
-        type: "execute-feature-action",
+        type: "monocle-feature-action-execute",
         featureId,
         actionId,
         payload,

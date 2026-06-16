@@ -4,7 +4,7 @@
 // content/workflow/executor.ts implements, so a workflow that validates can
 // never reach an executor case that fails as unsupported. Used by the
 // `execute-workflow` message schema (shared/types/validation.ts) and by the
-// user-script lowering tests. A new op lands here, in
+// automation lowering tests. A new op lands here, in
 // shared/types/workflow.ts, in the executor, and in tests as one change.
 import { z } from "zod"
 import type { Selector } from "./workflow"

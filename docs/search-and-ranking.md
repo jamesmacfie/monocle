@@ -8,12 +8,12 @@ Palette search is owned entirely by the background service worker. CMDK on the U
 
 The split of responsibilities:
 
-1. **Empty query** — `get-commands` returns the root empty state: `favorites` and usage-ranked `suggestions` (`background/messages/getCommands.ts` → `getCommandCollections`). Root suggestions are root command nodes only, so nested command usage is aggregated onto the nested command's root parent for this empty-state ordering. The UI renders these instantly with no search round-trip.
-2. **Non-empty query** — the UI debounces ~200 ms and sends `search-commands` (`background/messages/searchCommands.ts`). The background scores entries from its in-memory search index (root pages) or from the page's children (child pages), sorts, slices the top N (default 40), converts only those to `Suggestion`s, and returns them. The UI renders them as a single flat "Results" group.
+1. **Empty query** — `monocle-commands-get` returns the root empty state: `favorites` and usage-ranked `suggestions` (`background/messages/getCommands.ts` → `getCommandCollections`). Root suggestions are root command nodes only, so nested command usage is aggregated onto the nested command's root parent for this empty-state ordering. The UI renders these instantly with no search round-trip.
+2. **Non-empty query** — the UI debounces ~200 ms and sends `monocle-commands-search` (`background/messages/searchCommands.ts`). The background scores entries from its in-memory search index (root pages) or from the page's children (child pages), sorts, slices the top N (default 40), converts only those to `Suggestion`s, and returns them. The UI renders them as a single flat "Results" group.
 
 All pages search through the background — root and child group pages alike. The exceptions:
 
-- **`search`-type command pages** keep their own `get-children-commands` flow (`getResults` server-side); see [Search command nodes](#search-command-nodes).
+- **`search`-type command pages** keep their own `monocle-command-children-get` flow (`getResults` server-side); see [Search command nodes](#search-command-nodes).
 - **Form pages** (any page containing an `input` or `submit` suggestion) bypass search entirely: every row stays visible while typing. Display-only rows (NoOp empty/error states) do not trigger the bypass.
 
 ## The search index
@@ -45,7 +45,7 @@ document-specific.
 - The URL-filtered view is memoized: `getVisibleEntries(index, url)` caches the filtered array keyed by index identity + URL, so the full `urlRuleChain` scan runs once per `(index, url)` rather than on every keystroke. A rebuild produces a new index object, which drops the memo implicitly.
 - Each entry is tokenized at build time (`computeScorableTokens`): word-start tokens for the name and a pre-combined list of non-empty "rest" fields plus their tokens. The per-keystroke scorer consumes these directly, so it never re-runs the word-split regex or allocates a combined field array.
 
-Consequence of the URL-free build: command sources whose `children()` depend on the page URL (e.g. the GitHub website prototype) do not contribute nested entries to root search. Their root-level rows still index normally, and the context-aware `get-commands` favorites path is unaffected.
+Consequence of the URL-free build: command sources whose `children()` depend on the page URL (e.g. the GitHub website prototype) do not contribute nested entries to root search. Their root-level rows still index normally, and the context-aware `monocle-commands-get` favorites path is unaffected.
 
 ### Invalidation
 
@@ -86,11 +86,11 @@ final   = textual * sourceWeight * usageBoost
 
 Ties break: favorites first → lower usage rank → shorter name → id. Zero-score entries are dropped; the scorer is never called with an empty query.
 
-## The `search-commands` handler
+## The `monocle-commands-search` handler
 
 `background/messages/searchCommands.ts`:
 
-- **Root** (`parentPath` empty/undefined): scores the URL-filtered index entries (`getVisibleEntries`). An empty root query returns `[]` (the root empty state is `get-commands`' job).
+- **Root** (`parentPath` empty/undefined): scores the URL-filtered index entries (`getVisibleEntries`). An empty root query returns `[]` (the root empty state is `monocle-commands-get`' job).
 - **Child pages**: builds ephemeral entries from `getCommandPageCommands(context, parentPath)` (already URL-filtered) and runs the same scorer. An empty child query returns all children in load order.
 - Top-N (default 40, capped 200) entries are converted via batched `commandsToSuggestions` calls (grouped by inherited-permission set), and deep-search results are stamped with `rankWeight`.
 - The response echoes `seq` and `query` so the UI can drop stale/out-of-order responses.
@@ -207,7 +207,7 @@ The scorer multiplies the weight into the final score, so root commands outrank 
 
 ### How deep-search items render
 
-Deep-search matches arrive inline in `search-commands` results, interleaved with root command matches under the single "Results" group. They appear only for root searches (child-page searches score that page's children). Selecting one executes through the normal root resolution path.
+Deep-search matches arrive inline in `monocle-commands-search` results, interleaved with root command matches under the single "Results" group. They appear only for root searches (child-page searches score that page's children). Selecting one executes through the normal root resolution path.
 
 ## Search command nodes
 
@@ -216,7 +216,7 @@ A `search`-type node (`SearchCommandNode`) is a page whose results are produced 
 Flow:
 
 1. Navigating into the node opens a page with `dynamicChildren: true` (set by `getChildrenCommands.ts`).
-2. As the user types, the page's `searchValue` is sent to the background via `get-children-commands` (and on execution via the `executionScope.searchValue`). `dynamicChildren` pages are excluded from the `search-commands` flow.
+2. As the user types, the page's `searchValue` is sent to the background via `monocle-command-children-get` (and on execution via the `executionScope.searchValue`). `dynamicChildren` pages are excluded from the `monocle-commands-search` flow.
 3. `getCommandPageCommands` detects `pageCommand.type === "search"` and, for a non-empty trimmed search, calls `searchNode.getResults(context, search)`, then URL-filters the results. An empty search yields an empty page (no results shown until the user types). `getResults` errors are caught and produce an empty list.
 
 The background re-fetch for `dynamicChildren` (search) pages is debounced ~250 ms in `shared/hooks/useCommandNavigation.tsx`. With `shouldFilter={false}`, whatever `getResults` returns renders in returned order — return a pre-ordered result set.
@@ -264,5 +264,5 @@ Manual checks (run in **both** content overlay and new-tab modes):
 - [command-types.md](./command-types.md) — `group`, `search`, `action`, `submit` node semantics.
 - [execution-and-actions.md](./execution-and-actions.md) — usage recording on execute, favorite/hide generated actions.
 - [palette-ui-and-navigation.md](./palette-ui-and-navigation.md) — navigation stack, inline forms, overlay vs new-tab differences.
-- [messaging.md](./messaging.md) — `get-commands`, `search-commands`, and `get-children-commands` payloads.
+- [messaging.md](./messaging.md) — `monocle-commands-get`, `monocle-commands-search`, and `monocle-command-children-get` payloads.
 - [authoring-commands.md](./authoring-commands.md) — registering commands and choosing the right node type.

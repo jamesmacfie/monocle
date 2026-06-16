@@ -1,7 +1,7 @@
 // Architecture: background layer. A small factory over a single
 // `chrome.storage.local` key, collapsing the load/parse/default/catch and
 // set/catch boilerplate that every storage module (favorites, snippets, usage,
-// feature config/state, user scripts, ...) was hand-rolling. Each module keeps
+// feature config/state, automations, ...) was hand-rolling. Each module keeps
 // its own domain API (CRUD, merge, validation, broadcast); this only owns the
 // transport.
 //

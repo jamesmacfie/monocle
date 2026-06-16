@@ -16,7 +16,7 @@ export const copyTitleAndUrl: ActionCommandNode = {
     }
     const title = activeTab.title ?? activeTab.url
     await sendTabMessage(activeTab.id, {
-      type: "monocle-copyToClipboard",
+      type: "monocle-clipboard-write",
       message: `${title}\n${activeTab.url}`,
     })
     await sendTabMessage(activeTab.id, {

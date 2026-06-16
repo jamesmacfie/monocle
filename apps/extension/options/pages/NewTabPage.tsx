@@ -19,7 +19,7 @@ import { Button, Panel, Switch } from "../components/ui"
 
 const requestBackground = () =>
   sendRuntimeMessage<UnsplashBackgroundResponse>({
-    type: "get-unsplash-background",
+    type: "monocle-unsplash-background-get",
     context: {
       title: document.title,
       url: window.location.href,

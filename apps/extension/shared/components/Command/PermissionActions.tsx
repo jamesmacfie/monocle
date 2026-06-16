@@ -65,12 +65,12 @@ export function PermissionActions({
         }
       } else if (isFirefox) {
         await sendMessage({
-          type: "open-permission-grant-page",
+          type: "monocle-permission-grant-page-open",
           permission,
         })
         onClose?.()
         await sendMessage({
-          type: "request-toast",
+          type: "monocle-toast-show",
           level: "info",
           message: `Grant ${permissionDisplayNames[permission]} permission in the opened Monocle tab`,
         })
@@ -79,7 +79,7 @@ export function PermissionActions({
         // Fallback: Request permission via background script (Chrome + Firefox sandboxed envs)
         const response: { granted: boolean; error?: string } =
           await sendMessage({
-            type: "request-permission",
+            type: "monocle-permission-request",
             permission,
           })
         granted = response?.granted || false
@@ -97,7 +97,7 @@ export function PermissionActions({
 
         // Show success toast
         await sendMessage({
-          type: "request-toast",
+          type: "monocle-toast-show",
           level: "success",
           message: `${permissionDisplayNames[permission]} permission granted successfully`,
         })
@@ -108,7 +108,7 @@ export function PermissionActions({
         // Show warning toast with specific error if available
         const message = errorMessage || "Permission was denied"
         await sendMessage({
-          type: "request-toast",
+          type: "monocle-toast-show",
           level: "warning",
           message,
         })
@@ -125,7 +125,7 @@ export function PermissionActions({
       const errorMsg =
         error instanceof Error ? error.message : "Unknown error occurred"
       await sendMessage({
-        type: "request-toast",
+        type: "monocle-toast-show",
         level: "error",
         message: `Failed to request ${permissionDisplayNames[permission]} permission: ${errorMsg}`,
       })

@@ -89,7 +89,7 @@
             <p class="muted" style="margin-top: var(--space-xs)">
               Command definitions and executor functions · all browser API
               access · settings persistence · permission grants and checks · the
-              keybinding registry · workflow forwarding · user scripts and
+              keybinding registry · workflow forwarding · automations and
               triggers · feature modules and state · surfaces.
             </p>
           </div>
@@ -113,7 +113,7 @@
           commands, inline form values), <code>commandPalette</code> (overlay
           visibility), <code>keybinding</code> (capture state),
           <code>settingsCatalog</code>, <code>snippets</code>,
-          <code>userScripts</code>, and <code>features</code> for the options
+          <code>automations</code>, and <code>features</code> for the options
           page.
         </p>
       </section>
@@ -124,33 +124,33 @@
 
         <h3>Command loading, search &amp; execution</h3>
         <ol class="flow">
-          <li><div>UI sends <code>get-commands { context }</code> on mount; the background loads root commands, applies browser/context compatibility and URL filtering, computes favorites, ranks, and returns <code>Suggestion[]</code> for the empty state.</div></li>
-          <li><div>Typing (debounced ~200&nbsp;ms) sends <code>search-commands { query, parentPath?, seq }</code>; the background scores an in-memory, URL-filtered search index incrementally and returns the top-N, with deep-search matches inline. Stale <code>seq</code> responses are dropped.</div></li>
-          <li><div>Selecting an action/submit sends <code>execute-command { id, context, formValues? }</code>; the background resolves the node, checks merged permissions, runs the executor, and records usage.</div></li>
+          <li><div>UI sends <code>monocle-commands-get { context }</code> on mount; the background loads root commands, applies browser/context compatibility and URL filtering, computes favorites, ranks, and returns <code>Suggestion[]</code> for the empty state.</div></li>
+          <li><div>Typing (debounced ~200&nbsp;ms) sends <code>monocle-commands-search { query, parentPath?, seq }</code>; the background scores an in-memory, URL-filtered search index incrementally and returns the top-N, with deep-search matches inline. Stale <code>seq</code> responses are dropped.</div></li>
+          <li><div>Selecting an action/submit sends <code>monocle-command-execute { id, context, formValues? }</code>; the background resolves the node, checks merged permissions, runs the executor, and records usage.</div></li>
         </ol>
 
         <h3>Nested navigation</h3>
         <ol class="flow">
-          <li><div>Selecting a <code>group</code> or <code>search</code> sends <code>get-children-commands</code>; the background resolves dynamic children (or search results) and converts them to suggestions.</div></li>
+          <li><div>Selecting a <code>group</code> or <code>search</code> sends <code>monocle-command-children-get</code>; the background resolves dynamic children (or search results) and converts them to suggestions.</div></li>
           <li><div>The <code>navigation</code> slice pushes a new page with the children, a reset search value, and inherited form defaults. Escape pops it and restores the prior search state.</div></li>
         </ol>
 
         <h3>Keybindings</h3>
         <ol class="flow">
-          <li><div>A global keydown outside editable elements is normalized to a canonical string (<code>&lt;cmd-shift-k&gt;</code>) and sent as <code>execute-keybinding</code>.</div></li>
+          <li><div>A global keydown outside editable elements is normalized to a canonical string (<code>&lt;cmd-shift-k&gt;</code>) and sent as <code>monocle-keybinding-execute</code>.</div></li>
           <li><div>The background registry resolves exact matches or sequence prefixes, scoped per sender tab + document, with an 800&nbsp;ms chord window. A match executes through the same command path, or opens the palette at that command.</div></li>
         </ol>
 
         <h3>Workflow forwarding</h3>
         <ol class="flow">
-          <li><div>A command or the user-script engine calls <code>execute-workflow { workflow, context, tabId? }</code>; the background resolves the target tab, validates against the workflow schema, and forwards <code>execute-workflow-content</code> to the tab.</div></li>
+          <li><div>A command or the automation engine calls <code>monocle-workflow-execute { workflow, context, tabId? }</code>; the background resolves the target tab, validates against the workflow schema, and forwards <code>monocle-workflow-content-execute</code> to the tab.</div></li>
           <li><div>The content executor in <code>content/workflow/</code> runs each step and returns a <code>WorkflowResult</code> (including <code>getText</code> extractions) back up the chain.</div></li>
         </ol>
 
         <h3>Surfaces (declarative UI)</h3>
         <ol class="flow">
           <li><div>A feature, automation, or command writes to the owner-namespaced surfaces store; every mutation broadcasts <code>monocle-surfaces-changed</code>.</div></li>
-          <li><div>Each <code>SurfaceHost</code> queries <code>get-surfaces { url }</code>, renders the kinds it owns (overlay/modal/picker in content, badge on the new tab), and reports interactions via <code>surface-action</code>. <code>dismiss</code> removes the surface; any other action routes to the owner's handler.</div></li>
+          <li><div>Each <code>SurfaceHost</code> queries <code>monocle-surfaces-get { url }</code>, renders the kinds it owns (overlay/modal/picker in content, badge on the new tab), and reports interactions via <code>monocle-surface-action</code>. <code>dismiss</code> removes the surface; any other action routes to the owner's handler.</div></li>
         </ol>
       </section>
 
@@ -228,17 +228,17 @@ type AsyncValue&lt;T&gt; = T | ((context: Browser.Context) =&gt; Promise&lt;T&gt
           <table>
             <thead><tr><th>Message</th><th>Dir</th><th>Does</th></tr></thead>
             <tbody>
-              <tr><td><code>get-commands</code></td><td>UI→bg</td><td>Root empty state: favorites + ranked suggestions.</td></tr>
-              <tr><td><code>search-commands</code></td><td>UI→bg</td><td>Scored, sequenced search results with deep matches.</td></tr>
-              <tr><td><code>get-children-commands</code></td><td>UI→bg</td><td>Resolve a group's children or a search page's results.</td></tr>
-              <tr><td><code>execute-command</code></td><td>UI→bg</td><td>Permission-check and run a command with form values.</td></tr>
-              <tr><td><code>execute-keybinding</code></td><td>UI→bg</td><td>Resolve a keystroke against the registry / sequences.</td></tr>
-              <tr><td><code>request-permission</code> · <code>get-permissions</code></td><td>UI→bg</td><td>Request an optional permission; read current grants.</td></tr>
-              <tr><td><code>update-command-setting</code></td><td>UI→bg</td><td>Persist keybinding, hidden, or URL-rule changes.</td></tr>
-              <tr><td><code>execute-workflow</code></td><td>UI→bg</td><td>Validate and forward a workflow to the target tab.</td></tr>
-              <tr><td><code>execute-workflow-content</code></td><td>bg→tab</td><td>Run workflow steps in the content executor.</td></tr>
-              <tr><td><code>get-surfaces</code> · <code>surface-action</code></td><td>tab↔bg</td><td>Fetch URL-matched surfaces; report interactions.</td></tr>
-              <tr><td><code>get-features</code> · <code>update-feature-config</code> · <code>execute-feature-action</code></td><td>UI→bg</td><td>Read feature descriptors, persist config, run actions.</td></tr>
+              <tr><td><code>monocle-commands-get</code></td><td>UI→bg</td><td>Root empty state: favorites + ranked suggestions.</td></tr>
+              <tr><td><code>monocle-commands-search</code></td><td>UI→bg</td><td>Scored, sequenced search results with deep matches.</td></tr>
+              <tr><td><code>monocle-command-children-get</code></td><td>UI→bg</td><td>Resolve a group's children or a search page's results.</td></tr>
+              <tr><td><code>monocle-command-execute</code></td><td>UI→bg</td><td>Permission-check and run a command with form values.</td></tr>
+              <tr><td><code>monocle-keybinding-execute</code></td><td>UI→bg</td><td>Resolve a keystroke against the registry / sequences.</td></tr>
+              <tr><td><code>monocle-permission-request</code> · <code>monocle-permissions-get</code></td><td>UI→bg</td><td>Request an optional permission; read current grants.</td></tr>
+              <tr><td><code>monocle-command-setting-update</code></td><td>UI→bg</td><td>Persist keybinding, hidden, or URL-rule changes.</td></tr>
+              <tr><td><code>monocle-workflow-execute</code></td><td>UI→bg</td><td>Validate and forward a workflow to the target tab.</td></tr>
+              <tr><td><code>monocle-workflow-content-execute</code></td><td>bg→tab</td><td>Run workflow steps in the content executor.</td></tr>
+              <tr><td><code>monocle-surfaces-get</code> · <code>monocle-surface-action</code></td><td>tab↔bg</td><td>Fetch URL-matched surfaces; report interactions.</td></tr>
+              <tr><td><code>monocle-features-get</code> · <code>monocle-feature-config-update</code> · <code>monocle-feature-action-execute</code></td><td>UI→bg</td><td>Read feature descriptors, persist config, run actions.</td></tr>
             </tbody>
           </table>
         </div>
@@ -269,7 +269,7 @@ type AsyncValue&lt;T&gt; = T | ((context: Browser.Context) =&gt; Promise&lt;T&gt
               <tr><td><code>monocle-favoriteCommandIds</code></td><td>Favorited command ids.</td></tr>
               <tr><td><code>monocle-commandUsage</code></td><td>Usage stats for ranking (90-day auto-cleanup).</td></tr>
               <tr><td><code>monocle-snippets</code></td><td>Saved snippets.</td></tr>
-              <tr><td><code>monocle-userscripts</code></td><td>Automation documents.</td></tr>
+              <tr><td><code>monocle-automations</code></td><td>Automation documents.</td></tr>
               <tr><td><code>monocle-feature-config</code> / <code>-state</code></td><td>Durable feature config and transient runtime state, keyed by feature id.</td></tr>
               <tr><td><code>monocle-surfaces</code></td><td>Owner-namespaced declarative surfaces (session owners cleared on startup).</td></tr>
             </tbody>

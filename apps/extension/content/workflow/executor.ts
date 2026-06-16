@@ -43,7 +43,7 @@ export class WorkflowExecutor {
 
   /**
    * Runs every step in order, aborting on the first failure (the
-   * first-failure-aborts contract user scripts inherit). Returns per-step
+   * first-failure-aborts contract automations inherit). Returns per-step
    * results and the final var values so callers can thread getText
    * extractions onward.
    */

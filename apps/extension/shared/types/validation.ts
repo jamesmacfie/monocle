@@ -1,13 +1,13 @@
 // Architecture: shared/ validation layer. Zod schemas for every message
 // crossing the UI -> background boundary, composed into the MessageSchema
 // union consumed by background/utils/validation.ts. Workflow step schemas
-// live in shared/types/workflowValidation.ts and user-script schemas in
-// shared/types/userScriptValidation.ts; both are re-exported here so message
+// live in shared/types/workflowValidation.ts and automation schemas in
+// shared/types/automationValidation.ts; both are re-exported here so message
 // handlers and tests keep one import surface.
 import { z } from "zod"
+import { AutomationDraftSchema } from "./automationValidation"
 import { PickedElementSchema } from "./picker"
 import { SiteSdkRegistrationsSchema } from "./siteSdk"
-import { UserScriptDraftSchema } from "./userScriptValidation"
 import { WorkflowSchema } from "./workflowValidation"
 
 export { WorkflowSchema, WorkflowStepSchema } from "./workflowValidation"
@@ -22,7 +22,7 @@ export const BrowserContextSchema = z.object({
 
 // Individual message schemas
 export const ExecuteCommandMessageSchema = z.object({
-  type: z.literal("execute-command"),
+  type: z.literal("monocle-command-execute"),
   id: z.string().min(1, "Command ID cannot be empty"),
   context: BrowserContextSchema,
   formValues: z
@@ -39,18 +39,18 @@ export const ExecuteCommandMessageSchema = z.object({
 })
 
 export const ExecuteKeybindingMessageSchema = z.object({
-  type: z.literal("execute-keybinding"),
+  type: z.literal("monocle-keybinding-execute"),
   keybinding: z.string().min(1, "Keybinding cannot be empty"),
   context: BrowserContextSchema,
 })
 
 export const GetKeybindingStateMessageSchema = z.object({
-  type: z.literal("get-keybinding-state"),
+  type: z.literal("monocle-keybinding-state-get"),
   context: BrowserContextSchema,
 })
 
 export const GetChildrenMessageSchema = z.object({
-  type: z.literal("get-children-commands"),
+  type: z.literal("monocle-command-children-get"),
   id: z.string().min(1, "Command ID cannot be empty"),
   context: BrowserContextSchema,
   parentPath: z.array(z.string()).optional(),
@@ -58,12 +58,12 @@ export const GetChildrenMessageSchema = z.object({
 })
 
 export const GetCommandsMessageSchema = z.object({
-  type: z.literal("get-commands"),
+  type: z.literal("monocle-commands-get"),
   context: BrowserContextSchema,
 })
 
 export const SearchCommandsMessageSchema = z.object({
-  type: z.literal("search-commands"),
+  type: z.literal("monocle-commands-search"),
   context: BrowserContextSchema,
   query: z.string().max(1000, "Search query too long"),
   parentPath: z.array(z.string()).optional(),
@@ -72,20 +72,14 @@ export const SearchCommandsMessageSchema = z.object({
 })
 
 export const ShowToastMessageSchema = z.object({
-  type: z.literal("show-toast"),
-  level: z.enum(["info", "warning", "success", "error"]),
-  message: z.string().min(1, "Toast message cannot be empty"),
-})
-
-export const RequestToastMessageSchema = z.object({
-  type: z.literal("request-toast"),
+  type: z.literal("monocle-toast-show"),
   level: z.enum(["info", "warning", "success", "error"]),
   message: z.string().min(1, "Toast message cannot be empty"),
 })
 
 const CommandSettingBaseSchema = z.object({
-  type: z.literal("update-command-setting"),
-  commandId: z.string().min(1, "Command ID cannot be empty"),
+  type: z.literal("monocle-command-setting-update"),
+  id: z.string().min(1, "Command ID cannot be empty"),
   context: BrowserContextSchema.optional(),
 })
 
@@ -115,7 +109,7 @@ export const UpdateCommandSettingMessageSchema = z.discriminatedUnion(
 )
 
 export const UpdateCommandKeybindingsMessageSchema = z.object({
-  type: z.literal("update-command-keybindings"),
+  type: z.literal("monocle-command-keybindings-update"),
   updates: z
     .array(
       z.object({
@@ -129,13 +123,13 @@ export const UpdateCommandKeybindingsMessageSchema = z.object({
 })
 
 export const GetSettingsCatalogMessageSchema = z.object({
-  type: z.literal("get-settings-catalog"),
+  type: z.literal("monocle-settings-catalog-get"),
   platform: z.enum(["chrome", "firefox"]).optional(),
 })
 
 export const SetCommandFavoriteMessageSchema = z.object({
-  type: z.literal("set-command-favorite"),
-  commandId: z.string().min(1, "Command ID cannot be empty"),
+  type: z.literal("monocle-command-favorite-set"),
+  id: z.string().min(1, "Command ID cannot be empty"),
   favorite: z.boolean(),
 })
 
@@ -150,19 +144,19 @@ const SnippetBodySchema = z
   .max(100_000, "Snippet body too long")
 
 export const GetSnippetsMessageSchema = z.object({
-  type: z.literal("get-snippets"),
+  type: z.literal("monocle-snippets-get"),
   context: BrowserContextSchema.optional(),
 })
 
 export const AddSnippetMessageSchema = z.object({
-  type: z.literal("add-snippet"),
+  type: z.literal("monocle-snippet-add"),
   name: SnippetNameSchema,
   body: SnippetBodySchema,
   context: BrowserContextSchema.optional(),
 })
 
 export const UpdateSnippetMessageSchema = z.object({
-  type: z.literal("update-snippet"),
+  type: z.literal("monocle-snippet-update"),
   id: z.string().min(1, "Snippet ID cannot be empty"),
   name: SnippetNameSchema.optional(),
   body: SnippetBodySchema.optional(),
@@ -170,76 +164,76 @@ export const UpdateSnippetMessageSchema = z.object({
 })
 
 export const DeleteSnippetMessageSchema = z.object({
-  type: z.literal("delete-snippet"),
+  type: z.literal("monocle-snippet-delete"),
   id: z.string().min(1, "Snippet ID cannot be empty"),
   context: BrowserContextSchema.optional(),
 })
 
 export const CheckKeybindingConflictMessageSchema = z.object({
-  type: z.literal("check-keybinding-conflict"),
+  type: z.literal("monocle-keybinding-conflict-check"),
   keybinding: z.string().min(1, "Keybinding cannot be empty"),
   excludeCommandId: z.string().optional(),
   context: BrowserContextSchema.optional(),
 })
 
 export const GetUnsplashBackgroundMessageSchema = z.object({
-  type: z.literal("get-unsplash-background"),
+  type: z.literal("monocle-unsplash-background-get"),
   context: BrowserContextSchema,
 })
 
 export const GetPermissionsMessageSchema = z.object({
-  type: z.literal("get-permissions"),
+  type: z.literal("monocle-permissions-get"),
 })
 
 export const RequestPermissionMessageSchema = z.object({
-  type: z.literal("request-permission"),
+  type: z.literal("monocle-permission-request"),
   permission: z.string().min(1, "Permission name cannot be empty"),
 })
 
 export const OpenPermissionGrantPageMessageSchema = z.object({
-  type: z.literal("open-permission-grant-page"),
+  type: z.literal("monocle-permission-grant-page-open"),
   permission: z.string().min(1, "Permission name cannot be empty"),
 })
 
 export const ExecuteWorkflowMessageSchema = z.object({
-  type: z.literal("execute-workflow"),
+  type: z.literal("monocle-workflow-execute"),
   workflow: WorkflowSchema,
   context: BrowserContextSchema,
   tabId: z.number().int().positive().optional(),
 })
 
 export const SiteSdkSyncMessageSchema = z.object({
-  type: z.literal("site-sdk-sync"),
+  type: z.literal("monocle-site-sdk-sync"),
   context: BrowserContextSchema,
   registrations: SiteSdkRegistrationsSchema,
 })
 
-// User script messages. Drafts are validated with the full shared document
-// schema (shared/types/userScriptValidation.ts) at this boundary — the
+// Automation messages. Drafts are validated with the full shared document
+// schema (shared/types/automationValidation.ts) at this boundary — the
 // options builder validates with the identical schema before sending.
-export const GetUserScriptsMessageSchema = z.object({
-  type: z.literal("get-user-scripts"),
+export const GetAutomationsMessageSchema = z.object({
+  type: z.literal("monocle-automations-get"),
 })
 
-export const AddUserScriptMessageSchema = z.object({
-  type: z.literal("add-user-script"),
-  script: UserScriptDraftSchema,
+export const AddAutomationMessageSchema = z.object({
+  type: z.literal("monocle-automation-add"),
+  automation: AutomationDraftSchema,
 })
 
-export const UpdateUserScriptMessageSchema = z.object({
-  type: z.literal("update-user-script"),
-  id: z.string().min(1, "User script ID cannot be empty"),
-  script: UserScriptDraftSchema,
+export const UpdateAutomationMessageSchema = z.object({
+  type: z.literal("monocle-automation-update"),
+  id: z.string().min(1, "Automation ID cannot be empty"),
+  automation: AutomationDraftSchema,
 })
 
-export const DeleteUserScriptMessageSchema = z.object({
-  type: z.literal("delete-user-script"),
-  id: z.string().min(1, "User script ID cannot be empty"),
+export const DeleteAutomationMessageSchema = z.object({
+  type: z.literal("monocle-automation-delete"),
+  id: z.string().min(1, "Automation ID cannot be empty"),
 })
 
-export const RunUserScriptMessageSchema = z.object({
-  type: z.literal("run-user-script"),
-  id: z.string().min(1, "User script ID cannot be empty"),
+export const RunAutomationMessageSchema = z.object({
+  type: z.literal("monocle-automation-run"),
+  id: z.string().min(1, "Automation ID cannot be empty"),
   // Optional: options-page test runs have no page context; the engine then
   // targets the active tab.
   context: BrowserContextSchema.optional(),
@@ -248,17 +242,17 @@ export const RunUserScriptMessageSchema = z.object({
 
 // Content -> background: the page reports its URL and receives the armed
 // non-manual trigger specs whose script urlRules allow that URL.
-export const GetUserScriptTriggersMessageSchema = z.object({
-  type: z.literal("get-user-script-triggers"),
+export const GetAutomationTriggersMessageSchema = z.object({
+  type: z.literal("monocle-automation-triggers-get"),
   url: z.string().min(1, "URL cannot be empty"),
 })
 
 // Content -> background: a page-side trigger (urlMatch/elementAppears)
 // fired. The background re-validates eligibility, cooldowns, and the
 // concurrent-run limit before executing anything.
-export const UserScriptTriggerFiredMessageSchema = z.object({
-  type: z.literal("user-script-trigger-fired"),
-  scriptId: z.string().min(1, "User script ID cannot be empty"),
+export const AutomationTriggerFiredMessageSchema = z.object({
+  type: z.literal("monocle-automation-trigger-fired"),
+  automationId: z.string().min(1, "Automation ID cannot be empty"),
   trigger: z.object({
     type: z.enum(["urlMatch", "elementAppears"]),
     url: z.string().min(1, "URL cannot be empty"),
@@ -269,17 +263,17 @@ export const UserScriptTriggerFiredMessageSchema = z.object({
 // Feature-module messages. The config payload is validated structurally here;
 // the per-feature configSchema re-validates it in the handler before persist.
 export const GetFeaturesMessageSchema = z.object({
-  type: z.literal("get-features"),
+  type: z.literal("monocle-features-get"),
 })
 
 export const UpdateFeatureConfigMessageSchema = z.object({
-  type: z.literal("update-feature-config"),
+  type: z.literal("monocle-feature-config-update"),
   featureId: z.string().min(1, "Feature ID cannot be empty"),
   config: z.record(z.string(), z.unknown()),
 })
 
 export const ExecuteFeatureActionMessageSchema = z.object({
-  type: z.literal("execute-feature-action"),
+  type: z.literal("monocle-feature-action-execute"),
   featureId: z.string().min(1, "Feature ID cannot be empty"),
   actionId: z.string().min(1, "Action ID cannot be empty"),
   context: BrowserContextSchema.optional(),
@@ -290,14 +284,14 @@ export const ExecuteFeatureActionMessageSchema = z.object({
 
 // Surfaces query.
 export const GetSurfacesMessageSchema = z.object({
-  type: z.literal("get-surfaces"),
+  type: z.literal("monocle-surfaces-get"),
   url: z.string(),
 })
 
 // A surface interaction (e.g. dismissing a modal, or a picker reporting a
 // clicked element). See docs/surfaces.md.
 export const SurfaceActionMessageSchema = z.object({
-  type: z.literal("surface-action"),
+  type: z.literal("monocle-surface-action"),
   ownerId: z.string().min(1, "Owner ID cannot be empty"),
   surfaceId: z.string().min(1, "Surface ID cannot be empty"),
   actionId: z.string().min(1, "Action ID cannot be empty"),
@@ -314,7 +308,6 @@ export const MessageSchema = z.discriminatedUnion("type", [
   GetCommandsMessageSchema,
   SearchCommandsMessageSchema,
   ShowToastMessageSchema,
-  RequestToastMessageSchema,
   UpdateCommandSettingMessageSchema,
   UpdateCommandKeybindingsMessageSchema,
   GetSettingsCatalogMessageSchema,
@@ -330,13 +323,13 @@ export const MessageSchema = z.discriminatedUnion("type", [
   OpenPermissionGrantPageMessageSchema,
   ExecuteWorkflowMessageSchema,
   SiteSdkSyncMessageSchema,
-  GetUserScriptsMessageSchema,
-  AddUserScriptMessageSchema,
-  UpdateUserScriptMessageSchema,
-  DeleteUserScriptMessageSchema,
-  RunUserScriptMessageSchema,
-  GetUserScriptTriggersMessageSchema,
-  UserScriptTriggerFiredMessageSchema,
+  GetAutomationsMessageSchema,
+  AddAutomationMessageSchema,
+  UpdateAutomationMessageSchema,
+  DeleteAutomationMessageSchema,
+  RunAutomationMessageSchema,
+  GetAutomationTriggersMessageSchema,
+  AutomationTriggerFiredMessageSchema,
   GetFeaturesMessageSchema,
   UpdateFeatureConfigMessageSchema,
   ExecuteFeatureActionMessageSchema,

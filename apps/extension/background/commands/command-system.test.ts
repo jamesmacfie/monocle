@@ -218,7 +218,7 @@ const _getChildren = async (
   searchValue?: string,
 ) => {
   return (await getChildrenCommands({
-    type: "get-children-commands",
+    type: "monocle-command-children-get",
     id,
     parentPath,
     searchValue,
@@ -523,7 +523,7 @@ describe("favorites and deep search", () => {
     await toggleFavoriteCommandId("open-tabs")
 
     const response = (await getCommandMessage({
-      type: "get-commands",
+      type: "monocle-commands-get",
       context: normalContext,
     })) as any
 
@@ -535,7 +535,7 @@ describe("favorites and deep search", () => {
     ).not.toContain("open-tabs")
 
     const searchResponse = (await searchCommands({
-      type: "search-commands",
+      type: "monocle-commands-search",
       context: normalContext,
       query: "docs",
       seq: 1,
@@ -616,7 +616,7 @@ describe("URL-filtered execution", () => {
     // A generous limit keeps deep-search children in scope as the root
     // command catalog of "tab" matches grows.
     const searchResponse = (await searchCommands({
-      type: "search-commands",
+      type: "monocle-commands-search",
       context: normalContext,
       query: "tab",
       seq: 1,
@@ -645,7 +645,7 @@ describe("URL-filtered execution", () => {
     ).not.toContain("open-tab-2")
 
     const searchResponse = (await searchCommands({
-      type: "search-commands",
+      type: "monocle-commands-search",
       context: normalContext,
       query: "tab",
       seq: 1,
@@ -672,7 +672,7 @@ describe("URL-filtered execution", () => {
 
     await initializeKeybindingRegistry()
     const response = await executeKeybinding({
-      type: "execute-keybinding",
+      type: "monocle-keybinding-execute",
       keybinding: "<cmd-t>",
       context: normalContext,
     })
@@ -693,7 +693,7 @@ describe("URL-filtered execution", () => {
 
     await initializeKeybindingRegistry()
     const response = await executeKeybinding({
-      type: "execute-keybinding",
+      type: "monocle-keybinding-execute",
       keybinding: "<cmd-t>",
       context: normalContext,
     })
@@ -708,7 +708,7 @@ describe("URL-filtered execution", () => {
     })
 
     const normalResponse = await executeKeybinding({
-      type: "execute-keybinding",
+      type: "monocle-keybinding-execute",
       keybinding: "<cmd-alt-c>",
       context: normalContext,
     })
@@ -716,7 +716,7 @@ describe("URL-filtered execution", () => {
     await expect(getNewTabClockSettings()).resolves.toEqual({})
 
     const newTabResponse = await executeKeybinding({
-      type: "execute-keybinding",
+      type: "monocle-keybinding-execute",
       keybinding: "<cmd-alt-c>",
       context: newTabContext,
     })
@@ -735,7 +735,7 @@ describe("URL-filtered execution", () => {
     }
 
     const beforeHide = await searchCommands({
-      type: "search-commands",
+      type: "monocle-commands-search",
       query: "bookmarks",
       context: docsContext,
       seq: 1,
@@ -751,7 +751,7 @@ describe("URL-filtered execution", () => {
     })
 
     const afterHide = await searchCommands({
-      type: "search-commands",
+      type: "monocle-commands-search",
       query: "bookmarks",
       context: docsContext,
       seq: 2,

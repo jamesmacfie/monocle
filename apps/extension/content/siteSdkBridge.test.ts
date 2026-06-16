@@ -113,7 +113,7 @@ describe("site SDK bridge and facade", () => {
 
     expect(runtimeListeners).toHaveLength(1)
     expect(sentMessages.at(-1)).toMatchObject({
-      type: "site-sdk-sync",
+      type: "monocle-site-sdk-sync",
       registrations: [
         {
           namespace: "docs",
@@ -127,7 +127,7 @@ describe("site SDK bridge and facade", () => {
       .registrations.flatMap((registration: any) => registration.commands)
       .find((command: any) => command.id === "open")
     const executeResponse = await sendRuntimeMessage(runtimeListeners[0], {
-      type: "monocle-sdk-invoke",
+      type: "monocle-site-sdk-invoke",
       request: {
         type: "execute",
         callbackId: openCommand.execute.callbackId,
@@ -194,7 +194,7 @@ describe("site SDK bridge and facade", () => {
       .registrations.flatMap((registration: any) => registration.commands)
       .find((command: any) => command.id === "group")
     const childrenResponse = await sendRuntimeMessage(runtimeListeners[0], {
-      type: "monocle-sdk-invoke",
+      type: "monocle-site-sdk-invoke",
       request: {
         type: "children",
         callbackId: groupCommand.children.callback.callbackId,
@@ -211,7 +211,7 @@ describe("site SDK bridge and facade", () => {
     expect(childrenResponse.error).toContain("placement is only allowed")
 
     const syncResponse = await sendRuntimeMessage(runtimeListeners[0], {
-      type: "monocle-sdk-sync-request",
+      type: "monocle-site-sdk-sync-request",
     })
 
     expect(syncResponse.registrations[0]).toMatchObject({

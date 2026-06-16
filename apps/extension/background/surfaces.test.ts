@@ -56,8 +56,8 @@ describe("surfaces store", () => {
   })
 
   it("upsert adds then replaces by id within an owner", async () => {
-    await upsertSurface("userscript:1", badge("x"))
-    await upsertSurface("userscript:1", {
+    await upsertSurface("automation:1", badge("x"))
+    await upsertSurface("automation:1", {
       ...badge("x"),
       content: { title: "Y" },
     })
@@ -130,7 +130,7 @@ describe("write validation (canonical SurfaceSchema)", () => {
 
   it("rejects an upsert whose payload fails validation", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
-    await upsertSurface("userscript:1", {
+    await upsertSurface("automation:1", {
       id: "x",
       kind: "badge",
       // Unknown extra key: strict schema rejects it.
@@ -217,9 +217,9 @@ describe("broadcast", () => {
 })
 
 describe("initSurfaces", () => {
-  it("drops per-session (userscript:* and command:*) owners but keeps feature owners", async () => {
+  it("drops per-session (automation:* and command:*) owners but keeps feature owners", async () => {
     await setOwnerSurfaces("focus-mode", [badge("f")])
-    await upsertSurface("userscript:42", badge("u"))
+    await upsertSurface("automation:42", badge("u"))
     await upsertSurface("command:url-as-qr-code", badge("q"))
 
     await initSurfaces()

@@ -2,7 +2,7 @@
 
 > **Status: implemented.** A background-owned, owner-namespaced store of
 > declarative UI surfaces (overlays, badges, modals, and pickers) that content
-> and the new tab render through one generic host. Focus Mode and user-script
+> and the new tab render through one generic host. Focus Mode and automation
 > automations are the first consumers.
 
 A **surface** is a piece of persistent, declarative UI that the background owns
@@ -53,7 +53,7 @@ type Surface = {
   `blocks` (via the shared `ContentBlocks` renderer) and the first surface
   triggered by a **command** (the QR-code command). Radix handles dismissal —
   the ✕ button, a backdrop click, and Escape all fire `onOpenChange`, which
-  posts a `surface-action` (below). **Shadow-root note:** `DialogContent` takes
+  posts a `monocle-surface-action` (below). **Shadow-root note:** `DialogContent` takes
   a `container` prop threaded to the Radix Portal; `SurfaceHost` passes an
   element inside the closed content shadow root so the dialog stays themed (by
   the `:host` `--color-*` tokens) and contained — Radix's default portal to
@@ -61,7 +61,7 @@ type Surface = {
 - **picker** — the one *interactive* kind. While a picker surface is present
   the content host enters element pick-mode (`content/picker/PickerSurface.tsx`):
   it highlights the element under the cursor and, on click, resolves a stable CSS
-  selector (`content/picker/selector.ts`) and posts a `surface-action`
+  selector (`content/picker/selector.ts`) and posts a `monocle-surface-action`
   (`actionId: "element-picked"`) carrying a rich `PickedElement`
   (`shared/types/picker.ts`: selector + tag/id/classes/innerText/href/role,
   plus an optional `css` map — see next). An owner may also set an optional
@@ -85,7 +85,7 @@ type Surface = {
   for interactive, tab-specific surfaces such as the Element Hider picker; absent
   keeps the existing URL-only behavior.
 - **`ownerId`** is not part of the stored shape; `getSurfacesForUrl` stamps it
-  onto each returned surface so the host can target it in a `surface-action`.
+  onto each returned surface so the host can target it in a `monocle-surface-action`.
 
 ---
 
@@ -101,14 +101,14 @@ service-worker death within a session):
 | `upsertSurface(ownerId, surface)` | Add/replace one surface by id (the automation path). |
 | `removeSurface(ownerId, surfaceId)` | Remove one surface. |
 | `getSurfacesForUrl(url, senderTabId?)` | Every surface (all owners) whose `urlMatch` and optional `targetTabId` admit the sender. |
-| `initSurfaces()` | Startup: drop per-session (`userscript:*`) owners; features rebuild their own in `init`. |
+| `initSurfaces()` | Startup: drop per-session (`automation:*`) owners; features rebuild their own in `init`. |
 
 Every mutation persists, then broadcasts `monocle-surfaces-changed` to all tabs
 via `broadcastToAllTabs` (`background/utils/browserTabs.ts`).
 
 **Owner ids.** Features use their feature id (e.g. `focus-mode`). Per-session
 owners are prefixed so `initSurfaces` clears them on a fresh browser start:
-user-script automations use `userscript:<scriptId>`, and commands that push a
+automation automations use `automation:<scriptId>`, and commands that push a
 surface use `command:<commandId>` (e.g. `command:url-as-qr-code`). Feature
 owners are not prefixed — they rebuild their own surfaces in `init()`.
 
@@ -123,8 +123,8 @@ One generic renderer, mounted like `ToastContainer`:
 - `<SurfaceHost kinds={["badge"]} />` in `newtab/NewTabApp.tsx`.
 
 On mount, on SPA navigation (`content/utils/spaNavigation.ts`,
-`trackSpaNavigation` — shared with the user-script trigger service), and on
-every `monocle-surfaces-changed` broadcast, it sends `get-surfaces { url }` and
+`trackSpaNavigation` — shared with the automation trigger service), and on
+every `monocle-surfaces-changed` broadcast, it sends `monocle-surfaces-get { url }` and
 renders the returned surfaces of the kinds it owns. It uses inline styles so the
 one component works in both the content shadow root and the normal new-tab DOM,
 and renders icons through the shared icon registry.
@@ -133,17 +133,17 @@ and renders icons through the shared icon registry.
 
 ## Messages
 
-- `get-surfaces { url }` → `{ surfaces: Surface[] }` (handler:
+- `monocle-surfaces-get { url }` → `{ surfaces: Surface[] }` (handler:
   `background/messages/surfaces.ts`). The background returns every surface whose
   `urlMatch` admits the URL and whose optional `targetTabId` matches the sender
   tab (each stamped with its `ownerId`); the host filters by kind locally.
-- `surface-action { ownerId, surfaceId, actionId, value?, selection? }` (handler:
+- `monocle-surface-action { ownerId, surfaceId, actionId, value?, selection? }` (handler:
   `background/messages/surfaceAction.ts`) — a user interaction the host reports
   back. The host captures the gesture; the background decides what it means.
   - `actionId: "dismiss"` is universal: any surface can be closed → `removeSurface`.
   - Any **other** action is routed to the surface's **owner**:
     - **Feature** owners (a bare feature id) are dispatched to the feature's
-      `handleAction` — the same entry point that backs `execute-feature-action`
+      `handleAction` — the same entry point that backs `monocle-feature-action-execute`
       — with the picker `selection` and the sender tab in the
       `FeatureActionContext`. So a feature reacts to a surface gesture exactly
       as to a settings-page button.
@@ -152,7 +152,7 @@ and renders icons through the shared icon registry.
       (`registerCommandSurfaceActionHandler`) at module load — the command-side
       equivalent of `handleAction`, receiving the same `{ selection, tab }`
       context. The font inspector uses this to read the picked element's
-      computed fonts and copy them. (user-script owner routing is still future
+      computed fonts and copy them. (automation owner routing is still future
       work; unknown owners are a no-op.)
   - `selection` is the `PickedElement` set by the `picker` kind (including its
     optional captured `css`).
@@ -168,10 +168,10 @@ See [messaging.md](./messaging.md).
 `projectFocusSurfaces`) and calls `setOwnerSurfaces`/`clearOwnerSurfaces` on
 start/stop/expiry/config-change. See [focus-mode.md](./focus-mode.md).
 
-**Automations** push surfaces with the `showSurface` / `hideSurface` user-script
-engine ops (owner `userscript:<id>`). `content.title` / `content.text` are
+**Automations** push surfaces with the `showSurface` / `hideSurface` automation
+engine ops (owner `automation:<id>`). `content.title` / `content.text` are
 interpolated (`{{var}}`); `urlMatch` is not (an address, never a template). See
-[user-scripts.md](./user-scripts.md). Automations intentionally produce only
+[automations.md](./automations.md). Automations intentionally produce only
 `overlay`/`badge` surfaces. Their schema rejects modal/picker-only fields such
 as `blocks` and `css`, so richer interactive surfaces stay command/feature-owned.
 
@@ -191,7 +191,7 @@ Surfaces are intentionally a small, closed vocabulary. To add a kind:
 1. Extend `SurfaceKind` and (if needed) `SurfaceContent` in
    `shared/types/surface.ts`.
 2. Add a renderer branch in `SurfaceHost.tsx`.
-3. Extend the `showSurface` Zod schema (`shared/types/userScriptValidation.ts`)
+3. Extend the `showSurface` Zod schema (`shared/types/automationValidation.ts`)
    if automations should produce it.
 4. Land type + renderer + schema + tests together.
 
@@ -202,5 +202,5 @@ the "data, not code" contract.
 
 - [features.md](./features.md) — the Feature-module registry (features push surfaces).
 - [focus-mode.md](./focus-mode.md) — the first feature consumer.
-- [user-scripts.md](./user-scripts.md) — the `showSurface`/`hideSurface` ops.
-- [messaging.md](./messaging.md) — `get-surfaces` and `monocle-surfaces-changed`.
+- [automations.md](./automations.md) — the `showSurface`/`hideSurface` ops.
+- [messaging.md](./messaging.md) — `monocle-surfaces-get` and `monocle-surfaces-changed`.

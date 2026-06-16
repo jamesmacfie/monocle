@@ -36,9 +36,9 @@ const modal: Surface = {
 // get-surfaces returns the modal; surface-action resolves.
 const respond = (surfaces: Surface[]) =>
   sendRuntimeMessageSafe.mockImplementation((msg: { type: string }) =>
-    msg.type === "get-surfaces"
+    msg.type === "monocle-surfaces-get"
       ? Promise.resolve({ surfaces })
-      : Promise.resolve({ ok: true }),
+      : Promise.resolve({ success: true }),
   )
 
 afterEach(() => {
@@ -80,7 +80,7 @@ describe("SurfaceHost modal", () => {
     })
     fireEvent.click(closeButton)
     expect(sendRuntimeMessageSafe).toHaveBeenCalledWith({
-      type: "surface-action",
+      type: "monocle-surface-action",
       ownerId: "command:url-as-qr-code",
       surfaceId: "qr",
       actionId: "dismiss",
@@ -95,7 +95,7 @@ describe("SurfaceHost modal", () => {
     })
     fireEvent.keyDown(document, { key: "Escape" })
     expect(sendRuntimeMessageSafe).toHaveBeenCalledWith({
-      type: "surface-action",
+      type: "monocle-surface-action",
       ownerId: "command:url-as-qr-code",
       surfaceId: "qr",
       actionId: "dismiss",

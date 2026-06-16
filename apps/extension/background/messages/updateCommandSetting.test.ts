@@ -56,8 +56,8 @@ describe("updateCommandSetting message handler", () => {
     })
 
     await updateCommandSetting({
-      type: "update-command-setting",
-      commandId: "uuidv4",
+      type: "monocle-command-setting-update",
+      id: "uuidv4",
       setting: "keybinding",
       value: "<cmd-shift-u>",
       context: normalContext,
@@ -80,8 +80,8 @@ describe("updateCommandSetting message handler", () => {
     })
 
     await updateCommandSetting({
-      type: "update-command-setting",
-      commandId: "uuidv4",
+      type: "monocle-command-setting-update",
+      id: "uuidv4",
       setting: "keybinding",
       value: "",
       context: normalContext,
@@ -100,8 +100,8 @@ describe("updateCommandSetting message handler", () => {
     })
 
     await updateCommandSetting({
-      type: "update-command-setting",
-      commandId: "uuidv4",
+      type: "monocle-command-setting-update",
+      id: "uuidv4",
       setting: "keybinding",
       value: "<cmd-shift-u>",
       context: normalContext,
@@ -115,8 +115,8 @@ describe("updateCommandSetting message handler", () => {
 
   it("sets keybindings for new-tab catalog commands from the options page context", async () => {
     await updateCommandSetting({
-      type: "update-command-setting",
-      commandId: "toggle-clock-visibility",
+      type: "monocle-command-setting-update",
+      id: "toggle-clock-visibility",
       setting: "keybinding",
       value: "<cmd-alt-c>",
       context: {
@@ -141,8 +141,8 @@ describe("updateCommandSetting message handler", () => {
     // editable element is focused, so the requirement gate rejects them.
     await expect(
       updateCommandSetting({
-        type: "update-command-setting",
-        commandId,
+        type: "monocle-command-setting-update",
+        id: commandId,
         setting: "keybinding",
         value: "g",
         context: normalContext,
@@ -151,8 +151,8 @@ describe("updateCommandSetting message handler", () => {
 
     await expect(
       updateCommandSetting({
-        type: "update-command-setting",
-        commandId,
+        type: "monocle-command-setting-update",
+        id: commandId,
         setting: "keybinding",
         value: "<shift-7>",
         context: normalContext,
@@ -161,8 +161,8 @@ describe("updateCommandSetting message handler", () => {
 
     // Modifier combos persist, and clearing still works.
     await updateCommandSetting({
-      type: "update-command-setting",
-      commandId,
+      type: "monocle-command-setting-update",
+      id: commandId,
       setting: "keybinding",
       value: "<cmd-shift-7>",
       context: normalContext,
@@ -172,8 +172,8 @@ describe("updateCommandSetting message handler", () => {
     })
 
     await updateCommandSetting({
-      type: "update-command-setting",
-      commandId,
+      type: "monocle-command-setting-update",
+      id: commandId,
       setting: "keybinding",
       value: "",
       context: normalContext,
@@ -190,8 +190,8 @@ describe("updateCommandSetting message handler", () => {
     })
 
     await updateCommandSetting({
-      type: "update-command-setting",
-      commandId: "uuidv4",
+      type: "monocle-command-setting-update",
+      id: "uuidv4",
       setting: "urlRules",
       value: {
         allowUrls: ["*://allowed.example.com/*"],
@@ -209,8 +209,8 @@ describe("updateCommandSetting message handler", () => {
 
     await expect(
       updateCommandSetting({
-        type: "update-command-setting",
-        commandId: "uuidv4",
+        type: "monocle-command-setting-update",
+        id: "uuidv4",
         setting: "urlRules",
         value: {
           allowUrls: ["ftp://example.com/*"],
@@ -229,8 +229,8 @@ describe("updateCommandSetting message handler", () => {
     })
 
     await updateCommandSetting({
-      type: "update-command-setting",
-      commandId: "uuidv4",
+      type: "monocle-command-setting-update",
+      id: "uuidv4",
       setting: "hidden",
       value: true,
       context: normalContext,
@@ -245,8 +245,8 @@ describe("updateCommandSetting message handler", () => {
     })
 
     await updateCommandSetting({
-      type: "update-command-setting",
-      commandId: "uuidv4",
+      type: "monocle-command-setting-update",
+      id: "uuidv4",
       setting: "hidden",
       value: false,
       context: normalContext,

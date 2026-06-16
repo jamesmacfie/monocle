@@ -110,7 +110,7 @@ export default function InsertTextListener() {
       sendResponse: (response?: any) => void,
     ) => {
       const event = validateContentMessage(message)
-      if (event?.type === "monocle-insertText") {
+      if (event?.type === "monocle-text-insert") {
         const target = lastEditableRef.current
         const inserted = target ? insertAtCaret(target, event.text) : false
 

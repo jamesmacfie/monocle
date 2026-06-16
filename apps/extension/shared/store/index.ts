@@ -1,4 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit"
+import automationsSlice from "./slices/automations.slice"
 import { commandPaletteStateSlice } from "./slices/commandPaletteState.slice"
 import featuresSlice from "./slices/features.slice"
 import keybindingSlice from "./slices/keybinding.slice"
@@ -6,7 +7,6 @@ import { navigationSlice } from "./slices/navigation.slice"
 import settingsSlice from "./slices/settings.slice"
 import settingsCatalogSlice from "./slices/settingsCatalog.slice"
 import snippetsSlice from "./slices/snippets.slice"
-import userScriptsSlice from "./slices/userScripts.slice"
 
 // Define extra argument type for thunks
 export interface ThunkApi {
@@ -25,7 +25,7 @@ export const createAppStore = (
       keybinding: keybindingSlice,
       settingsCatalog: settingsCatalogSlice,
       snippets: snippetsSlice,
-      userScripts: userScriptsSlice,
+      automations: automationsSlice,
       features: featuresSlice,
     },
     middleware: (getDefaultMiddleware) =>

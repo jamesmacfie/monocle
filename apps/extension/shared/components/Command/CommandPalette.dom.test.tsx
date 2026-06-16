@@ -16,7 +16,7 @@ import {
 
 const searchCallsOf = (sendMessage: ReturnType<typeof createMockSendMessage>) =>
   sendMessage.mock.calls.filter(([message]) => {
-    return (message as { type?: string })?.type === "search-commands"
+    return (message as { type?: string })?.type === "monocle-commands-search"
   })
 
 describe("CommandPalette CMDK↔Redux sync", () => {
@@ -44,7 +44,7 @@ describe("CommandPalette CMDK↔Redux sync", () => {
       expect(searchCallsOf(sendMessage)).toHaveLength(1)
     })
     expect(searchCallsOf(sendMessage)[0][0]).toMatchObject({
-      type: "search-commands",
+      type: "monocle-commands-search",
       query: "tab",
     })
   })
@@ -70,7 +70,7 @@ describe("CommandPalette CMDK↔Redux sync", () => {
     const sendMessage = createMockSendMessage({
       // Make the typed query surface the group so we can navigate from an
       // active search (search results replace suggestions while typing).
-      "search-commands": (message) => ({
+      "monocle-commands-search": (message) => ({
         results: [groupSuggestion("my-group", "My Group")],
         seq: message.seq,
         query: message.query,
@@ -153,7 +153,7 @@ describe("CommandPalette CMDK↔Redux sync", () => {
     let callCount = 0
 
     const sendMessage = createMockSendMessage({
-      "search-commands": async (message) => {
+      "monocle-commands-search": async (message) => {
         callCount += 1
         if (callCount === 1) {
           // First request resolves late, AFTER the second's response landed.

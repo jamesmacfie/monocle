@@ -11,7 +11,7 @@ export default function CopyToClipboardListener() {
       sendResponse: (response?: any) => void,
     ) => {
       const event = validateContentMessage(message)
-      if (event?.type === "monocle-copyToClipboard") {
+      if (event?.type === "monocle-clipboard-write") {
         copy(event.message)
 
         sendResponse({ received: true })

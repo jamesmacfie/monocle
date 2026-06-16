@@ -96,7 +96,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
     ) => {
       try {
         const response = await sendMessage({
-          type: "execute-command",
+          type: "monocle-command-execute",
           id,
           formValues,
           parentNames,

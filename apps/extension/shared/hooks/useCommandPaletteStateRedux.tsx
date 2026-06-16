@@ -78,13 +78,13 @@ export const useCommandPaletteStateRedux = (options?: {
         return
       }
 
-      if (parsed.type === "toggle-ui") {
+      if (parsed.type === "monocle-ui-toggle") {
         toggle()
         sendResponse({ received: true })
-      } else if (parsed.type === "show-ui") {
+      } else if (parsed.type === "monocle-ui-show") {
         show()
         sendResponse({ received: true })
-      } else if (parsed.type === "hide-ui") {
+      } else if (parsed.type === "monocle-ui-hide") {
         // Hide the palette and only acknowledge once the overlay has actually
         // been removed from the screen. Two animation frames ensures React has
         // committed the unmount and the browser has painted the result, so a
@@ -96,7 +96,7 @@ export const useCommandPaletteStateRedux = (options?: {
           })
         })
         return true
-      } else if (parsed.type === "execute-workflow-content") {
+      } else if (parsed.type === "monocle-workflow-content-execute") {
         if (!options?.executeWorkflow) {
           sendResponse({
             result: {

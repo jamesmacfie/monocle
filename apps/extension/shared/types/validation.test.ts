@@ -28,7 +28,7 @@ describe("browser context validation", () => {
   it("accepts new-tab contexts with empty titles", () => {
     expect(
       validateMessage({
-        type: "get-commands",
+        type: "monocle-commands-get",
         context: {
           url: "chrome-extension://monocle-test/newtab.html",
           title: "",
@@ -44,8 +44,8 @@ describe("update command setting schema validation", () => {
   it("rejects unknown command setting keys", () => {
     expect(
       validateMessage({
-        type: "update-command-setting",
-        commandId: "open-new-tab",
+        type: "monocle-command-setting-update",
+        id: "open-new-tab",
         setting: "unknown",
         value: "anything",
         context,
@@ -56,8 +56,8 @@ describe("update command setting schema validation", () => {
   it("validates keybinding and URL-rule value shapes", () => {
     expect(
       validateMessage({
-        type: "update-command-setting",
-        commandId: "open-new-tab",
+        type: "monocle-command-setting-update",
+        id: "open-new-tab",
         setting: "keybinding",
         value: "<cmd-t>",
         context,
@@ -66,8 +66,8 @@ describe("update command setting schema validation", () => {
 
     expect(
       validateMessage({
-        type: "update-command-setting",
-        commandId: "open-new-tab",
+        type: "monocle-command-setting-update",
+        id: "open-new-tab",
         setting: "urlRules",
         value: {
           allowUrls: ["*://*.example.com/*"],
@@ -79,8 +79,8 @@ describe("update command setting schema validation", () => {
 
     expect(
       validateMessage({
-        type: "update-command-setting",
-        commandId: "open-new-tab",
+        type: "monocle-command-setting-update",
+        id: "open-new-tab",
         setting: "urlRules",
         value: {
           allowUrls: "*://*.example.com/*",
@@ -91,8 +91,8 @@ describe("update command setting schema validation", () => {
 
     expect(
       validateMessage({
-        type: "update-command-setting",
-        commandId: "open-new-tab",
+        type: "monocle-command-setting-update",
+        id: "open-new-tab",
         setting: "urlRules",
         value: {
           allowUrls: ["*://*.example.com/*"],
@@ -106,8 +106,8 @@ describe("update command setting schema validation", () => {
   it("validates hidden command setting updates", () => {
     expect(
       validateMessage({
-        type: "update-command-setting",
-        commandId: "open-new-tab",
+        type: "monocle-command-setting-update",
+        id: "open-new-tab",
         setting: "hidden",
         value: true,
         context,
@@ -116,8 +116,8 @@ describe("update command setting schema validation", () => {
 
     expect(
       validateMessage({
-        type: "update-command-setting",
-        commandId: "open-new-tab",
+        type: "monocle-command-setting-update",
+        id: "open-new-tab",
         setting: "hidden",
         value: "true",
         context,
@@ -130,29 +130,29 @@ describe("settings catalog schema validation", () => {
   it("accepts catalog and favorite messages", () => {
     expect(
       validateMessage({
-        type: "get-settings-catalog",
+        type: "monocle-settings-catalog-get",
       }).success,
     ).toBe(true)
 
     expect(
       validateMessage({
-        type: "get-settings-catalog",
+        type: "monocle-settings-catalog-get",
         platform: "firefox",
       }).success,
     ).toBe(true)
 
     expect(
       validateMessage({
-        type: "set-command-favorite",
-        commandId: "open-new-tab",
+        type: "monocle-command-favorite-set",
+        id: "open-new-tab",
         favorite: true,
       }).success,
     ).toBe(true)
 
     expect(
       validateMessage({
-        type: "set-command-favorite",
-        commandId: "",
+        type: "monocle-command-favorite-set",
+        id: "",
         favorite: true,
       }).success,
     ).toBe(false)
@@ -163,13 +163,13 @@ describe("snippet message schema validation", () => {
   it("accepts snippet CRUD messages", () => {
     expect(
       validateMessage({
-        type: "get-snippets",
+        type: "monocle-snippets-get",
         context,
       }).success,
     ).toBe(true)
     expect(
       validateMessage({
-        type: "add-snippet",
+        type: "monocle-snippet-add",
         name: "Greeting",
         body: "Hello there,\n\nThanks!",
         context,
@@ -177,14 +177,14 @@ describe("snippet message schema validation", () => {
     ).toBe(true)
     expect(
       validateMessage({
-        type: "update-snippet",
+        type: "monocle-snippet-update",
         id: "snippet-id",
         body: "Updated body",
       }).success,
     ).toBe(true)
     expect(
       validateMessage({
-        type: "delete-snippet",
+        type: "monocle-snippet-delete",
         id: "snippet-id",
       }).success,
     ).toBe(true)
@@ -193,27 +193,27 @@ describe("snippet message schema validation", () => {
   it("rejects empty snippet names, bodies, and ids", () => {
     expect(
       validateMessage({
-        type: "add-snippet",
+        type: "monocle-snippet-add",
         name: "",
         body: "body",
       }).success,
     ).toBe(false)
     expect(
       validateMessage({
-        type: "add-snippet",
+        type: "monocle-snippet-add",
         name: "name",
         body: "",
       }).success,
     ).toBe(false)
     expect(
       validateMessage({
-        type: "update-snippet",
+        type: "monocle-snippet-update",
         id: "",
       }).success,
     ).toBe(false)
     expect(
       validateMessage({
-        type: "delete-snippet",
+        type: "monocle-snippet-delete",
         id: "",
       }).success,
     ).toBe(false)
@@ -224,14 +224,14 @@ describe("permission grant page schema validation", () => {
   it("requires a permission value", () => {
     expect(
       validateMessage({
-        type: "open-permission-grant-page",
+        type: "monocle-permission-grant-page-open",
         permission: "bookmarks",
       }).success,
     ).toBe(true)
 
     expect(
       validateMessage({
-        type: "open-permission-grant-page",
+        type: "monocle-permission-grant-page-open",
         permission: "",
       }).success,
     ).toBe(false)
@@ -242,7 +242,7 @@ describe("workflow schema validation", () => {
   it("accepts executable click and wait steps with explicit tab targeting", () => {
     expect(
       validateMessage({
-        type: "execute-workflow",
+        type: "monocle-workflow-execute",
         tabId: 42,
         context,
         workflow: {
@@ -284,7 +284,7 @@ describe("workflow schema validation", () => {
   it("rejects malformed click steps and unsupported modeled operations", () => {
     expect(
       validateMessage({
-        type: "execute-workflow",
+        type: "monocle-workflow-execute",
         context,
         workflow: {
           version: "1.0",
@@ -299,13 +299,13 @@ describe("workflow schema validation", () => {
 
     expect(
       validateMessage({
-        type: "execute-workflow",
+        type: "monocle-workflow-execute",
         context,
         workflow: {
           version: "1.0",
           steps: [
             {
-              // Privileged operations are user-script engine ops, never
+              // Privileged operations are automation engine ops, never
               // content workflow steps.
               op: "navigate",
               url: "https://example.com/elsewhere",
@@ -317,7 +317,7 @@ describe("workflow schema validation", () => {
 
     expect(
       validateMessage({
-        type: "execute-workflow",
+        type: "monocle-workflow-execute",
         tabId: 0,
         context,
         workflow: {
@@ -338,7 +338,7 @@ describe("surface-action message schema validation", () => {
   it("accepts a picker selection payload", () => {
     expect(
       validateMessage({
-        type: "surface-action",
+        type: "monocle-surface-action",
         ownerId: "element-hider",
         surfaceId: "picker",
         actionId: "element-picked",
@@ -355,7 +355,7 @@ describe("surface-action message schema validation", () => {
   it("accepts a bare dismiss with no selection", () => {
     expect(
       validateMessage({
-        type: "surface-action",
+        type: "monocle-surface-action",
         ownerId: "focus-mode",
         surfaceId: "overlay",
         actionId: "dismiss",
@@ -366,7 +366,7 @@ describe("surface-action message schema validation", () => {
   it("rejects a selection missing the required selector", () => {
     expect(
       validateMessage({
-        type: "surface-action",
+        type: "monocle-surface-action",
         ownerId: "element-hider",
         surfaceId: "picker",
         actionId: "element-picked",
@@ -378,7 +378,7 @@ describe("surface-action message schema validation", () => {
   it("accepts a selection carrying captured computed css", () => {
     expect(
       validateMessage({
-        type: "surface-action",
+        type: "monocle-surface-action",
         ownerId: "command:inspect-element-fonts",
         surfaceId: "picker",
         actionId: "element-picked",
@@ -398,7 +398,7 @@ describe("surface-action message schema validation", () => {
     }
     expect(
       validateMessage({
-        type: "surface-action",
+        type: "monocle-surface-action",
         ownerId: "command:inspect-element-fonts",
         surfaceId: "picker",
         actionId: "element-picked",

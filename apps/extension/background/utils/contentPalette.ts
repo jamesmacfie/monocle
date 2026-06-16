@@ -14,10 +14,14 @@ const CONTENT_SCRIPT_FILE = "content-scripts/content.js"
 const MESSAGE_RETRY_DELAY_MS = 75
 const MESSAGE_RETRY_ATTEMPTS = 5
 
-type PaletteMessage = { type: "toggle-ui" } | { type: "show-ui" }
+type PaletteMessage =
+  | { type: "monocle-ui-toggle" }
+  | { type: "monocle-ui-show" }
 
 export async function toggleContentPalette(tabId: number): Promise<void> {
-  const didToggle = await sendPaletteMessage(tabId, { type: "toggle-ui" })
+  const didToggle = await sendPaletteMessage(tabId, {
+    type: "monocle-ui-toggle",
+  })
   if (didToggle) {
     return
   }
@@ -27,7 +31,7 @@ export async function toggleContentPalette(tabId: number): Promise<void> {
     return
   }
 
-  await sendPaletteMessageWithRetries(tabId, { type: "show-ui" })
+  await sendPaletteMessageWithRetries(tabId, { type: "monocle-ui-show" })
 }
 
 async function sendPaletteMessageWithRetries(

@@ -187,7 +187,7 @@ describe("keybinding registry", () => {
 
     await expect(
       checkKeybindingConflict({
-        type: "check-keybinding-conflict",
+        type: "monocle-keybinding-conflict-check",
         keybinding: "<cmd-shift-u>",
         excludeCommandId: "toggle-theme",
         context: normalContext,
@@ -213,7 +213,7 @@ describe("keybinding registry", () => {
 
     await expect(
       checkKeybindingConflict({
-        type: "check-keybinding-conflict",
+        type: "monocle-keybinding-conflict-check",
         keybinding: "<cmd-shift-u>",
         excludeCommandId: "toggle-theme",
         context: normalContext,
@@ -231,7 +231,7 @@ describe("keybinding registry", () => {
 
     await expect(
       checkKeybindingConflict({
-        type: "check-keybinding-conflict",
+        type: "monocle-keybinding-conflict-check",
         keybinding: "<alt-cmd-c>",
         excludeCommandId: "toggle-theme",
         context: normalContext,
@@ -243,7 +243,7 @@ describe("keybinding registry", () => {
 
     await expect(
       checkKeybindingConflict({
-        type: "check-keybinding-conflict",
+        type: "monocle-keybinding-conflict-check",
         keybinding: "<alt-cmd-c>",
         excludeCommandId: "toggle-theme",
         context: newTabContext,
@@ -267,7 +267,7 @@ describe("keybinding registry", () => {
 
     await expect(
       checkKeybindingConflict({
-        type: "check-keybinding-conflict",
+        type: "monocle-keybinding-conflict-check",
         keybinding: "g, x",
         excludeCommandId: "uuidv4",
         context: normalContext,
@@ -289,7 +289,7 @@ describe("keybinding registry", () => {
 
     await expect(
       checkKeybindingConflict({
-        type: "check-keybinding-conflict",
+        type: "monocle-keybinding-conflict-check",
         keybinding: "g",
         excludeCommandId: "add-bookmark",
         context: normalContext,
@@ -311,7 +311,7 @@ describe("keybinding registry", () => {
 
     await expect(
       checkKeybindingConflict({
-        type: "check-keybinding-conflict",
+        type: "monocle-keybinding-conflict-check",
         keybinding: "g, x",
         excludeCommandId: "toggle-theme",
         context: normalContext,
@@ -337,7 +337,7 @@ describe("keybinding registry", () => {
 
     await expect(
       checkKeybindingConflict({
-        type: "check-keybinding-conflict",
+        type: "monocle-keybinding-conflict-check",
         keybinding: "g",
         excludeCommandId: "toggle-theme",
         context: normalContext,

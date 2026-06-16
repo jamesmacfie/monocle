@@ -76,7 +76,7 @@ const invokeSiteSdk = async (
   request: SiteSdkInvokeRequest,
 ): Promise<SiteSdkCommand[] | undefined> => {
   const response = await sendTabMessage(scope.tabId, {
-    type: "monocle-sdk-invoke",
+    type: "monocle-site-sdk-invoke",
     request,
   })
 

@@ -16,7 +16,7 @@ export const copyTitleAndUrlAsMarkdown: ActionCommandNode = {
     const title = (activeTab.title ?? activeTab.url).replace(/[[\]]/g, "\\$&")
     const markdown = `[${title}](${activeTab.url})`
     await sendTabMessage(activeTab.id, {
-      type: "monocle-copyToClipboard",
+      type: "monocle-clipboard-write",
       message: markdown,
     })
     await sendTabMessage(activeTab.id, {

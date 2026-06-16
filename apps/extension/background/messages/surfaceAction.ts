@@ -13,7 +13,7 @@
 //     - Command owners (`command:<id>`) are dispatched to a handler the command
 //       registered via surfaceActionHandlers, the command-side equivalent of a
 //       feature's handleAction (e.g. the font inspector reading the picked
-//       element's computed styles). user-script owner routing is not yet wired.
+//       element's computed styles). automation owner routing is not yet wired.
 // See docs/surfaces.md.
 import type { SurfaceActionMessage } from "../../shared/types"
 import { getCommandSurfaceActionHandler } from "../commands/surfaceActionHandlers"
@@ -29,7 +29,7 @@ const handleSurfaceAction = async (
 ) => {
   if (message.actionId === "dismiss") {
     await removeSurface(message.ownerId, message.surfaceId)
-    return { ok: true }
+    return { success: true }
   }
 
   const senderTabId = resolveSenderTabId(sender)
@@ -47,20 +47,20 @@ const handleSurfaceAction = async (
     const handler = getCommandSurfaceActionHandler(commandId)
     if (handler) {
       await handler(message.actionId, actionContext)
-      return { ok: true }
+      return { success: true }
     }
-    // Unknown command owner (or user-script owner, still unwired): no-op.
-    return { ok: false }
+    // Unknown command owner (or automation owner, still unwired): no-op.
+    return { success: false }
   }
 
   const feature = getFeatureById(message.ownerId)
   if (feature?.settings?.handleAction) {
     await feature.settings.handleAction(message.actionId, actionContext)
-    return { ok: true }
+    return { success: true }
   }
 
   // Unknown feature owner or action: no-op.
-  return { ok: false }
+  return { success: false }
 }
 
 export const surfaceAction = createMessageHandler(

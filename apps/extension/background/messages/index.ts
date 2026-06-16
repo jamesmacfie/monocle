@@ -7,6 +7,15 @@
 import { match } from "ts-pattern"
 import { validateIncomingMessage } from "../utils/validation"
 import { addSnippet } from "./addSnippet"
+import {
+  addAutomation,
+  automationTriggerFired,
+  deleteAutomation,
+  getAutomations,
+  getAutomationTriggers,
+  runAutomationMessage,
+  updateAutomation,
+} from "./automations"
 import { checkKeybindingConflict } from "./checkKeybindingConflict"
 import { deleteSnippet } from "./deleteSnippet"
 import { executeCommand } from "./executeCommand"
@@ -26,7 +35,6 @@ import { getSnippets } from "./getSnippets"
 import { getUnsplashBackground } from "./getUnsplashBackground"
 import { openPermissionGrantPage } from "./openPermissionGrantPage"
 import { requestPermission } from "./requestPermission"
-import { requestToast } from "./requestToast"
 import { searchCommands } from "./searchCommands"
 import { setCommandFavorite } from "./setCommandFavorite"
 import { showToast } from "./showToast"
@@ -36,15 +44,6 @@ import { getSurfaces } from "./surfaces"
 import { updateCommandKeybindings } from "./updateCommandKeybindings"
 import { updateCommandSetting } from "./updateCommandSetting"
 import { updateSnippet } from "./updateSnippet"
-import {
-  addUserScript,
-  deleteUserScript,
-  getUserScripts,
-  getUserScriptTriggers,
-  runUserScriptMessage,
-  updateUserScript,
-  userScriptTriggerFired,
-} from "./userScripts"
 
 export const handleMessage = async (rawMessage: unknown, sender?: any) => {
   // Validate the incoming message with comprehensive security checks.
@@ -70,7 +69,7 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
 
   console.log(
     "Received message",
-    message.type === "execute-workflow"
+    message.type === "monocle-workflow-execute"
       ? {
           type: message.type,
           tabId: message.tabId,
@@ -84,109 +83,106 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
 
   // Route validated message to appropriate handler
   return await match(message)
-    .with({ type: "get-commands" }, async (msg) => {
+    .with({ type: "monocle-commands-get" }, async (msg) => {
       return await getCommands(msg, sender)
     })
-    .with({ type: "search-commands" }, async (msg) => {
+    .with({ type: "monocle-commands-search" }, async (msg) => {
       return await searchCommands(msg, sender)
     })
-    .with({ type: "get-children-commands" }, async (msg) => {
+    .with({ type: "monocle-command-children-get" }, async (msg) => {
       return await getChildrenCommands(msg, sender)
     })
-    .with({ type: "execute-command" }, async (msg) => {
+    .with({ type: "monocle-command-execute" }, async (msg) => {
       return await executeCommand(msg, sender)
     })
-    .with({ type: "execute-keybinding" }, async (msg) => {
+    .with({ type: "monocle-keybinding-execute" }, async (msg) => {
       return await executeKeybinding(msg, sender)
     })
-    .with({ type: "get-keybinding-state" }, async (msg) => {
+    .with({ type: "monocle-keybinding-state-get" }, async (msg) => {
       return await getKeybindingState(msg, sender)
     })
-    .with({ type: "show-toast" }, async (msg) => {
+    .with({ type: "monocle-toast-show" }, async (msg) => {
       return await showToast(msg)
     })
-    .with({ type: "request-toast" }, async (msg) => {
-      return await requestToast(msg)
-    })
-    .with({ type: "update-command-setting" }, async (msg) => {
+    .with({ type: "monocle-command-setting-update" }, async (msg) => {
       return await updateCommandSetting(msg, sender)
     })
-    .with({ type: "update-command-keybindings" }, async (msg) => {
+    .with({ type: "monocle-command-keybindings-update" }, async (msg) => {
       return await updateCommandKeybindings(msg, sender)
     })
-    .with({ type: "get-settings-catalog" }, async (msg) => {
+    .with({ type: "monocle-settings-catalog-get" }, async (msg) => {
       return await getSettingsCatalog(msg, sender)
     })
-    .with({ type: "set-command-favorite" }, async (msg) => {
+    .with({ type: "monocle-command-favorite-set" }, async (msg) => {
       return await setCommandFavorite(msg, sender)
     })
-    .with({ type: "get-snippets" }, async (msg) => {
+    .with({ type: "monocle-snippets-get" }, async (msg) => {
       return await getSnippets(msg, sender)
     })
-    .with({ type: "add-snippet" }, async (msg) => {
+    .with({ type: "monocle-snippet-add" }, async (msg) => {
       return await addSnippet(msg, sender)
     })
-    .with({ type: "update-snippet" }, async (msg) => {
+    .with({ type: "monocle-snippet-update" }, async (msg) => {
       return await updateSnippet(msg, sender)
     })
-    .with({ type: "delete-snippet" }, async (msg) => {
+    .with({ type: "monocle-snippet-delete" }, async (msg) => {
       return await deleteSnippet(msg, sender)
     })
-    .with({ type: "check-keybinding-conflict" }, async (msg) => {
+    .with({ type: "monocle-keybinding-conflict-check" }, async (msg) => {
       return await checkKeybindingConflict(msg, sender)
     })
-    .with({ type: "get-unsplash-background" }, async (msg) => {
+    .with({ type: "monocle-unsplash-background-get" }, async (msg) => {
       return await getUnsplashBackground(msg)
     })
-    .with({ type: "get-permissions" }, async (msg) => {
+    .with({ type: "monocle-permissions-get" }, async (msg) => {
       return await getPermissions(msg)
     })
-    .with({ type: "request-permission" }, async (msg) => {
+    .with({ type: "monocle-permission-request" }, async (msg) => {
       return await requestPermission(msg)
     })
-    .with({ type: "open-permission-grant-page" }, async (msg) => {
+    .with({ type: "monocle-permission-grant-page-open" }, async (msg) => {
       return await openPermissionGrantPage(msg)
     })
-    .with({ type: "execute-workflow" }, async (msg) => {
+    .with({ type: "monocle-workflow-execute" }, async (msg) => {
       return await executeWorkflow(msg, sender)
     })
-    .with({ type: "site-sdk-sync" }, async (msg) => {
+    .with({ type: "monocle-site-sdk-sync" }, async (msg) => {
       return await siteSdkSync(msg, sender)
     })
-    .with({ type: "get-user-scripts" }, async (msg) => {
-      return await getUserScripts(msg, sender)
+    .with({ type: "monocle-automations-get" }, async (msg) => {
+      return await getAutomations(msg, sender)
     })
-    .with({ type: "add-user-script" }, async (msg) => {
-      return await addUserScript(msg, sender)
+    .with({ type: "monocle-automation-add" }, async (msg) => {
+      return await addAutomation(msg, sender)
     })
-    .with({ type: "update-user-script" }, async (msg) => {
-      return await updateUserScript(msg, sender)
+    .with({ type: "monocle-automation-update" }, async (msg) => {
+      return await updateAutomation(msg, sender)
     })
-    .with({ type: "delete-user-script" }, async (msg) => {
-      return await deleteUserScript(msg, sender)
+    .with({ type: "monocle-automation-delete" }, async (msg) => {
+      return await deleteAutomation(msg, sender)
     })
-    .with({ type: "run-user-script" }, async (msg) => {
-      return await runUserScriptMessage(msg, sender)
+    .with({ type: "monocle-automation-run" }, async (msg) => {
+      return await runAutomationMessage(msg, sender)
     })
-    .with({ type: "get-user-script-triggers" }, async (msg) => {
-      return await getUserScriptTriggers(msg, sender)
+    .with({ type: "monocle-automation-triggers-get" }, async (msg) => {
+      return await getAutomationTriggers(msg, sender)
     })
-    .with({ type: "user-script-trigger-fired" }, async (msg) => {
-      return await userScriptTriggerFired(msg, sender)
+    .with({ type: "monocle-automation-trigger-fired" }, async (msg) => {
+      return await automationTriggerFired(msg, sender)
     })
-    .with({ type: "get-features" }, async (msg) => {
+    .with({ type: "monocle-features-get" }, async (msg) => {
       return await getFeatures(msg)
     })
-    .with({ type: "update-feature-config" }, async (msg) => {
+    .with({ type: "monocle-feature-config-update" }, async (msg) => {
       return await updateFeatureConfig(msg)
     })
-    .with({ type: "execute-feature-action" }, async (msg) => {
+    .with({ type: "monocle-feature-action-execute" }, async (msg) => {
       return await executeFeatureAction(msg)
     })
-    .with({ type: "get-surfaces" }, async (msg) => {
+    .with({ type: "monocle-surfaces-get" }, async (msg) => {
       return await getSurfaces(msg, sender)
     })
-    .with({ type: "surface-action" }, async (msg) => {
+    .with({ type: "monocle-surface-action" }, async (msg) => {
       return await surfaceAction(msg, sender)
     })
     .otherwise(() => {

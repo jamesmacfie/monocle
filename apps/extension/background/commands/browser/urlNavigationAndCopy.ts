@@ -55,7 +55,7 @@ const copyToActiveTabClipboard = async (
   successMessage: string,
 ) => {
   await sendTabMessage(tabId, {
-    type: "monocle-copyToClipboard",
+    type: "monocle-clipboard-write",
     message,
   })
   await sendTabMessage(tabId, {

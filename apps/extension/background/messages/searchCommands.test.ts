@@ -116,7 +116,7 @@ const search = async (
   } = {},
 ) => {
   return (await searchCommands({
-    type: "search-commands",
+    type: "monocle-commands-search",
     context: overrides.context ?? normalContext,
     query,
     parentPath: overrides.parentPath,

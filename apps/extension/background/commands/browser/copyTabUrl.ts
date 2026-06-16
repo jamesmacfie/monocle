@@ -28,7 +28,7 @@ export const copyTabUrl: CommandNode = {
             const activeTab = await getActiveTab()
             if (activeTab) {
               await sendTabMessage(activeTab.id, {
-                type: "monocle-copyToClipboard",
+                type: "monocle-clipboard-write",
                 message: tab.url,
               })
               await sendTabMessage(activeTab.id, {

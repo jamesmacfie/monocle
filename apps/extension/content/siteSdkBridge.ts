@@ -49,7 +49,7 @@ const sendBackgroundSync = async (registrations: SiteSdkRegistration[]) => {
   const api = getBrowserAPI()
 
   await api.runtime.sendMessage({
-    type: "site-sdk-sync",
+    type: "monocle-site-sdk-sync",
     context: createContext(),
     registrations,
   })
@@ -162,13 +162,13 @@ const handleBackgroundMessage = (
 ) => {
   const event = validateContentMessage(message)
 
-  if (event?.type === "monocle-sdk-sync-request") {
+  if (event?.type === "monocle-site-sdk-sync-request") {
     postBridgeMessage({ type: "sync-request" })
     sendResponse({ registrations: latestRegistrations })
     return false
   }
 
-  if (event?.type === "monocle-sdk-invoke") {
+  if (event?.type === "monocle-site-sdk-invoke") {
     requestPageInvoke(event.request)
       .then((response) => {
         if (response.success && response.commands) {

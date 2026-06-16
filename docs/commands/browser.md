@@ -32,7 +32,7 @@ Commands with `confirmAction: true` are never registered in the global keybindin
 | `close-tabs-to-right` | Close tabs to the right | action | `tabs` | — | all | `confirmAction` |
 | `copyCurrentTabUrl` | Copy current tab URL | group | — | — | all | 3 child variants with per-child keybindings |
 | `copy-tab-url` | Copy tab URL | group | `tabs` | — | all | One child per open tab in current window |
-| `copy-title-and-url` | Copy title + URL | action | — | — | all | Copies `title\nurl` for the active tab via `monocle-copyToClipboard` |
+| `copy-title-and-url` | Copy title + URL | action | — | — | all | Copies `title\nurl` for the active tab via `monocle-clipboard-write` |
 | `copy-title-and-url-as-markdown` | Copy title + URL as a Markdown link | action | — | — | all | Copies `[title](url)`; escapes `[`/`]` in the title |
 | `downloads` | Downloads | group | `downloads` | — | all | Up to 50 recent completed downloads |
 | `duplicate-current-tab` | Duplicate current tab | action | — | — | all | Modifier labels: shift / cmd |
@@ -162,7 +162,7 @@ the required `scripting.executeScript` permission. It is not a page-side message
 so it can run while the page is still loading.
 
 ### `capture-screenshot` (action)
-Captures the visible area of the active tab. The background first sends a `hide-ui` message and awaits its acknowledgement so the palette overlay is painted out **before** the capture (otherwise `captureVisibleTab` would include the palette); the content `useCommandPaletteStateRedux` handler hides the palette and acks after two `requestAnimationFrame`s. The send is best-effort — surfaces without that handler (e.g. the new tab page) simply don't respond. It then resolves the active tab and calls `captureVisibleTab(windowId)` (`callBrowserAPI("tabs", "captureVisibleTab", windowId, { format: "png" })`), which relies on the `activeTab` permission (always granted when the palette is invoked) — no `downloads` permission is required. Finally it sends a `monocle-screenshot` event to the active tab; the page-side `ScreenshotListener` converts the PNG data URL to a Blob (without `fetch`, so a page CSP can't block it) and either writes it to the clipboard via `navigator.clipboard.write([new ClipboardItem(...)])` or triggers a blob-URL `<a download>`, then a success toast confirms the result. `ScreenshotListener` is mounted alongside `ToastContainer` (always mounted, outside the palette-visibility gate) so it still receives the event after the palette hides. Declares `actionLabel = "Copy to clipboard"` and `modifierActionLabel.cmd = "Download"`: plain Enter copies to the clipboard; Cmd downloads to the browser's downloads folder with filename `screenshot-<host>-<timestamp>.png`. The clipboard path requires a secure context (https) and document focus.
+Captures the visible area of the active tab. The background first sends a `monocle-ui-hide` message and awaits its acknowledgement so the palette overlay is painted out **before** the capture (otherwise `captureVisibleTab` would include the palette); the content `useCommandPaletteStateRedux` handler hides the palette and acks after two `requestAnimationFrame`s. The send is best-effort — surfaces without that handler (e.g. the new tab page) simply don't respond. It then resolves the active tab and calls `captureVisibleTab(windowId)` (`callBrowserAPI("tabs", "captureVisibleTab", windowId, { format: "png" })`), which relies on the `activeTab` permission (always granted when the palette is invoked) — no `downloads` permission is required. Finally it sends a `monocle-screenshot` event to the active tab; the page-side `ScreenshotListener` converts the PNG data URL to a Blob (without `fetch`, so a page CSP can't block it) and either writes it to the clipboard via `navigator.clipboard.write([new ClipboardItem(...)])` or triggers a blob-URL `<a download>`, then a success toast confirms the result. `ScreenshotListener` is mounted alongside `ToastContainer` (always mounted, outside the palette-visibility gate) so it still receives the event after the palette hides. Declares `actionLabel = "Copy to clipboard"` and `modifierActionLabel.cmd = "Download"`: plain Enter copies to the clipboard; Cmd downloads to the browser's downloads folder with filename `screenshot-<host>-<timestamp>.png`. The clipboard path requires a secure context (https) and document focus.
 
 ### `goto-tab` (group, `tabs`)
 Lists one child action per tab in the **current window** (`queryTabs({currentWindow})`, filtered to tabs with a title). Each child's name resolves to the tab title and its icon resolves via `getFaviconIcon`. Executing a child activates the tab (`updateTab({active:true})`) and focuses its window. Children set `allowCustomKeybinding: false`. No explicit empty-state row (an empty window simply yields no children).
@@ -214,7 +214,7 @@ Reads the full tree via `getBookmarkTree` and recursively flattens it (`processB
 - Bookmarks with a valid HTTP/HTTPS URL (`isValidUrl`) become `action` nodes (`bookmark-<id>`) with a favicon icon and `dedupeKey` from the normalized URL.
 - Separators are skipped; untyped nodes with children are recursed (Chrome compatibility).
 
-Bookmark action label "Open"; modifier **cmd** "Open in New Tab". Default execution uses `focusOrGoToUrl` (switch to an existing tab with that URL, else navigate the current tab); cmd opens via a `monocle-newTab` content message. Empty tree → `no-bookmarks` NoOp; error → `bookmarks-error` NoOp. Top-level results are sorted alphabetically.
+Bookmark action label "Open"; modifier **cmd** "Open in New Tab". Default execution uses `focusOrGoToUrl` (switch to an existing tab with that URL, else navigate the current tab); cmd opens via a `monocle-tab-open` content message. Empty tree → `no-bookmarks` NoOp; error → `bookmarks-error` NoOp. Top-level results are sorted alphabetically.
 
 The settings catalog traverses the bookmark tree so stable bookmark action rows can be hidden, favorited, rebound, or given URL rules. Bookmark folder rows are traversal-only and are not themselves configurable.
 
@@ -261,7 +261,7 @@ Static group of three copy variants for the active tab, each with its own keybin
 | `copyCurrentTabUrl-copy-url-no-params` | Copy URL without parameters | `<cmd-enter>` | `protocol//host/pathname` |
 | `copyCurrentTabUrl-copy-domain` | Copy domain only | `<cmd-shift-enter>` | `url.hostname` |
 
-Copying is delegated to the active tab via a `monocle-copyToClipboard` content message (the content script owns clipboard access), followed by a `monocle-toast`. URL parsing failures fall back to copying the raw URL. Because the children are static action ids, their per-child keybindings are registrable.
+Copying is delegated to the active tab via a `monocle-clipboard-write` content message (the content script owns clipboard access), followed by a `monocle-toast`. URL parsing failures fall back to copying the raw URL. Because the children are static action ids, their per-child keybindings are registrable.
 
 ### Top-level copy actions
 `copy-current-url`, `copy-clean-current-url`, `copy-current-domain`,

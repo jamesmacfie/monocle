@@ -54,7 +54,7 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
     ) => {
       try {
         const response = await sendMessageWithNewTab({
-          type: "execute-command",
+          type: "monocle-command-execute",
           id,
           formValues,
           parentNames,

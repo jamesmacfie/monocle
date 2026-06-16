@@ -24,8 +24,8 @@ describe("setCommandFavorite message handler", () => {
   it("sets and removes favorites without requiring the command to be visible", async () => {
     await expect(
       setCommandFavorite({
-        type: "set-command-favorite",
-        commandId: "open-new-tab",
+        type: "monocle-command-favorite-set",
+        id: "open-new-tab",
         favorite: true,
       }),
     ).resolves.toEqual({ success: true })
@@ -34,8 +34,8 @@ describe("setCommandFavorite message handler", () => {
 
     await expect(
       setCommandFavorite({
-        type: "set-command-favorite",
-        commandId: "open-new-tab",
+        type: "monocle-command-favorite-set",
+        id: "open-new-tab",
         favorite: false,
       }),
     ).resolves.toEqual({ success: true })

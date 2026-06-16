@@ -77,7 +77,7 @@ export const manageDenyList: GroupCommandNode = {
           })
 
           await showToast({
-            type: "show-toast",
+            type: "monocle-toast-show",
             level: "success",
             message: "Deny list updated",
           })

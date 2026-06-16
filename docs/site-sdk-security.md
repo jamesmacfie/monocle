@@ -51,7 +51,7 @@ two message shapes from the page, both source-tagged `monocle-site-sdk`:
 - `invoke-response` — the page answering one of its own pending callbacks.
 
 The bridge does **not** relay arbitrary messages. A page cannot use it to emit
-`execute-command`, `search-commands`, `execute-workflow`, `request-permission`,
+`monocle-command-execute`, `monocle-commands-search`, `monocle-workflow-execute`, `monocle-permission-request`,
 or any other privileged message. Any analysis that assumes "the page drives the
 facade, which relays to the bridge, which reaches a privileged handler" is
 wrong: no such relay exists.
@@ -118,7 +118,7 @@ toggle and global keybindings (`shared/hooks/useCommandPaletteStateRedux.tsx`,
 `shared/utils/robust-key-capture.ts`). Those listeners do not currently require
 `event.isTrusted`. A hostile page can likely dispatch synthetic `KeyboardEvent`s
 that look like registered Monocle shortcuts and cause the content script to send
-`execute-keybinding`.
+`monocle-keybinding-execute`.
 
 The blast radius is constrained:
 

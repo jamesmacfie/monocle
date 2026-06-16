@@ -3,13 +3,13 @@ import { validateMessage } from "./validation"
 
 describe("feature message validation", () => {
   it("accepts get-features", () => {
-    expect(validateMessage({ type: "get-features" }).success).toBe(true)
+    expect(validateMessage({ type: "monocle-features-get" }).success).toBe(true)
   })
 
   it("accepts update-feature-config with a config object", () => {
     expect(
       validateMessage({
-        type: "update-feature-config",
+        type: "monocle-feature-config-update",
         featureId: "focus-mode",
         config: {
           blockedUrlPatterns: ["reddit.com"],
@@ -22,7 +22,7 @@ describe("feature message validation", () => {
   it("rejects update-feature-config without a feature id", () => {
     expect(
       validateMessage({
-        type: "update-feature-config",
+        type: "monocle-feature-config-update",
         featureId: "",
         config: {},
       }).success,
@@ -32,7 +32,7 @@ describe("feature message validation", () => {
   it("accepts execute-feature-action", () => {
     expect(
       validateMessage({
-        type: "execute-feature-action",
+        type: "monocle-feature-action-execute",
         featureId: "focus-mode",
         actionId: "start",
       }).success,
@@ -42,7 +42,7 @@ describe("feature message validation", () => {
   it("accepts execute-feature-action with a scalar payload", () => {
     expect(
       validateMessage({
-        type: "execute-feature-action",
+        type: "monocle-feature-action-execute",
         featureId: "tab-groups",
         actionId: "toggle-pin",
         payload: { itemId: "g1", childId: "t2", pinned: true },
@@ -53,7 +53,7 @@ describe("feature message validation", () => {
   it("rejects execute-feature-action with a non-scalar payload value", () => {
     expect(
       validateMessage({
-        type: "execute-feature-action",
+        type: "monocle-feature-action-execute",
         featureId: "tab-groups",
         actionId: "restore-group",
         payload: { itemId: { nested: "no" } },
@@ -63,19 +63,23 @@ describe("feature message validation", () => {
 
   it("accepts get-surfaces with a url", () => {
     expect(
-      validateMessage({ type: "get-surfaces", url: "https://example.com" })
-        .success,
+      validateMessage({
+        type: "monocle-surfaces-get",
+        url: "https://example.com",
+      }).success,
     ).toBe(true)
   })
 
   it("rejects get-surfaces without a url", () => {
-    expect(validateMessage({ type: "get-surfaces" }).success).toBe(false)
+    expect(validateMessage({ type: "monocle-surfaces-get" }).success).toBe(
+      false,
+    )
   })
 
   it("accepts a surface-action with owner, surface, and action ids", () => {
     expect(
       validateMessage({
-        type: "surface-action",
+        type: "monocle-surface-action",
         ownerId: "command:url-as-qr-code",
         surfaceId: "qr",
         actionId: "dismiss",
@@ -85,7 +89,8 @@ describe("feature message validation", () => {
 
   it("rejects a surface-action missing required ids", () => {
     expect(
-      validateMessage({ type: "surface-action", actionId: "dismiss" }).success,
+      validateMessage({ type: "monocle-surface-action", actionId: "dismiss" })
+        .success,
     ).toBe(false)
   })
 })

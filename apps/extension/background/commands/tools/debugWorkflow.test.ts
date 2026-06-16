@@ -52,7 +52,7 @@ const installChromeStubs = () => {
       sendMessage: vi.fn((tabId: number, message: any, callback?: Function) => {
         sentMessages.push({ tabId, message })
         const response =
-          message.type === "execute-workflow-content"
+          message.type === "monocle-workflow-content-execute"
             ? { result: workflowResult }
             : { received: true }
         callback?.(response)
@@ -90,8 +90,8 @@ describe("debug workflow command", () => {
     await runDebugWorkflow()
 
     expect(sentMessages.map((message) => message.message.type)).toEqual([
-      "toggle-ui",
-      "execute-workflow-content",
+      "monocle-ui-toggle",
+      "monocle-workflow-content-execute",
       "monocle-toast",
     ])
     expect(sentMessages.every((message) => message.tabId === 11)).toBe(true)
@@ -111,8 +111,8 @@ describe("debug workflow command", () => {
     await runDebugWorkflow()
 
     expect(sentMessages.map((message) => message.message.type)).toEqual([
-      "toggle-ui",
-      "execute-workflow-content",
+      "monocle-ui-toggle",
+      "monocle-workflow-content-execute",
       "monocle-toast",
     ])
     expect(sentMessages.every((message) => message.tabId === 11)).toBe(true)

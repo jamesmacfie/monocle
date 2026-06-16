@@ -104,7 +104,7 @@ describe("inspectElementFonts surface-action handler", () => {
     // family · size/line-height · weight · hex color
     const expected = "Stuff Text · 28px/32px · 500 · #6D00C6"
     expect(sendTabMessage).toHaveBeenCalledWith(12, {
-      type: "monocle-copyToClipboard",
+      type: "monocle-clipboard-write",
       message: expected,
     })
     expect(sendTabMessage).toHaveBeenCalledWith(12, {
@@ -131,7 +131,7 @@ describe("inspectElementFonts surface-action handler", () => {
     })
 
     expect(sendTabMessage).toHaveBeenCalledWith(3, {
-      type: "monocle-copyToClipboard",
+      type: "monocle-clipboard-write",
       message: "Georgia · 16px · 400 italic",
     })
   })

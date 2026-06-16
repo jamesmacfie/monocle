@@ -5,7 +5,7 @@ Monocle persists user preferences and per-command configuration in
 `monocle-settings`, and is owned by the background service worker through
 `background/commands/settings.ts`. The UI never writes this document directly
 except for two narrow theme/clock thunks in the Redux mirror; everything else
-flows through background functions and the `update-command-setting` message.
+flows through background functions and the `monocle-command-setting-update` message.
 Favorites and usage statistics are deliberately stored under *separate* storage
 keys and are not part of the `monocle-settings` document.
 
@@ -191,10 +191,10 @@ There is no explicit version field or migration routine in the settings
 document. Compatibility is achieved purely by defaulting missing fields to `{}`
 on load. Keep future schema changes additive and tolerant of partial documents.
 
-## The `update-command-setting` message
+## The `monocle-command-setting-update` message
 
 UI surfaces (keybinding editor, allow/deny list management commands) update
-command settings by sending the `update-command-setting` message, handled by
+command settings by sending the `monocle-command-setting-update` message, handled by
 `background/messages/updateCommandSetting.ts` (`updateCommandSetting`). The
 message is a discriminated union on `setting`, validated in two layers.
 
@@ -214,7 +214,7 @@ optional. The strict object on `urlRules` means any field other than
 
 ### Business-logic validation (`background/utils/validation.ts`)
 
-`validateBusinessLogic` adds a second layer for `update-command-setting`:
+`validateBusinessLogic` adds a second layer for `monocle-command-setting-update`:
 
 - **keybinding**: empty/null/`""` values short-circuit as valid (this is the
   "remove keybinding" path). A non-empty value must be already-canonical —
@@ -227,8 +227,8 @@ optional. The strict object on `urlRules` means any field other than
   patterns are rejected with `Invalid <field> pattern "<pattern>": <reason>`.
 
 Command ids reaching this handler are also constrained by the
-`execute-command`/`get-children-commands` id regex elsewhere, but the
-`update-command-setting` branch itself only validates the setting payload.
+`monocle-command-execute`/`monocle-command-children-get` id regex elsewhere, but the
+`monocle-command-setting-update` branch itself only validates the setting payload.
 
 ### Handler behavior (`updateCommandSetting`)
 
@@ -267,7 +267,7 @@ permission state. It is intentionally narrower than the persisted document.
 | --- | --- | --- |
 | `theme: ThemeSettings` | `monocle-settings.theme` | `{ mode: "system" }` |
 | `newTab: NewTabSettings` | `monocle-settings.newTab` | `{ clock: { show: true } }` |
-| `permissions: PermissionSettings` | `get-permissions` message round-trip | all `false`, `isLoaded: false` |
+| `permissions: PermissionSettings` | `monocle-permissions-get` message round-trip | all `false`, `isLoaded: false` |
 | `loading: boolean` / `error: string \| null` | thunk lifecycle | `false` / `null` |
 
 Note the slice mirrors only `theme`, `newTab`, and `permissions`. It does
@@ -281,7 +281,7 @@ read on demand from the background, not from this slice.
   re-applies defaults (`theme.mode` → `"system"`, `newTab.clock.show` →
   `true`) over the loaded values, and spreads loaded `newTab` over the existing
   state so unmentioned new-tab fields survive.
-- `loadPermissions` / `refreshPermissions`: send `get-permissions` to the
+- `loadPermissions` / `refreshPermissions`: send `monocle-permissions-get` to the
   background and store the returned `PermissionSettings`. On
   `loadPermissions.rejected`, `permissions.isLoaded` is forced `false`.
 - `updateThemeMode(mode)`: reads the current `monocle-settings`, shallow-merges
@@ -296,13 +296,13 @@ the only places the UI writes `monocle-settings` directly (bypassing
 `background/commands/settings.ts`). Each does a manual read-modify-write spread
 of the whole document, which is safe because they touch a single leaf each, but
 it means they do not benefit from the background pruning/merge helpers. All other
-settings writes go through the background API or the `update-command-setting`
+settings writes go through the background API or the `monocle-command-setting-update`
 message.
 
 ## Settings catalog mirror (`shared/store/slices/settingsCatalog.slice.ts`)
 
 The options page has a separate `settingsCatalog` slice for command-management
-data. It loads rows through `get-settings-catalog`, not through direct storage,
+data. It loads rows through `monocle-settings-catalog-get`, not through direct storage,
 because the catalog needs background-owned command metadata, effective settings,
 favorite state, usage stats, and capabilities.
 
@@ -314,7 +314,7 @@ The slice owns thunks for:
 - `setCatalogCommandKeybinding`
 - `setCatalogCommandUrlRules`
 
-Those thunks send `update-command-setting` or `set-command-favorite` messages
+Those thunks send `monocle-command-setting-update` or `monocle-command-favorite-set` messages
 and update the local row optimistically after the background confirms success.
 This keeps per-command settings out of the narrower `settings` slice while still
 giving the options page responsive controls.
@@ -328,7 +328,7 @@ giving the options page responsive controls.
   not automatically re-hydrated on external writes — call `loadSettings` to
   refresh.
 - **Permissions**: the browser permission API is authoritative. The slice
-  holds a cached snapshot fetched via `get-permissions`; it can go stale if a
+  holds a cached snapshot fetched via `monocle-permissions-get`; it can go stale if a
   permission is revoked from the browser's extension settings while Monocle is
   open. UI paths re-fetch (`refreshPermissions`) to recover. See
   [permissions.md](./permissions.md).
@@ -401,7 +401,7 @@ giving the options page responsive controls.
 
 - [architecture.md](./architecture.md) — system overview and data flows.
 - [messaging.md](./messaging.md) — full message protocol, including
-  `update-command-setting`.
+  `monocle-command-setting-update`.
 - [permissions.md](./permissions.md) — permission state vs browser truth.
 - [keybindings.md](./keybindings.md) — canonical keybinding format and registry.
 - [url-filtering.md](./url-filtering.md) — `urlRules` matching and management.

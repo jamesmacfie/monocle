@@ -35,7 +35,7 @@ describe("deleteSnippet message handler", () => {
     await updateCommandSettings(commandId, { keybinding: "<cmd-alt-1>" })
 
     const response = await deleteSnippet({
-      type: "delete-snippet",
+      type: "monocle-snippet-delete",
       id: snippet.id,
     })
 
@@ -50,7 +50,7 @@ describe("deleteSnippet message handler", () => {
     })
 
     const response = await deleteSnippet({
-      type: "delete-snippet",
+      type: "monocle-snippet-delete",
       id: "missing",
     })
 

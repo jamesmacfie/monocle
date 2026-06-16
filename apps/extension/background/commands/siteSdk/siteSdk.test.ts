@@ -63,13 +63,13 @@ const installChromeStubs = () => {
       sendMessage: vi.fn((tabId: number, message: any, callback?: Function) => {
         tabMessages.push({ tabId, message })
 
-        if (message.type === "monocle-sdk-sync-request") {
+        if (message.type === "monocle-site-sdk-sync-request") {
           const response = { registrations: nextSyncRegistrations }
           callback?.(response)
           return Promise.resolve(response)
         }
 
-        if (message.type === "monocle-sdk-invoke") {
+        if (message.type === "monocle-site-sdk-invoke") {
           const response =
             nextInvokeResponse ??
             (message.request?.type === "children"
@@ -285,7 +285,7 @@ describe("site SDK background registry and commands", () => {
     )
 
     const invoke = tabMessages.find(
-      (item) => item.message.type === "monocle-sdk-invoke",
+      (item) => item.message.type === "monocle-site-sdk-invoke",
     )
 
     expect(invoke?.tabId).toBe(10)
@@ -385,7 +385,7 @@ describe("site SDK background registry and commands", () => {
     )
     expect(
       tabMessages.some(
-        (item) => item.message.type === "monocle-sdk-sync-request",
+        (item) => item.message.type === "monocle-site-sdk-sync-request",
       ),
     ).toBe(true)
   })

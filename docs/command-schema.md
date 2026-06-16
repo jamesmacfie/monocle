@@ -452,7 +452,7 @@ Resolved into `baseProps` and spread onto the suggestion:
 
 These exist on the node but are **background-only** and are never serialized onto the suggestion:
 
-- `execute` / `getResults` / `children` — executable functions and resolvers stay in the background. The UI triggers them by sending `execute-command` / `get-children-commands` with the command id; see [messaging.md](messaging.md).
+- `execute` / `getResults` / `children` — executable functions and resolvers stay in the background. The UI triggers them by sending `monocle-command-execute` / `monocle-command-children-get` with the command id; see [messaging.md](messaging.md).
 - `urlRules`, `supportedBrowsers` — consumed during loading/filtering before conversion, not surfaced to the UI.
 - `dedupeKey`, `doNotAddToRecents`, `allowCustomKeybinding`, `keybindingRequirements`, `keybindingBehavior`, `enableDeepSearch` — consumed by ranking/usage/keybinding/deep-search logic in the background, not placed on the suggestion. (`keybindingRequirements` does reach the UI, but only inside the `setKeybinding` action's execution context and the settings catalog row, not on the command's own suggestion.)
 - The raw `keybinding` string from settings is used to compute the suggestion `keybinding`, but `allowCustomKeybinding` itself is not exposed.

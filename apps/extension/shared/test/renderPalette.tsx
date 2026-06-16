@@ -64,10 +64,10 @@ type MessageHandlers = Record<
 // per test to control children/search responses.
 export const createMockSendMessage = (overrides: MessageHandlers = {}) => {
   const defaults: MessageHandlers = {
-    "get-children-commands": () => ({
+    "monocle-command-children-get": () => ({
       children: [actionSuggestion("child-1"), actionSuggestion("child-2")],
     }),
-    "search-commands": (message) => ({
+    "monocle-commands-search": (message) => ({
       results: [actionSuggestion("search-result")],
       seq: message.seq,
       query: message.query,

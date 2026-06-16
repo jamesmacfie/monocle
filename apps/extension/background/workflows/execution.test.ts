@@ -80,7 +80,7 @@ describe("workflow target routing", () => {
     })
 
     expect(sendTabMessage).toHaveBeenCalledWith(2, {
-      type: "execute-workflow-content",
+      type: "monocle-workflow-content-execute",
       workflow,
       context,
     })

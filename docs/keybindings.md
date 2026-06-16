@@ -1,6 +1,6 @@
 # Keybindings
 
-Monocle lets commands declare keyboard shortcuts and lets users assign custom ones. Every keybinding — whether typed by a command author, captured from the user, or read off a live keyboard event — is funnelled through a single canonical normalizer so that storage, matching, conflict detection, and display all agree on one string form such as `<cmd-shift-k>`. The UIs (content overlay and new-tab) capture keydown events globally, suppress the ones the background says it handles, and forward the rest to the background as `execute-keybinding` messages. The background owns a context-aware registry that resolves exact matches and multi-stroke sequence prefixes, then either executes the matched command through the normal command execution path or tells the UI to open the palette at a command page.
+Monocle lets commands declare keyboard shortcuts and lets users assign custom ones. Every keybinding — whether typed by a command author, captured from the user, or read off a live keyboard event — is funnelled through a single canonical normalizer so that storage, matching, conflict detection, and display all agree on one string form such as `<cmd-shift-k>`. The UIs (content overlay and new-tab) capture keydown events globally, suppress the ones the background says it handles, and forward the rest to the background as `monocle-keybinding-execute` messages. The background owns a context-aware registry that resolves exact matches and multi-stroke sequence prefixes, then either executes the matched command through the normal command execution path or tells the UI to open the palette at a command page.
 
 This doc covers the canonical format, normalization rules, event filtering, capture, the background registry, custom user bindings, conflict detection, the high-risk command policy, display, and known coverage gaps.
 
@@ -99,9 +99,9 @@ Inside an editable element, a combination with a non-shift modifier (Cmd/Ctrl/Al
 
 `shared/hooks/useGlobalKeybindings.tsx` wires `RobustKeyCapture` into both palette modes (`isNewTab` option flows into the context override sent on each message). Its responsibilities:
 
-- **State refresh.** On mount and whenever `monocle-settings` changes in `chrome.storage.local`, it sends `get-keybinding-state` and caches `exactKeybindings` and `sequencePrefixes` sets. It also refreshes on any failed/unmatched execution.
+- **State refresh.** On mount and whenever `monocle-settings` changes in `chrome.storage.local`, it sends `monocle-keybinding-state-get` and caches `exactKeybindings` and `sequencePrefixes` sets. It also refreshes on any failed/unmatched execution.
 - **Preflight suppression.** `shouldPreemptivelySuppress` returns true if the key (or the continued local sequence) is in the cached exact set or sequence-prefix set. Disabled while `isCapturing` (so the capture UI receives raw keys).
-- **Execution.** `onKeyPress` sends `execute-keybinding` with the canonical `keyString` and the context override. On `success`: if the response contains `openPaletteAtCommand`, it calls the surface-provided opener callback (`useOpenPaletteAtCommand`); if the response is `pending` it extends the local sequence buffer (`updateLocalSequenceForPendingStroke`), else it clears it. Non-success clears the buffer and re-refreshes state.
+- **Execution.** `onKeyPress` sends `monocle-keybinding-execute` with the canonical `keyString` and the context override. On `success`: if the response contains `openPaletteAtCommand`, it calls the surface-provided opener callback (`useOpenPaletteAtCommand`); if the response is `pending` it extends the local sequence buffer (`updateLocalSequenceForPendingStroke`), else it clears it. Non-success clears the buffer and re-refreshes state.
 - **Open-page shortcuts.** `useOpenPaletteAtCommand` fetches fresh root commands, resets navigation to root, and dispatches `navigateToCommand` for the returned command id. Content mode first shows the overlay; new-tab mode reuses the already-mounted palette.
 - **Local sequence buffer.** A UI-side buffer (`localSequenceRef`) tracks in-progress sequences with a `UI_SEQUENCE_IDLE_TIMEOUT_MS` idle timeout (`shared/utils/keybinding-timing.ts`: the background chord window plus 100 ms, because the UI timer starts after the round-trip resolves and must strictly outlive the background timer), used only to decide preemptive suppression of the *next* stroke. Authoritative sequence resolution happens in the background.
 
@@ -139,7 +139,7 @@ type KeybindingRegistrySnapshot = {
 
 `background/keybindings/targets.ts` owns keybinding target metadata: whether a command is assignable, its behavior, default/effective binding, and requirements. Custom settings override the command default. `seenEntries` dedupes on `${id}:${keybinding}`.
 
-`loadKeybindingCommandEntries` is cached at module scope (same service-worker lifetime pattern as `background/commands/searchIndex.ts`): entries are keyed by `isNewTab|url|platform` plus the site-SDK `scopeKey:revision` when present, with a ~30s TTL, an ~8-context cap, and inflight-build dedupe. Because entries are URL-filtered at build time the key includes the URL — one rebuild per navigation, while every keystroke funnelling through `execute-keybinding`/`get-keybinding-state` on the same page is a Map lookup instead of a full command-tree traversal. Invalidation: `invalidateKeybindingEntriesCache()` is called synchronously from `refreshKeybindingRegistry()` (all settings write paths) and URL-rule mutation helpers, and `initializeKeybindingEntriesInvalidation()` (wired in `background/index.ts`) listens to `monocle-settings` storage changes and permission grant/revoke events. Tab/history/bookmark events are deliberately not wired (they fire constantly and dynamic children almost never carry default keybindings); the TTL covers that drift.
+`loadKeybindingCommandEntries` is cached at module scope (same service-worker lifetime pattern as `background/commands/searchIndex.ts`): entries are keyed by `isNewTab|url|platform` plus the site-SDK `scopeKey:revision` when present, with a ~30s TTL, an ~8-context cap, and inflight-build dedupe. Because entries are URL-filtered at build time the key includes the URL — one rebuild per navigation, while every keystroke funnelling through `monocle-keybinding-execute`/`monocle-keybinding-state-get` on the same page is a Map lookup instead of a full command-tree traversal. Invalidation: `invalidateKeybindingEntriesCache()` is called synchronously from `refreshKeybindingRegistry()` (all settings write paths) and URL-rule mutation helpers, and `initializeKeybindingEntriesInvalidation()` (wired in `background/index.ts`) listens to `monocle-settings` storage changes and permission grant/revoke events. Tab/history/bookmark events are deliberately not wired (they fire constantly and dynamic children almost never carry default keybindings); the TTL covers that drift.
 
 Because the snapshot depends on context and visibility settings, the same physical key can be bound in one context and absent in another — the registry test confirms `toggle-clock-visibility` (`<cmd-alt-c>`) resolves only in new-tab context, `github-toggle-star` (`<cmd-alt-g>`) only on a GitHub URL, and hidden commands are omitted even when they have custom bindings.
 
@@ -162,7 +162,7 @@ Chord timer callbacks (`schedulePendingSingle`, `scheduleReset`) run **inside th
 
 **Scope key** (`getSequenceScopeKey`): when sender tab info is available it is `tab:<tabId>:document:<documentId|frameId|top>`; otherwise it falls back to `context:<newtab|page>:<url>`. This scoping mitigates but does not eliminate the known risk that sequence state lives in the background service worker — concurrent tabs that fall back to the context key (e.g. extension pages without sender tab data) can still interfere.
 
-### `get-keybinding-state` and `execute-keybinding`
+### `monocle-keybinding-state-get` and `monocle-keybinding-execute`
 
 - `background/messages/getKeybindingState.ts` returns `{ exactKeybindings, sequencePrefixes }` straight from the context-scoped snapshot. The UI caches these for preflight suppression.
 - `background/messages/executeKeybinding.ts` returns `{ success, executed }`, `{ success, executed: false, pending: true }`, `{ success, executed: false, openPaletteAtCommand: { commandId } }`, or `{ success: false, error }`. See [messaging.md](messaging.md) for the full message catalog.
@@ -197,12 +197,12 @@ Generated per-command actions come from `background/commands/suggestions.ts`:
 
 1. Selecting the Set action dispatches `startCapture(targetCommandId)` (keybinding slice), which sets `isCapturing` and suspends global capture.
 2. The `KeybindingCapture` component focuses a div and listens on `onKeyDownCapture` (capture phase, to beat CMDK). Each non-Enter/Escape keydown is converted with `getKeyString`, appended to a `strokes` array, and the running sequence is conflict-checked.
-3. Enter saves: it sends `update-command-setting` with `setting: "keybinding"` and the normalized `strokes.join(", ")`, dispatches `completeCapture`, refreshes commands, and closes the menu. Save is blocked while `hasConflict`.
+3. Enter saves: it sends `monocle-command-setting-update` with `setting: "keybinding"` and the normalized `strokes.join(", ")`, dispatches `completeCapture`, refreshes commands, and closes the menu. Save is blocked while `hasConflict`.
 4. Escape cancels (`cancelCapture`).
 
 ### Persistence and registry refresh
 
-The custom keybinding is stored in command settings under the command id (`monocle-settings` -> command settings -> `keybinding`). See [settings.md](settings.md). The `update-command-setting` path persists it and refreshes the registry so subsequent `get-keybinding-state` reflects it. Reset is handled in the background (`background/commands/execution.ts`, `resetKeybinding` action branch in `executeGeneratedAction`): `removeCommandSetting(targetCommandId, "keybinding")` then `refreshKeybindingRegistry()`.
+The custom keybinding is stored in command settings under the command id (`monocle-settings` -> command settings -> `keybinding`). See [settings.md](settings.md). The `monocle-command-setting-update` path persists it and refreshes the registry so subsequent `monocle-keybinding-state-get` reflects it. Reset is handled in the background (`background/commands/execution.ts`, `resetKeybinding` action branch in `executeGeneratedAction`): `removeCommandSetting(targetCommandId, "keybinding")` then `refreshKeybindingRegistry()`.
 
 The keybinding Redux slice (`shared/store/slices/keybinding.slice.ts`) is intentionally tiny — `{ isCapturing, targetCommandId, requirements }` with `startCapture` / `cancelCapture` / `completeCapture` and `selectIsCapturing` / `selectTargetCommandId` / `selectCaptureRequirements`. It carries no keybinding data; the actual bindings live in settings and the background registry. `requirements` holds the target command's `KeybindingRequirements` (delivered via the `setKeybinding` execution context) so the palette capture box can hint constraints before the first stroke.
 
@@ -214,9 +214,9 @@ Executable nodes (action/submit) can declare constraints on which custom keybind
 
 The shared validator is `validateKeybindingRequirements` / `describeKeybindingRequirements` (`shared/utils/keybinding-requirements.ts`); the type is extensible — new rule fields are added to `KeybindingRequirements` as commands need them. Enforcement points:
 
-1. `check-keybinding-conflict` resolves the assignment target through `background/keybindings/assignmentTarget.ts` (live command first, settings-catalog fallback), evaluates the target's requirements per stroke, and returns `requirementViolation: { code, message }` (a violation is not a conflict — `hasConflict` stays false). Both capture UIs render the message and block save; requirements flow to the options dialog via the settings catalog (`keybindingRequirements` on `SettingsCatalogCommand`) and to the palette capture via the `setKeybinding` execution context.
-2. `update-command-setting` (keybinding case) re-validates on persist and throws — the backstop against stale or forged messages. Clearing a binding always passes.
-3. `update-command-keybindings` (batch/template path) skips violating updates and reports them in `conflicts` with `reason: "requirement-not-met"` and no `conflictingCommand`; the rest of the batch persists.
+1. `monocle-keybinding-conflict-check` resolves the assignment target through `background/keybindings/assignmentTarget.ts` (live command first, settings-catalog fallback), evaluates the target's requirements per stroke, and returns `requirementViolation: { code, message }` (a violation is not a conflict — `hasConflict` stays false). Both capture UIs render the message and block save; requirements flow to the options dialog via the settings catalog (`keybindingRequirements` on `SettingsCatalogCommand`) and to the palette capture via the `setKeybinding` execution context.
+2. `monocle-command-setting-update` (keybinding case) re-validates on persist and throws — the backstop against stale or forged messages. Clearing a binding always passes.
+3. `monocle-command-keybindings-update` (batch/template path) skips violating updates and reports them in `conflicts` with `reason: "requirement-not-met"` and no `conflictingCommand`; the rest of the batch persists.
 
 Enforcement is **assignment-time only**: a stored binding that violates a later-added requirement stays registered and degrades harmlessly (the event filter drops it inside editables; it still fires with page focus outside inputs). The next edit through either UI forces compliance.
 
@@ -272,7 +272,7 @@ Automated coverage is solid for the pure logic and registry behaviour but not fo
 ## Related docs
 
 - [architecture.md](architecture.md) — runtime modes, boundaries, data flows.
-- [messaging.md](messaging.md) — `execute-keybinding`, `get-keybinding-state`, `check-keybinding-conflict`, `update-command-setting` shapes.
+- [messaging.md](messaging.md) — `monocle-keybinding-execute`, `monocle-keybinding-state-get`, `monocle-keybinding-conflict-check`, `monocle-command-setting-update` shapes.
 - [command-schema.md](command-schema.md) — `keybinding`, `allowCustomKeybinding`, `confirmAction` fields.
 - [execution-and-actions.md](execution-and-actions.md) — generated Set/Reset keybinding actions and the action menu.
 - [settings.md](settings.md) — where custom keybindings are persisted.

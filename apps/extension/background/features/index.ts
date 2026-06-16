@@ -7,12 +7,12 @@
 // router; feature-specific runtime messages live with the feature. See
 // docs/features.md.
 import type {
+  Automation,
   Browser,
   CommandNode,
   FeatureDescriptor,
-  UserScript,
 } from "../../shared/types"
-import { UserScriptSchema } from "../../shared/types/userScriptValidation"
+import { AutomationSchema } from "../../shared/types/automationValidation"
 import { getFeatureConfig } from "./config"
 import { elementHiderFeature } from "./elementHider"
 import { focusFeature } from "./focus"
@@ -41,12 +41,12 @@ export const getFeatureCommands = (context?: Browser.Context): CommandNode[] =>
 
 export const validateFeatureAutomations = (
   featureId: string,
-  automations: UserScript[],
-): UserScript[] => {
-  const valid: UserScript[] = []
+  automations: Automation[],
+): Automation[] => {
+  const valid: Automation[] = []
 
   for (const automation of automations) {
-    const parsed = UserScriptSchema.safeParse(automation)
+    const parsed = AutomationSchema.safeParse(automation)
     if (parsed.success) {
       valid.push(parsed.data)
       continue
@@ -65,11 +65,11 @@ export const validateFeatureAutomations = (
 }
 
 // Read-only automations projected from every feature's current config. Merged
-// with stored user documents by background/userScripts/registry.ts so they run
+// with stored user documents by background/automations/registry.ts so they run
 // through the same engine + trigger system. Projection failures are logged and
 // skipped — a broken feature never takes down the user's automations.
-export const getFeatureAutomations = async (): Promise<UserScript[]> => {
-  const projected: UserScript[] = []
+export const getFeatureAutomations = async (): Promise<Automation[]> => {
+  const projected: Automation[] = []
   for (const feature of features) {
     if (!feature.automations || !feature.settings) {
       continue

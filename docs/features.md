@@ -2,7 +2,7 @@
 
 > **Status: implemented (first feature: Focus Mode).** The registry, the
 > `monocle-feature-config` / `monocle-feature-state` stores, the generic
-> `get-features` / `update-feature-config` / `execute-feature-action` messages,
+> `monocle-features-get` / `monocle-feature-config-update` / `monocle-feature-action-execute` messages,
 > the options Features pages, and page UI via the generic
 > [Surfaces primitive](./surfaces.md) are all live. Focus Mode is the first and
 > currently only consumer ([focus-mode.md](./focus-mode.md)).
@@ -54,8 +54,8 @@ type FeatureModule<TConfig> = {
   // Startup lifecycle: re-arm alarms / listeners after a SW restart.
   init?: () => void | Promise<void>
   // Read-only automations PROJECTED from this feature's config (optional). They
-  // flow through the shared user-script engine/trigger system — see below.
-  automations?: (config: TConfig) => UserScript[] | Promise<UserScript[]>
+  // flow through the shared automation engine/trigger system — see below.
+  automations?: (config: TConfig) => Automation[] | Promise<Automation[]>
 }
 ```
 
@@ -101,7 +101,7 @@ express. It is the one field type whose data is *not* draft-edited:
   `childActions` (per-child buttons; rows with `children` expand). An action
   with `editLabel: true` opens an inline editor and dispatches with
   `payload.value` (e.g. Rename); others dispatch immediately.
-- Each button fires `execute-feature-action` with a `payload` identifying the
+- Each button fires `monocle-feature-action-execute` with a `payload` identifying the
   row — `{ itemId }` for a group, `{ itemId, childId }` for a child, plus
   `value`/scalars. The feature's `handleAction` reads `ctx.payload` and mutates
   config (delete/rename/pin) or does runtime work (restore). The handler returns
@@ -116,22 +116,22 @@ Tab Groups (`background/features/tabGroups/`) is the first consumer; see
 
 A feature can contribute **page-load (and other-trigger) behavior** without any
 new runtime: the optional `automations(config)` hook **projects** read-only
-`UserScript` documents from the feature's config, and they flow through the
-existing user-script engine and trigger system (see
-[user-scripts.md](./user-scripts.md)).
+`Automation` documents from the feature's config, and they flow through the
+existing automation engine and trigger system (see
+[automations.md](./automations.md)).
 
 - **Projected, never stored.** The hook recomputes from current config on every
   read; the config is the single source of truth. (This mirrors how Focus Mode
   projects *surfaces* rather than persisting them.) The merge happens in
-  `background/userScripts/registry.ts` (`getAllAutomations` / `getAutomationById`),
+  `background/automations/registry.ts` (`getAllAutomations` / `getAutomationById`),
   which the engine, trigger engine, alarm sync, and options listing read from.
-  The user-script storage mutators are untouched — feature documents never enter
-  `monocle-userscripts`, and `addUserScript` rejects a feature-owned draft.
+  The automation storage mutators are untouched — feature documents never enter
+  `monocle-automations`, and `addAutomation` rejects a feature-owned draft.
 - **Tagged + deterministic.** Each projected doc carries
   `owner: { kind: "feature", featureId }` and a stable id
   (`featureAutomationId(featureId, key)` → `feature:<id>:<key>`, which cannot
   collide with the UUIDs of stored user docs). Each must validate against
-  `UserScriptSchema`.
+  `AutomationSchema`.
 - **Read-only in the UI.** The Automations options page partitions on
   `isFeatureAutomation` and lists feature automations under "Managed by features"
   with a link back to the feature's settings — no edit/delete/toggle. They are
@@ -193,18 +193,18 @@ untouched — the registry is **additive**.
 
 **Settings page.**
 
-1. Options app dispatches `loadFeatures` → `get-features` →
+1. Options app dispatches `loadFeatures` → `monocle-features-get` →
    `getFeatureDescriptors()` projects each feature (schema + config merged over
    defaults).
 2. `options/components/SchemaForm.tsx` renders the schema with options-page
    primitives (one control per `FormField` variant) and renders `actions` as
    buttons.
-3. Save dispatches `updateFeatureConfig` → `update-feature-config` → the handler
+3. Save dispatches `updateFeatureConfig` → `monocle-feature-config-update` → the handler
    validates the payload against the feature's `configSchema` and persists
    (replace-whole), then calls the feature's optional `onConfigChange(config)`
    so it can react to the new config (Focus Mode re-projects its surfaces here
    so blocklist edits take effect live). An action button dispatches
-   `executeFeatureAction` → `execute-feature-action` → `handleAction`.
+   `executeFeatureAction` → `monocle-feature-action-execute` → `handleAction`.
 4. `OptionsApp` re-hydrates on `storage.onChanged` for `monocle-feature-config`.
 
 Because the settings page loads from the **feature descriptor** (not a resolved
@@ -226,9 +226,9 @@ Generic feature messages (router: `background/messages/index.ts`; types in
 
 | Message | Direction | Payload | Response |
 | --- | --- | --- | --- |
-| `get-features` | UI → bg | — | `{ features: FeatureDescriptor[] }` |
-| `update-feature-config` | UI → bg | `{ featureId, config }` | `{ success, config }` |
-| `execute-feature-action` | UI → bg | `{ featureId, actionId, context?, payload? }` | `{ success, feature? }` |
+| `monocle-features-get` | UI → bg | — | `{ features: FeatureDescriptor[] }` |
+| `monocle-feature-config-update` | UI → bg | `{ featureId, config }` | `{ success, config }` |
+| `monocle-feature-action-execute` | UI → bg | `{ featureId, actionId, context?, payload? }` | `{ success, feature? }` |
 
 `payload` (scalar map) carries `record-list` row data (`itemId`/`childId`/
 `value`/…). The response includes the **re-projected `feature`** descriptor so a
@@ -236,7 +236,7 @@ row action's effect on config (and its derived `lists`) shows in the UI without
 a reload.
 
 A feature that needs page UI pushes [surfaces](./surfaces.md) into the surfaces
-store rather than defining its own messages — the generic `get-surfaces` query
+store rather than defining its own messages — the generic `monocle-surfaces-get` query
 and `monocle-surfaces-changed` broadcast cover rendering. A feature only adds a
 bespoke message when it has genuinely feature-specific runtime state to expose;
 such messages live with the feature, not in the registry contract.

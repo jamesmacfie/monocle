@@ -1,4 +1,7 @@
 // Re-exports for all types
+
+export * from "./automations"
+export * from "./automationValidation"
 export * from "./browser"
 export * from "./commands"
 export * from "./content"
@@ -16,8 +19,6 @@ export * from "./snippets"
 export * from "./surface"
 export * from "./surfaceValidation"
 export * from "./ui"
-export * from "./userScripts"
-export * from "./userScriptValidation"
 // validation re-exports the workflow schemas from ./workflowValidation, so
 // that module is intentionally not star-exported here (it would create
 // duplicate-name conflicts).

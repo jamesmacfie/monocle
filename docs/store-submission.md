@@ -120,7 +120,7 @@ Sub-risks inside this:
 ### Permissions
 
 - Required set is minimal: Chrome gets `scripting`, `activeTab`, `storage`,
-  `alarms` (the last powers scheduled user-script triggers) (`wxt.config.ts`).
+  `alarms` (the last powers scheduled automation triggers) (`wxt.config.ts`).
   Firefox additionally requires `contextualIdentities` for container commands.
 - `host_permissions` is two specific hosts (`api.unsplash.com`,
   `icons.duckduckgo.com`), not `<all_urls>`.
@@ -254,21 +254,21 @@ single biggest lever for shortening human review.
 
 ## Verified non-issues
 
-- **Workflow automation / user scripts**: the executor (`content/workflow/`)
+- **Workflow automation / automations**: the executor (`content/workflow/`)
   interprets a fixed, bundled step vocabulary routed through
-  `background/workflows/execution.ts`; user-script documents are locally
-  stored configuration validated by `shared/types/userScriptValidation.ts`
-  and interpreted by `background/userScripts/engine.ts`. Nothing is fetched
+  `background/workflows/execution.ts`; automation documents are locally
+  stored configuration validated by `shared/types/automationValidation.ts`
+  and interpreted by `background/automations/engine.ts`. Nothing is fetched
   remotely and no code is evaluated. Both stores host far more aggressive
   automation tools; keep the listing honest ("automations" / "user-defined
   commands" — avoid "scripting" language) and name these files in reviewer
-  notes. See [user-scripts.md](./user-scripts.md) for the full posture.
+  notes. See [automations.md](./automations.md) for the full posture.
 - **Network surface**: exactly two external hosts, both matching declared
   `host_permissions` and CSP — Unsplash backgrounds and DuckDuckGo favicons
   (`background/utils/favicon.ts`). No analytics or telemetry of any kind.
 - **Storage**: local-only; no `storage.sync`, nothing transmitted off-device.
 - **Clipboard**: write-only — explicit copy commands
-  (`shared/hooks/useCopyToClipboard.tsx`) and the user-script engine's
+  (`shared/hooks/useCopyToClipboard.tsx`) and the automation engine's
   privileged `clipboardWrite` op. There is no clipboard *read* path, and
   clipboard is not part of the content workflow vocabulary
   (`shared/types/workflow.ts`).

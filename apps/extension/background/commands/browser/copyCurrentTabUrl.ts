@@ -19,7 +19,7 @@ export const copyCurrentTabUrl: CommandNode = {
           const activeTab = await getActiveTab()
           if (activeTab?.url) {
             await sendTabMessage(activeTab.id, {
-              type: "monocle-copyToClipboard",
+              type: "monocle-clipboard-write",
               message: activeTab.url,
             })
             await sendTabMessage(activeTab.id, {
@@ -43,7 +43,7 @@ export const copyCurrentTabUrl: CommandNode = {
               const url = new URL(activeTab.url)
               const cleanUrl = `${url.protocol}//${url.host}${url.pathname}`
               await sendTabMessage(activeTab.id, {
-                type: "monocle-copyToClipboard",
+                type: "monocle-clipboard-write",
                 message: cleanUrl,
               })
               await sendTabMessage(activeTab.id, {
@@ -54,7 +54,7 @@ export const copyCurrentTabUrl: CommandNode = {
             } catch (_error) {
               // Fallback to original URL if parsing fails
               await sendTabMessage(activeTab.id, {
-                type: "monocle-copyToClipboard",
+                type: "monocle-clipboard-write",
                 message: activeTab.url,
               })
               await sendTabMessage(activeTab.id, {
@@ -78,7 +78,7 @@ export const copyCurrentTabUrl: CommandNode = {
             try {
               const url = new URL(activeTab.url)
               await sendTabMessage(activeTab.id, {
-                type: "monocle-copyToClipboard",
+                type: "monocle-clipboard-write",
                 message: url.hostname,
               })
               await sendTabMessage(activeTab.id, {
@@ -89,7 +89,7 @@ export const copyCurrentTabUrl: CommandNode = {
             } catch (_error) {
               // Fallback to original URL if parsing fails
               await sendTabMessage(activeTab.id, {
-                type: "monocle-copyToClipboard",
+                type: "monocle-clipboard-write",
                 message: activeTab.url,
               })
               await sendTabMessage(activeTab.id, {

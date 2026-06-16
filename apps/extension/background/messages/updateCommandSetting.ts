@@ -38,7 +38,7 @@ export async function updateCommandSetting(
   message: UpdateCommandSettingMessage,
   sender?: any,
 ) {
-  const { commandId, setting, value } = message
+  const { id: commandId, setting, value } = message
   const siteSdk = await prepareSiteSdkCommandLoadOptions(
     sender,
     message.context,
@@ -78,7 +78,7 @@ export async function updateCommandSetting(
 
     // Show success toast for keybinding updates
     await showToast({
-      type: "show-toast",
+      type: "monocle-toast-show",
       level: "success",
       message: `Keybinding set to ${settingValue}`,
     })

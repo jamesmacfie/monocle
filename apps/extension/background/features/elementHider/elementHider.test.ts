@@ -1,13 +1,13 @@
 // Architecture: background feature layer (tests). Element Hider: the
 // config-to-automation projection (grouping by URL pattern, and every projected
-// document being a VALID UserScript — the only validation gate for projected
-// docs, since they bypass addUserScript), plus the handleAction paths
+// document being a VALID Automation — the only validation gate for projected
+// docs, since they bypass addAutomation), plus the handleAction paths
 // (element-picked saves a domain rule + hides immediately; delete-rule removes
 // one). Workflow execution and the surfaces store are mocked.
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
-import { isFeatureAutomation } from "../../../shared/types/userScripts"
-import { UserScriptSchema } from "../../../shared/types/userScriptValidation"
+import { isFeatureAutomation } from "../../../shared/types/automations"
+import { AutomationSchema } from "../../../shared/types/automationValidation"
 import { getFeatureConfig, setFeatureConfig } from "../config"
 
 const { hideNow, removeSurface } = vi.hoisted(() => ({
@@ -68,13 +68,13 @@ describe("projectElementHiderAutomations", () => {
     })
   })
 
-  it("emits valid, feature-owned UserScript documents", () => {
+  it("emits valid, feature-owned Automation documents", () => {
     const longSelector = `.${"x".repeat(1800)}`
     const automations = projectElementHiderAutomations({
       rules: [{ id: "1", urlPattern: "*://x.com/*", selector: longSelector }],
     })
     for (const automation of automations) {
-      expect(UserScriptSchema.safeParse(automation).success).toBe(true)
+      expect(AutomationSchema.safeParse(automation).success).toBe(true)
       expect(isFeatureAutomation(automation)).toBe(true)
       // Silent on every page load — no success toast.
       expect(automation.options?.showResultToast).toBe(false)

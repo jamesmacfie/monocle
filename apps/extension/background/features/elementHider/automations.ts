@@ -1,14 +1,14 @@
 // Architecture: background feature layer (Element Hider). Projects the feature
-// config into read-only user-script automations — one per saved rule. Each is an
+// config into read-only automation automations — one per saved rule. Each is an
 // `elementAppears` trigger scoped by the rule's URL pattern, then a single
 // `hideElement` step. Keeping rules isolated matters because workflows abort on
 // first failure; one stale selector must not block unrelated hides on the site.
 // These flow through the shared engine/trigger system (merged by
-// userScripts/registry.ts); they are never stored. Each must validate against
-// UserScriptSchema, so the shape here is deliberately minimal. See
+// automations/registry.ts); they are never stored. Each must validate against
+// AutomationSchema, so the shape here is deliberately minimal. See
 // docs/features.md and docs/element-hider.md.
-import type { UserScript } from "../../../shared/types"
-import { featureAutomationId } from "../../../shared/types/userScripts"
+import type { Automation } from "../../../shared/types"
+import { featureAutomationId } from "../../../shared/types/automations"
 import {
   ELEMENT_HIDER_FEATURE_ID,
   type ElementHiderConfig,
@@ -34,7 +34,7 @@ const ruleLabel = (rule: ElementHiderRule): string =>
 
 export const projectElementHiderAutomations = (
   config: ElementHiderConfig,
-): UserScript[] => {
+): Automation[] => {
   return config.rules
     .filter((rule) => rule.urlPattern && rule.selector)
     .map((rule) => ({

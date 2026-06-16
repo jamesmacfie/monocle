@@ -41,7 +41,7 @@ Wouter hash routes, Tailwind, and local shadcn-style primitives.
 | Per-command keybinding | Commands and Keyboard page keybinding dialogs; Keyboard page templates; generated **Set / Reset Custom Keybinding** actions in the action menu | `options/components/KeybindingDialog.tsx`, `options/components/KeybindingTemplateDialog.tsx`, `options/pages/KeyboardPage.tsx`, `options/lib/keybindingTemplates.ts`, `background/commands/suggestions.ts` (action rows) + `background/commands/execution.ts` (reset handler), `shared/components/Command/CommandActionsList.tsx` |
 | Favorites | Commands and Favorites page favorite toggles; inline ♡ toggle action per command; `clear-favorites` command | `options/pages/FavoritesPage.tsx`, `background/commands/favorites.ts` |
 | Snippets | Snippets page: list, create, edit, and delete saved snippets (independent `monocle-snippets` storage); mirrors palette-created snippets via `storage.onChanged` | `options/pages/SnippetsPage.tsx`, `shared/store/slices/snippets.slice.ts`, `background/commands/snippets.ts`; see [commands/tools.md](./commands/tools.md) |
-| Automations | List + builder for user scripts: metadata/scope/trigger/variable/step editors, validate-as-you-type with the shared document schema, test-run on the active tab, JSON export, import with a review summary (non-manual triggers arrive disarmed), and an Add Examples button that seeds curated example automations | `options/pages/UserScriptsPage.tsx`, `options/pages/userScripts/`, `shared/store/slices/userScripts.slice.ts`; see [user-scripts.md](./user-scripts.md) |
+| Automations | List + builder for automations: metadata/scope/trigger/variable/step editors, validate-as-you-type with the shared document schema, test-run on the active tab, JSON export, import with a review summary (non-manual triggers arrive disarmed), and an Add Examples button that seeds curated example automations | `options/pages/AutomationsPage.tsx`, `options/pages/automations/`, `shared/store/slices/automations.slice.ts`; see [automations.md](./automations.md) |
 | Permissions | Inline grant actions on permission-gated rows; new-tab grant panel | `shared/components/Command/PermissionActions.tsx`, `newtab/components/PermissionGrantPanel.tsx` |
 | Clear browser data | `clear-browser-data` nested group (data type × time span) | `background/commands/browser/clearBrowserData.ts` |
 
@@ -96,7 +96,7 @@ Four properties of this model matter for the design below:
 - **Boot template**: `newtab/NewTabApp.tsx` shows how to stand up a React+Redux
   extension page (store creation, `loadSettings`/`loadPermissions`, theme
   application, and a `storage.onChanged` listener that re-hydrates settings).
-- **Update path**: `update-command-setting` message
+- **Update path**: `monocle-command-setting-update` message
   (`background/messages/updateCommandSetting.ts`) with Zod + business-logic
   validation already handles `keybinding` and `urlRules`.
 
@@ -114,7 +114,7 @@ needs the palette serves poorly:
 - **No global hide.** You can hide a command *per domain* via deny rules, but
   there is no "I never want to see this, anywhere" — the headline gap this design
   closes.
-- **Room to grow.** Per-command schema-driven settings, user scripts, workflow
+- **Room to grow.** Per-command schema-driven settings, automations, workflow
   management, and import/export have no sensible palette home. They need pages.
 
 A dedicated page does **not** replace the palette flows — quick toggles
@@ -136,7 +136,7 @@ A left sidebar with these sections (Wouter hash routes in parentheses):
 | **Favorites** | `#/favorites` | View, remove, and (future) reorder favorites. |
 | **Keyboard Shortcuts** | `#/keyboard` | All bindings in one table, conflicts, reset. |
 | **Snippets** | `#/snippets` | Manage saved text snippets (create/edit/delete; bodies support insert-time placeholders). |
-| **Automations** | `#/automations` | Build, test, import/export, and arm user scripts (implemented — see [user-scripts.md](./user-scripts.md)). |
+| **Automations** | `#/automations` | Build, test, import/export, and arm automations (implemented — see [automations.md](./automations.md)). |
 | **Features** | `#/features` | Feature-module settings pages (implemented — see [features.md](./features.md)). |
 | **URL Rules** | `#/url-rules` | Per-command allow/deny rule overview and bulk clearing. |
 | **Permissions** | `#/permissions` | Grant/revoke optional permissions. |
@@ -182,7 +182,7 @@ nested structures like `config` need one). `pruneCommandSettings` drops
 **Storage.** Reuses `monocle-settings → commands[id].hidden` via
 `updateCommandSettings(id, { hidden })`.
 
-**Background message.** `update-command-setting` includes a `"hidden"` variant
+**Background message.** `monocle-command-setting-update` includes a `"hidden"` variant
 (`value: boolean`). The handler writes the setting, refreshes the keybinding
 registry, and **invalidates the search index**
 (`background/commands/searchIndex.ts`) so a hidden command disappears
@@ -250,7 +250,7 @@ This is the project's documented hazard (`docs/settings.md`): "any future nested
 command setting will be replaced, not merged, unless it gets its own explicit
 branch." The design calls for that branch up front.
 
-**Background message.** A `"config"` variant on `update-command-setting`, with
+**Background message.** A `"config"` variant on `monocle-command-setting-update`, with
 business-logic validation that checks the value against the command's
 `settingsSchema` (types, required, ranges) before persisting.
 
@@ -266,7 +266,7 @@ should render a clean "no configurable settings" state for commands without a
 ### 4.3 Favorites management
 
 The implemented Commands and Favorites pages expose favorite management over the
-**existing** `monocle-favoriteCommandIds` key through the `set-command-favorite`
+**existing** `monocle-favoriteCommandIds` key through the `monocle-command-favorite-set`
 message. This is intentionally separate from generated palette actions so
 settings can update favorites even when a command is hidden.
 
@@ -287,11 +287,11 @@ The implemented Commands, Keyboard, and URL Rules pages provide per-command
 keybinding and URL-rule editors over existing storage/messages:
 
 - **Commands page keybindings** — per-row set/reset dialogs use the existing
-  `update-command-setting` `keybinding` path and conflict checks via
+  `monocle-command-setting-update` `keybinding` path and conflict checks via
   `checkKeybindingConflict`. Bindings render with `KeybindingDisplay`. Honors
   `allowCustomKeybinding`.
 - **Commands page URL rules** — per-command allow/deny editors are backed by
-  `update-command-setting` `urlRules`; patterns validate through the existing
+  `monocle-command-setting-update` `urlRules`; patterns validate through the existing
   `validateUrlPattern`.
 - **Keyboard Shortcuts page** — a searchable/filterable table of commands with
   default/custom/unbound filtering, set/reset actions, and bulk reset for
@@ -301,7 +301,7 @@ keybinding and URL-rule editors over existing storage/messages:
   built-in defaults. `Vim` applies Vimium/Tridactyl-style bindings to ready
   commands; unchecked override preserves commands that already have custom
   bindings, checked override replaces them. Pending rows are preview-only and
-  are never saved. Template saves use one `update-command-keybindings` batch
+  are never saved. Template saves use one `monocle-command-keybindings-update` batch
   message, one settings write, one registry refresh, and no per-command toasts.
 - **URL Rules page** — a searchable/filterable per-command overview of allow and
   deny patterns, shared URL-rule editing, and bulk clearing for selected rules.
@@ -314,7 +314,7 @@ Future management depth:
   registrations** per origin ([site-sdk.md](./site-sdk.md)) if that future
   read-only surface is wanted.
 - **Permissions** — a grant/revoke table over the optional permissions, reusing
-  the `get-permissions` round-trip and the Chrome/Firefox grant flows behind
+  the `monocle-permissions-get` round-trip and the Chrome/Firefox grant flows behind
   `PermissionActions` / `requestPermission` ([permissions.md](./permissions.md)).
 
 ### 4.5 New-tab background categories (Unsplash) — implemented
@@ -370,12 +370,12 @@ the manual-refresh button. No palette surface.
 Designed at full depth so the data model and page structure don't need rework
 when these land.
 
-### 5.1 User scripts
+### 5.1 Automations
 
 > **Largely implemented as Automations.** The declarative-workflow flavor below
-> shipped: the full workflow vocabulary is implemented and a user-script engine,
-> storage (`monocle-userscripts`), triggers, and an options builder exist. See
-> [user-scripts.md](./user-scripts.md) and [workflow-automation.md](./workflow-automation.md).
+> shipped: the full workflow vocabulary is implemented and an automation engine,
+> storage (`monocle-automations`), triggers, and an options builder exist. See
+> [automations.md](./automations.md) and [workflow-automation.md](./workflow-automation.md).
 > The JavaScript flavor remains deliberately unbuilt (store-policy). The original
 > design below is kept for historical context.
 
@@ -386,7 +386,7 @@ very different risk profiles:
   workflow model ([workflow-automation.md](./workflow-automation.md)). Safe-ish
   because the executor is constrained. (The full content step vocabulary is now
   implemented; the original design wrote this when only `click` + `wait` existed.)
-- **JavaScript user scripts** (higher risk) — Greasemonkey-style scripts run on
+- **JavaScript automations** (higher risk) — Greasemonkey-style scripts run on
   matching pages. The sanctioned MV3 path is the **`chrome.userScripts` API**
   (not `eval`/injected `<script>`), which has its own permission and toggle. This
   carries real **CSP** and **store-review** implications — arbitrary user JS is a
@@ -397,8 +397,8 @@ very different risk profiles:
 **Proposed model & storage** (new key, keeping `monocle-settings` focused):
 
 ```ts
-// proposed — monocle-userscripts (chrome.storage.local)
-interface UserScript {
+// proposed — monocle-automations (chrome.storage.local)
+interface Automation {
   id: string
   name: string
   enabled: boolean
@@ -411,7 +411,7 @@ interface UserScript {
 
 **Page UI** — list, enable/disable, match-pattern editor, an editor (workflow
 builder or code editor), and import/export. Execution routes through the existing
-`executeWorkflowOnTargetTab` path (workflows) or the `userScripts` API (JS).
+`executeWorkflowOnTargetTab` path (workflows) or the `automations` API (JS).
 
 ### 5.2 Workflow management
 
@@ -448,7 +448,7 @@ opens `options.html#/`.
 The Commands page must list **every** command. But `allCommands` is **context-free
 and misses context-only sources** — new-tab commands (gated on `isNewTab`),
 website commands, and session site-SDK commands (per [CLAUDE.md] known risks).
-The page uses the background message **`get-settings-catalog`**, which unions
+The page uses the background message **`monocle-settings-catalog-get`**, which unions
 normal and new-tab sources and returns, per command:
 
 - identity + category + icon + `supportedBrowsers`
@@ -468,8 +468,8 @@ configurable.
 ### State
 
 Reuse `createAppStore`. Add a dedicated **`settingsCatalog` slice** (thunk:
-`loadSettingsCatalog` → `get-settings-catalog`; optimistic per-command updates →
-`update-command-setting`) rather than bloating the shared `settings` slice, which
+`loadSettingsCatalog` → `monocle-settings-catalog-get`; optimistic per-command updates →
+`monocle-command-setting-update`) rather than bloating the shared `settings` slice, which
 intentionally mirrors only `theme`/`newTab`/`permissions` and **not** `commands`.
 Theme, new-tab, and permissions reuse the existing `settings` slice and thunks.
 
@@ -509,9 +509,9 @@ migration framework).
 | --- | --- | --- |
 | `CommandSettings.hidden?: boolean` | `shared/types/settings.ts` | Leaf; shallow merge OK; prune `false`. |
 | `CommandNodeBase.settingsCatalog?: { includeChildren?: boolean; configurable?: boolean }` | `shared/types/commands.ts` | Opt-in traversal for stable nested rows; opt-out for volatile rows. |
-| `update-command-setting` gains `"hidden"` variant | `shared/types/validation.ts`, `background/messages/updateCommandSetting.ts` | Boolean; refreshes keybinding registry and invalidates search. |
-| New `get-settings-catalog` message | `background/messages/`, `docs/messaging.md` | Context-free union of all command sources + settings/usage/favorites; bypasses query-time filter. |
-| New `set-command-favorite` message | `background/messages/`, `docs/messaging.md` | Lets settings update favorites even when a command is hidden. |
+| `monocle-command-setting-update` gains `"hidden"` variant | `shared/types/validation.ts`, `background/messages/updateCommandSetting.ts` | Boolean; refreshes keybinding registry and invalidates search. |
+| New `monocle-settings-catalog-get` message | `background/messages/`, `docs/messaging.md` | Context-free union of all command sources + settings/usage/favorites; bypasses query-time filter. |
+| New `monocle-command-favorite-set` message | `background/messages/`, `docs/messaging.md` | Lets settings update favorites even when a command is hidden. |
 | `hidden` enforcement | `background/utils/urlFilter.ts`, keybinding source | Same stage as `urlRules`; also disables execution/keybindings. |
 | Generated `hide-command-<id>` action | `background/commands/suggestions.ts` (builder) + `background/commands/execution.ts` (handler) | Action-menu quick-hide for durable/configurable rows. |
 
@@ -521,9 +521,9 @@ Future changes:
 | --- | --- | --- |
 | `CommandSettings.config?: Record<string, unknown>` | `shared/types/settings.ts` | **Nested → needs a `config` branch in `mergeCommandSettings` + test.** |
 | `CommandNodeBase.settingsSchema?: FormField[]` | `shared/types/commands.ts` | Declarative; rendered by existing `CommandItem/*`. |
-| `update-command-setting` gains `"config"` variant | `shared/types/validation.ts`, `background/messages/updateCommandSetting.ts` | Validate against `settingsSchema`. |
+| `monocle-command-setting-update` gains `"config"` variant | `shared/types/validation.ts`, `background/messages/updateCommandSetting.ts` | Validate against `settingsSchema`. |
 | Wire `newTab.backgroundCategories` (Unsplash query terms) — **implemented** | `background/messages/getUnsplashBackground.ts`, `shared/utils/unsplash-categories.ts`, `options/pages/NewTabPage.tsx` | **No type change** (field already reserved); fetch reads it, maps keys to query terms, and picks one `query` at random per request; empty = random. |
-| `monocle-userscripts` key — **implemented** | `background/userScripts/` | Separate key, like favorites/usage; see [user-scripts.md](./user-scripts.md). |
+| `monocle-automations` key — **implemented** | `background/automations/` | Separate key, like favorites/usage; see [automations.md](./automations.md). |
 
 ---
 
@@ -538,8 +538,8 @@ Future changes:
   search index so hides/rule changes take effect without a reload.
 - **Merge/prune correctness for nested fields** — `config` must get its own merge
   branch and test, or updates will clobber sibling values (documented hazard).
-- **Store-review risk** — JS user scripts are a single-purpose / code-execution
-  red flag; gate behind explicit opt-in and the `userScripts` API
+- **Store-review risk** — JS automations are a single-purpose / code-execution
+  red flag; gate behind explicit opt-in and the `automations` API
   ([store-submission.md](./store-submission.md)).
 - **Third pure-UI surface** — the options page must stay executable-function-free:
   it renders metadata and sends messages, exactly like the palette. Command
@@ -554,7 +554,7 @@ Future changes:
 
 1. **Favorites ordering** — keep favorites an unordered set, or make the page
    support reordering (requires order-significant storage + a new message)?
-2. **User scripts: workflow-only vs JS** — start with declarative workflows only
+2. **Automations: workflow-only vs JS** — start with declarative workflows only
    (lower review risk) and defer `chrome.userScripts` JS, or design both now?
 3. **Settings-page-only sources** — should ephemeral session site-SDK commands be
    listed read-only later, or stay omitted to avoid implying persistence?
@@ -567,7 +567,7 @@ Future changes:
    shadcn-style primitives, store); **General** (theme) + **New Tab**
    (clock/background) + **Commands** page with **hide**, favorite toggle,
    keybinding, and URL rules. Ships the headline "hide command" value. Includes
-   `hidden` field + enforcement, `get-settings-catalog`, `set-command-favorite`,
+   `hidden` field + enforcement, `monocle-settings-catalog-get`, `monocle-command-favorite-set`,
    and the action-menu `hide-command` action.
 2. **Management pages (implemented)** — **Favorites**, **Keyboard Shortcuts**,
    **URL Rules**, and **About**. These reuse the catalog, settings, favorite,
@@ -577,14 +577,14 @@ Future changes:
    branch + tests) + validation; adopt in a few commands.
 5. **Data & Privacy** — export/import, granular reset, usage analytics.
 6. **Workflows** — management/test UI (as the executor grows).
-7. **User scripts** — workflows first, then (if approved) `userScripts` JS.
+7. **Automations** — workflows first, then (if approved) `chrome.userScripts` JS.
 
 ---
 
 ## Related docs
 
 - [settings.md](./settings.md) — storage shape, merge/prune semantics, the
-  `update-command-setting` message, and the Redux mirror (the foundation here).
+  `monocle-command-setting-update` message, and the Redux mirror (the foundation here).
 - [url-filtering.md](./url-filtering.md) — `urlRules` matching/precedence and the
   query-time filter stage `hidden` plugs into.
 - [keybindings.md](./keybindings.md) — canonical format, registry, conflicts.
@@ -592,6 +592,6 @@ Future changes:
 - [search-and-ranking.md](./search-and-ranking.md) — favorites and usage data.
 - [new-tab-and-theme.md](./new-tab-and-theme.md) — the React+Redux page template.
 - [workflow-automation.md](./workflow-automation.md) — executor limits for the
-  future workflow/user-script pages.
-- [store-submission.md](./store-submission.md) — review risk for user scripts.
+  future workflow/automation pages.
+- [store-submission.md](./store-submission.md) — review risk for automations.
 - [site-sdk.md](./site-sdk.md) — session site-SDK registrations.

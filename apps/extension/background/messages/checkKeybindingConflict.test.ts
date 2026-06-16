@@ -38,7 +38,7 @@ describe("checkKeybindingConflict requirement violations", () => {
     const snippet = await addSnippet({ name: "Greeting", body: "Hello" })
 
     const response = await checkKeybindingConflict({
-      type: "check-keybinding-conflict",
+      type: "monocle-keybinding-conflict-check",
       keybinding: "g",
       excludeCommandId: `snippet-${snippet.id}`,
       context: normalContext,
@@ -55,7 +55,7 @@ describe("checkKeybindingConflict requirement violations", () => {
     const snippet = await addSnippet({ name: "Greeting", body: "Hello" })
 
     const response = await checkKeybindingConflict({
-      type: "check-keybinding-conflict",
+      type: "monocle-keybinding-conflict-check",
       keybinding: "<cmd-shift-7>",
       excludeCommandId: `snippet-${snippet.id}`,
       context: normalContext,
@@ -66,7 +66,7 @@ describe("checkKeybindingConflict requirement violations", () => {
 
   it("omits the violation for commands without requirements", async () => {
     const response = await checkKeybindingConflict({
-      type: "check-keybinding-conflict",
+      type: "monocle-keybinding-conflict-check",
       keybinding: "g",
       excludeCommandId: "uuidv4",
       context: normalContext,

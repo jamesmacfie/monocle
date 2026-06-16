@@ -137,7 +137,7 @@ registerCommandSurfaceActionHandler(COMMAND_ID, async (_actionId, ctx) => {
 
   // The clean one-liner is both copied and shown — short enough to be either.
   await sendTabMessage(tabId, {
-    type: "monocle-copyToClipboard",
+    type: "monocle-clipboard-write",
     message: summary,
   })
   await sendTabMessage(tabId, {

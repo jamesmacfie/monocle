@@ -28,12 +28,12 @@ beforeEach(() => {
 describe("surfaceAction", () => {
   it("dismiss removes the surface", async () => {
     const result = await surfaceAction({
-      type: "surface-action",
+      type: "monocle-surface-action",
       ownerId: "element-hider",
       surfaceId: "picker",
       actionId: "dismiss",
     })
-    expect(result).toEqual({ ok: true })
+    expect(result).toEqual({ success: true })
     expect(removeSurface).toHaveBeenCalledWith("element-hider", "picker")
   })
 
@@ -43,7 +43,7 @@ describe("surfaceAction", () => {
 
     const result = await surfaceAction(
       {
-        type: "surface-action",
+        type: "monocle-surface-action",
         ownerId: "element-hider",
         surfaceId: "picker",
         actionId: "element-picked",
@@ -52,7 +52,7 @@ describe("surfaceAction", () => {
       { tab: { id: 9, url: "https://a.com/x" } },
     )
 
-    expect(result).toEqual({ ok: true })
+    expect(result).toEqual({ success: true })
     expect(getFeatureById).toHaveBeenCalledWith("element-hider")
     expect(handleAction).toHaveBeenCalledWith("element-picked", {
       selection: { selector: ".ad", tagName: "DIV" },
@@ -66,7 +66,7 @@ describe("surfaceAction", () => {
 
     const result = await surfaceAction(
       {
-        type: "surface-action",
+        type: "monocle-surface-action",
         ownerId: "command:inspect-element-fonts",
         surfaceId: "picker",
         actionId: "element-picked",
@@ -79,7 +79,7 @@ describe("surfaceAction", () => {
       { tab: { id: 4, url: "https://a.com" } },
     )
 
-    expect(result).toEqual({ ok: true })
+    expect(result).toEqual({ success: true })
     expect(getCommandSurfaceActionHandler).toHaveBeenCalledWith(
       "inspect-element-fonts",
     )
@@ -98,12 +98,12 @@ describe("surfaceAction", () => {
   it("is a no-op for a command owner with no registered handler", async () => {
     getCommandSurfaceActionHandler.mockReturnValue(undefined)
     const result = await surfaceAction({
-      type: "surface-action",
+      type: "monocle-surface-action",
       ownerId: "command:something",
       surfaceId: "s",
       actionId: "do-thing",
     })
-    expect(result).toEqual({ ok: false })
+    expect(result).toEqual({ success: false })
     expect(getFeatureById).not.toHaveBeenCalled()
     expect(removeSurface).not.toHaveBeenCalled()
   })
@@ -111,12 +111,12 @@ describe("surfaceAction", () => {
   it("is a no-op for an unknown feature owner", async () => {
     getFeatureById.mockReturnValue(undefined)
     const result = await surfaceAction({
-      type: "surface-action",
+      type: "monocle-surface-action",
       ownerId: "missing-feature",
       surfaceId: "s",
       actionId: "do-thing",
     })
-    expect(result).toEqual({ ok: false })
+    expect(result).toEqual({ success: false })
     expect(getFeatureById).toHaveBeenCalledWith("missing-feature")
   })
 })

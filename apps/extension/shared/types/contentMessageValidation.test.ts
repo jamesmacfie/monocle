@@ -13,7 +13,7 @@ const context = {
 describe("ContentMessageSchema", () => {
   it("accepts a valid execute-workflow-content message", () => {
     const result = ContentMessageSchema.safeParse({
-      type: "execute-workflow-content",
+      type: "monocle-workflow-content-execute",
       context,
       workflow: {
         version: "1.0",
@@ -26,7 +26,7 @@ describe("ContentMessageSchema", () => {
 
   it("rejects malformed execute-workflow-content messages", () => {
     const result = ContentMessageSchema.safeParse({
-      type: "execute-workflow-content",
+      type: "monocle-workflow-content-execute",
       context,
       workflow: {
         version: "1.0",
@@ -39,13 +39,13 @@ describe("ContentMessageSchema", () => {
 
   it("rejects malformed insert-text messages before listeners act", () => {
     expect(
-      validateContentMessage({ type: "monocle-insertText", text: "" }),
+      validateContentMessage({ type: "monocle-text-insert", text: "" }),
     ).toBeNull()
   })
 
   it("accepts site SDK invoke requests with validated context", () => {
     const message = validateContentMessage({
-      type: "monocle-sdk-invoke",
+      type: "monocle-site-sdk-invoke",
       request: {
         type: "execute",
         callbackId: "cb-1",
@@ -55,7 +55,7 @@ describe("ContentMessageSchema", () => {
       },
     })
 
-    expect(message?.type).toBe("monocle-sdk-invoke")
+    expect(message?.type).toBe("monocle-site-sdk-invoke")
   })
 
   it("requires one valid scroll message shape", () => {

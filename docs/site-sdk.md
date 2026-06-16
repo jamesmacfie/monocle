@@ -222,10 +222,10 @@ sequenceDiagram
   Facade->>Facade: Store callbacks; serialize callback refs
   Facade->>Bridge: window.postMessage({ source, type: "sync", registrations })
   Bridge->>Bridge: validateSiteSdkRegistrations()
-  Bridge->>Bg: runtime.sendMessage({ type: "site-sdk-sync", context, registrations })
+  Bridge->>Bg: runtime.sendMessage({ type: "monocle-site-sdk-sync", context, registrations })
   Bg->>Bg: derive sender scope; store snapshot; invalidate search index
   Bridge->>Palette: notify local listeners
-  Palette->>Bg: get-commands when open/refreshed
+  Palette->>Bg: monocle-commands-get when open/refreshed
 ```
 
 The sync payload is always the complete registration snapshot. `update()` and
@@ -243,10 +243,10 @@ sequenceDiagram
   participant Source as Command source
   participant Search as Search index
 
-  UI->>Msg: get-commands/search-commands + context
+  UI->>Msg: monocle-commands-get/monocle-commands-search + context
   Msg->>SDK: prepareSiteSdkCommandLoadOptions(sender, context)
   alt registry is cold
-    SDK->>Bridge: tabs.sendMessage(monocle-sdk-sync-request)
+    SDK->>Bridge: tabs.sendMessage(monocle-site-sdk-sync-request)
     Bridge-->>SDK: { registrations }
     SDK->>SDK: sync snapshot into registry
   end
@@ -273,8 +273,8 @@ sequenceDiagram
   participant Facade as Main-world facade
   participant Page as Page callback
 
-  UI->>Bg: execute-command / get-children-commands / search page query
-  Bg->>Bridge: tabs.sendMessage({ type: "monocle-sdk-invoke", request })
+  UI->>Bg: monocle-command-execute / monocle-command-children-get / search page query
+  Bg->>Bridge: tabs.sendMessage({ type: "monocle-site-sdk-invoke", request })
   Bridge->>Facade: postMessage({ source, type: "invoke", requestId, request })
   Facade->>Page: call stored callback
   Page-->>Facade: void or MonocleCommand[]
@@ -490,5 +490,5 @@ In Chrome and Firefox, verify:
 - root search ranking at native source weight
 - Hide from Domain on an SDK command
 - SPA URL change or navigation clears/reloads the right registrations
-- service-worker restart causes `monocle-sdk-sync-request` and registration
+- service-worker restart causes `monocle-site-sdk-sync-request` and registration
   replay

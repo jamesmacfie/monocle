@@ -35,7 +35,7 @@ export const loadSnippets = createAsyncThunk<
 >("snippets/load", async (_, { extra, rejectWithValue }) => {
   try {
     const response = (await getSendMessage(extra)({
-      type: "get-snippets",
+      type: "monocle-snippets-get",
     })) as GetSnippetsResponse | { error?: string }
 
     if ("error" in response && response.error) {
@@ -57,7 +57,7 @@ export const addSnippet = createAsyncThunk<
 >("snippets/add", async ({ name, body }, { extra, rejectWithValue }) => {
   try {
     const response = (await getSendMessage(extra)({
-      type: "add-snippet",
+      type: "monocle-snippet-add",
       name,
       body,
     })) as AddSnippetResponse & { error?: string }
@@ -81,7 +81,7 @@ export const updateSnippet = createAsyncThunk<
 >("snippets/update", async ({ id, name, body }, { extra, rejectWithValue }) => {
   try {
     const response = (await getSendMessage(extra)({
-      type: "update-snippet",
+      type: "monocle-snippet-update",
       id,
       ...(name !== undefined ? { name } : {}),
       ...(body !== undefined ? { body } : {}),
@@ -106,7 +106,7 @@ export const deleteSnippet = createAsyncThunk<
 >("snippets/delete", async ({ id }, { extra, rejectWithValue }) => {
   try {
     const response = (await getSendMessage(extra)({
-      type: "delete-snippet",
+      type: "monocle-snippet-delete",
       id,
     })) as DeleteSnippetResponse & { error?: string }
 

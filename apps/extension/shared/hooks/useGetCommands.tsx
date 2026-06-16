@@ -19,7 +19,7 @@ export function useGetCommands(context?: Partial<Browser.Context>) {
     try {
       const response = await sendMessage(
         {
-          type: "get-commands",
+          type: "monocle-commands-get",
         },
         context,
       )

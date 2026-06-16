@@ -28,7 +28,7 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
 
     const requestBackground = () =>
       sendRuntimeMessage<UnsplashBackgroundResponse>({
-        type: "get-unsplash-background",
+        type: "monocle-unsplash-background-get",
         context: {
           title: document.title,
           url: window.location.href,

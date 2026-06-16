@@ -270,7 +270,7 @@ describe("extensions nested group navigation", () => {
   it("opening Extensions from root returns the per-extension groups and opens a page", async () => {
     const response = (await getChildrenCommands(
       {
-        type: "get-children-commands",
+        type: "monocle-command-children-get",
         id: "extensions",
         parentPath: [],
         context,
@@ -288,7 +288,7 @@ describe("extensions nested group navigation", () => {
   it("opening an extension group returns its action sub-commands and opens a page", async () => {
     const response = (await getChildrenCommands(
       {
-        type: "get-children-commands",
+        type: "monocle-command-children-get",
         id: "extension-aaa",
         parentPath: ["extensions"],
         context,

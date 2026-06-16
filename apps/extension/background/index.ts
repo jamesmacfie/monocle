@@ -1,10 +1,12 @@
 // Architecture: background layer root. initializeBackground() is the MV3
 // service worker's startup: keybinding registry, search-index warm/invalidate
 // wiring, the runtime message listener routing through background/messages,
-// tab listeners for site-SDK scope cleanup, the user-script command bridge +
+// tab listeners for site-SDK scope cleanup, the automation command bridge +
 // scheduled-trigger alarms, and the toolbar action. Called once from
 // entrypoints/background.ts.
 import { getBrowserAPI } from "../shared/utils/extension-api"
+import { initializeAutomationAlarms } from "./automations/alarms"
+import { registerAutomationCommandBridge } from "./automations/engine"
 import { executeCommand } from "./commands"
 import {
   forgetActivatedTab,
@@ -22,8 +24,6 @@ import { initializeKeybindingRegistry } from "./keybindings/registry"
 import { initializeKeybindingEntriesInvalidation } from "./keybindings/source"
 import { handleMessage } from "./messages"
 import { initSurfaces } from "./surfaces"
-import { initializeUserScriptAlarms } from "./userScripts/alarms"
-import { registerUserScriptCommandBridge } from "./userScripts/engine"
 import { toggleContentPalette } from "./utils/contentPalette"
 import {
   addRuntimeListener,
@@ -42,10 +42,10 @@ export function initializeBackground() {
   initializeKeybindingEntriesInvalidation()
   warmSearchIndex()
 
-  // User scripts: inject the command bridge (keeps the userScripts <->
-  // commands module graph acyclic — see background/userScripts/engine.ts)
+  // Automations: inject the command bridge (keeps the automations <->
+  // commands module graph acyclic — see background/automations/engine.ts)
   // and arm scheduled triggers.
-  registerUserScriptCommandBridge({
+  registerAutomationCommandBridge({
     resolveCommandMeta: async (commandId, context) => {
       const resolved = await resolveCommandById(commandId, context)
       if (!resolved) {
@@ -61,7 +61,7 @@ export function initializeBackground() {
       await executeCommand(commandId, context, {})
     },
   })
-  initializeUserScriptAlarms()
+  initializeAutomationAlarms()
 
   // Surfaces: drop per-session (automation) surfaces from a previous session
   // before features rebuild their own. See docs/surfaces.md.

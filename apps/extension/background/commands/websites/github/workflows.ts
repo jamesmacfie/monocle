@@ -55,7 +55,7 @@ const executeGithubWorkflow = async (
 
   try {
     tabId = await resolveWorkflowTargetTabId({ context })
-    await sendTabMessage(tabId, { type: "toggle-ui" } as any).catch(
+    await sendTabMessage(tabId, { type: "monocle-ui-toggle" } as any).catch(
       () => undefined,
     )
     await delay(200)

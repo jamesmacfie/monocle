@@ -38,7 +38,7 @@ const requestSiteSdkSync = async (scope: SiteSdkScope): Promise<void> => {
   const promise = (async () => {
     try {
       const response = await sendTabMessage(scope.tabId, {
-        type: "monocle-sdk-sync-request",
+        type: "monocle-site-sdk-sync-request",
       })
 
       if (Array.isArray(response?.registrations)) {

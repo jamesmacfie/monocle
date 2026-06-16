@@ -106,7 +106,7 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
   const refreshKeybindingState = useCallback(async () => {
     try {
       const response = (await sendMessage(
-        { type: "get-keybinding-state" },
+        { type: "monocle-keybinding-state-get" },
         getContextOverride(),
       )) as KeybindingStateResponse
 
@@ -233,7 +233,7 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
         try {
           const response = (await sendMessage(
             {
-              type: "execute-keybinding",
+              type: "monocle-keybinding-execute",
               keybinding: keyString,
             },
             getContextOverride(),

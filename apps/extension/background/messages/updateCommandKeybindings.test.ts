@@ -24,7 +24,7 @@ const installBrowserStubs = () => {
   })
 }
 
-describe("update-command-keybindings", () => {
+describe("monocle-command-keybindings-update", () => {
   beforeEach(async () => {
     fakeBrowser.reset()
     installBrowserStubs()
@@ -36,7 +36,7 @@ describe("update-command-keybindings", () => {
   it("updates multiple keybindings in one message without showing toasts", async () => {
     await expect(
       handleMessage({
-        type: "update-command-keybindings",
+        type: "monocle-command-keybindings-update",
         updates: [
           {
             commandId: "open-new-tab",
@@ -61,12 +61,12 @@ describe("update-command-keybindings", () => {
 
   it("skips and reports a keybinding already held by another command", async () => {
     await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [{ commandId: "open-new-tab", keybinding: "t" }],
     })
 
     const response = await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [{ commandId: "reload-current-tab", keybinding: "t" }],
     })
 
@@ -91,7 +91,7 @@ describe("update-command-keybindings", () => {
 
   it("reports intra-batch conflicts; the first claimant wins", async () => {
     const response = await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [
         { commandId: "open-new-tab", keybinding: "x" },
         { commandId: "reload-current-tab", keybinding: "x" },
@@ -119,14 +119,14 @@ describe("update-command-keybindings", () => {
 
   it("does not report a conflict when a command keeps or trades its own key", async () => {
     await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [{ commandId: "open-new-tab", keybinding: "t" }],
     })
 
     // open-new-tab moves off "t" in the same batch that hands "t" to
     // reload-current-tab: no conflict, both persist.
     const response = await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [
         { commandId: "open-new-tab", keybinding: "y" },
         { commandId: "reload-current-tab", keybinding: "t" },
@@ -144,12 +144,12 @@ describe("update-command-keybindings", () => {
 
   it("skips and reports a sequence shadowed by an existing open-palette binding", async () => {
     await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [{ commandId: "add-bookmark", keybinding: "g" }],
     })
 
     const response = await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [{ commandId: "open-new-tab", keybinding: "g, x" }],
     })
 
@@ -170,12 +170,12 @@ describe("update-command-keybindings", () => {
 
   it("clears keybindings without conflict checks and counts them as updated", async () => {
     await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [{ commandId: "open-new-tab", keybinding: "t" }],
     })
 
     const response = await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [{ commandId: "open-new-tab", keybinding: null }],
     })
 
@@ -188,7 +188,7 @@ describe("update-command-keybindings", () => {
     const snippetCommandId = `snippet-${snippet.id}`
 
     const response = await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [
         // Plain key on a snippet command: violates requireNonShiftModifier.
         { commandId: snippetCommandId, keybinding: "g" },
@@ -214,7 +214,7 @@ describe("update-command-keybindings", () => {
 
     // A modifier combo on the same snippet persists.
     const validResponse = await handleMessage({
-      type: "update-command-keybindings",
+      type: "monocle-command-keybindings-update",
       updates: [{ commandId: snippetCommandId, keybinding: "<cmd-alt-1>" }],
     })
     expect(validResponse).toEqual({ success: true, updated: 1, conflicts: [] })

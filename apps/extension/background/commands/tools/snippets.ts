@@ -147,7 +147,7 @@ export const insertSnippet: CommandNode = {
 
           const copyToClipboard = async () => {
             await sendTabMessage(activeTab.id, {
-              type: "monocle-copyToClipboard",
+              type: "monocle-clipboard-write",
               message: text,
             })
           }
@@ -162,7 +162,7 @@ export const insertSnippet: CommandNode = {
             }
 
             const response = await sendTabMessage(activeTab.id, {
-              type: "monocle-insertText",
+              type: "monocle-text-insert",
               text,
             })
 

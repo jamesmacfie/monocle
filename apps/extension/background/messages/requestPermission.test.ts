@@ -59,7 +59,7 @@ describe("requestPermission", () => {
     const requestPermission = await importRequestPermission()
     await expect(
       requestPermission({
-        type: "request-permission",
+        type: "monocle-permission-request",
         permission: "bookmarks",
       }),
     ).resolves.toEqual({ granted: true })
@@ -87,7 +87,7 @@ describe("requestPermission", () => {
     const requestPermission = await importRequestPermission()
     await expect(
       requestPermission({
-        type: "request-permission",
+        type: "monocle-permission-request",
         permission: "bookmarks",
       }),
     ).resolves.toEqual({ granted: true })
@@ -105,7 +105,7 @@ describe("requestPermission", () => {
     const requestPermission = await importRequestPermission()
     await expect(
       requestPermission({
-        type: "request-permission",
+        type: "monocle-permission-request",
         permission: "bookmarks",
       }),
     ).resolves.toEqual({ granted: false })
@@ -123,7 +123,7 @@ describe("requestPermission", () => {
     const requestPermission = await importRequestPermission()
     await expect(
       requestPermission({
-        type: "request-permission",
+        type: "monocle-permission-request",
         permission: "bookmarks",
       }),
     ).resolves.toEqual({

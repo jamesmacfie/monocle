@@ -83,11 +83,11 @@
   "overrides": [
     {
       "includes": [
-        "background/userScripts/**",
-        "shared/types/userScripts.ts",
-        "shared/types/userScriptValidation.ts",
-        "shared/utils/user-script-summary.ts",
-        "options/pages/userScripts/**"
+        "background/automations/**",
+        "shared/types/automations.ts",
+        "shared/types/automationValidation.ts",
+        "shared/utils/automation-summary.ts",
+        "options/pages/automations/**"
       ],
       "linter": {
         "rules": {

@@ -1,8 +1,8 @@
 # Command Execution and Actions
 
-This document describes what happens when a user acts on a command in the Monocle palette: how the UI builds an `execute-command` request, how the background resolves and runs the command, how plain Enter differs from modifier-Enter, how the action menu and its generated actions work, and how side effects (clipboard, new tab, toasts) flow back to the page. Execution is always background-owned: the UI sends typed messages with a command id, context, modifier, and form values; the background resolves a `CommandNode`, checks permissions, runs the executor, and records usage. The UI never holds executable functions.
+This document describes what happens when a user acts on a command in the Monocle palette: how the UI builds an `monocle-command-execute` request, how the background resolves and runs the command, how plain Enter differs from modifier-Enter, how the action menu and its generated actions work, and how side effects (clipboard, new tab, toasts) flow back to the page. Execution is always background-owned: the UI sends typed messages with a command id, context, modifier, and form values; the background resolves a `CommandNode`, checks permissions, runs the executor, and records usage. The UI never holds executable functions.
 
-## End-to-end execute-command flow
+## End-to-end monocle-command-execute flow
 
 1. **User acts on a focused row.** Pressing Enter (or clicking the footer primary button) calls `selectCommand(id)` from `shared/hooks/useCommandNavigation.tsx`. Input and display rows are non-executable and return early; group and search rows navigate to children; `setKeybinding` actions start the capture flow instead of executing.
 2. **The UI builds an execution request.** For a leaf (`action`/`submit`, including generated actions, which are themselves `action`-typed rows), `buildCommandExecutionRequest` in `shared/hooks/commandExecution.ts` produces:
@@ -11,7 +11,7 @@ This document describes what happens when a user acts on a command in the Monocl
    - `shouldNavigateBack`: `true` for `action`/`submit` unless `remainOpenOnSelect` is set; `true` for any other type the function is called with.
    - `parentNames`: breadcrumb names used for usage attribution (see `extractParentNames`).
    - `executionScope`: a `CommandExecutionScope` (`pageId`, `parentPath`, `searchValue`) for non-root pages, else `undefined`.
-3. **The UI sends `execute-command`.** The palette's `executeCommand` prop forwards these fields to the background `execute-command` message. See [messaging.md](messaging.md) for the message envelope and [palette-ui-and-navigation.md](palette-ui-and-navigation.md) for how the navigation hook wraps it.
+3. **The UI sends `monocle-command-execute`.** The palette's `executeCommand` prop forwards these fields to the background `monocle-command-execute` message. See [messaging.md](messaging.md) for the message envelope and [palette-ui-and-navigation.md](palette-ui-and-navigation.md) for how the navigation hook wraps it.
 4. **Background message handler.** `background/messages/executeCommand.ts` (`handleExecuteCommand`) calls `executeCommand(id, context, formValues ?? {}, parentNames, executionScope)` from `background/commands/index.ts`.
 5. **Background resolution.** `executeCommand` normalizes the context, then:
    - If the id parses as a generated action (`parseGeneratedCommandAction`), it routes to `executeGeneratedAction` (see [Generated actions](#generated-actions)).
@@ -104,7 +104,7 @@ The action menu is the secondary "Actions" surface (footer button labelled `Acti
 
 `shared/components/Command/CommandActionsList.tsx` renders each action as an `ActionItem`, showing the action name and, when present, a `KeybindingDisplay` for `action.keybinding`. `ActionItem` handles three special cases:
 
-- **setKeybinding**: selecting it dispatches `startCapture` and swaps the row for an inline `KeybindingCapture` (sequence capture with live conflict checking via `check-keybinding-conflict`). The action's `executionContext` carries the target command's `keybindingRequirements` so the capture box can hint constraints (e.g. "must include ⌘/⌃/⌥" for snippet commands) before the first stroke and block violating saves. On save it sends `update-command-setting` with `setting: "keybinding"`, completes capture, refreshes, and force-closes the menu. See [keybindings.md](keybindings.md).
+- **setKeybinding**: selecting it dispatches `startCapture` and swaps the row for an inline `KeybindingCapture` (sequence capture with live conflict checking via `monocle-keybinding-conflict-check`). The action's `executionContext` carries the target command's `keybindingRequirements` so the capture box can hint constraints (e.g. "must include ⌘/⌃/⌥" for snippet commands) before the first stroke and block violating saves. On save it sends `monocle-command-setting-update` with `setting: "keybinding"`, completes capture, refreshes, and force-closes the menu. See [keybindings.md](keybindings.md).
 - **resetKeybinding**: skips confirmation and selects immediately.
 - **confirmAction**: see below.
 
@@ -139,8 +139,8 @@ Confirmation is enforced purely in the UI; the background does not re-check it. 
 
 `remainOpenOnSelect` (on `action`/`submit`) keeps the palette open after execution. It drives `shouldNavigateBack` in `buildCommandExecutionRequest`: when set, `shouldNavigateBack` is `false` and the palette does not navigate back (unless the user forces it with Cmd/Ctrl+Enter — `buildCommandExecutionRequest`'s `forceClose` option overrides `remainOpenOnSelect` and closes). Two refresh paths then re-resolve labels so state-aware commands (async `name`/`icon`/`description`) don't show stale text after toggling their own state:
 
-- Root page: `shouldRefreshCommandsAfterExecution` returns `true`, so the palette calls `fetchCommands()` (`get-commands` → `setInitialCommands`), replacing the root suggestions.
-- Child page: `selectCommand` (in `useCommandNavigation`) calls `refreshCurrentPage()` after a remain-open leaf executes, re-fetching that page's children via `get-children-commands` (`refreshCurrentPage` no-ops on root). Without this, the child page keeps its frozen suggestion snapshot and a toggle like `toggle-clock-visibility` would still read "Hide Clock" after hiding the clock.
+- Root page: `shouldRefreshCommandsAfterExecution` returns `true`, so the palette calls `fetchCommands()` (`monocle-commands-get` → `setInitialCommands`), replacing the root suggestions.
+- Child page: `selectCommand` (in `useCommandNavigation`) calls `refreshCurrentPage()` after a remain-open leaf executes, re-fetching that page's children via `monocle-command-children-get` (`refreshCurrentPage` no-ops on root). Without this, the child page keeps its frozen suggestion snapshot and a toggle like `toggle-clock-visibility` would still read "Hide Clock" after hiding the clock.
 
 Generated favorite/set-keybinding/hide-domain/hide-command actions set `remainOpenOnSelect: true` to keep the action menu context stable; reset-keybinding uses `false`.
 
@@ -154,8 +154,8 @@ Executors run in the background service worker and cannot touch the page DOM or 
 
 | Event | `type` | Handled by | Behavior |
 | --- | --- | --- | --- |
-| Copy to clipboard | `monocle-copyToClipboard` | `shared/components/Listeners/CopyToClipboardListener.tsx` | Calls `useCopyToClipboard().copy(message)` (`navigator.clipboard.writeText`) |
-| Open new tab | `monocle-newTab` | `shared/components/Listeners/NewTabListener.tsx` | `window.open(url, "_blank")`, but only for `http:`/`https:` URLs; other schemes are blocked |
+| Copy to clipboard | `monocle-clipboard-write` | `shared/components/Listeners/CopyToClipboardListener.tsx` | Calls `useCopyToClipboard().copy(message)` (`navigator.clipboard.writeText`) |
+| Open new tab | `monocle-tab-open` | `shared/components/Listeners/NewTabListener.tsx` | `window.open(url, "_blank")`, but only for `http:`/`https:` URLs; other schemes are blocked |
 | Screenshot | `monocle-screenshot` | `shared/components/Listeners/ScreenshotListener.tsx` | Converts the PNG `dataUrl` to a Blob; `mode: "clipboard"` writes it via `navigator.clipboard.write([new ClipboardItem(...)])`, `mode: "download"` triggers a blob-URL `<a download>` with `filename`. Emitted by `capture-screenshot` |
 | Toast | `monocle-toast` | `ToastContainer` | Renders a transient toast. The single user-feedback path — sent via `sendToastToActiveTab` / `sendSuccessToastToActiveTab` / `sendErrorToastToActiveTab` (`background/utils/browserTabs.ts`) |
 
@@ -164,7 +164,7 @@ Both listeners are mounted in the palette (`CopyToClipboardListener` and `NewTab
 Typical executor pattern (`copyCurrentTabUrl`):
 
 ```ts
-await sendTabMessage(activeTab.id, { type: "monocle-copyToClipboard", message: activeTab.url })
+await sendTabMessage(activeTab.id, { type: "monocle-clipboard-write", message: activeTab.url })
 await sendTabMessage(activeTab.id, { type: "monocle-toast", level: "success", message: "URL copied to clipboard" })
 ```
 
@@ -172,7 +172,7 @@ await sendTabMessage(activeTab.id, { type: "monocle-toast", level: "success", me
 
 There are two background message entry points for toasts, plus the missing-permissions helper:
 
-- `useToast()` (`shared/hooks/useToast.tsx`) sends a `request-toast` message (`{ level, message }`). `background/messages/requestToast.ts` forwards it to `showToast`.
+- `useToast()` (`shared/hooks/useToast.tsx`) sends a `monocle-toast-show` message (`{ level, message }`). `background/messages/requestToast.ts` forwards it to `showToast`.
 - Executors can call `showToast` directly (or emit a `monocle-toast` tab event).
 - `showToast` (`background/messages/showToast.ts`) rate-limits duplicate `level:message` pairs within a 500ms window, then sends a `monocle-toast` event **only to the active tab**, swallowing send errors for tabs that cannot receive messages (e.g. `chrome://` pages).
 - `showMissingPermissionsToast` (in `background/commands/execution.ts`) is the permission-denied path: it builds a capitalized permission list and calls `showToast` with `level: "error"`.
@@ -192,7 +192,7 @@ Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram,
 ## Known issues and review notes
 
 - Every `action`/`submit`/`group`/`search` suggestion inherits the favorite action; durable/configurable rows also inherit hide-command, and page contexts add hide-from-domain. There is no per-command opt-out for favorite or hide-from-domain actions, so they can appear even where they make little sense.
-- `confirmAction` is enforced only in the UI (twice, once per surface). The background does not re-check it, so a direct `execute-command` message bypasses confirmation.
+- `confirmAction` is enforced only in the UI (twice, once per surface). The background does not re-check it, so a direct `monocle-command-execute` message bypasses confirmation.
 - `useIsModifierKeyPressed` tracks a single modifier and resolves it by priority (`shift` first), so combined modifiers map to one key; modifier-Enter execution itself runs through generated modifier actions rather than direct key interception.
 - The toast rate limiter and active-tab targeting mean toasts can be silently dropped (duplicate within 500ms, or no eligible active tab).
 
@@ -208,7 +208,7 @@ Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram,
 ## Related docs
 
 - [architecture.md](architecture.md) — runtime modes and core data flows
-- [messaging.md](messaging.md) — `execute-command`, `request-toast`, `show-toast` envelopes
+- [messaging.md](messaging.md) — `monocle-command-execute`, `monocle-toast-show`, `monocle-toast-show` envelopes
 - [command-schema.md](command-schema.md) and [command-types.md](command-types.md) — `CommandNode` fields including `actionLabel`, `modifierActionLabel`, `confirmAction`, `remainOpenOnSelect`, `executionPayload`
 - [search-and-ranking.md](search-and-ranking.md) — usage recording and ranking
 - [keybindings.md](keybindings.md) — custom keybinding capture/reset actions

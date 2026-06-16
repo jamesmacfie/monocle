@@ -38,7 +38,7 @@ export function sendRuntimeMessage<T = unknown>(message: unknown): Promise<T> {
  * MV3 worker) or no receiver exists. It reads `lastError` to suppress the
  * runtime's "unchecked error" console log. Used by page-side pollers that must
  * never throw into the page — the `SurfaceHost` get-surfaces query and the
- * user-script trigger service. See docs/surfaces.md and docs/user-scripts.md.
+ * automation trigger service. See docs/surfaces.md and docs/automations.md.
  */
 export function sendRuntimeMessageSafe<T = unknown>(
   message: unknown,

@@ -35,7 +35,7 @@ Edited from **Options → Features → Focus Mode**, rendered by the generic
   `background/utils/urlFilter.ts`).
 - a `number` field "Default duration (minutes)".
 - settings-page action buttons "Start focus" / "Stop focus" (wired through
-  `execute-feature-action` → the feature's `handleAction`).
+  `monocle-feature-action-execute` → the feature's `handleAction`).
 
 Patterns use the same syntax as command URL rules ([url-filtering.md](./url-filtering.md)):
 `*://*.youtube.com/*`, `reddit.com`, `*://news.ycombinator.com/*`.

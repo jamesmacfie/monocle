@@ -42,9 +42,9 @@ export const captureScreenshot: ActionCommandNode = {
     // The content side acknowledges only after the overlay has been painted
     // out; best-effort because surfaces without the palette state handler
     // (e.g. the new tab page) simply won't respond.
-    await sendTabMessage(activeTab.id, { type: "hide-ui" } as any).catch(
-      () => {},
-    )
+    await sendTabMessage(activeTab.id, {
+      type: "monocle-ui-hide",
+    } as any).catch(() => {})
 
     let dataUrl: string
     try {

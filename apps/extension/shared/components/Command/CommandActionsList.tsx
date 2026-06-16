@@ -73,7 +73,7 @@ function KeybindingCapture({
   const checkForConflict = async (keybinding: string) => {
     try {
       const response = (await sendMessage({
-        type: "check-keybinding-conflict",
+        type: "monocle-keybinding-conflict-check",
         keybinding,
         excludeCommandId: commandId,
       })) as CheckKeybindingConflictResponse
@@ -327,8 +327,8 @@ function ActionItem({
 
     try {
       await sendMessage({
-        type: "update-command-setting",
-        commandId: targetCommandId,
+        type: "monocle-command-setting-update",
+        id: targetCommandId,
         setting: "keybinding",
         value: keybinding,
       })

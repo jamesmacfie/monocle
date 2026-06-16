@@ -46,9 +46,9 @@ const SiteSdkInvokeRequestSchema = z.discriminatedUnion("type", [
 ])
 
 const PaletteControlMessageSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("toggle-ui") }).strict(),
-  z.object({ type: z.literal("show-ui") }).strict(),
-  z.object({ type: z.literal("hide-ui") }).strict(),
+  z.object({ type: z.literal("monocle-ui-toggle") }).strict(),
+  z.object({ type: z.literal("monocle-ui-show") }).strict(),
+  z.object({ type: z.literal("monocle-ui-hide") }).strict(),
 ])
 
 const ScrollMessageSchema = z
@@ -79,19 +79,19 @@ const ScrollMessageSchema = z
 const MonocleEventMessageSchema = z.discriminatedUnion("type", [
   z
     .object({
-      type: z.literal("monocle-copyToClipboard"),
+      type: z.literal("monocle-clipboard-write"),
       message: MessageTextSchema,
     })
     .strict(),
   z
     .object({
-      type: z.literal("monocle-insertText"),
+      type: z.literal("monocle-text-insert"),
       text: MessageTextSchema,
     })
     .strict(),
   z
     .object({
-      type: z.literal("monocle-newTab"),
+      type: z.literal("monocle-tab-open"),
       url: z.string().min(1).max(4000),
     })
     .strict(),
@@ -111,10 +111,10 @@ const MonocleEventMessageSchema = z.discriminatedUnion("type", [
       message: z.string().min(1).max(2000),
     })
     .strict(),
-  z.object({ type: z.literal("monocle-sdk-sync-request") }).strict(),
+  z.object({ type: z.literal("monocle-site-sdk-sync-request") }).strict(),
   z
     .object({
-      type: z.literal("monocle-sdk-invoke"),
+      type: z.literal("monocle-site-sdk-invoke"),
       request: SiteSdkInvokeRequestSchema,
     })
     .strict(),
@@ -123,7 +123,7 @@ const MonocleEventMessageSchema = z.discriminatedUnion("type", [
 
 export const ExecuteWorkflowContentMessageSchema = z
   .object({
-    type: z.literal("execute-workflow-content"),
+    type: z.literal("monocle-workflow-content-execute"),
     workflow: WorkflowSchema,
     context: BrowserContextSchema,
   })

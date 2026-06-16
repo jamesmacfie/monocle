@@ -14,9 +14,9 @@ import type {
   GetSnippetsMessage,
   OpenPermissionGrantPageMessage,
   RequestPermissionMessage,
-  RequestToastMessage,
   SearchCommandsMessage,
   SetCommandFavoriteMessage,
+  ShowToastMessage,
   UpdateCommandSettingMessage,
   UpdateSnippetMessage,
 } from "../../shared/types"
@@ -61,7 +61,7 @@ type SendableMessage =
   | GetPermissionsMessage
   | RequestPermissionMessage
   | OpenPermissionGrantPageMessage
-  | RequestToastMessage
+  | ShowToastMessage
 
 export function useSendMessage() {
   const { modifier } = useIsModifierKeyPressed()
@@ -87,9 +87,9 @@ export function useSendMessage() {
 
       // Add context to messages that require it (not GetPermissionsMessage or RequestPermissionMessage)
       const messageWithContext =
-        message.type === "get-permissions" ||
-        message.type === "request-permission" ||
-        message.type === "open-permission-grant-page"
+        message.type === "monocle-permissions-get" ||
+        message.type === "monocle-permission-request" ||
+        message.type === "monocle-permission-grant-page-open"
           ? message
           : { ...message, context }
 

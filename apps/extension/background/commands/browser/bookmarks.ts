@@ -88,7 +88,7 @@ function processBookmarkNode(
               const activeTab = await getActiveTab()
               if (activeTab) {
                 await sendTabMessage(activeTab.id, {
-                  type: "monocle-newTab",
+                  type: "monocle-tab-open",
                   url: node.url,
                 })
 

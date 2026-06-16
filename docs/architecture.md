@@ -22,7 +22,7 @@ The options page is a third extension page surface, but it is not a palette runt
 - On mount it sets the host element id to `extension-root`, reads `monocle-settings` from `chrome.storage.local`, and applies the theme to the shadow host via `applyThemeToHost` (`shared/utils/theme.ts`). It also subscribes to `storage.onChanged` so theme updates re-apply live.
 - `renderContentCommandPalette(container)` (`content/scripts.tsx`) mounts a React root rendering `ContentCommandPaletteWithState`, which wraps `ContentCommandPalette` in a Redux `<Provider>` with its own `createAppStore(sendMessage)` instance.
 
-The overlay is toggled by the toolbar action and by the global keybinding. The toolbar click is handled in `background/index.ts`, which calls `toggleContentPalette(tabId)` (`background/utils/contentPalette.ts`). That helper first tries `toggle-ui` against the tab; if the content script is not yet present it injects `content-scripts/content.js` via the `scripting` API and retries `show-ui`. Visibility itself lives in Redux (`commandPaletteState.slice.ts`) and is consumed by `ContentCommandPalette` via `useCommandPaletteStateRedux`.
+The overlay is toggled by the toolbar action and by the global keybinding. The toolbar click is handled in `background/index.ts`, which calls `toggleContentPalette(tabId)` (`background/utils/contentPalette.ts`). That helper first tries `monocle-ui-toggle` against the tab; if the content script is not yet present it injects `content-scripts/content.js` via the `scripting` API and retries `monocle-ui-show`. Visibility itself lives in Redux (`commandPaletteState.slice.ts`) and is consumed by `ContentCommandPalette` via `useCommandPaletteStateRedux`.
 
 ### New-tab boot
 
@@ -64,17 +64,17 @@ The background owns:
 - **Settings persistence** — stored under `monocle-settings` in `chrome.storage.local`, routed through `background/commands/settings.ts`. See [settings.md](./settings.md).
 - **Permissions** — required and optional permission checks and requests. See [permissions.md](./permissions.md).
 - **Keybindings** — canonicalization, registry, and execution. See [keybindings.md](./keybindings.md).
-- **Workflow forwarding** — receives `execute-workflow` and forwards it to the resolved target tab's content script. See [workflow-automation.md](./workflow-automation.md).
-- **User scripts** — declarative automation documents stored under `monocle-userscripts`, validated/interpreted entirely in the background (`background/userScripts/`: storage, engine, trigger engine, alarms, command generation). See [user-scripts.md](./user-scripts.md).
+- **Workflow forwarding** — receives `monocle-workflow-execute` and forwards it to the resolved target tab's content script. See [workflow-automation.md](./workflow-automation.md).
+- **Automations** — declarative automation documents stored under `monocle-automations`, validated/interpreted entirely in the background (`background/automations/`: storage, engine, trigger engine, alarms, command generation). See [automations.md](./automations.md).
 - **Feature modules** — the `background/features/` registry of `FeatureModule`s, each contributing palette commands, a declarative settings page, runtime state, and a lifecycle hook. Durable config (`monocle-feature-config`) and runtime state (`monocle-feature-state`) live in dedicated stores. See [features.md](./features.md).
 - **Surfaces** — the owner-namespaced declarative-UI store (`monocle-surfaces`, `background/surfaces.ts`) of overlays/badges rendered by the generic `SurfaceHost`. The reusable basis for feature and automation page UI. See [surfaces.md](./surfaces.md).
 
 The enforced architectural boundaries:
 
 - **Privileged APIs are background-only.** UI code uses typed messages (`shared/store/sendMessage.ts`) instead of reaching into browser-only behavior. The one UI-side exception is reading/observing `chrome.storage.local["monocle-settings"]` for theme application, which is read-only.
-- **UI receives `Suggestion` values, not executable functions.** The background converts `CommandNode` trees into UI-facing `Suggestion` objects (`shared/types/ui.ts`); the UI renders them and sends `execute-command` with an id, never invoking a function. See [execution-and-actions.md](./execution-and-actions.md).
+- **UI receives `Suggestion` values, not executable functions.** The background converts `CommandNode` trees into UI-facing `Suggestion` objects (`shared/types/ui.ts`); the UI renders them and sends `monocle-command-execute` with an id, never invoking a function. See [execution-and-actions.md](./execution-and-actions.md).
 - **Shared components must work in both DOMs.** Components under `shared/components/` run inside both the closed content shadow root and the normal new-tab document, so they must not assume `document`-level globals or page-scoped styling.
-- **Settings flow through the background.** Persistence and command settings updates go through `background/commands/settings.ts` and the `update-command-setting` message path; the UI mirrors state into Redux but the storage/permission truth is authoritative in the background.
+- **Settings flow through the background.** Persistence and command settings updates go through `background/commands/settings.ts` and the `monocle-command-setting-update` message path; the UI mirrors state into Redux but the storage/permission truth is authoritative in the background.
 
 ## Redux store
 
@@ -82,7 +82,7 @@ Monocle uses Redux Toolkit. There are two store factories in `shared/store/`:
 
 | Factory | File | Slices | Used by |
 | --- | --- | --- | --- |
-| `createAppStore(sendMessage?)` | `shared/store/index.ts` | `settings`, `settingsCatalog`, `navigation`, `commandPalette`, `keybinding`, `snippets`, `userScripts`, `features` | Content overlay, new-tab, and options page. |
+| `createAppStore(sendMessage?)` | `shared/store/index.ts` | `settings`, `settingsCatalog`, `navigation`, `commandPalette`, `keybinding`, `snippets`, `automations`, `features` | Content overlay, new-tab, and options page. |
 | `createCommandPaletteStore(initialIsOpen?)` | `shared/store/commandPaletteStore.ts` | `commandPalette` only | A minimal palette-only store factory. |
 
 The full app store is instantiated **per mode** (one per content overlay mount, one per new-tab app) inside a React `useMemo`, so each surface has its own isolated store. The `sendMessage` function is injected as the thunk `extraArgument` (`ThunkApi`), giving async thunks access to background messaging without importing it directly.
@@ -96,9 +96,9 @@ Slices (`shared/store/slices/`):
 | `navigation` | `navigation.slice.ts` | Palette page stack, search values, dynamic child pages, inline form values, loading/errors. |
 | `commandPalette` | `commandPaletteState.slice.ts` | Overlay visibility (`isOpen`). |
 | `keybinding` | `keybinding.slice.ts` | Keybinding capture state (`isCapturing`, `targetCommandId`, `requirements`). |
-| `snippets` | `snippets.slice.ts` | Saved snippets mirror for the options Snippets page; CRUD thunks over the `get/add/update/delete-snippet` messages. |
-| `userScripts` | `userScripts.slice.ts` | User-script (Automations) mirror for the options builder; CRUD + run thunks over the user-script messages. |
-| `features` | `features.slice.ts` | Feature-module descriptor mirror for the options Features pages; load + config-update + action thunks over the `get-features` / `update-feature-config` / `execute-feature-action` messages. |
+| `snippets` | `snippets.slice.ts` | Saved snippets mirror for the options Snippets page; CRUD thunks over the `get/add/update/monocle-snippet-delete` messages. |
+| `automations` | `automations.slice.ts` | Automations mirror for the options builder; CRUD + run thunks over the automation messages. |
+| `features` | `features.slice.ts` | Feature-module descriptor mirror for the options Features pages; load + config-update + action thunks over the `monocle-features-get` / `monocle-feature-config-update` / `monocle-feature-action-execute` messages. |
 
 Typed hooks (`useAppDispatch`, `useAppSelector`, `useAppStore`) live in `shared/store/hooks.ts`. `createAppStore` ships a `preloadedState` with sensible defaults (theme `system`, clock shown, all permissions `false`, palette closed). `RootState`, `AppDispatch`, and `AppStore` types are exported from `shared/store/index.ts`.
 
@@ -116,14 +116,14 @@ monocle/
 │   ├── commands/        # command sources, query, execution, suggestions, settings
 │   ├── messages/        # message router and handlers
 │   ├── keybindings/     # registry
-│   ├── userScripts/     # user-script storage, engine, triggers, alarms, commands
+│   ├── automations/     # automation storage, engine, triggers, alarms, commands
 │   ├── features/        # feature-module registry (config/state, focus-mode, tabGroups, elementHider)
 │   ├── surfaces.ts      # owner-namespaced declarative overlay/badge store
 │   ├── workflows/       # workflow target resolution + forwarding
 │   └── utils/           # privileged browser API helpers, contentPalette
 ├── content/             # Content overlay rendering, workflow executor
 │   ├── workflow/        # workflow executor core + op modules
-│   └── userScriptTriggers.ts  # page-side trigger service (pull/report)
+│   └── automationTriggers.ts  # page-side trigger service (pull/report)
 ├── newtab/              # Browser new-tab replacement app
 ├── options/             # Browser options/settings app
 ├── shared/              # Shared React components, hooks, store, types, utils
@@ -143,7 +143,7 @@ The build is driven by WXT (`wxt.config.ts`) with the React module.
 
 - `manifestVersion: 3`, `targetBrowsers: ["chrome", "firefox"]`, `modules: ["@wxt-dev/module-react"]`, `imports: false` (no WXT auto-imports).
 - The `manifest` is generated as a function of `{ browser, command }`:
-  - **Permissions** are browser-specific. Chrome gets `["scripting", "activeTab", "alarms", "storage"]`; Firefox additionally gets `contextualIdentities`. `alarms` powers scheduled user-script triggers.
+  - **Permissions** are browser-specific. Chrome gets `["scripting", "activeTab", "alarms", "storage"]`; Firefox additionally gets `contextualIdentities`. `alarms` powers scheduled automation triggers.
   - **Optional permissions** (`bookmarks`, `browsingData`, `cookies`, `downloads`, `history`, `sessions`, `tabs`, `management`, plus Chrome-only `tabGroups`) are declared once and requested on demand at runtime.
   - **Host permissions** cover external hosts: Unsplash API, DuckDuckGo icons.
   - **CSP** for extension pages is computed by `getExtensionPagesCsp`; the dev `serve` command relaxes `connect-src`/`script-src` to allow `localhost`/`ws` for HMR.
@@ -172,17 +172,17 @@ All UI→background communication is a single typed message channel routed in `b
 
 ### Command load and search
 
-1. The UI sends `get-commands` with current browser context (new-tab mode includes `{ isNewTab: true }`).
-2. For content-overlay senders, `getCommands` first prepares the sender's site SDK scope. If the service worker has no registration for that tab/document/origin, it asks the content bridge to replay current registrations with `monocle-sdk-sync-request`.
+1. The UI sends `monocle-commands-get` with current browser context (new-tab mode includes `{ isNewTab: true }`).
+2. For content-overlay senders, `getCommands` first prepares the sender's site SDK scope. If the service worker has no registration for that tab/document/origin, it asks the content bridge to replay current registrations with `monocle-site-sdk-sync-request`.
 3. `getCommands` (`background/messages/getCommands.ts`) loads command nodes, including any scoped site SDK wrappers, applies browser/context compatibility, applies URL filtering, ranks suggestions, and computes favorites — the root empty state.
 4. Nodes are converted to UI-facing `Suggestion` values and the shared palette renders them with CMDK (`shouldFilter={false}` — CMDK never filters).
-5. Typing debounces ~200 ms and sends `search-commands`; `searchCommands` (`background/messages/searchCommands.ts`) scores entries from the in-memory search index (`background/commands/searchIndex.ts` — module-scoped cache, ~30 s TTL plus browser-event invalidation, URL rules applied at query time) and returns the top-N suggestions, deep-search matches inline. Child group pages search the same way via `parentPath`; form pages bypass search.
+5. Typing debounces ~200 ms and sends `monocle-commands-search`; `searchCommands` (`background/messages/searchCommands.ts`) scores entries from the in-memory search index (`background/commands/searchIndex.ts` — module-scoped cache, ~30 s TTL plus browser-event invalidation, URL rules applied at query time) and returns the top-N suggestions, deep-search matches inline. Child group pages search the same way via `parentPath`; form pages bypass search.
 
 See [search-and-ranking.md](./search-and-ranking.md), [url-filtering.md](./url-filtering.md), and [command-types.md](./command-types.md).
 
 ### Nested navigation
 
-1. Selecting a `group` or `search` command sends `get-children-commands`.
+1. Selecting a `group` or `search` command sends `monocle-command-children-get`.
 2. `getChildrenCommands` resolves dynamic children, filters them, and converts them to suggestions.
 3. `navigation.slice.ts` pushes a new page with child suggestions, search state, and inline form defaults.
 4. Actions or submits execute against the current page's form values.
@@ -191,8 +191,8 @@ See [palette-ui-and-navigation.md](./palette-ui-and-navigation.md).
 
 ### Execution
 
-1. The UI sends `execute-command` with id, form values, optional `parentNames`, and an optional `executionScope` (the modifier path, e.g. enter vs modifier-enter).
-2. The background resolves the command, checks permissions, runs the executor, and records usage. Site SDK executors are wrappers that send `monocle-sdk-invoke` to the sender tab's isolated bridge, which calls the page-world callback and returns success/error.
+1. The UI sends `monocle-command-execute` with id, form values, optional `parentNames`, and an optional `executionScope` (the modifier path, e.g. enter vs modifier-enter).
+2. The background resolves the command, checks permissions, runs the executor, and records usage. Site SDK executors are wrappers that send `monocle-site-sdk-invoke` to the sender tab's isolated bridge, which calls the page-world callback and returns success/error.
 3. On success the palette may refresh commands and close (overlay) or reset.
 
 See [execution-and-actions.md](./execution-and-actions.md).
@@ -202,7 +202,7 @@ See [execution-and-actions.md](./execution-and-actions.md).
 1. Settings live under `monocle-settings` in `chrome.storage.local`, routed through `background/commands/settings.ts`.
 2. Redux mirrors settings and permission state for responsive UI (`settings.slice.ts`).
 3. Browser permission APIs remain authoritative — Redux is only a mirror.
-4. UI sends `get-permissions`, `request-permission`, `open-permission-grant-page`, `update-command-setting`, `get-settings-catalog`, and `set-command-favorite`; Chrome routes permission requests through the background, while Firefox can request directly where supported.
+4. UI sends `monocle-permissions-get`, `monocle-permission-request`, `monocle-permission-grant-page-open`, `monocle-command-setting-update`, `monocle-settings-catalog-get`, and `monocle-command-favorite-set`; Chrome routes permission requests through the background, while Firefox can request directly where supported.
 5. Hidden command settings are enforced through the shared command visibility filter, so hidden commands are omitted from palette views, search, execution resolution, and keybinding registries while remaining visible in the settings catalog.
 
 See [settings.md](./settings.md) and [permissions.md](./permissions.md).
@@ -210,7 +210,7 @@ See [settings.md](./settings.md) and [permissions.md](./permissions.md).
 ### Keybinding
 
 1. UI capture normalizes key events into canonical strings such as `<cmd-shift-k>` (`shared/utils/key-normalizer.ts`).
-2. UI sends `execute-keybinding` (or `check-keybinding-conflict` / `get-keybinding-state` for management).
+2. UI sends `monocle-keybinding-execute` (or `monocle-keybinding-conflict-check` / `monocle-keybinding-state-get` for management).
 3. The background registry resolves exact matches or multi-stroke sequence prefixes.
 4. Matching commands run through the same execution path.
 
@@ -218,23 +218,23 @@ See [keybindings.md](./keybindings.md).
 
 ### Workflow forwarding
 
-1. A command (or the user-script engine, per content segment) sends/forwards a workflow.
-2. `executeWorkflow` (`background/messages/executeWorkflow.ts`) delegates to `executeWorkflowOnTargetTab` (`background/workflows/execution.ts`), which resolves the target tab and sends `execute-workflow-content`.
+1. A command (or the automation engine, per content segment) sends/forwards a workflow.
+2. `executeWorkflow` (`background/messages/executeWorkflow.ts`) delegates to `executeWorkflowOnTargetTab` (`background/workflows/execution.ts`), which resolves the target tab and sends `monocle-workflow-content-execute`.
 3. The content script runs the executor in `content/workflow/`.
 4. Results (including extracted vars) return through the message chain.
 
-The full step vocabulary (click/wait/fill/select/check/submit/focus/blur/scroll/hover/type/key/getText/removeElement/hideElement/injectCss) is implemented and schema-accepted; privileged operations are user-script engine ops, never workflow steps. See [workflow-automation.md](./workflow-automation.md).
+The full step vocabulary (click/wait/fill/select/check/submit/focus/blur/scroll/hover/type/key/getText/removeElement/hideElement/injectCss) is implemented and schema-accepted; privileged operations are automation engine ops, never workflow steps. See [workflow-automation.md](./workflow-automation.md).
 
-### User scripts
+### Automations
 
-1. A stored document runs via its generated palette command, an armed page trigger (content reports `user-script-trigger-fired`, the background re-validates), or a `chrome.alarms` schedule.
-2. The engine (`background/userScripts/engine.ts`) re-reads the document, interpolates background-side, lowers contiguous content steps to workflows, and executes privileged ops between segments.
+1. A stored document runs via its generated palette command, an armed page trigger (content reports `monocle-automation-trigger-fired`, the background re-validates), or a `chrome.alarms` schedule.
+2. The engine (`background/automations/engine.ts`) re-reads the document, interpolates background-side, lowers contiguous content steps to workflows, and executes privileged ops between segments.
 
-See [user-scripts.md](./user-scripts.md).
+See [automations.md](./automations.md).
 
 ### Feature modules
 
-1. The `background/features/` registry contributes palette commands (loaded by `source.ts`), a data-only descriptor for the options page (`get-features`), and an `init()` startup hook (`background/index.ts`).
+1. The `background/features/` registry contributes palette commands (loaded by `source.ts`), a data-only descriptor for the options page (`monocle-features-get`), and an `init()` startup hook (`background/index.ts`).
 2. Durable feature config (`monocle-feature-config`) and transient runtime state (`monocle-feature-state`) are separate stores, both distinct from `monocle-settings`. Feature page UI is rendered through the generic Surfaces primitive (`background/surfaces.ts` + the shared `SurfaceHost`), not per-feature components — a feature pushes declarative overlays/badges and the host renders them.
 
 See [features.md](./features.md), [surfaces.md](./surfaces.md), and [focus-mode.md](./focus-mode.md).

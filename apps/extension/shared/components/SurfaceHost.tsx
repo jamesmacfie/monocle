@@ -41,7 +41,7 @@ const sendSurfaceAction = (
     return
   }
   void sendRuntimeMessageSafe({
-    type: "surface-action",
+    type: "monocle-surface-action",
     ownerId: surface.ownerId,
     surfaceId: surface.id,
     actionId,
@@ -233,7 +233,7 @@ export function SurfaceHost({ kinds }: { kinds: SurfaceKind[] }) {
     const response = await sendRuntimeMessageSafe<
       GetSurfacesResponse | { error?: string }
     >({
-      type: "get-surfaces",
+      type: "monocle-surfaces-get",
       url: window.location.href,
     })
 

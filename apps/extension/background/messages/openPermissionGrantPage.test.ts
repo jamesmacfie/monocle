@@ -23,7 +23,7 @@ describe("openPermissionGrantPage", () => {
   it("opens the extension new-tab page with the requested permission", async () => {
     await expect(
       openPermissionGrantPage({
-        type: "open-permission-grant-page",
+        type: "monocle-permission-grant-page-open",
         permission: "bookmarks",
       }),
     ).resolves.toEqual({ success: true })

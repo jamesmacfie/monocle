@@ -118,8 +118,8 @@ export default defineConfig({
         id: "ff@monocle.com",
       },
     },
-    // "alarms" powers scheduled user-script triggers
-    // (background/userScripts/alarms.ts).
+    // "alarms" powers scheduled automation triggers
+    // (background/automations/alarms.ts).
     permissions:
       browser === "firefox"
         ? [

@@ -13,7 +13,7 @@ export const copyUuidV4: ActionCommandNode = {
     const activeTab = await getActiveTab()
     if (activeTab?.id) {
       await sendTabMessage(activeTab.id, {
-        type: "monocle-copyToClipboard",
+        type: "monocle-clipboard-write",
         message: uuid,
       })
       await sendTabMessage(activeTab.id, {

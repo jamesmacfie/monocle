@@ -35,7 +35,7 @@ export const loadSettingsCatalog = createAsyncThunk<
 >("settingsCatalog/load", async (_, { extra, rejectWithValue }) => {
   try {
     const response = (await getSendMessage(extra)({
-      type: "get-settings-catalog",
+      type: "monocle-settings-catalog-get",
     })) as SettingsCatalogResponse | { error?: string }
 
     if ("error" in response && response.error) {
@@ -61,7 +61,7 @@ export const setCatalogCommandHidden = createAsyncThunk<
   async ({ commandId, hidden }, { extra, rejectWithValue }) => {
     try {
       const response = (await getSendMessage(extra)({
-        type: "update-command-setting",
+        type: "monocle-command-setting-update",
         commandId,
         setting: "hidden",
         value: hidden,
@@ -89,7 +89,7 @@ export const setCatalogCommandFavorite = createAsyncThunk<
   async ({ commandId, favorite }, { extra, rejectWithValue }) => {
     try {
       const response = (await getSendMessage(extra)({
-        type: "set-command-favorite",
+        type: "monocle-command-favorite-set",
         commandId,
         favorite,
       })) as { error?: string }
@@ -116,7 +116,7 @@ export const setCatalogCommandKeybinding = createAsyncThunk<
   async ({ commandId, keybinding }, { extra, rejectWithValue }) => {
     try {
       const response = (await getSendMessage(extra)({
-        type: "update-command-setting",
+        type: "monocle-command-setting-update",
         commandId,
         setting: "keybinding",
         value: keybinding ?? null,
@@ -147,7 +147,7 @@ export const setCatalogCommandKeybindings = createAsyncThunk<
   async ({ updates }, { extra, rejectWithValue }) => {
     try {
       const response = (await getSendMessage(extra)({
-        type: "update-command-keybindings",
+        type: "monocle-command-keybindings-update",
         updates,
       })) as Partial<UpdateCommandKeybindingsResponse> & { error?: string }
 
@@ -186,7 +186,7 @@ export const setCatalogCommandUrlRules = createAsyncThunk<
   async ({ commandId, urlRules }, { extra, rejectWithValue }) => {
     try {
       const response = (await getSendMessage(extra)({
-        type: "update-command-setting",
+        type: "monocle-command-setting-update",
         commandId,
         setting: "urlRules",
         value: urlRules,

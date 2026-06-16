@@ -1,0 +1,48 @@
+// Shared automation URL eligibility. Non-manual automation entrypoints
+// (page triggers and scheduled alarms) must agree on the same rules:
+// http(s)-only, command hidden state, user URL overrides, and script URL rules.
+import type { Automation } from "../../shared/types"
+import { automationCommandId } from "../../shared/types/automations"
+import { getCommandSettings } from "../commands/settings"
+import { isCommandVisibleForUrl } from "../utils/urlFilter"
+
+export const isHttpUrl = (url: string): boolean =>
+  url.startsWith("http://") || url.startsWith("https://")
+
+export type AutomationEligibility = {
+  hasAllowRules: boolean
+  isEligibleForUrl: (url: string) => boolean
+}
+
+export const getAutomationEligibility = async (
+  script: Automation,
+): Promise<AutomationEligibility> => {
+  const userSettings = await getCommandSettings(automationCommandId(script.id))
+  const hasAllowRules = Boolean(
+    script.urlRules?.allowUrls?.length ||
+      userSettings?.urlRules?.allowUrls?.length,
+  )
+
+  return {
+    hasAllowRules,
+    isEligibleForUrl: (url: string) => {
+      if (!isHttpUrl(url)) {
+        return false
+      }
+
+      return isCommandVisibleForUrl(
+        { urlRules: script.urlRules },
+        url,
+        userSettings,
+      )
+    },
+  }
+}
+
+export const isAutomationEligibleForUrl = async (
+  script: Automation,
+  url: string,
+): Promise<boolean> => {
+  const eligibility = await getAutomationEligibility(script)
+  return eligibility.isEligibleForUrl(url)
+}

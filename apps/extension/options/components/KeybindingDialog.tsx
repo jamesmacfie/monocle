@@ -64,7 +64,7 @@ const checkConflict = async (
     const response = await sendRuntimeMessage<
       (CheckKeybindingConflictResponse & { error?: string }) | undefined
     >({
-      type: "check-keybinding-conflict",
+      type: "monocle-keybinding-conflict-check",
       keybinding,
       excludeCommandId: command.id,
       context: getConflictContext(command),

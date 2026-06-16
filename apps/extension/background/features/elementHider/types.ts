@@ -2,7 +2,7 @@
 // validation for the feature that hides DOM elements on matching URLs. The
 // rules are the single source of truth (durable in `monocle-feature-config`);
 // the page-load hiding is a projected automation (./automations.ts) that runs
-// through the shared user-script engine, and selectors are captured through the
+// through the shared automation engine, and selectors are captured through the
 // generic `picker` surface. Element Hider is the first consumer of those three
 // architecture extensions, not bespoke hiding code. See docs/element-hider.md.
 import { z } from "zod"

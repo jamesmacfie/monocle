@@ -1,21 +1,21 @@
 # Commands: Automations
 
-The Automations category (`background/userScripts/commands.ts`, registered in
+The Automations category (`background/automations/commands.ts`, registered in
 `background/commands/source.ts` under category id `automations`) exposes user
 scripts in the palette. Full feature behavior lives in
-[user-scripts.md](../user-scripts.md); this catalog covers just the rows.
+[automations.md](../automations.md); this catalog covers just the rows.
 
 | Command | Id | Type | Behavior |
 | --- | --- | --- | --- |
-| Automations | `user-scripts` | `group` (deep search, `settingsCatalog.includeChildren`) | Lists stored scripts as child rows (below). Empty state is a display row pointing at Create Automation. |
-| Create Automation | `create-user-script` | `action` | Opens the options builder at `#/automations/new`. |
-| Manage Automations | `manage-user-scripts` | `action` | Opens the options list at `#/automations`. |
+| Automations | `automations` | `group` (deep search, `settingsCatalog.includeChildren`) | Lists stored scripts as child rows (below). Empty state is a display row pointing at Create Automation. |
+| Create Automation | `create-automation` | `action` | Opens the options builder at `#/automations/new`. |
+| Manage Automations | `manage-automations` | `action` | Opens the options list at `#/automations`. |
 
 ## Generated child rows
 
 Each stored script maps to a durable child of the Automations group:
 
-- **Manual-trigger scripts** → `action` nodes with id `userscript-<uuid>`,
+- **Manual-trigger scripts** → `action` nodes with id `automation-<uuid>`,
   `actionLabel: "Run Automation"`, cmd-modifier **Edit in Options**, the
   script's own icon/color/urlRules, and
   `keybindingRequirements: { requireNonShiftModifier: true }` when any step

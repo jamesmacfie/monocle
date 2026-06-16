@@ -16,7 +16,7 @@ const STORAGE_KEY = "monocle-settings"
 
 // Shared get-permissions round-trip used by the load/refresh thunks
 const fetchPermissions = () =>
-  sendRuntimeMessage<PermissionSettings>({ type: "get-permissions" })
+  sendRuntimeMessage<PermissionSettings>({ type: "monocle-permissions-get" })
 
 // Settings state structure
 interface SettingsState {

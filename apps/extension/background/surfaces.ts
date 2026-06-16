@@ -3,7 +3,7 @@
 // content/new-tab render via SurfaceHost. Owner-namespaced under
 // `monocle-surfaces` (persisted so surfaces survive MV3 service-worker death
 // within a session). Any owner — a feature (e.g. "focus-mode") or a
-// user-script automation ("userscript:<id>") — pushes surfaces here; every
+// automation automation ("automation:<id>") — pushes surfaces here; every
 // mutation broadcasts monocle-surfaces-changed so open tabs re-query. URL
 // gating reuses matchesUrlPattern. See docs/surfaces.md.
 import type { Surface } from "../shared/types"
@@ -16,11 +16,11 @@ import { matchesUrlPattern } from "./utils/urlFilter"
 const STORAGE_KEY = "monocle-surfaces"
 
 // Per-session owners are prefixed so a fresh browser session starts with no
-// leftover surfaces, like toasts. Automations use `userscript:<id>`; commands
+// leftover surfaces, like toasts. Automations use `automation:<id>`; commands
 // that trigger a surface use `command:<id>` (e.g. a QR modal). Feature owners
 // are NOT session-prefixed — they rebuild their own surfaces from durable state
 // in their init() hook.
-const SESSION_OWNER_PREFIXES = ["userscript:", "command:"]
+const SESSION_OWNER_PREFIXES = ["automation:", "command:"]
 
 const isSessionOwner = (ownerId: string): boolean =>
   SESSION_OWNER_PREFIXES.some((prefix) => ownerId.startsWith(prefix))
@@ -45,7 +45,7 @@ const broadcastChanged = async (): Promise<void> => {
 
 // Validate surfaces against the canonical schema before they enter the store.
 // This closes the silent-accept gap: features and command-owned surfaces were
-// previously trusted, while only user-scripts were validated. Invalid surfaces
+// previously trusted, while only automations were validated. Invalid surfaces
 // are logged and skipped (fail-quiet, mirroring the content-block posture)
 // rather than corrupting the store.
 const validateSurfaces = (surfaces: Surface[], ownerId: string): Surface[] => {

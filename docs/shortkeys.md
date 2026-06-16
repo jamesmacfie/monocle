@@ -12,7 +12,7 @@ WXT-based extension binding keyboard shortcuts to a fixed action vocabulary
 (plus custom JS), with per-site scoping and sequence support. Monocle's
 architecture is a superset of what most of its actions need — background
 commands over `chrome.tabs`/`windows`/`bookmarks`/`sessions`, content
-effects via the `monocle-scroll`/`monocle-insertText` event family or
+effects via the `monocle-scroll`/`monocle-text-insert` event family or
 `scripting.executeScript` (the `stop-loading-current-tab` /
 `copy-canonical-url` pattern), palette-form parameters, and a strictly
 stronger keybinding system (canonical format, registry, conflicts,
@@ -50,7 +50,7 @@ No action needed; listed so nobody re-implements them. Monocle ids per
 | `cleardownloads` | `clear-browser-data` group |
 | `capturescreenshot` | `capture-screenshot` (`captureVisibleTab`, no debugger) |
 | `inserttext` | Snippets (`insert-snippet`) — strictly richer: placeholders, counters, clipboard fallback |
-| `openurl` | Palette + `monocle-newTab` paths; a dedicated parameterized command is trivial if wanted |
+| `openurl` | Palette + `monocle-tab-open` paths; a dedicated parameterized command is trivial if wanted |
 | `disable` (block a site's shortcut) | Mostly free already — see "Ideas worth borrowing" |
 
 Shortkeys' shortcut packs (vim.json etc.) correspond to Monocle's
@@ -85,7 +85,7 @@ exercises. Grouped by pattern, easiest first.
 | Next page / Previous page | `nextpage`/`prevpage` | Inject the `rel=next/prev` + link-text heuristic and click. The heuristic list in Shortkeys (`next`, `›`, `»`, `older`…) is proven — copy it. Pairs perfectly with `increment-url-number`. |
 | Video controls group | 8 `video*` actions | One `group` ("Video") with play/pause, mute, fullscreen, speed ±/reset, skip ±10s against `document.querySelector("video")`. High value for the keybinding crowd; state doesn't need to be read back (fire-and-forget + toast). |
 | Search selection on… | `searchgoogle`/`youtube`/`wikipedia`/`github` | Inject `getSelection().toString()`, then `tabs.create` with the provider URL. Do it as one `group` with provider children rather than four flat commands; provider list is data. |
-| Toggle dark mode (invert) | `toggledarkmode` | Inject/remove a tagged `<style>` with the invert+hue-rotate filter. Note: this is exactly the shipped `injectCss`/`hideElement` workflow ops (`docs/user-scripts.md`) — ship it as a bundled example automation instead of a bespoke command. |
+| Toggle dark mode (invert) | `toggledarkmode` | Inject/remove a tagged `<style>` with the invert+hue-rotate filter. Note: this is exactly the shipped `injectCss`/`hideElement` workflow ops (`docs/automations.md`) — ship it as a bundled example automation instead of a bespoke command. |
 
 ### Optional-permission flows (existing grant machinery, `docs/permissions.md`)
 
@@ -103,9 +103,9 @@ this row would have proposed. No action needed.
 
 | Shortkeys feature | Verdict |
 | --- | --- |
-| `javascript` (custom JS via `chrome.userScripts`, MAIN world) | **Do not bolt on.** User scripts shipped deliberately without a `runJs` step (`docs/user-scripts.md`, Store posture); do not reintroduce it as a one-off command. |
-| `macro` (chained steps with delays, JS steps via `new Function`) | Superseded by shipped user scripts (`docs/user-scripts.md`) — a validated step document beats a 10-step action list with string-eval'd JS. |
-| 24 bundled "page scripts" (reader mode, hide sticky, table→CSV, PiP…) | The *ideas* are good; the mechanism (`new Function(code)` over bundled strings) is not Monocle's style. Cherry-pick the best (PiP, hide-sticky) as ordinary typed commands later, or as bundled example user scripts. |
+| `javascript` (custom JS via `chrome.userScripts`, MAIN world) | **Do not bolt on.** Automations shipped deliberately without a `runJs` step (`docs/automations.md`, Store posture); do not reintroduce it as a one-off command. |
+| `macro` (chained steps with delays, JS steps via `new Function`) | Superseded by shipped automations (`docs/automations.md`) — a validated step document beats a 10-step action list with string-eval'd JS. |
+| 24 bundled "page scripts" (reader mode, hide sticky, table→CSV, PiP…) | The *ideas* are good; the mechanism (`new Function(code)` over bundled strings) is not Monocle's style. Cherry-pick the best (PiP, hide-sticky) as ordinary typed commands later, or as bundled example automations. |
 | `linkhints` / `linkhintsnew` (Vimium-style link hints) | Genuinely large content-UI feature (overlay rendering, key capture modes, shadow-DOM traversal). Real value, but a project of its own — not an "easy win." |
 | Full-page screenshots via `chrome.debugger` | The `debugger` permission is a store-review red flag Monocle deliberately avoids (`docs/store-submission.md`); visible-area capture already ships. Skip. |
 | `editurl` (fake in-page address bar) | The palette is a better URL editor; skip. |
@@ -126,7 +126,7 @@ this row would have proposed. No action needed.
   `CommandSettings` flag if users ask for plain-key bindings inside inputs.
 - **Bookmarklet execution** and Shortkeys' `externally_connectable` import
   channel are both **anti-patterns** from Monocle's policy posture
-  (see the store posture in `docs/user-scripts.md` and `docs/store-submission.md`) — listed here so they are
+  (see the store posture in `docs/automations.md` and `docs/store-submission.md`) — listed here so they are
   rejected deliberately, not rediscovered.
 
 ## Suggested implementation order

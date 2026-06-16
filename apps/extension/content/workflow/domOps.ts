@@ -2,7 +2,7 @@
 // getText (extraction into workflow vars), removeElement, hideElement, and
 // injectCss. One of the workflow executor's op modules (dispatch table in
 // content/workflow/executor.ts). Hide/CSS injection share one
-// <style data-monocle-style="scopeKey"> element per scope so a user script's
+// <style data-monocle-style="scopeKey"> element per scope so a automation's
 // page edits are grouped, idempotent, and reversible by removing that
 // element; removeElement is the destructive alternative (pages may
 // re-render removed nodes back).

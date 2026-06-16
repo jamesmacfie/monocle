@@ -69,7 +69,7 @@ export const manageAllowList: GroupCommandNode = {
           })
 
           await showToast({
-            type: "show-toast",
+            type: "monocle-toast-show",
             level: "success",
             message: "Allow list updated",
           })

@@ -66,7 +66,7 @@ optional `KeybindingDisplay`, and the `Command` meta label.
 
 Selecting: `handleSelect` checks `isGrantedAllPermissions` first (toasts and
 aborts if missing), then either enters confirmation state or calls
-`onSelect(suggestion.id)`, which sends `execute-command`. The background
+`onSelect(suggestion.id)`, which sends `monocle-command-execute`. The background
 (`executeCommand` in `background/commands/execution.ts`) resolves the node, re-checks
 permissions, runs `execute(context, normalizedFormValues)`, and records usage
 (`recordCommandUsage`) since `shouldRecordUsage` returns `true` for actions.
@@ -134,7 +134,7 @@ the current page. `CommandItem`'s submit handler calls
 "Form is invalid. Check inputs." and does not execute. `CommandList` also exposes
 `handleInputSubmit`, which finds the first `submit` suggestion on the page and
 triggers it — this is how pressing Enter inside an `input` submits the form.
-On success it sends `execute-command`; the background runs `execute(context,
+On success it sends `monocle-command-execute`; the background runs `execute(context,
 values)` with all collected form values normalized
 (`normalizeFormValues` joins array values with commas for legacy executors).
 
@@ -193,7 +193,7 @@ Groups are not in `ActionLabel` and have no `execute`. Their suggestion
 Rendering: `CommandItemAction` with the `Group` meta label.
 
 Selecting: opening a group does not execute anything. The UI sends
-`get-children-commands`; `getChildrenCommands` (`background/messages/getChildrenCommands.ts`)
+`monocle-command-children-get`; `getChildrenCommands` (`background/messages/getChildrenCommands.ts`)
 detects `type === "group"`, resolves the children for the target path via
 `getCommandPageCommands`, converts them with `commandsToSuggestions`, and returns
 `{ children, openPage: true, dynamicChildren: false }`. The navigation slice then
@@ -394,7 +394,7 @@ states, e.g. `createNoOpCommand("no-recently-closed", "No Recently Closed Items"
 
 Deep search is computed at search-index build time in
 `background/commands/searchIndex.ts` (the `walkGroups` flatten); matches are
-returned by the `search-commands` message. The rules, verified in code:
+returned by the `monocle-commands-search` message. The rules, verified in code:
 
 - Only `group` nodes are walked. A group participates when
   `enableDeepSearch === true`, or when a parent group already opted in and the
@@ -477,4 +477,4 @@ See [search-and-ranking.md](./search-and-ranking.md) for ranking specifics.
 - [execution-and-actions.md](./execution-and-actions.md) — execution flow and the action menu
 - [palette-ui-and-navigation.md](./palette-ui-and-navigation.md) — page stack and inline forms
 - [keybindings.md](./keybindings.md) — keybinding format and registry
-- [messaging.md](./messaging.md) — `get-children-commands` and `execute-command` protocol
+- [messaging.md](./messaging.md) — `monocle-command-children-get` and `monocle-command-execute` protocol

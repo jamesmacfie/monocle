@@ -84,8 +84,8 @@ type Page = {
   parentPath: string[]             // chain of parent command ids used by the background to locate children
   formValues?: Record<string, string | string[]>  // inline input values for this page
   dynamicChildren?: boolean        // page children are driven by the search input
-  searchResults?: Suggestion[]     // background search-commands results for searchValue
-  searchLoading?: boolean          // a search-commands request is in flight
+  searchResults?: Suggestion[]     // background monocle-commands-search results for searchValue
+  searchLoading?: boolean          // a monocle-commands-search request is in flight
   searchSeq?: number               // last applied search sequence number (staleness guard)
 }
 ```
@@ -111,7 +111,7 @@ Synchronous reducers (`navigationSlice.actions`):
 Async thunks:
 
 - **`navigateToCommand({ id, currentPage })`** — sends
-  `get-children-commands` with the computed `parentPath`. A new page is pushed
+  `monocle-command-children-get` with the computed `parentPath`. A new page is pushed
   when the response has `openPage === true` or a non-empty `children` array. The
   new page starts with `searchValue: ""`, child suggestions in `suggestions`
   (child pages never inherit favorites), `formValues` seeded by
@@ -122,7 +122,7 @@ Async thunks:
   preserving current `formValues`. Otherwise it merges fresh input defaults
   under existing form values (`{ ...defaults, ...currentValues }`).
 - **`searchCurrentPage({ pageId, parentPath, query, seq })`** — sends
-  `search-commands` (root pages send `parentPath: []`). The fulfilled reducer
+  `monocle-commands-search` (root pages send `parentPath: []`). The fulfilled reducer
   writes `searchResults` onto the current page only when the page id still
   matches, the echoed `seq` is not older than the last applied one, and the
   echoed `query` still equals the page's `searchValue`. Failures stop the
@@ -214,7 +214,7 @@ With `shouldFilter={false}`, `CommandList` decides explicitly what to render:
   bypassed and all rows always render, so typing in the palette input can never
   hide form fields. Display rows alone do not trigger the bypass.
 - **`search`-type pages** (`dynamicChildren`) — results stream through
-  `commands.suggestions` via `get-children-commands`, unchanged.
+  `commands.suggestions` via `monocle-command-children-get`, unchanged.
 - **Empty/loading** — `Command.Empty` (which only renders when no items are
   mounted) shows a spinner while loading/typing, else "No results" when a query
   is present.
@@ -303,8 +303,8 @@ selector. `shared/hooks/useCommandPaletteStateRedux.tsx` wraps it and also:
 - While the palette is open, swallows lone alphabetic keypresses
   (`/^[a-zA-Z]$/`) via `stopImmediatePropagation` so host-page keyboard handlers
   don't fire underneath the overlay.
-- Listens for background runtime messages `toggle-ui`, `show-ui`, and
-  `execute-workflow-content` (the last forwards to `workflowExecutor`).
+- Listens for background runtime messages `monocle-ui-toggle`, `monocle-ui-show`, and
+  `monocle-workflow-content-execute` (the last forwards to `workflowExecutor`).
 
 This hook is used by the **content overlay**; the new-tab palette does not gate
 on `isOpen` (it is always mounted).
@@ -351,7 +351,7 @@ executions (`id.includes("clock")`/`"settings"`) it reloads settings into Redux.
 
 - **Navigation errors**: `CommandPalette` renders `CommandNavigationError` above
   the CMDK root whenever `navigation.error` is set (e.g. a failed
-  `get-children-commands`). It is a dismissible banner styled with theme error
+  `monocle-command-children-get`). It is a dismissible banner styled with theme error
   tokens; `clearError` removes it.
 - **Toasts**: `ToastContainer` (rendered in the content overlay; the new-tab app
   renders its own where applicable) listens for `monocle-toast` runtime messages
@@ -367,9 +367,9 @@ executions (`id.includes("clock")`/`"settings"`) it reloads settings into Redux.
 Both surfaces mount the same listener set **outside the palette-visibility
 gate**, so background → tab messages keep working after the palette hides
 (`content/components/ContentCommandPalette.tsx` and `newtab/NewTabApp.tsx`):
-`CopyToClipboardListener` (`monocle-copyToClipboard`), `InsertTextListener`
-(`monocle-insertText` + page focus tracking for insert-at-cursor),
-`NewTabListener` (`monocle-newTab`), `ScrollListener` (`monocle-scroll`),
+`CopyToClipboardListener` (`monocle-clipboard-write`), `InsertTextListener`
+(`monocle-text-insert` + page focus tracking for insert-at-cursor),
+`NewTabListener` (`monocle-tab-open`), `ScrollListener` (`monocle-scroll`),
 `ScreenshotListener` (`monocle-screenshot`), and `ToastContainer`
 (`monocle-toast`). See [messaging.md](./messaging.md) for the message payloads.
 

@@ -7,7 +7,7 @@ import { invalidateSearchIndex } from "../commands/searchIndex"
 import { createMessageHandler } from "../utils/messages"
 
 const handleSetCommandFavorite = async ({
-  commandId,
+  id: commandId,
   favorite,
 }: SetCommandFavoriteMessage) => {
   if (favorite) {

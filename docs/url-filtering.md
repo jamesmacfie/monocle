@@ -147,7 +147,7 @@ invoked for:
 - Root command loading (`getFilteredRootCommands`).
 - Child command resolution for groups and dynamic search pages, inside
   `getCommandPageCommands` and the favorites/deep-search builders.
-- The page resolution used by the `get-children-commands` message handler
+- The page resolution used by the `monocle-command-children-get` message handler
   (`background/messages/getChildrenCommands.ts` calls `getCommandPageCommands`,
   which filters before converting to suggestions).
 
@@ -243,7 +243,7 @@ The same validation is used for both lists. Valid examples include
 `*://*.github.com/*`, `github.com`, `*.github.com/*`, `http://localhost:3000/*`,
 and `*://[::1]:3000/*`.
 
-The `update-command-setting` message also validates the `urlRules` value with a
+The `monocle-command-setting-update` message also validates the `urlRules` value with a
 strict Zod schema (`UrlRulesSettingValueSchema` in `shared/types/validation.ts`)
 that accepts only `allowUrls` and `denyUrls` string arrays. See
 [messaging.md](./messaging.md) and [settings.md](./settings.md).
@@ -346,5 +346,5 @@ settings to keep applying across reloads.
 - [execution-and-actions.md](./execution-and-actions.md) — generated actions and execution.
 - [search-and-ranking.md](./search-and-ranking.md) — favorites and deep search filtering.
 - [new-tab-and-theme.md](./new-tab-and-theme.md) — new-tab context and empty-URL behavior.
-- [messaging.md](./messaging.md) — `update-command-setting` and child-command messages.
+- [messaging.md](./messaging.md) — `monocle-command-setting-update` and child-command messages.
 - [commands/websites.md](./commands/websites.md) — GitHub website-command prototype.

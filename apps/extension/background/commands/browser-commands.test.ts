@@ -357,7 +357,7 @@ const getChildren = async (
   searchValue?: string,
 ) => {
   return (await getChildrenCommands({
-    type: "get-children-commands",
+    type: "monocle-command-children-get",
     id,
     parentPath,
     searchValue,
@@ -562,7 +562,7 @@ describe("add bookmark command", () => {
     invalidateSearchIndex()
 
     const response = (await searchCommands({
-      type: "search-commands",
+      type: "monocle-commands-search",
       context: normalContext,
       query: "add bookmark",
       seq: 1,
@@ -747,7 +747,7 @@ describe("copy title + URL as a Markdown link", () => {
     expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
       1,
       expect.objectContaining({
-        type: "monocle-copyToClipboard",
+        type: "monocle-clipboard-write",
         message: "[Example](https://example.com/page)",
       }),
       expect.anything(),
@@ -762,7 +762,7 @@ describe("copy title + URL as a Markdown link", () => {
     expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
       1,
       expect.objectContaining({
-        type: "monocle-copyToClipboard",
+        type: "monocle-clipboard-write",
         message: "[Issue \\[BUG\\] crash](https://example.com/page)",
       }),
       expect.anything(),
@@ -943,7 +943,7 @@ describe("copy title + URL command", () => {
     expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
       1,
       expect.objectContaining({
-        type: "monocle-copyToClipboard",
+        type: "monocle-clipboard-write",
         message: "Example\nhttps://example.com/page",
       }),
       expect.anything(),
