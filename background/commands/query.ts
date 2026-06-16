@@ -24,7 +24,7 @@ import { getAllCommandSettings } from "./settings"
 import { isSiteSdkCommandId } from "./siteSdk"
 import { type CommandLoadOptions, loadAllCommands } from "./source"
 import { mergePermissions } from "./traversal"
-import { getRankedCommandIds } from "./usage"
+import { getRankedRootCommandIds } from "./usage"
 
 export { mergePermissions } from "./traversal"
 
@@ -32,6 +32,7 @@ export type ResolvedCommand = {
   command: CommandNode
   permissions: BrowserPermission[]
   parentNames?: string[]
+  parentIds?: string[]
 }
 
 export type CommandCollections = {
@@ -201,7 +202,7 @@ const sortSuggestionsByUsage = async (
   commands: CommandNode[],
   excludedCommandIds: Set<string>,
 ): Promise<CommandNode[]> => {
-  const rankedCommandIds = await getRankedCommandIds()
+  const rankedCommandIds = await getRankedRootCommandIds()
   const rankingMap = new Map<string, number>()
 
   rankedCommandIds.forEach((id, index) => {
@@ -401,6 +402,7 @@ const findCommandRecursive = async (
   commandSettings: Record<string, CommandSettings>,
   inheritedPermissions: BrowserPermission[] = [],
   parentNames: string[] = [],
+  parentIds: string[] = [],
 ): Promise<ResolvedCommand | undefined> => {
   const filteredCommands = await filterForContext(
     commands,
@@ -419,6 +421,7 @@ const findCommandRecursive = async (
         command,
         permissions,
         parentNames: parentNames.length > 0 ? parentNames : undefined,
+        parentIds: parentIds.length > 0 ? parentIds : undefined,
       }
     }
 
@@ -440,6 +443,7 @@ const findCommandRecursive = async (
         commandSettings,
         permissions,
         [parentName, ...parentNames],
+        [command.id, ...parentIds],
       )
 
       if (found) {
@@ -494,6 +498,7 @@ export const resolveCommandInPage = async (
     scope.parentPath && scope.parentPath.length > 0
       ? scope.parentPath
       : [scope.pageId]
+  const parentIds = [...parentPath].reverse()
   const page = await getCommandPageCommands(
     normalizedContext,
     parentPath,
@@ -510,14 +515,18 @@ export const resolveCommandInPage = async (
         command.permissions,
       ),
       parentNames: page.parentNames.length > 0 ? page.parentNames : undefined,
+      parentIds: parentIds.length > 0 ? parentIds : undefined,
     }
   }
 
   if (page.pageCommand?.id === commandId) {
+    const pageParentIds = parentIds.slice(1)
+
     return {
       command: page.pageCommand,
       permissions: page.inheritedPermissions,
       parentNames: page.parentNames.slice(1),
+      parentIds: pageParentIds.length > 0 ? pageParentIds : undefined,
     }
   }
 

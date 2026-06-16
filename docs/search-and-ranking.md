@@ -8,7 +8,7 @@ Palette search is owned entirely by the background service worker. CMDK on the U
 
 The split of responsibilities:
 
-1. **Empty query** — `get-commands` returns the root empty state: `favorites` and usage-ranked `suggestions` (`background/messages/getCommands.ts` → `getCommandCollections`). The UI renders these instantly with no search round-trip.
+1. **Empty query** — `get-commands` returns the root empty state: `favorites` and usage-ranked `suggestions` (`background/messages/getCommands.ts` → `getCommandCollections`). Root suggestions are root command nodes only, so nested command usage is aggregated onto the nested command's root parent for this empty-state ordering. The UI renders these instantly with no search round-trip.
 2. **Non-empty query** — the UI debounces ~200 ms and sends `search-commands` (`background/messages/searchCommands.ts`). The background scores entries from its in-memory search index (root pages) or from the page's children (child pages), sorts, slices the top N (default 40), converts only those to `Suggestion`s, and returns them. The UI renders them as a single flat "Results" group.
 
 All pages search through the background — root and child group pages alike. The exceptions:
@@ -119,19 +119,23 @@ Each recording updates the command's `CommandUsageStats`:
 | `totalUsage` | Lifetime execution count (incremented each record) |
 | `lastUsed` | `Date.now()` of the most recent execution |
 | `hourlyUsage` | 24-element array; the current `getHours()` bucket is incremented |
-| `emaScore` | Exponential moving average of the computed score (smoothing) |
-| `parentNames` | Optional breadcrumb context for nested commands |
+| `emaScore` | Last recorded exponential moving average, kept as catalog metadata; live ranking does not use it |
+| `parentNames` | Optional breadcrumb names for nested commands |
+| `parentIds` | Optional breadcrumb ids for nested commands, immediate parent first and root parent last |
 
 ### How the score is computed
 
-`calculateCommandScore(stats, currentHour)` combines four factors (constants from the module):
+`calculateCommandScore(stats, currentHour)` recomputes the live ranking score from three factors (constants from the module):
 
 - **Frequency** — `Math.log(totalUsage + 1)`, logarithmic so heavy-use commands cannot dominate outright.
 - **Recency** — `Math.exp(-RECENCY_DECAY_RATE * daysSinceLastUse)` with `RECENCY_DECAY_RATE = 0.099` (a 7-day half-life: `ln(2)/7`).
 - **Time-of-day boost** — `calculateTimeBoost(hourlyUsage, currentHour)` returns `1 + timeScore * 0.5`, where `timeScore` sums the share of historical usage in a ±2-hour window around the current hour with linear distance decay (`1 - |i|*0.2`). Commands habitually used at this time of day get up to a 1.5× boost; no history yields a neutral `1`.
-- **EMA smoothing** — `currentScore = frequency * recency * timeBoost`, then `emaScore = 0.2 * currentScore + 0.8 * previousEma` (`EMA_SMOOTHING_FACTOR = 0.2`). To avoid a cold-start penalty, a brand-new command's EMA is seeded to its current score rather than blended against zero.
 
-`getRankedCommandIds()` recomputes scores for every command with `totalUsage > 0` at the *current* hour and returns ids sorted by descending score. This drives both the root empty-state ordering (`sortSuggestionsByUsage` in `query.ts`) and the search-time `usageBoost`, so ordering shifts with time of day and recency, not just raw counts.
+The persisted `emaScore` is still updated on write for catalog/analytics display, but it is not used for ranking. Ranking must be live: using a persisted EMA as the score gives old commands a stale floor and prevents recency/time-of-day from moving them down.
+
+`getRankedCommandIds()` recomputes scores for every command with `totalUsage > 0` at the *current* hour and returns leaf ids sorted by descending score. This drives search-time `usageBoost`, so typed search can boost the actual command the user executed.
+
+`getRankedRootCommandIds()` uses the same live score but maps nested command stats to `parentIds[parentIds.length - 1]` before sorting. This drives the root empty-state ordering (`sortSuggestionsByUsage` in `query.ts`), where only root command nodes can be rendered. Example: repeatedly executing a saved snippet records usage on `snippet-<id>` for search ranking and also lifts the root `insert-snippet` group in the empty Suggestions list.
 
 For the search path, `searchIndex.ts` wraps this in `getUsageRankMap()` — a module-cached `commandId → rank` map behind the same ~30 s TTL, cleared on `monocle-commandUsage` writes. Both root and child queries read the cached map, so ranking no longer pays a storage read (and full re-rank) on every keystroke.
 

@@ -117,7 +117,11 @@ const executeResolvedCommand = async (
     await command.execute?.(context, normalizeFormValues(formValues))
 
     if (shouldRecordUsage(command)) {
-      await recordCommandUsage(command.id, parentNames ?? resolved.parentNames)
+      await recordCommandUsage(
+        command.id,
+        parentNames ?? resolved.parentNames,
+        resolved.parentIds,
+      )
     }
   } catch (error) {
     console.error(

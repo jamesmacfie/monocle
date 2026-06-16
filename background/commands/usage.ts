@@ -1,11 +1,11 @@
 // Architecture: background command system, usage ranking. Per-command usage
-// stats (frequency, recency, time-of-day histogram, smoothed EMA) persisted to
-// monocle-commandUsage, used to order the root suggestion strip and as a
-// search tie-breaker. The composite score deliberately blends three signals so
-// no single one dominates: log frequency (so a runaway count can't pin a
-// command at the top), exponential recency decay (7-day half-life), and a
-// modest time-of-day boost (commands used around this hour rank higher). An EMA
-// smooths the score across runs so a single odd use doesn't whipsaw ranking.
+// stats (frequency, recency, time-of-day histogram, parent path, and smoothed
+// EMA metadata) persisted to monocle-commandUsage, used to order the root
+// suggestion strip and as a search tie-breaker. The live ranking score
+// deliberately blends three signals so no single one dominates: log frequency
+// (so a runaway count can't pin a command at the top), exponential recency decay
+// (7-day half-life), and a modest time-of-day boost (commands used around this
+// hour rank higher).
 // searchIndex.ts caches the derived rank map behind its own TTL; this module
 // just owns the stats and the math. See docs/search-and-ranking.md.
 import { createStorageArea } from "../utils/storageArea"
@@ -15,8 +15,9 @@ interface CommandUsageStats {
   totalUsage: number
   lastUsed: number
   hourlyUsage: number[] // 24-element array for each hour
-  emaScore: number // exponential moving average
+  emaScore: number // Last recorded exponential moving average, catalog metadata
   parentNames?: string[] // Optional parent context for nested commands (e.g., ["Development", "Bookmarks"])
+  parentIds?: string[] // Parent command ids, immediate parent first, root parent last
 }
 
 interface StoredUsageData {
@@ -77,10 +78,9 @@ const calculateTimeBoost = (
   return 1 + timeScore * TIME_BOOST_FACTOR
 }
 
-// Composite ranking score: log(frequency) * recency-decay * time-boost, then
-// folded into the stored EMA for cross-run smoothing. The EMA seeds from the
-// first score rather than 0 so a brand-new command isn't penalized by a cold
-// start. Returns the new EMA value, which recordCommandUsageUnlocked persists.
+// Live ranking score: log(frequency) * recency-decay * time-boost. This is
+// recomputed on every rank read so recency and time-of-day can actually move
+// commands without being pinned by a stale persisted EMA.
 export const calculateCommandScore = (
   stats: CommandUsageStats,
   currentHour: number,
@@ -99,16 +99,95 @@ export const calculateCommandScore = (
   // 3. Time-of-day boost
   const timeBoost = calculateTimeBoost(stats.hourlyUsage, currentHour)
 
-  // 4. Combine with EMA for smoothing
-  const currentScore = frequencyScore * recencyScore * timeBoost
-  // Initialize EMA to current score for new commands to avoid cold start penalty
-  const newEmaScore =
-    stats.emaScore === 0
-      ? currentScore
-      : EMA_SMOOTHING_FACTOR * currentScore +
-        (1 - EMA_SMOOTHING_FACTOR) * stats.emaScore
+  return frequencyScore * recencyScore * timeBoost
+}
 
-  return newEmaScore
+// Persisted metadata score for catalog/analytics display. It is intentionally
+// not used for live ranking; otherwise old commands keep an 80% score floor
+// until another write happens, which defeats recency and time-of-day ordering.
+const calculateRecordedEmaScore = (
+  stats: CommandUsageStats,
+  currentHour: number,
+): number => {
+  const currentScore = calculateCommandScore(stats, currentHour)
+
+  return stats.emaScore === 0
+    ? currentScore
+    : EMA_SMOOTHING_FACTOR * currentScore +
+        (1 - EMA_SMOOTHING_FACTOR) * stats.emaScore
+}
+
+type RankedUsage = {
+  commandId: string
+  score: number
+  lastUsed: number
+}
+
+const toRankedCommandIds = (items: RankedUsage[]): string[] =>
+  items
+    .filter((item) => item.score > 0)
+    .sort((a, b) => {
+      if (a.score !== b.score) {
+        return b.score - a.score
+      }
+
+      if (a.lastUsed !== b.lastUsed) {
+        return b.lastUsed - a.lastUsed
+      }
+
+      return a.commandId.localeCompare(b.commandId)
+    })
+    .map((item) => item.commandId)
+
+const rootUsageIdForStats = (stats: CommandUsageStats): string => {
+  if (stats.parentIds && stats.parentIds.length > 0) {
+    return stats.parentIds[stats.parentIds.length - 1]
+  }
+
+  return stats.commandId
+}
+
+const getRankedUsageItems = (
+  usageData: StoredUsageData,
+  currentHour: number,
+): RankedUsage[] =>
+  Object.values(usageData.commandStats)
+    .filter((stats) => stats.totalUsage > 0)
+    .map((stats) => ({
+      commandId: stats.commandId,
+      score: calculateCommandScore(stats, currentHour),
+      lastUsed: stats.lastUsed,
+    }))
+
+const getRankedRootUsageItems = (
+  usageData: StoredUsageData,
+  currentHour: number,
+): RankedUsage[] => {
+  const byRootId = new Map<string, RankedUsage>()
+
+  for (const stats of Object.values(usageData.commandStats)) {
+    if (stats.totalUsage === 0) {
+      continue
+    }
+
+    const commandId = rootUsageIdForStats(stats)
+    const score = calculateCommandScore(stats, currentHour)
+    const existing = byRootId.get(commandId)
+
+    if (!existing) {
+      byRootId.set(commandId, {
+        commandId,
+        score,
+        lastUsed: stats.lastUsed,
+      })
+      continue
+    }
+
+    existing.score += score
+    existing.lastUsed = Math.max(existing.lastUsed, stats.lastUsed)
+  }
+
+  return [...byRootId.values()]
 }
 
 // Record a command usage event. The locked update serializes concurrent
@@ -120,6 +199,7 @@ export const calculateCommandScore = (
 export const recordCommandUsage = async (
   commandId: string,
   parentNames?: string[],
+  parentIds?: string[],
 ): Promise<void> => {
   await usageArea.update((usageData) => {
     const now = Date.now()
@@ -139,8 +219,12 @@ export const recordCommandUsage = async (
       stats.parentNames = parentNames
     }
 
+    if (parentIds && parentIds.length > 0) {
+      stats.parentIds = parentIds
+    }
+
     // Update EMA score
-    stats.emaScore = calculateCommandScore(stats, currentHour)
+    stats.emaScore = calculateRecordedEmaScore(stats, currentHour)
 
     // Save updated stats
     usageData.commandStats[commandId] = stats
@@ -176,16 +260,17 @@ export const getRankedCommandIds = async (): Promise<string[]> => {
   const currentHour = new Date().getHours()
   const usageData = await loadUsageData()
 
-  const scoredCommands = Object.values(usageData.commandStats)
-    .filter((stats) => stats.totalUsage > 0) // Include all commands that have been used
-    .map((stats) => ({
-      commandId: stats.commandId,
-      score: calculateCommandScore(stats, currentHour),
-    }))
-    .sort((a, b) => b.score - a.score) // Sort by score descending
-    .map((item) => item.commandId)
+  return toRankedCommandIds(getRankedUsageItems(usageData, currentHour))
+}
 
-  return scoredCommands
+// Calculate scores for root-level suggestions. Leaf command usage keeps its own
+// id for typed search ranking, but the empty root Suggestions strip can only
+// render root commands, so nested usage is aggregated onto its root parent.
+export const getRankedRootCommandIds = async (): Promise<string[]> => {
+  const currentHour = new Date().getHours()
+  const usageData = await loadUsageData()
+
+  return toRankedCommandIds(getRankedRootUsageItems(usageData, currentHour))
 }
 
 // Check if we should clean up old data

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
 import type {
   Browser,
@@ -27,7 +27,11 @@ import { toolCommands } from "./tools"
 import { createSnippet } from "./tools/snippets"
 import { manageAllowList } from "./ui/manageAllowList"
 import { manageDenyList } from "./ui/manageDenyList"
-import { getCommandUsageStats, getRankedCommandIds } from "./usage"
+import {
+  getCommandUsageStats,
+  getRankedCommandIds,
+  recordCommandUsage,
+} from "./usage"
 
 type TestTab = {
   id: number
@@ -244,6 +248,10 @@ beforeEach(async () => {
   await clearAllSettings()
 })
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe("command loading", () => {
   it("loads commands by page context and platform", async () => {
     const normalCommands = await getCommands(normalContext)
@@ -290,6 +298,53 @@ describe("usage ranking", () => {
 
     const commands = await getCommands(normalContext)
     expect(commands.suggestions[0]?.id).toBe("uuidv4")
+  })
+
+  it("uses live recency instead of letting stale EMA pin old commands", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-01T09:00:00Z"))
+
+    for (let i = 0; i < 20; i += 1) {
+      await recordCommandUsage("stale-heavy")
+    }
+
+    vi.setSystemTime(new Date("2026-03-01T09:00:00Z"))
+    await recordCommandUsage("recent-light")
+
+    const rankedCommandIds = await getRankedCommandIds()
+
+    expect(rankedCommandIds.indexOf("recent-light")).toBeLessThan(
+      rankedCommandIds.indexOf("stale-heavy"),
+    )
+  })
+
+  it("aggregates nested command usage onto the root suggestion parent", async () => {
+    const snippetGroup = createSnippet as GroupCommandNode
+    const originalChildren = snippetGroup.children
+    const execute = vi.fn()
+
+    snippetGroup.children = async () => [
+      {
+        type: "action",
+        id: "test-nested-frequent-action",
+        name: "Nested Frequent Action",
+        actionLabel: "Run",
+        execute,
+      },
+    ]
+
+    try {
+      await executeCommand("test-nested-frequent-action", normalContext, {})
+
+      const stats = await getCommandUsageStats("test-nested-frequent-action")
+      expect(stats.parentNames).toEqual(["Create Snippet"])
+      expect(stats.parentIds).toEqual(["create-snippet"])
+
+      const commands = await getCommands(normalContext)
+      expect(commands.suggestions[0]?.id).toBe("create-snippet")
+    } finally {
+      snippetGroup.children = originalChildren
+    }
   })
 
   it("does not record submit commands that opt out of recents", async () => {

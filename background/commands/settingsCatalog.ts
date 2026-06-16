@@ -67,6 +67,7 @@ const toCatalogUsage = (
     lastUsed: stats?.lastUsed ?? 0,
     emaScore: stats?.emaScore ?? 0,
     parentNames: stats?.parentNames,
+    parentIds: stats?.parentIds,
   }
 }
 

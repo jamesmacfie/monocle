@@ -18,7 +18,7 @@ This document describes what happens when a user acts on a command in the Monocl
    - Otherwise it resolves the command with `resolveCommandInPage(id, ctx, executionScope)` when a scope is present, or `resolveCommandById(id, ctx)` for root commands. A missing command throws `Command not found: <id>`.
 6. **Permission check.** `executeResolvedCommand` requires the resolved node to be `action`, `submit`, or `search` (otherwise it throws `Command <id> is not executable`). If the command declares permissions, `checkPermissions` runs; on a miss it calls `showMissingPermissionsToast` and returns without executing. See [permissions.md](permissions.md).
 7. **Executor runs.** `command.execute?.(context, normalizeFormValues(formValues))` is awaited. `normalizeFormValues` flattens values to strings — array values are joined with `,`, and `null`/`undefined` become `""` — for backward compatibility with older executors.
-8. **Usage recording.** If `shouldRecordUsage(command)` is true, `recordCommandUsage(command.id, parentNames ?? resolved.parentNames)` is awaited (see [Usage recording](#usage-recording)).
+8. **Usage recording.** If `shouldRecordUsage(command)` is true, `recordCommandUsage(command.id, parentNames ?? resolved.parentNames, resolved.parentIds)` is awaited (see [Usage recording](#usage-recording)).
 9. **Response.** The handler returns `{ success: true }`. Side effects (toasts, clipboard, navigation) are emitted by the executor as tab messages, not via this return value.
 10. **Post-execution UI refresh.** `shouldRefreshCommandsAfterExecution(shouldNavigateBack)` returns `true` only when the command stays open (`shouldNavigateBack === false`), prompting the palette to re-fetch the current page so mutated state (favorites, settings) is reflected.
 
@@ -29,7 +29,8 @@ This document describes what happens when a user acts on a command in the Monocl
 | `id` | focused suggestion id | Resolved to a `CommandNode` or parsed as a generated action |
 | `context` | `Browser.Context` from the palette | Tab/url/new-tab flags; carries `modifierKey` for modifier execution |
 | `formValues` | page form values + `executionPayload` | Inline form inputs and per-suggestion payload |
-| `parentNames` | breadcrumb names | Usage attribution for nested commands |
+| `parentNames` | breadcrumb names | Usage display attribution for nested commands |
+| background-resolved `parentIds` | breadcrumb ids | Root-suggestion usage aggregation for nested commands |
 | `executionScope` | non-root `Page` identity | Lets the background re-resolve dynamic/scoped children |
 
 ## Plain Enter vs modifier-Enter
@@ -180,13 +181,13 @@ There are two background message entry points for toasts, plus the missing-permi
 
 ## Usage recording
 
-`recordCommandUsage(commandId, parentNames?)` (`background/commands/usage.ts`) is awaited after a successful execute when `shouldRecordUsage` is true:
+`recordCommandUsage(commandId, parentNames?, parentIds?)` (`background/commands/usage.ts`) is awaited after a successful execute when `shouldRecordUsage` is true:
 
 - `action` commands: always recorded.
 - `submit` commands: recorded unless `doNotAddToRecents === true`.
 - All other types: never recorded.
 
-Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram, an EMA score, and (when provided) `parentNames`, persisting to `monocle-commandUsage` in `chrome.storage.local`. Data older than 90 days is pruned opportunistically. The resulting scores feed ranking and the recents surface — see [search-and-ranking.md](search-and-ranking.md). `doNotAddToRecents` therefore only affects `submit` commands; `action` commands are always counted.
+Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram, an EMA metadata score, and (when provided) `parentNames` / `parentIds`, persisting to `monocle-commandUsage` in `chrome.storage.local`. Data older than 90 days is pruned opportunistically. The resulting live scores feed search ranking, while parent ids let nested usage lift the root parent in the empty Suggestions list — see [search-and-ranking.md](search-and-ranking.md). `doNotAddToRecents` therefore only affects `submit` commands; `action` commands are always counted.
 
 ## Known issues and review notes
 

@@ -47,6 +47,7 @@ export type SettingsCatalogCommand = {
     lastUsed: number
     emaScore: number
     parentNames?: string[]
+    parentIds?: string[]
   }
   capabilities: {
     configurable: boolean
