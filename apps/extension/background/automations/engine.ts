@@ -54,6 +54,7 @@ import {
   isEngineStep,
   lowerContentStep,
   retargetForLoopIteration,
+  stepExpectsNavigation,
 } from "./lowering"
 import { getAutomationById } from "./registry"
 import { checkRunCommandPolicy } from "./runCommandPolicy"
@@ -284,7 +285,11 @@ const runStepList = async (
     }
     const segment = buffer
     buffer = []
-    await runContentSegment(segment, state)
+    // An expectNavigation click/submit is always the last step in its segment
+    // (endsSegment forces the flush), so the trailing step decides whether the
+    // engine waits for a page load after this segment.
+    const expectNavigation = stepExpectsNavigation(segment[segment.length - 1])
+    await runContentSegment(segment, state, expectNavigation)
   }
 
   for (const step of steps) {
@@ -315,13 +320,82 @@ const countExecutedStep = (state: RunState): void => {
 const runContentSegment = async (
   segment: AutomationStep[],
   state: RunState,
+  expectNavigation = false,
 ): Promise<void> => {
   const lowered: Step[] = segment.map((step) =>
     lowerContentStep(step, state.script.id, state.values, state.pageContext),
   )
 
-  const result = await runWorkflowSteps(lowered, state, state.script.name)
+  if (expectNavigation) {
+    await runNavigatingContentSegment(segment, lowered, state)
+    return
+  }
 
+  const result = await runWorkflowSteps(lowered, state, state.script.name)
+  recordSegmentResult(segment, result, state)
+
+  if (!result.success) {
+    throw new AutomationRunError(result.error ?? "Step failed")
+  }
+}
+
+/**
+ * Runs a segment whose trailing click/submit triggers a full page navigation.
+ * The content script is torn down by that navigation, so the workflow response
+ * may never return — we start watching for the page load *before* dispatching
+ * the action, tolerate a lost/rejected response (the load is itself evidence
+ * the action fired), and wait for the new page before the next segment runs.
+ * This is the page-driven sibling of the `navigate` engine op.
+ */
+const runNavigatingContentSegment = async (
+  segment: AutomationStep[],
+  lowered: Step[],
+  state: RunState,
+): Promise<void> => {
+  // The trailing step is the navigating click/submit; honour its per-step
+  // timeout as the navigation-wait bound when set.
+  const trailing = segment[segment.length - 1]
+  const trailingTimeoutMs =
+    trailing && "timeoutMs" in trailing ? trailing.timeoutMs : undefined
+  const navPromise = waitForNavigationAfterAction(
+    state.tabId,
+    trailingTimeoutMs ?? NAVIGATION_COMPLETE_TIMEOUT_MS,
+  )
+
+  const outcome = await Promise.race([
+    runWorkflowSteps(lowered, state, state.script.name).then(
+      (result) => ({ kind: "result", result }) as const,
+      () => ({ kind: "lost" }) as const,
+    ),
+    navPromise.then(() => ({ kind: "navigated" }) as const),
+  ])
+
+  // Whatever won the race, make sure the new page has finished loading before
+  // the next segment runs against it.
+  await navPromise
+
+  if (outcome.kind === "result") {
+    recordSegmentResult(segment, outcome.result, state)
+    if (!outcome.result.success) {
+      throw new AutomationRunError(outcome.result.error ?? "Step failed")
+    }
+    return
+  }
+
+  // Response lost to the navigation (or the load won the race): the page change
+  // is the evidence the segment's actions fired. Record them as succeeded.
+  for (const step of segment) {
+    countExecutedStep(state)
+    state.outcomes.push({ op: step.op, id: step.id, success: true })
+  }
+}
+
+/** Threads getText vars into the value bag and records per-step outcomes. */
+const recordSegmentResult = (
+  segment: AutomationStep[],
+  result: WorkflowResult,
+  state: RunState,
+): void => {
   // Thread getText extractions (and only those — segments seed no vars)
   // into the value bag for later interpolation and conditions.
   for (const [name, value] of Object.entries(result.vars ?? {})) {
@@ -337,10 +411,6 @@ const runContentSegment = async (
       error: stepResult.error,
     })
   })
-
-  if (!result.success) {
-    throw new AutomationRunError(result.error ?? "Step failed")
-  }
 }
 
 const runWorkflowSteps = async (
@@ -754,5 +824,62 @@ const waitForTabComplete = (tabId: number): Promise<void> =>
     }
 
     const timeoutId = setTimeout(finish, NAVIGATION_COMPLETE_TIMEOUT_MS)
+    onUpdated.addListener(listener)
+  })
+
+// How long to wait for a navigation to *start* (a `loading` transition) after
+// an expectNavigation action before concluding the action didn't navigate.
+const NO_NAVIGATION_GRACE_MS = 1500
+
+/**
+ * Resolves once the tab finishes loading after an expectNavigation action.
+ * Unlike waitForTabComplete (used by the engine-driven `navigate` op, where a
+ * load is guaranteed), the action here is page-driven and may not navigate at
+ * all — so if no `loading` transition is seen within a short grace window we
+ * resolve early rather than stall, and `timeoutMs` caps the case where loading
+ * starts but `complete` never arrives.
+ */
+const waitForNavigationAfterAction = (
+  tabId: number,
+  timeoutMs: number,
+): Promise<void> =>
+  new Promise((resolve) => {
+    const onUpdated = getBrowserAPI().tabs?.onUpdated
+
+    if (!onUpdated?.addListener) {
+      setTimeout(resolve, NO_NAVIGATION_GRACE_MS)
+      return
+    }
+
+    let settled = false
+    const finish = (): void => {
+      if (settled) {
+        return
+      }
+      settled = true
+      onUpdated.removeListener?.(listener)
+      clearTimeout(graceId)
+      clearTimeout(timeoutId)
+      resolve()
+    }
+
+    const listener = (
+      updatedTabId: number,
+      changeInfo: { status?: string },
+    ): void => {
+      if (updatedTabId !== tabId) {
+        return
+      }
+      if (changeInfo.status === "loading") {
+        // ponytail: navigation started — cancel the no-navigation grace and
+        // wait for `complete` (bounded by timeoutMs).
+        clearTimeout(graceId)
+      } else if (changeInfo.status === "complete") {
+        finish()
+      }
+    }
+
+    const graceId = setTimeout(finish, NO_NAVIGATION_GRACE_MS)
+    const timeoutId = setTimeout(finish, timeoutMs)
     onUpdated.addListener(listener)
   })

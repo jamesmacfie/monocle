@@ -367,6 +367,175 @@ describe("engine ops and policy", () => {
   })
 })
 
+describe("expectNavigation segments", () => {
+  it("waits for the page to load, then runs the next segment on the new page", async () => {
+    let call = 0
+    executeWorkflowMock.mockImplementation(async ({ workflow }) => {
+      call += 1
+      if (call === 1) {
+        // The navigating click: simulate the resulting page load completing.
+        queueMicrotask(() =>
+          fakeBrowser.tabs.onUpdated.trigger(
+            7,
+            { status: "complete" },
+            {} as never,
+          ),
+        )
+      }
+      return {
+        tabId: 7,
+        result: {
+          success: true,
+          stepResults: workflow.steps.map((step: Step) => ({
+            stepId: step.id,
+            success: true,
+          })),
+        },
+      }
+    })
+
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Two-step signup",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "click",
+          target: { strategy: "text", value: "Continue" },
+          expectNavigation: true,
+        },
+        {
+          op: "fill",
+          target: { strategy: "css", value: "#code" },
+          text: "123",
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(true)
+    // Two segments: the navigating click flushes on its own, the fill runs
+    // fresh after the page load.
+    expect(executeWorkflowMock).toHaveBeenCalledTimes(2)
+    const first = executeWorkflowMock.mock.calls[0][0].workflow as Workflow
+    const second = executeWorkflowMock.mock.calls[1][0].workflow as Workflow
+    expect(first.steps).toHaveLength(1)
+    expect(first.steps[0]).toMatchObject({ op: "click" })
+    // The orchestration hint is stripped before the content executor sees it.
+    expect(first.steps[0]).not.toHaveProperty("expectNavigation")
+    expect(second.steps[0]).toMatchObject({ op: "fill", text: "123" })
+  })
+
+  it("tolerates a lost response when the navigation tears down the page", async () => {
+    let call = 0
+    executeWorkflowMock.mockImplementation(async ({ workflow }) => {
+      call += 1
+      if (call === 1) {
+        // The page load completes, but the content script dies mid-flight so
+        // the workflow response never returns.
+        queueMicrotask(() =>
+          fakeBrowser.tabs.onUpdated.trigger(
+            7,
+            { status: "complete" },
+            {} as never,
+          ),
+        )
+        throw new Error("The message port closed before a response")
+      }
+      return {
+        tabId: 7,
+        result: {
+          success: true,
+          stepResults: workflow.steps.map(() => ({ success: true })),
+        },
+      }
+    })
+
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Submit then continue",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "submit",
+          target: { strategy: "css", value: "form" },
+          expectNavigation: true,
+        },
+        {
+          op: "fill",
+          target: { strategy: "css", value: "#code" },
+          text: "ok",
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(true)
+    expect(executeWorkflowMock).toHaveBeenCalledTimes(2)
+    // The lost submit is recorded as a success — the page load is the evidence
+    // it fired — and the next segment still ran.
+    expect(result.stepOutcomes?.[0]).toMatchObject({
+      op: "submit",
+      success: true,
+    })
+    expect(result.completedSteps).toBe(2)
+  })
+
+  it("does not stall when an expectNavigation action does not navigate", async () => {
+    vi.useFakeTimers()
+    try {
+      executeWorkflowMock.mockImplementation(succeedWorkflows())
+
+      const script = await addAutomation({
+        schemaVersion: 1,
+        name: "No navigation",
+        enabled: true,
+        triggers: [{ type: "manual" }],
+        options: { showResultToast: false },
+        steps: [
+          {
+            op: "click",
+            target: { strategy: "css", value: "#noop" },
+            expectNavigation: true,
+          },
+          {
+            op: "fill",
+            target: { strategy: "css", value: "#x" },
+            text: "y",
+          },
+        ],
+      })
+
+      const runPromise = runAutomation(script.id, {
+        context,
+        invocation: { kind: "manual" },
+      })
+
+      // No onUpdated event fires: the no-navigation grace window elapses and
+      // the run continues instead of stalling on the full timeout.
+      await vi.advanceTimersByTimeAsync(2000)
+      const result = await runPromise
+
+      expect(result.success).toBe(true)
+      expect(executeWorkflowMock).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe("forEach over elements", () => {
   it("iterates matches, pins selectors per index, and binds {{item}}/{{index}}", async () => {
     const MATCH_COUNT = 2

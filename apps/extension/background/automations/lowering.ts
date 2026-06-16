@@ -36,12 +36,21 @@ export const isEngineStep = (
 ): step is AutomationEngineStep => ENGINE_OPS.has(step.op)
 
 /**
+ * True for a click/submit the engine should treat as navigating: it ends its
+ * segment and the engine waits for the resulting page load before continuing.
+ */
+export const stepExpectsNavigation = (step: AutomationStep): boolean =>
+  (step.op === "click" || step.op === "submit") &&
+  step.expectNavigation === true
+
+/**
  * True when a content step must end its segment after executing: getText
  * writes runtime vars, and later steps' templates can only see those values
- * if the engine re-interpolates from the returned var bag.
+ * if the engine re-interpolates from the returned var bag; an expectNavigation
+ * click/submit ends its segment so the engine can await the page load.
  */
 export const endsSegment = (step: AutomationStep): boolean =>
-  step.op === "getText"
+  step.op === "getText" || stepExpectsNavigation(step)
 
 /**
  * Lowers one content step to its workflow form: interpolates the step's
@@ -67,6 +76,13 @@ export const lowerContentStep = (
     case "hideElement":
     case "injectCss":
       return { ...step, scopeKey: `automation-${automationId}` }
+    case "click":
+    case "submit": {
+      // expectNavigation is an engine-only orchestration hint — strip it so the
+      // content executor receives a clean workflow step.
+      const { expectNavigation: _expectNavigation, ...rest } = step
+      return rest
+    }
     default:
       return { ...step }
   }

@@ -49,17 +49,42 @@ export function StepRow({
 
   const update = (step: AutomationStep) => onChange({ kind: "form", step })
 
+  // click/submit can trigger a full page load; when set, the engine waits for
+  // the new page before the next step (the page-driven sibling of navigate).
+  const navigationToggle = (
+    step: Extract<AutomationStep, { op: "click" | "submit" }>,
+  ) => (
+    <label className="flex items-center gap-2 text-sm">
+      <Checkbox
+        checked={step.expectNavigation === true}
+        onCheckedChange={(checked) => {
+          const next = { ...step }
+          if (checked === true) {
+            next.expectNavigation = true
+          } else {
+            delete next.expectNavigation
+          }
+          update(next)
+        }}
+      />
+      Wait for the page to load after this
+    </label>
+  )
+
   const renderFormFields = (step: AutomationStep) => {
     switch (step.op) {
       case "click":
         return (
-          <Field label="Target">
-            <SelectorFields
-              showIndex
-              value={step.target}
-              onChange={(target) => update({ ...step, target })}
-            />
-          </Field>
+          <>
+            <Field label="Target">
+              <SelectorFields
+                showIndex
+                value={step.target}
+                onChange={(target) => update({ ...step, target })}
+              />
+            </Field>
+            {navigationToggle(step)}
+          </>
         )
       case "fill":
         return (
@@ -158,9 +183,20 @@ export function StepRow({
           </>
         )
       }
+      case "submit":
+        return (
+          <>
+            <Field label="Target">
+              <SelectorFields
+                value={step.target}
+                onChange={(target) => update({ ...step, target })}
+              />
+            </Field>
+            {navigationToggle(step)}
+          </>
+        )
       case "check":
       case "uncheck":
-      case "submit":
       case "focus":
       case "blur":
       case "hover":

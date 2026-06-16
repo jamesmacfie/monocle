@@ -98,6 +98,12 @@ export type ClickStep = BaseStep & {
   clickCount?: 1 | 2
   delayMs?: number // between down/up
   modifiers?: Array<"Alt" | "Control" | "Meta" | "Shift">
+  // Automation-orchestration hint, NOT content behaviour: when set, the
+  // automation engine treats this as the last step in its segment and waits
+  // for the page load it triggers before the next segment (the page-driven
+  // sibling of the `navigate` engine op). Stripped during lowering, so the
+  // content executor never sees it; a no-op on the raw-workflow path.
+  expectNavigation?: boolean
 }
 
 export type HoverStep = BaseStep & { op: "hover"; target: Selector }
@@ -144,6 +150,8 @@ export type UncheckStep = BaseStep & { op: "uncheck"; target: Selector }
 export type SubmitStep = BaseStep & {
   op: "submit"
   target: Selector // <form>; if not a form, executor submits the closest form
+  // See ClickStep.expectNavigation — same automation-engine orchestration hint.
+  expectNavigation?: boolean
 }
 
 export type ScrollStep = BaseStep & {
