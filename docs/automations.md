@@ -119,35 +119,6 @@ Engine steps:
 | `forEach` | Loop over element matches or a variable's lines |
 | `while` | Loop while a condition holds (always capped) |
 
-### Cross-navigation: `expectNavigation`
-
-A `click` or `submit` content step may carry `expectNavigation: true` — the
-page-driven sibling of the `navigate` engine op, for multi-step flows (signups,
-wizards, login redirects) where the navigation is triggered by *clicking a
-button*, not by a URL the script knows in advance. It lets one automation
-express _act → wait for the new page → wait for an element → next action_, with
-variables carrying across pages (the run is one background value bag).
-
-It is an **automation-engine orchestration hint, not content behaviour**: it is
-stripped during lowering (`background/automations/lowering.ts`), so the content
-executor runs an ordinary click. When set, the engine (1) treats the step as a
-**segment-ender** (the navigating action is the last step in its workflow
-segment) and (2) runs that segment **navigation-tolerantly** — it starts
-watching `tabs.onUpdated → complete` *before* dispatching the action, so a
-lost/rejected workflow response from the torn-down content script is fine (the
-page load is the evidence the action fired), then waits for the new page before
-the next segment runs fresh. "Wait for a new element" is then just the existing
-`wait { selector, state: "visible" }` in the next segment — no new primitive.
-
-Guidance: use it only for **full page navigations**. SPA steps don't need it (the
-content script survives, so a plain `wait` works), and chaining a precise
-`wait {selector}`/`wait {urlIncludes}` after it is still the way to gate on
-readiness (same best-effort posture as `navigate`). If the action doesn't
-actually navigate, a short grace window (`NO_NAVIGATION_GRACE_MS`, 1500ms) lets
-the run continue instead of stalling; `step.timeoutMs` (else
-`NAVIGATION_COMPLETE_TIMEOUT_MS`, 15000ms) caps the wait when loading starts but
-never completes.
-
 ### Conditions
 
 `elementExists`, `elementVisible`, `elementText` (with comparison operator), `urlIncludes`, `varCompare`, `varMatches` (bounded regex), and the combinators `not`/`allOf`/`anyOf`. Element/URL questions are answered by the content executor through short probe workflows (a `wait` with a 300ms budget, `getText` for text reads) so element semantics match action steps exactly. Numeric comparisons (`greaterThan`/`lessThan`) fail the run loudly on non-numeric input.
@@ -187,7 +158,7 @@ Interpolation runs **in the background engine before steps are sent to content**
 2. Re-checks structural caps; refuses disabled scripts.
 3. Pins the target tab (`resolveWorkflowTargetTabId` semantics; trigger runs use the sender tab) and enforces the runtime limits: **one concurrent run per script per tab** (re-entrant triggers dropped, not queued) and a 5s cooldown between non-manual runs per script.
 4. Builds the value bag (vars, trigger, params, inline snippet refs).
-5. Walks the step list: contiguous content steps buffer into a segment, lowered (`background/automations/lowering.ts` — the single place the automation→workflow mapping lives) and executed via `executeWorkflowOnTargetTab`; engine ops execute between segments; `getText` ends its segment and the returned `vars` merge into the bag; an `expectNavigation` click/submit also ends its segment, and the engine waits (navigation-tolerantly) for the page load before the next segment runs on the new page.
+5. Walks the step list: contiguous content steps buffer into a segment, lowered (`background/automations/lowering.ts` — the single place the automation→workflow mapping lives) and executed via `executeWorkflowOnTargetTab`; engine ops execute between segments; `getText` ends its segment and the returned `vars` merge into the bag.
 6. Aggregates per-step outcomes (op + id + success only — payloads never echo into logs, they may hold credentials) and toasts the result unless `options.showResultToast` is false.
 
 Execution from the palette records usage through the normal command dispatch path. Failures return `{ success: false, error, completedSteps, stepOutcomes }`; the run never throws.

@@ -168,14 +168,14 @@ All support optional `id`, `description`, `timeoutMs`, `retry`, `targeting`. Eac
 is a single step object to place in `steps`.
 
 ```jsonc
-{ "op": "click", "target": SEL, "button": "left", "clickCount": 1, "modifiers": ["Meta"], "expectNavigation": true }  // expectNavigation: optional — see §5a
+{ "op": "click", "target": SEL, "button": "left", "clickCount": 1, "modifiers": ["Meta"] }  // button/clickCount/modifiers all optional
 { "op": "fill", "target": SEL, "text": "hello {{name}}", "clear": "select-all" }   // text interpolated
 { "op": "type", "target": SEL, "keys": ["Control", "A", "hello"], "delayMs": 20 }  // keys: names or literals
 { "op": "key", "keys": ["Control", "S"] }                                          // to the active element
 { "op": "select", "target": SEL, "by": { "label": "Blue" } }                       // by value|label|index (exactly one)
 { "op": "check", "target": SEL }
 { "op": "uncheck", "target": SEL }
-{ "op": "submit", "target": SEL, "expectNavigation": true }                        // SEL is the form (or inside it); expectNavigation: optional — see §5a
+{ "op": "submit", "target": SEL }                                                  // SEL is the form (or inside it)
 { "op": "focus", "target": SEL }
 { "op": "blur", "target": SEL }
 { "op": "hover", "target": SEL }
@@ -189,25 +189,6 @@ is a single step object to place in `steps`.
 `wait.for` variants: `{ "timeMs": n }`, `{ "selector": SEL, "state": "visible" }` (state:
 `attached`|`visible`|`hidden`|`detached`), `{ "urlIncludes": "text" }`, `{ "readyState":
 "complete" }` (`loading`|`interactive`|`complete`).
-
-### 5a. Acting across a page navigation (`expectNavigation`)
-
-A `click` or `submit` that causes the page to navigate (a link, a login form, a "Next" button)
-ends the current page. To run **more steps on the resulting page**, set `"expectNavigation":
-true` on that click/submit. The automation engine then waits for the triggered page load to
-finish before running the next step, so everything after it executes against the new page. It is
-the page-driven sibling of the `navigate` engine step (which loads an explicit URL instead).
-
-- Allowed **only** on `click` and `submit` (any other op rejects the key — schemas are strict).
-- Use it for multi-page flows: fill a form → `submit` with `expectNavigation` → act on the next
-  page. Without it, steps after a navigating click race against the old page being torn down.
-- Prefer `expectNavigation` over a fixed `wait { timeMs }` when you don't control timing; it
-  waits for the actual load, not a guess. You can still follow up with `wait { selector }` or
-  `wait { urlIncludes }` to pin a specific element/URL on the new page.
-- Like `navigate`, this is for **flat** automations — putting a navigating step inside a
-  branch/loop body is fragile (the page context is destroyed mid-control-flow). `navigate` and
-  `openUrl` (currentTab) are hard-rejected inside control flow; `expectNavigation` is not
-  rejected but is best kept at the top level.
 
 ---
 
@@ -434,30 +415,6 @@ Manual runs may call any non-denied command (subject to its own permissions).
 }
 ```
 
-**Multi-page flow — submit a form, then act on the next page (`expectNavigation`):**
-```json
-{
-  "format": "monocle-automation@1",
-  "script": {
-    "schemaVersion": 1,
-    "name": "Search and open first result",
-    "icon": "Search",
-    "enabled": true,
-    "triggers": [
-      { "type": "manual", "parameters": [
-        { "id": "term", "label": "Search term", "type": "text", "required": true }
-      ] }
-    ],
-    "steps": [
-      { "op": "fill", "target": { "strategy": "css", "value": "input[name='q']" }, "text": "{{params.term}}" },
-      { "op": "submit", "target": { "strategy": "css", "value": "form[role='search']" }, "expectNavigation": true },
-      { "op": "wait", "for": { "selector": { "strategy": "css", "value": ".results a" }, "state": "visible" } },
-      { "op": "click", "target": { "strategy": "css", "value": ".results a", "index": 0 }, "expectNavigation": true }
-    ]
-  }
-}
-```
-
 ---
 
 ## 12. What fails validation (avoid these)
@@ -471,7 +428,6 @@ Manual runs may call any non-denied command (subject to its own permissions).
 - More than 5 triggers, or **two triggers of the same non-manual type**.
 - More than 100 steps (counting nested), or control-flow nested deeper than 3 levels.
 - `navigate`, or `openUrl` with `"disposition":"currentTab"`, **inside a branch/loop body**.
-- `expectNavigation` on any op other than `click`/`submit` (rejected as an unknown key).
 - Putting `{{...}}` inside a selector, `injectCss.css`, or `showSurface.urlMatch` (ignored at
   best; these are not interpolated).
 - `forEach.steps` / `while.steps` empty (need ≥1), or `maxIterations` outside 1–1000.

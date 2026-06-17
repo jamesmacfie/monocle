@@ -13,7 +13,6 @@ import {
   lowerContentStep,
   retargetForLoopIteration,
   selectorsEquivalent,
-  stepExpectsNavigation,
 } from "./lowering"
 
 const css = (value: string, index?: number): Selector => ({
@@ -83,31 +82,6 @@ describe("step classification", () => {
     )
     expect(endsSegment({ op: "click", target: css("#go") })).toBe(false)
   })
-
-  it("treats expectNavigation click/submit as segment-ending", () => {
-    const navClick: AutomationStep = {
-      op: "click",
-      target: css("#go"),
-      expectNavigation: true,
-    }
-    const navSubmit: AutomationStep = {
-      op: "submit",
-      target: css("form"),
-      expectNavigation: true,
-    }
-    expect(stepExpectsNavigation(navClick)).toBe(true)
-    expect(stepExpectsNavigation(navSubmit)).toBe(true)
-    expect(endsSegment(navClick)).toBe(true)
-    expect(endsSegment(navSubmit)).toBe(true)
-
-    // Without the flag (or on other ops) it is not navigation-ending.
-    expect(stepExpectsNavigation({ op: "click", target: css("#go") })).toBe(
-      false,
-    )
-    expect(stepExpectsNavigation({ op: "wait", for: { timeMs: 1 } })).toBe(
-      false,
-    )
-  })
 })
 
 describe("lowering", () => {
@@ -143,35 +117,6 @@ describe("lowering", () => {
       {},
     )
     expect(hide).toMatchObject({ scopeKey: "automation-script-1" })
-  })
-
-  it("strips expectNavigation so the content executor gets a clean step", () => {
-    for (const step of [
-      { op: "click", target: css("#go"), expectNavigation: true },
-      { op: "submit", target: css("form"), expectNavigation: true },
-    ] as AutomationStep[]) {
-      const lowered = lowerContentStep(step, "script-1", {}, {})
-      expect(lowered).not.toHaveProperty("expectNavigation")
-      // Still a valid workflow step after the hint is removed.
-      expect(WorkflowStepSchema.safeParse(lowered).success).toBe(true)
-    }
-  })
-
-  it("accepts expectNavigation on click/submit at the public schema", () => {
-    expect(
-      WorkflowStepSchema.safeParse({
-        op: "click",
-        target: css("#go"),
-        expectNavigation: true,
-      }).success,
-    ).toBe(true)
-    expect(
-      WorkflowStepSchema.safeParse({
-        op: "submit",
-        target: css("form"),
-        expectNavigation: true,
-      }).success,
-    ).toBe(true)
   })
 
   it("refuses to lower engine steps", () => {

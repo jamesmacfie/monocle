@@ -14,7 +14,6 @@ The system's hardest invariant is **lockstep**: the public `monocle-workflow-exe
 | Content executor (`content/workflow/`) | Implemented for the full vocabulary |
 | Variable interpolation (`{{var}}`) | Background-side, in the automation engine — content receives expanded strings; the executor never templates |
 | Privileged ops (navigate, clipboard, openUrl, runCommand) | Automation engine ops (`background/automations/engine.ts`), not workflow steps |
-| `expectNavigation` on `click`/`submit` | Optional automation-engine orchestration hint, **not content behaviour** — stripped during lowering, so the executor runs an ordinary action; the engine uses it to wait for the page load it triggers (see [automations.md](./automations.md#cross-navigation-expectnavigation)). A no-op on the raw-workflow path. |
 | Debug tool command | Implemented (`debug-workflow`) |
 
 ## End-to-end execution path

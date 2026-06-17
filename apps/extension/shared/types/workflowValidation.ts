@@ -62,8 +62,6 @@ const ClickStepSchema = BaseWorkflowStepSchema.extend({
   clickCount: z.union([z.literal(1), z.literal(2)]).optional(),
   delayMs: NonNegativeIntegerSchema.optional(),
   modifiers: z.array(z.enum(["Alt", "Control", "Meta", "Shift"])).optional(),
-  // Automation-engine orchestration hint (see ClickStep in workflow.ts).
-  expectNavigation: z.boolean().optional(),
 }).strict()
 
 const WaitForSchema = z.union([
@@ -170,8 +168,6 @@ const UncheckStepSchema = BaseWorkflowStepSchema.extend({
 const SubmitStepSchema = BaseWorkflowStepSchema.extend({
   op: z.literal("submit"),
   target: SelectorSchema,
-  // Automation-engine orchestration hint (see ClickStep in workflow.ts).
-  expectNavigation: z.boolean().optional(),
 }).strict()
 
 const ScrollToSchema = z.union([
