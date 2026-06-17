@@ -105,6 +105,13 @@ If you are adding a command, the fast path is
   (manual, urlMatch, elementAppears, schedules), the engine
   (interpolation/segments/lowering/control flow), runCommand policy, the
   options builder, import safety, and store posture.
+- [automation_context.md](./automation_context.md) — Standalone LLM-authoring
+  context for automations: the full self-contained document schema (every
+  step/trigger/condition with caps, the complete icon list, interpolation
+  rules, the runCommand allowlist), worked example envelopes, and a "what fails
+  validation" checklist. Paste into an LLM to generate or extend an automation
+  JSON blob for the paste-import / copy-export sharing flow. References no
+  source files, so it stands alone.
 
 ## Future proposals
 

@@ -71,6 +71,13 @@ Use the feature docs as the source of truth before editing related code:
 - `docs/automations.md`: automations ("Automations") — document schema and
   caps, triggers, the engine (interpolation/segments/lowering/control flow),
   runCommand policy, options builder, import safety, and store posture.
+- `docs/automation_context.md`: standalone LLM-authoring context for automations
+  — the full self-contained document schema (every step/trigger/condition with
+  caps, the complete icon list, interpolation rules, the runCommand allowlist),
+  worked example envelopes, and a "what fails validation" checklist. Paste into
+  an LLM to generate/extend an automation JSON blob (the paste-import/copy-export
+  sharing flow on the Automations page); references no source files and the
+  examples are kept import-valid.
 - `docs/surfaces.md`: the Surfaces primitive — a background-owned,
   owner-namespaced store of declarative overlays/badges rendered by one generic
   `SurfaceHost`; `monocle-surfaces-get` + the `monocle-surfaces-changed` broadcast. The
