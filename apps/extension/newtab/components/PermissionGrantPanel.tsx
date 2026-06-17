@@ -12,6 +12,9 @@ import {
 
 const browserAPI = getBrowserAPI()
 
+const grantCardClassName =
+  "mb-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-[var(--color-fg)] shadow-2xl ring-1 ring-[var(--color-bg-overlay)]"
+
 const grantablePermissions = new Set<BrowserPermission>([
   "activeTab",
   "bookmarks",
@@ -87,7 +90,7 @@ export function PermissionGrantPanel({
   }
 
   return (
-    <div className="mb-4 rounded-md border border-[var(--cmdk-border)] bg-[var(--cmdk-background)] px-4 py-3 text-[var(--cmdk-foreground)] shadow-lg">
+    <div className={grantCardClassName}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-medium">
@@ -204,7 +207,7 @@ export function HostPermissionGrantPanel({
   }
 
   return (
-    <div className="mb-4 rounded-md border border-[var(--cmdk-border)] bg-[var(--cmdk-background)] px-4 py-3 text-[var(--cmdk-foreground)] shadow-lg">
+    <div className={grantCardClassName}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-medium">
