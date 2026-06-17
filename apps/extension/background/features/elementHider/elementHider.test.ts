@@ -11,16 +11,27 @@ import { isFeatureAutomation } from "../../../shared/types/automations"
 import { AutomationSchema } from "../../../shared/types/automationValidation"
 import { getFeatureConfig, setFeatureConfig } from "../config"
 
-const { hideNow, removeSurface, upsertSurface, ensureHostPermission } =
-  vi.hoisted(() => ({
-    hideNow: vi.fn(async () => ({ tabId: 1, result: { success: true } })),
-    removeSurface: vi.fn(async () => {}),
-    upsertSurface: vi.fn(async () => {}),
-    ensureHostPermission: vi.fn(async () => ({
-      granted: true,
-      originPattern: "https://shop.example.com/*",
-    })),
-  }))
+const {
+  hideNow,
+  removeSurface,
+  upsertSurface,
+  ensureHostPermission,
+  openHostPermissionGrantPage,
+  showToast,
+} = vi.hoisted(() => ({
+  hideNow: vi.fn(async () => ({ tabId: 1, result: { success: true } })),
+  removeSurface: vi.fn(async () => {}),
+  upsertSurface: vi.fn(async () => {}),
+  ensureHostPermission: vi.fn(async () => ({
+    granted: true,
+    originPattern: "https://shop.example.com/*",
+  })),
+  openHostPermissionGrantPage: vi.fn(async () => ({
+    granted: false,
+    originPattern: "https://shop.example.com/*",
+  })),
+  showToast: vi.fn(async () => ({ success: true })),
+}))
 
 vi.mock("../../workflows/execution", () => ({
   executeWorkflowOnTargetTab: hideNow,
@@ -29,8 +40,12 @@ vi.mock("../../surfaces", () => ({
   removeSurface,
   upsertSurface,
 }))
+vi.mock("../../messages/showToast", () => ({
+  showToast,
+}))
 vi.mock("../../utils/hostPermissions", () => ({
   ensureHostPermission,
+  openHostPermissionGrantPage,
   hostPermissionPatternForUrl: (url: string) => {
     if (!/^https?:\/\//.test(url)) {
       return { ok: false, error: "not a web page" }
@@ -59,6 +74,8 @@ beforeEach(async () => {
   hideNow.mockClear()
   removeSurface.mockClear()
   upsertSurface.mockClear()
+  openHostPermissionGrantPage.mockClear()
+  showToast.mockClear()
   ensureHostPermission.mockReset().mockResolvedValue({
     granted: true,
     originPattern: "https://shop.example.com/*",
@@ -185,10 +202,11 @@ describe("elementHiderFeature.commands", () => {
         tabId: 7,
         url: "https://shop.example.com/products",
         reason: "elementHider",
-        request: true,
+        request: false,
         ensureContentScript: true,
       }),
     )
+    expect(openHostPermissionGrantPage).not.toHaveBeenCalled()
     expect(upsertSurface).toHaveBeenCalledTimes(1)
   })
 
@@ -206,6 +224,11 @@ describe("elementHiderFeature.commands", () => {
     })
 
     expect(upsertSurface).not.toHaveBeenCalled()
+    expect(openHostPermissionGrantPage).toHaveBeenCalledWith({
+      tabId: 7,
+      url: "https://shop.example.com/products",
+      reason: "elementHider",
+    })
   })
 })
 

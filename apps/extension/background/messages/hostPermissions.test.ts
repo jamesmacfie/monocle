@@ -14,7 +14,7 @@ vi.mock("../utils/hostPermissions", () => ({
 import { ensureHostPermissionMessage } from "./hostPermissions"
 
 describe("ensureHostPermissionMessage", () => {
-  it("requests host access and content-script readiness for the target tab", async () => {
+  it("checks host access and content-script readiness for the target tab", async () => {
     await expect(
       ensureHostPermissionMessage({
         type: "monocle-host-permission-ensure",
@@ -31,7 +31,7 @@ describe("ensureHostPermissionMessage", () => {
       tabId: 7,
       url: "https://example.com/app",
       reason: "automation",
-      request: true,
+      request: false,
       ensureContentScript: true,
     })
   })
