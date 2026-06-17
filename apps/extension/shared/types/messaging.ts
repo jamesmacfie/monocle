@@ -262,6 +262,8 @@ export type EnsureHostPermissionMessage = {
   tabId?: number
   url?: string
   reason: "automation" | "elementHider"
+  request?: boolean
+  ensureContentScript?: boolean
 }
 
 export interface RequestPermissionResponse {

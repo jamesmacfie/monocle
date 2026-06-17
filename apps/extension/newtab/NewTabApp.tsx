@@ -27,6 +27,9 @@ import { BackgroundImage } from "./components/BackgroundImage"
 import { Clock } from "./components/Clock"
 import { NewTabCommandPalette } from "./components/NewTabCommandPalette"
 import {
+  HostPermissionGrantPanel,
+  normalizeGrantHostPattern,
+  normalizeGrantHostReason,
   normalizeGrantPermission,
   PermissionGrantPanel,
 } from "./components/PermissionGrantPanel"
@@ -38,9 +41,19 @@ function NewTabAppContent() {
   const showClock = useAppSelector(selectClockVisibility)
   const themeMode = useAppSelector(selectThemeMode)
   const dispatch = useAppDispatch()
+  const searchParams = new URLSearchParams(window.location.search)
   const grantPermission = normalizeGrantPermission(
-    new URLSearchParams(window.location.search).get("grantPermission"),
+    searchParams.get("grantPermission"),
   )
+  const grantHost = normalizeGrantHostPattern(searchParams.get("grantHost"))
+  const grantHostReason = normalizeGrantHostReason(
+    searchParams.get("grantHostReason"),
+  )
+  const grantHostUrl = searchParams.get("grantHostUrl") ?? undefined
+  const grantHostTabIdRaw = searchParams.get("grantHostTabId")
+  const grantHostTabId = grantHostTabIdRaw
+    ? Number(grantHostTabIdRaw)
+    : undefined
 
   // Load initial settings and permissions on mount
   useEffect(() => {
@@ -92,6 +105,18 @@ function NewTabAppContent() {
 
           {grantPermission && (
             <PermissionGrantPanel permission={grantPermission} />
+          )}
+          {grantHost && (
+            <HostPermissionGrantPanel
+              originPattern={grantHost}
+              reason={grantHostReason}
+              sourceUrl={grantHostUrl}
+              tabId={
+                Number.isInteger(grantHostTabId) && Number(grantHostTabId) > 0
+                  ? grantHostTabId
+                  : undefined
+              }
+            />
           )}
 
           <div className="raycast new-tab-palette">

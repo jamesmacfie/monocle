@@ -4,6 +4,7 @@
 // patterns, but this module requests/checks one concrete scheme+host pattern
 // at a time.
 import type { ContentMessage } from "../../shared/types"
+import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { callBrowserAPI } from "./browserApi"
 import { getActiveTab, getTab, sendTabMessage } from "./browserTabs"
 import { isNoResponseError } from "./messagingErrors"
@@ -18,6 +19,12 @@ export type HostPermissionResult = {
   granted: boolean
   originPattern?: string
   error?: string
+}
+
+export type OpenHostPermissionGrantPageInput = {
+  tabId?: number
+  url?: string
+  reason: HostPermissionReason
 }
 
 export type EnsureHostPermissionInput = {
@@ -102,6 +109,39 @@ export const requestHostPermissionForUrl = async (
       error: `Failed to request host access: ${errorMessage(error)}`,
     }
   }
+}
+
+export const openHostPermissionGrantPage = async ({
+  tabId,
+  url,
+  reason,
+}: OpenHostPermissionGrantPageInput): Promise<HostPermissionResult> => {
+  const pattern = url
+    ? hostPermissionPatternForUrl(url)
+    : { ok: false as const, error: "No web page is available for host access" }
+  if (!pattern.ok) {
+    return { granted: false, error: pattern.error }
+  }
+
+  const browserAPI = getBrowserAPI()
+  const params = new URLSearchParams({
+    grantHost: pattern.originPattern,
+    grantHostReason: reason,
+  })
+
+  if (url) {
+    params.set("grantHostUrl", url)
+  }
+  if (tabId !== undefined) {
+    params.set("grantHostTabId", String(tabId))
+  }
+
+  await browserAPI.tabs.create({
+    active: true,
+    url: browserAPI.runtime.getURL(`/newtab.html?${params.toString()}`),
+  })
+
+  return { granted: false, originPattern: pattern.originPattern }
 }
 
 const contentPingMessage: ContentMessage = { type: "monocle-content-ping" }
