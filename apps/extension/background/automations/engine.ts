@@ -41,6 +41,7 @@ import { sendTabMessage } from "../utils/browser"
 import {
   ensureHostPermission,
   hostPermissionPatternForUrl,
+  openHostPermissionGrantPage,
 } from "../utils/hostPermissions"
 import {
   executeWorkflowOnTargetTab,
@@ -347,11 +348,22 @@ const ensureAutomationHostAccess = async (
     tabId: state.tabId,
     url: options.url ?? state.pageContext.url,
     reason: "automation",
-    request: state.isManualRun && allowRequest,
+    request: false,
     ensureContentScript: options.ensureContentScript ?? true,
   })
 
   if (!result.granted) {
+    if (state.isManualRun && allowRequest && !result.error) {
+      await openHostPermissionGrantPage({
+        tabId: state.tabId,
+        url: options.url ?? state.pageContext.url,
+        reason: "automation",
+      })
+      throw new AutomationRunError(
+        `Grant site access for ${result.originPattern ?? options.url ?? state.pageContext.url} in the opened Monocle tab, then run this automation again`,
+      )
+    }
+
     throw new AutomationRunError(
       hostAccessError(result, options.url ?? state.pageContext.url),
     )

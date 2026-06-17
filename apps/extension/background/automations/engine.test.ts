@@ -17,6 +17,7 @@ const executeWorkflowMock = vi.fn()
 const sendTabMessageMock = vi.fn()
 const ensureHostPermissionMock = vi.fn()
 const hostPermissionPatternForUrlMock = vi.fn()
+const openHostPermissionGrantPageMock = vi.fn()
 let currentTab: { id: number; url: string; title: string }
 
 vi.mock("../workflows/execution", () => ({
@@ -34,6 +35,8 @@ vi.mock("../utils/hostPermissions", () => ({
   ensureHostPermission: (input: unknown) => ensureHostPermissionMock(input),
   hostPermissionPatternForUrl: (url: string) =>
     hostPermissionPatternForUrlMock(url),
+  openHostPermissionGrantPage: (input: unknown) =>
+    openHostPermissionGrantPageMock(input),
 }))
 
 import { registerAutomationCommandBridge, runAutomation } from "./engine"
@@ -102,6 +105,10 @@ beforeEach(() => {
   sendTabMessageMock.mockReset().mockResolvedValue({ received: true })
   ensureHostPermissionMock.mockReset().mockResolvedValue({
     granted: true,
+    originPattern: "https://dev.example.com/*",
+  })
+  openHostPermissionGrantPageMock.mockReset().mockResolvedValue({
+    granted: false,
     originPattern: "https://dev.example.com/*",
   })
   hostPermissionPatternForUrlMock.mockReset().mockImplementation((url) => {
@@ -319,10 +326,11 @@ describe("host access", () => {
         tabId: 7,
         url: context.url,
         reason: "automation",
-        request: true,
+        request: false,
         ensureContentScript: true,
       }),
     )
+    expect(openHostPermissionGrantPageMock).not.toHaveBeenCalled()
   })
 
   it("fails before workflow delivery when manual host access is denied", async () => {
@@ -352,6 +360,12 @@ describe("host access", () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toMatch(/Grant site access/)
+    expect(result.error).toMatch(/opened Monocle tab/)
+    expect(openHostPermissionGrantPageMock).toHaveBeenCalledWith({
+      tabId: 7,
+      url: context.url,
+      reason: "automation",
+    })
     expect(executeWorkflowMock).not.toHaveBeenCalled()
   })
 
@@ -418,7 +432,7 @@ describe("host access", () => {
     expect(ensureHostPermissionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         url: "https://next.example.com/onboarding",
-        request: true,
+        request: false,
         ensureContentScript: false,
       }),
     )

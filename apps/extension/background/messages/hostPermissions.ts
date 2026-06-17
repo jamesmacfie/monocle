@@ -11,7 +11,7 @@ export const ensureHostPermissionMessage = async (
     tabId: message.tabId,
     url: message.url,
     reason: message.reason,
-    request: true,
-    ensureContentScript: true,
+    request: message.request ?? false,
+    ensureContentScript: message.ensureContentScript ?? true,
   })
 }

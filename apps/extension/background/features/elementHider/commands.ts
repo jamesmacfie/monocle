@@ -9,7 +9,10 @@ import { openOptionsPage } from "../../../shared/utils/extension-api"
 import { showToast } from "../../messages/showToast"
 import { upsertSurface } from "../../surfaces"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
-import { ensureHostPermission } from "../../utils/hostPermissions"
+import {
+  ensureHostPermission,
+  openHostPermissionGrantPage,
+} from "../../utils/hostPermissions"
 import { ELEMENT_HIDER_FEATURE_ID } from "./types"
 
 export const PICKER_SURFACE_ID = "picker"
@@ -42,17 +45,24 @@ const pickElementCommand: ActionCommandNode = {
       tabId: activeTab?.id,
       url,
       reason: "elementHider",
-      request: true,
+      request: false,
       ensureContentScript: true,
     })
 
     if (!hostAccess.granted) {
+      if (!hostAccess.error) {
+        await openHostPermissionGrantPage({
+          tabId: activeTab?.id,
+          url,
+          reason: "elementHider",
+        })
+      }
       await showToast({
         type: "monocle-toast-show",
         level: "warning",
         message:
           hostAccess.error ??
-          "Grant site access before hiding elements on this page",
+          "Grant site access in the opened Monocle tab, then run Element Hider again",
       })
       return
     }
