@@ -55,12 +55,22 @@ const hideNow = async (tabId: number, selector: string): Promise<void> => {
       all: true,
     },
   ]
-  await executeWorkflowOnTargetTab({
+  const response = await executeWorkflowOnTargetTab({
     workflow: { version: "1.0", name: "Element Hider", steps },
     context: { url: "", title: "", modifierKey: null },
     tabId,
   })
+  if (!response.result.success) {
+    throw new Error(
+      response.result.error ?? "Element Hider could not hide the element",
+    )
+  }
 }
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error
+    ? error.message
+    : "Element Hider could not hide the element"
 
 const handleElementPicked = async (
   ctx: FeatureActionContext,
@@ -90,6 +100,7 @@ const handleElementPicked = async (
         hostAccess.error ??
         "Grant site access before hiding elements on this page",
     })
+    await removeSurface(ELEMENT_HIDER_FEATURE_ID, PICKER_SURFACE_ID)
     return
   }
 
@@ -106,9 +117,17 @@ const handleElementPicked = async (
     rules: [...config.rules, rule],
   })
 
-  // Take the tab out of pick-mode and apply the hide right away.
-  await removeSurface(ELEMENT_HIDER_FEATURE_ID, PICKER_SURFACE_ID)
-  await hideNow(tab.id, selector)
+  try {
+    await hideNow(tab.id, selector)
+  } catch (error) {
+    await showToast({
+      type: "monocle-toast-show",
+      level: "warning",
+      message: errorMessage(error),
+    })
+  } finally {
+    await removeSurface(ELEMENT_HIDER_FEATURE_ID, PICKER_SURFACE_ID)
+  }
 }
 
 export const elementHiderFeature: FeatureModule<ElementHiderConfig> = {

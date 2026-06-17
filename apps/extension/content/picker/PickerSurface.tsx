@@ -27,6 +27,17 @@ const isPageElement = (target: EventTarget | null): target is Element => {
   return true
 }
 
+const rectForElement = (element: Element): Rect => {
+  const rects = element.getClientRects()
+  const bounds = rects[0] ?? element.getBoundingClientRect()
+  return {
+    top: bounds.top,
+    left: bounds.left,
+    width: bounds.width,
+    height: bounds.height,
+  }
+}
+
 export function PickerSurface({
   surface,
   onPick,
@@ -50,18 +61,12 @@ export function PickerSurface({
       event.stopImmediatePropagation()
     }
 
-    const handleMove = (event: MouseEvent): void => {
+    const handleMove = (event: MouseEvent | PointerEvent): void => {
       if (!isPageElement(event.target)) {
         setRect(null)
         return
       }
-      const bounds = event.target.getBoundingClientRect()
-      setRect({
-        top: bounds.top,
-        left: bounds.left,
-        width: bounds.width,
-        height: bounds.height,
-      })
+      setRect(rectForElement(event.target))
     }
 
     const handleClick = (event: MouseEvent): void => {
@@ -85,6 +90,8 @@ export function PickerSurface({
     }
 
     // Capture phase so we win over page handlers.
+    document.addEventListener("pointermove", handleMove, true)
+    document.addEventListener("pointerover", handleMove, true)
     document.addEventListener("mousemove", handleMove, true)
     document.addEventListener("pointerdown", suppressPagePointerEvent, true)
     document.addEventListener("pointerup", suppressPagePointerEvent, true)
@@ -99,6 +106,8 @@ export function PickerSurface({
     document.documentElement.style.cursor = "crosshair"
 
     return () => {
+      document.removeEventListener("pointermove", handleMove, true)
+      document.removeEventListener("pointerover", handleMove, true)
       document.removeEventListener("mousemove", handleMove, true)
       document.removeEventListener(
         "pointerdown",
@@ -128,6 +137,7 @@ export function PickerSurface({
     <>
       {rect ? (
         <div
+          data-monocle-picker-highlight=""
           style={{
             position: "fixed",
             top: rect.top,
@@ -136,9 +146,11 @@ export function PickerSurface({
             height: rect.height,
             zIndex: HIGHLIGHT_Z,
             pointerEvents: "none",
-            background: "rgba(139, 92, 246, 0.25)",
+            background: "rgba(139, 92, 246, 0.24)",
             border: "2px solid #8b5cf6",
             borderRadius: 2,
+            boxShadow:
+              "0 0 0 1px rgba(255,255,255,0.9), 0 0 0 4px rgba(139,92,246,0.25)",
             boxSizing: "border-box",
           }}
         />

@@ -68,6 +68,42 @@ describe("PickerSurface", () => {
     )
   })
 
+  it("highlights the page element under pointer hover", () => {
+    const pageButton = document.createElement("button")
+    pageButton.id = "danger"
+    document.body.appendChild(pageButton)
+    vi.spyOn(pageButton, "getBoundingClientRect").mockReturnValue({
+      x: 20,
+      y: 10,
+      top: 10,
+      left: 20,
+      right: 120,
+      bottom: 50,
+      width: 100,
+      height: 40,
+      toJSON: () => ({}),
+    })
+    const { container } = render(
+      <PickerSurface
+        surface={pickerSurface}
+        onPick={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+
+    fireEvent.pointerMove(pageButton)
+
+    const highlight = container.querySelector("[data-monocle-picker-highlight]")
+    expect(highlight).toBeTruthy()
+    if (!(highlight instanceof HTMLElement)) {
+      throw new Error("Expected picker highlight to render")
+    }
+    expect(highlight.style.top).toBe("10px")
+    expect(highlight.style.left).toBe("20px")
+    expect(highlight.style.width).toBe("100px")
+    expect(highlight.style.height).toBe("40px")
+  })
+
   it("captures computed css for the properties the surface requests", () => {
     const heading = document.createElement("h1")
     heading.id = "title"
