@@ -257,8 +257,21 @@ export type OpenPermissionGrantPageMessage = {
   permission: string
 }
 
+export type EnsureHostPermissionMessage = {
+  type: "monocle-host-permission-ensure"
+  tabId?: number
+  url?: string
+  reason: "automation" | "elementHider"
+}
+
 export interface RequestPermissionResponse {
   granted: boolean
+  error?: string
+}
+
+export interface EnsureHostPermissionResponse {
+  granted: boolean
+  originPattern?: string
   error?: string
 }
 
@@ -424,6 +437,7 @@ export type Message =
   | GetPermissionsMessage
   | RequestPermissionMessage
   | OpenPermissionGrantPageMessage
+  | EnsureHostPermissionMessage
   | ExecuteWorkflowMessage
   | SiteSdkSyncMessage
   | GetAutomationsMessage

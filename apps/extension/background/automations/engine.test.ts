@@ -15,6 +15,9 @@ import type {
 
 const executeWorkflowMock = vi.fn()
 const sendTabMessageMock = vi.fn()
+const ensureHostPermissionMock = vi.fn()
+const hostPermissionPatternForUrlMock = vi.fn()
+let currentTab: { id: number; url: string; title: string }
 
 vi.mock("../workflows/execution", () => ({
   executeWorkflowOnTargetTab: (input: { workflow: Workflow }) =>
@@ -25,6 +28,12 @@ vi.mock("../workflows/execution", () => ({
 vi.mock("../utils/browser", () => ({
   sendTabMessage: (tabId: number, message: unknown) =>
     sendTabMessageMock(tabId, message),
+}))
+
+vi.mock("../utils/hostPermissions", () => ({
+  ensureHostPermission: (input: unknown) => ensureHostPermissionMock(input),
+  hostPermissionPatternForUrl: (url: string) =>
+    hostPermissionPatternForUrlMock(url),
 }))
 
 import { registerAutomationCommandBridge, runAutomation } from "./engine"
@@ -67,8 +76,44 @@ const succeedWorkflows =
 beforeEach(() => {
   fakeBrowser.reset()
   installBrowserStubs()
+  currentTab = { id: 7, url: context.url, title: context.title }
+  ;(fakeBrowser as unknown as { tabs: unknown }).tabs = {
+    ...fakeBrowser.tabs,
+    get: vi.fn(async () => currentTab),
+    update: vi.fn(async (tabId: number, updateProperties: { url?: string }) => {
+      if (updateProperties.url) {
+        currentTab = {
+          ...currentTab,
+          id: tabId,
+          url: updateProperties.url,
+        }
+        setTimeout(() => {
+          fakeBrowser.tabs.onUpdated.trigger(
+            tabId,
+            { status: "complete" },
+            {} as never,
+          )
+        }, 0)
+      }
+      return currentTab
+    }),
+  }
   executeWorkflowMock.mockReset()
   sendTabMessageMock.mockReset().mockResolvedValue({ received: true })
+  ensureHostPermissionMock.mockReset().mockResolvedValue({
+    granted: true,
+    originPattern: "https://dev.example.com/*",
+  })
+  hostPermissionPatternForUrlMock.mockReset().mockImplementation((url) => {
+    if (!/^https?:\/\//.test(url)) {
+      return { ok: false, error: "not a web page" }
+    }
+    const parsed = new URL(url)
+    return {
+      ok: true,
+      originPattern: `${parsed.protocol}//${parsed.hostname}/*`,
+    }
+  })
   registerAutomationCommandBridge({
     resolveCommandMeta: async (commandId) => ({
       exists: commandId !== "missing-command",
@@ -245,6 +290,146 @@ describe("engine segmentation and interpolation", () => {
   })
 })
 
+describe("host access", () => {
+  it("requests current-page host access before manual content workflows", async () => {
+    executeWorkflowMock.mockImplementation(succeedWorkflows())
+
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Fill field",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      steps: [
+        {
+          op: "fill",
+          target: { strategy: "css", value: "#email" },
+          text: "test@example.com",
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(true)
+    expect(ensureHostPermissionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tabId: 7,
+        url: context.url,
+        reason: "automation",
+        request: true,
+        ensureContentScript: true,
+      }),
+    )
+  })
+
+  it("fails before workflow delivery when manual host access is denied", async () => {
+    ensureHostPermissionMock.mockResolvedValueOnce({
+      granted: false,
+      originPattern: "https://dev.example.com/*",
+    })
+
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Denied",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "click",
+          target: { strategy: "css", value: "#go" },
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/Grant site access/)
+    expect(executeWorkflowMock).not.toHaveBeenCalled()
+  })
+
+  it("checks but does not request host access for non-manual triggers", async () => {
+    executeWorkflowMock.mockImplementation(succeedWorkflows())
+
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Trigger fill",
+      enabled: true,
+      triggers: [{ type: "urlMatch" }],
+      steps: [
+        {
+          op: "fill",
+          target: { strategy: "css", value: "#email" },
+          text: "test@example.com",
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: {
+        kind: "trigger",
+        tabId: 7,
+        trigger: { type: "urlMatch", url: context.url },
+      },
+    })
+
+    expect(result.success).toBe(true)
+    expect(ensureHostPermissionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: false,
+        ensureContentScript: true,
+      }),
+    )
+  })
+
+  it("preflights known same-tab navigation destinations before navigating", async () => {
+    executeWorkflowMock.mockImplementation(succeedWorkflows())
+
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Navigate then fill",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        { op: "navigate", url: "https://next.example.com/onboarding" },
+        {
+          op: "fill",
+          target: { strategy: "css", value: "#name" },
+          text: "{url}",
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(true)
+    expect(ensureHostPermissionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://next.example.com/onboarding",
+        request: true,
+        ensureContentScript: false,
+      }),
+    )
+    const workflow = executeWorkflowMock.mock.calls[0][0].workflow as Workflow
+    expect(workflow.steps[0]).toMatchObject({
+      op: "fill",
+      text: "https://next.example.com/onboarding",
+    })
+  })
+})
+
 describe("engine ops and policy", () => {
   it("enforces the runCommand policy at execute time", async () => {
     executeWorkflowMock.mockImplementation(succeedWorkflows())
@@ -364,6 +549,152 @@ describe("engine ops and policy", () => {
     expect(secondSameTab.success).toBe(false)
     expect(secondSameTab.error).toMatch(/cooling down/)
     expect(thirdOtherTab.success).toBe(true)
+  })
+})
+
+describe("expectNavigation segments", () => {
+  it("waits for the page to load, refreshes page context, then runs the next segment", async () => {
+    let call = 0
+    executeWorkflowMock.mockImplementation(async ({ workflow }) => {
+      call += 1
+      if (call === 1) {
+        queueMicrotask(() => {
+          currentTab = {
+            id: 7,
+            url: "https://dev.example.com/step-two",
+            title: "Step two",
+          }
+          fakeBrowser.tabs.onUpdated.trigger(
+            7,
+            { status: "complete" },
+            {} as never,
+          )
+        })
+      }
+      return {
+        tabId: 7,
+        result: {
+          success: true,
+          stepResults: workflow.steps.map((step: Step) => ({
+            stepId: step.id,
+            success: true,
+          })),
+        },
+      }
+    })
+
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Two-step signup",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "click",
+          target: { strategy: "text", value: "Continue" },
+          expectNavigation: true,
+        },
+        {
+          op: "fill",
+          target: { strategy: "css", value: "#code" },
+          text: "{url}",
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(true)
+    expect(executeWorkflowMock).toHaveBeenCalledTimes(2)
+    const first = executeWorkflowMock.mock.calls[0][0].workflow as Workflow
+    const second = executeWorkflowMock.mock.calls[1][0].workflow as Workflow
+    expect(first.steps).toHaveLength(1)
+    expect(first.steps[0]).toMatchObject({ op: "click" })
+    expect(first.steps[0]).not.toHaveProperty("expectNavigation")
+    expect(second.steps[0]).toMatchObject({
+      op: "fill",
+      text: "https://dev.example.com/step-two",
+    })
+  })
+
+  it("tolerates a lost response only when navigation is observed", async () => {
+    executeWorkflowMock.mockImplementation(async () => {
+      queueMicrotask(() =>
+        fakeBrowser.tabs.onUpdated.trigger(
+          7,
+          { status: "complete" },
+          {} as never,
+        ),
+      )
+      throw new Error("The message port closed before a response")
+    })
+
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Submit then continue",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "submit",
+          target: { strategy: "css", value: "form" },
+          expectNavigation: true,
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.stepOutcomes?.[0]).toMatchObject({
+      op: "submit",
+      success: true,
+    })
+  })
+
+  it("does not hide a lost response when no navigation starts", async () => {
+    vi.useFakeTimers()
+    try {
+      executeWorkflowMock.mockRejectedValue(
+        new Error("The message port closed before a response"),
+      )
+
+      const script = await addAutomation({
+        schemaVersion: 1,
+        name: "No navigation",
+        enabled: true,
+        triggers: [{ type: "manual" }],
+        options: { showResultToast: false },
+        steps: [
+          {
+            op: "click",
+            target: { strategy: "css", value: "#noop" },
+            expectNavigation: true,
+          },
+        ],
+      })
+
+      const runPromise = runAutomation(script.id, {
+        context,
+        invocation: { kind: "manual" },
+      })
+
+      await vi.advanceTimersByTimeAsync(2000)
+      const result = await runPromise
+
+      expect(result.success).toBe(false)
+      expect(result.error).toMatch(/message port closed/i)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

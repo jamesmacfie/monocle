@@ -9,6 +9,7 @@ import type { Workflow, WorkflowResult } from "../../shared/types/workflow"
 import { WorkflowSchema } from "../../shared/types/workflowValidation"
 import { getActiveTab, queryTabs, sendTabMessage } from "../utils/browser"
 import { resolveSenderTabId } from "../utils/messages"
+import { isMissingContentScriptError } from "../utils/messagingErrors"
 
 type TabLike = {
   id?: number
@@ -38,6 +39,9 @@ export type WorkflowExecutionResult = {
   tabId: number
   result: WorkflowResult
 }
+
+const WORKFLOW_MESSAGE_RETRY_DELAY_MS = 75
+const WORKFLOW_MESSAGE_RETRY_ATTEMPTS = 40
 
 const isUsableTabId = (tabId: unknown): tabId is number => {
   return Number.isInteger(tabId) && Number(tabId) > 0
@@ -102,6 +106,31 @@ export const unwrapWorkflowResult = (response: unknown): WorkflowResult => {
     success: false,
     error: "Workflow execution returned an invalid result",
   }
+}
+
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
+
+const sendWorkflowMessageWithRetries = async (
+  sendTabMessageImpl: (tabId: number, message: unknown) => Promise<unknown>,
+  targetTabId: number,
+  message: unknown,
+): Promise<unknown> => {
+  let lastError: unknown
+
+  for (let attempt = 0; attempt < WORKFLOW_MESSAGE_RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await sendTabMessageImpl(targetTabId, message)
+    } catch (error) {
+      if (!isMissingContentScriptError(error)) {
+        throw error
+      }
+      lastError = error
+      await wait(WORKFLOW_MESSAGE_RETRY_DELAY_MS)
+    }
+  }
+
+  throw lastError
 }
 
 export const resolveWorkflowTargetTabId = async ({
@@ -173,11 +202,15 @@ export const executeWorkflowOnTargetTab = async ({
     }
   }
 
-  const response = await sendTabMessageImpl(targetTabId, {
-    type: "monocle-workflow-content-execute",
-    workflow: parsedWorkflow.data,
-    context,
-  })
+  const response = await sendWorkflowMessageWithRetries(
+    sendTabMessageImpl,
+    targetTabId,
+    {
+      type: "monocle-workflow-content-execute",
+      workflow: parsedWorkflow.data,
+      context,
+    },
+  )
 
   return {
     tabId: targetTabId,

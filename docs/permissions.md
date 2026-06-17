@@ -12,8 +12,10 @@ responsiveness.
 ## Required vs optional permissions
 
 Required permissions are declared in `wxt.config.ts` under `permissions` and are
-always present once the extension is installed. Optional permissions are
-declared under `optional_permissions` and are dormant until requested.
+always present once the extension is installed. Optional named permissions are
+declared under `optional_permissions`; optional web-origin access is declared
+separately under `optional_host_permissions`. Both optional classes are dormant
+until requested.
 
 | Permission | Class | Notes |
 | --- | --- | --- |
@@ -32,15 +34,26 @@ declared under `optional_permissions` and are dormant until requested.
 | `management` | Optional | Powers the Extensions command group (high-scrutiny: can disable/uninstall other extensions). |
 | `tabGroups` | Optional (Chrome only) | Powers the native Chrome tab-group commands; appended for non-Firefox targets only. |
 
-`host_permissions` (`api.unsplash.com`, `icons.duckduckgo.com`)
-are separate host grants for new-tab background images and favicons, not part of
-the command permission model documented here.
+Required `host_permissions` (`api.unsplash.com`, `icons.duckduckgo.com`) are
+separate host grants for new-tab background images and favicons, not part of the
+command permission model documented here.
 
-The optional set is defined once in `wxt.config.ts` as `baseOptionalPermissions`
-and spread into both Chrome and Firefox manifests; Chrome additionally appends
-`tabGroups` (Firefox has no `chrome.tabGroups` API, and declaring an unknown
-optional permission there trips the build). The required list branches on
-`browser`: Firefox gets `contextualIdentities` added, Chrome does not.
+`optional_host_permissions` is intentionally limited to web pages:
+`["http://*/*", "https://*/*"]`. Page automations and Element Hider request a
+concrete scheme+host pattern at run time, for example
+`https://example.com/*` or `http://localhost/*`. This host-access path does not
+request `<all_urls>`, `file://`, browser-internal pages, or broader per-run site
+access. The existing manifest-registered content scripts still match
+`<all_urls>` for the palette and Site SDK; that is a separate architecture and
+store-review concern documented in [store-submission.md](./store-submission.md).
+
+The optional named-permission set is defined once in `wxt.config.ts` as
+`baseOptionalPermissions` and spread into both Chrome and Firefox manifests;
+Chrome additionally appends `tabGroups` (Firefox has no `chrome.tabGroups` API,
+and declaring an unknown optional permission there trips the build). Optional
+host patterns are defined separately as `optionalHostPermissions`. The required
+list branches on `browser`: Firefox gets `contextualIdentities` added, Chrome
+does not.
 
 ## The `BrowserPermission` union
 

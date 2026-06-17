@@ -24,6 +24,7 @@ command.execute() / automation engine segment / debug tool
        -> resolveWorkflowTargetTabId()   pick target tab
        -> WorkflowSchema.safeParse(workflow)
        -> sendTabMessage(tabId, { type: "monocle-workflow-content-execute", workflow, context })
+          (bounded retry only while the content listener is missing)
   -> content listener                    shared/hooks/useCommandPaletteStateRedux.tsx
        -> validateContentMessage(message)
        -> workflowExecutor.executeWorkflow(workflow)   content/workflow/executor.ts
@@ -48,7 +49,7 @@ Entry surfaces in the background:
 4. **Active tab fallback** only when no context target exists.
 5. Otherwise throws `"No workflow target tab found"`.
 
-`executeWorkflowOnTargetTab` validates the workflow with `WorkflowSchema` before sending `monocle-workflow-content-execute` to the resolved tab and passes the response through `unwrapWorkflowResult`, which coerces anything malformed into `{ success: false, error: "Workflow execution returned an invalid result" }`.
+`executeWorkflowOnTargetTab` validates the workflow with `WorkflowSchema` before sending `monocle-workflow-content-execute` to the resolved tab and passes the response through `unwrapWorkflowResult`, which coerces anything malformed into `{ success: false, error: "Workflow execution returned an invalid result" }`. Delivery retries only missing-listener errors (`Receiving end does not exist` / `Could not establish connection`) with a short bounded backoff, covering the gap after a page load before the content listener registers. It does not retry closed-port/lost-response errors because the workflow may already have executed page-side effects.
 
 ### Content listener
 
@@ -125,6 +126,13 @@ CSS lookups use `querySelectorAll` (invalid selectors throw — fail loudly); te
 
 `scopeKey` is stamped by the automation engine (`automation-<id>`) so one script's page edits stay grouped.
 
+Automations may attach `expectNavigation: true` to their own `click` or `submit` steps to tell the automation engine that the action should trigger same-tab navigation. That field is automation-only: `background/automations/lowering.ts` strips it before workflow validation/execution, and raw public workflows containing it are rejected by `WorkflowStepSchema`.
+
+Host access is automation/feature-owned too, not public workflow behavior.
+Automations and Element Hider request or check optional web-origin grants before
+they rely on a page content script, and the background helper injects
+`content-scripts/content.js` into already-loaded granted tabs when needed.
+
 ### Results
 
 ```ts
@@ -141,7 +149,7 @@ The executor runs steps in order and returns on the first failure (`"Step <op> f
 
 ## Validation (public schema)
 
-`shared/types/workflowValidation.ts` defines the Zod schemas (re-exported from `shared/types/validation.ts`). `WorkflowStepSchema` is a strict discriminated union over exactly the 17 implemented ops; unknown ops and unknown fields are rejected at the message boundary. `injectCss` bodies are capped at 10k chars; selectors must be non-empty; `select.by` must name a value, label, or index.
+`shared/types/workflowValidation.ts` defines the Zod schemas (re-exported from `shared/types/validation.ts`). `WorkflowStepSchema` is a strict discriminated union over exactly the 17 implemented ops; unknown ops and unknown fields are rejected at the message boundary. That includes automation-only hints such as `expectNavigation`. `injectCss` bodies are capped at 10k chars; selectors must be non-empty; `select.by` must name a value, label, or index.
 
 Messages also pass the security wrapper in `background/utils/validation.ts` (rate limiting, 1MB total / 10k-char-per-string size limits) before schema validation. Direct background callers that bypass the public `monocle-workflow-execute` message are still validated before the workflow crosses into content, and content validates the resulting `monocle-workflow-content-execute` message before executing.
 

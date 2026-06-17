@@ -20,7 +20,7 @@ source of truth:
 ```ts
 type ElementHiderRule = {
   id: string         // crypto.randomUUID()
-  urlPattern: string // sensible default: a domain pattern *://host/*
+  urlPattern: string // granted origin pattern, e.g. https://example.com/*
   selector: string   // stable CSS selector generated in content
   label?: string     // the element's text (or selector), for the settings list
 }
@@ -36,16 +36,22 @@ Validated by `elementHiderConfigSchema` (`urlPattern` via the shared
 
 1. "Hide element on this page" (`element-hider-pick`) `execute()` pushes a
    `picker` surface scoped to the active tab's URL and tab id, owner
-   `element-hider`.
+   `element-hider`. Before the picker is created, the command asks the browser
+   for optional host access to the current web origin and injects Monocle's
+   content script into the already-loaded tab. If the grant is denied, it shows
+   a warning and does not enter pick-mode.
 2. The content `SurfaceHost` enters pick-mode: highlight on hover, and on click
    it resolves a stable selector (`content/picker/selector.ts`) and posts
    `monocle-surface-action { ownerId:"element-hider", actionId:"element-picked",
    selection }`. Content never hides anything.
 3. `surfaceAction` routes the action to the feature's `handleAction`
-   (`docs/surfaces.md` owner routing). The feature derives a **domain** pattern
-   (`*://host/*`, preserving non-default ports) from the sender tab URL, appends
-   a rule, removes the picker surface, and **hides immediately** on that tab via
-   a one-shot `hideElement` workflow.
+   (`docs/surfaces.md` owner routing). The feature re-checks host access for the
+   sender tab, derives the exact granted origin pattern (for example
+   `https://shop.example.com/*` or `http://localhost/*`) from the sender tab
+   URL, appends a rule, removes the picker surface, and **hides immediately** on
+   that tab via a one-shot `hideElement` workflow. If the user revoked site
+   access between launching the picker and picking an element, the rule is not
+   saved and the immediate hide is skipped.
 
 **Page-load re-hide.** `automations(config)` (`automations.ts`) projects one
 read-only `Automation` per saved rule — an `elementAppears` trigger scoped by

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { AutomationStep } from "../types"
 import {
+  automationTouchesPage,
   collectInlineSnippetReferences,
   interpolatableStrings,
   walkAutomationSteps,
@@ -106,5 +107,42 @@ describe("automation introspection", () => {
         },
       ]),
     ).toEqual(["nav", "clip", "surface"])
+  })
+
+  it("detects page-touching automation steps for host-access prompts", () => {
+    expect(
+      automationTouchesPage([
+        { op: "setVariable", name: "url", value: "{{url}}" },
+        { op: "toast", message: "done" },
+      ]),
+    ).toBe(false)
+
+    expect(
+      automationTouchesPage([
+        { op: "fill", target: { strategy: "css", value: "#email" }, text: "" },
+      ]),
+    ).toBe(true)
+
+    expect(
+      automationTouchesPage([
+        branchStep(
+          {
+            kind: "elementVisible",
+            selector: { strategy: "css", value: ".modal" },
+          },
+          [{ op: "toast", message: "visible" }],
+        ),
+      ]),
+    ).toBe(true)
+
+    expect(
+      automationTouchesPage([
+        {
+          op: "forEach",
+          over: { elements: { strategy: "css", value: ".row" } },
+          steps: [{ op: "toast", message: "row" }],
+        },
+      ]),
+    ).toBe(true)
   })
 })

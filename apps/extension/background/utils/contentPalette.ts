@@ -9,6 +9,10 @@
 // (rather than via the declared content-script match patterns).
 import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { callBrowserAPI } from "./browser"
+import {
+  isMissingContentScriptError,
+  isNoResponseError,
+} from "./messagingErrors"
 
 const CONTENT_SCRIPT_FILE = "content-scripts/content.js"
 const MESSAGE_RETRY_DELAY_MS = 75
@@ -91,23 +95,6 @@ async function injectContentPalette(tabId: number): Promise<boolean> {
     console.error("[Background] Could not inject content palette:", error)
     return false
   }
-}
-
-function isMissingContentScriptError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error)
-
-  return (
-    message.includes("Could not establish connection") ||
-    message.includes("Receiving end does not exist")
-  )
-}
-
-function isNoResponseError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error)
-
-  return message.includes(
-    "The message port closed before a response was received",
-  )
 }
 
 function wait(ms: number): Promise<void> {

@@ -4,6 +4,7 @@ import type {
   Browser,
   CheckKeybindingConflictMessage,
   DeleteSnippetMessage,
+  EnsureHostPermissionMessage,
   ExecuteCommandMessage,
   ExecuteKeybindingMessage,
   GetChildrenMessage,
@@ -61,6 +62,7 @@ type SendableMessage =
   | GetPermissionsMessage
   | RequestPermissionMessage
   | OpenPermissionGrantPageMessage
+  | EnsureHostPermissionMessage
   | ShowToastMessage
 
 export function useSendMessage() {
@@ -89,7 +91,8 @@ export function useSendMessage() {
       const messageWithContext =
         message.type === "monocle-permissions-get" ||
         message.type === "monocle-permission-request" ||
-        message.type === "monocle-permission-grant-page-open"
+        message.type === "monocle-permission-grant-page-open" ||
+        message.type === "monocle-host-permission-ensure"
           ? message
           : { ...message, context }
 

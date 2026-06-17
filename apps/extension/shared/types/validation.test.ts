@@ -238,6 +238,41 @@ describe("permission grant page schema validation", () => {
   })
 })
 
+describe("host permission schema validation", () => {
+  it("accepts automation and element hider host access requests", () => {
+    expect(
+      validateMessage({
+        type: "monocle-host-permission-ensure",
+        reason: "automation",
+        tabId: 7,
+        url: "https://example.com/app",
+      }).success,
+    ).toBe(true)
+    expect(
+      validateMessage({
+        type: "monocle-host-permission-ensure",
+        reason: "elementHider",
+      }).success,
+    ).toBe(true)
+  })
+
+  it("rejects invalid host access requests", () => {
+    expect(
+      validateMessage({
+        type: "monocle-host-permission-ensure",
+        reason: "unknown",
+      }).success,
+    ).toBe(false)
+    expect(
+      validateMessage({
+        type: "monocle-host-permission-ensure",
+        reason: "automation",
+        url: "",
+      }).success,
+    ).toBe(false)
+  })
+})
+
 describe("workflow schema validation", () => {
   it("accepts executable click and wait steps with explicit tab targeting", () => {
     expect(

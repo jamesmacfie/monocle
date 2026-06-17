@@ -36,12 +36,21 @@ export const isEngineStep = (
 ): step is AutomationEngineStep => ENGINE_OPS.has(step.op)
 
 /**
+ * True for a click/submit whose page action is expected to trigger same-tab
+ * navigation. This is an automation-engine hint, not workflow behavior.
+ */
+export const stepExpectsNavigation = (step: AutomationStep): boolean =>
+  (step.op === "click" || step.op === "submit") &&
+  step.expectNavigation === true
+
+/**
  * True when a content step must end its segment after executing: getText
  * writes runtime vars, and later steps' templates can only see those values
- * if the engine re-interpolates from the returned var bag.
+ * if the engine re-interpolates from the returned var bag; expectNavigation
+ * click/submit steps end the segment so the engine can wait for page load.
  */
 export const endsSegment = (step: AutomationStep): boolean =>
-  step.op === "getText"
+  step.op === "getText" || stepExpectsNavigation(step)
 
 /**
  * Lowers one content step to its workflow form: interpolates the step's
@@ -67,6 +76,11 @@ export const lowerContentStep = (
     case "hideElement":
     case "injectCss":
       return { ...step, scopeKey: `automation-${automationId}` }
+    case "click":
+    case "submit": {
+      const { expectNavigation: _expectNavigation, ...workflowStep } = step
+      return workflowStep
+    }
     default:
       return { ...step }
   }

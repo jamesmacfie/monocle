@@ -169,6 +169,7 @@ is a single step object to place in `steps`.
 
 ```jsonc
 { "op": "click", "target": SEL, "button": "left", "clickCount": 1, "modifiers": ["Meta"] }  // button/clickCount/modifiers all optional
+{ "op": "click", "target": SEL, "expectNavigation": true }                         // optional same-tab full-page navigation hint
 { "op": "fill", "target": SEL, "text": "hello {{name}}", "clear": "select-all" }   // text interpolated
 { "op": "type", "target": SEL, "keys": ["Control", "A", "hello"], "delayMs": 20 }  // keys: names or literals
 { "op": "key", "keys": ["Control", "S"] }                                          // to the active element
@@ -176,6 +177,7 @@ is a single step object to place in `steps`.
 { "op": "check", "target": SEL }
 { "op": "uncheck", "target": SEL }
 { "op": "submit", "target": SEL }                                                  // SEL is the form (or inside it)
+{ "op": "submit", "target": SEL, "expectNavigation": true }                        // optional same-tab full-page navigation hint
 { "op": "focus", "target": SEL }
 { "op": "blur", "target": SEL }
 { "op": "hover", "target": SEL }
@@ -189,6 +191,20 @@ is a single step object to place in `steps`.
 `wait.for` variants: `{ "timeMs": n }`, `{ "selector": SEL, "state": "visible" }` (state:
 `attached`|`visible`|`hidden`|`detached`), `{ "urlIncludes": "text" }`, `{ "readyState":
 "complete" }` (`loading`|`interactive`|`complete`).
+
+`expectNavigation` is automation-only and valid only on `click`/`submit`. Use it when that
+page action should cause a same-tab full-page navigation before later steps run. The engine
+waits for the tab load, refreshes page context so later `{url}`/`{title}` placeholders see
+the new page, strips the hint before workflow execution, and retries delivery of the next
+segment only while the new page's content listener is not ready. Do not use it for SPA-only
+URL changes, new tabs/windows, or actions that may or may not navigate; use an explicit
+`wait` condition for those.
+
+Page-interacting steps require optional browser host access for the page origin. Manual runs
+can request the active tab's origin; non-manual triggers never prompt and only run when access
+is already granted. Known same-tab `navigate` / `openUrl` destinations are preflighted before
+navigation. After `expectNavigation`, continuations work for the same origin or another
+already-granted origin; unknown cross-origin form destinations fail clearly.
 
 ---
 
@@ -428,6 +444,7 @@ Manual runs may call any non-denied command (subject to its own permissions).
 - More than 5 triggers, or **two triggers of the same non-manual type**.
 - More than 100 steps (counting nested), or control-flow nested deeper than 3 levels.
 - `navigate`, or `openUrl` with `"disposition":"currentTab"`, **inside a branch/loop body**.
+- `expectNavigation` on anything except a `click` or `submit` step.
 - Putting `{{...}}` inside a selector, `injectCss.css`, or `showSurface.urlMatch` (ignored at
   best; these are not interpolated).
 - `forEach.steps` / `while.steps` empty (need ≥1), or `maxIterations` outside 1–1000.

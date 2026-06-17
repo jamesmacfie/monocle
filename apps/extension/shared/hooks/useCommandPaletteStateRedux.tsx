@@ -78,7 +78,9 @@ export const useCommandPaletteStateRedux = (options?: {
         return
       }
 
-      if (parsed.type === "monocle-ui-toggle") {
+      if (parsed.type === "monocle-content-ping") {
+        sendResponse({ received: true })
+      } else if (parsed.type === "monocle-ui-toggle") {
         toggle()
         sendResponse({ received: true })
       } else if (parsed.type === "monocle-ui-show") {

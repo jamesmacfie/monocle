@@ -5,6 +5,7 @@
 // interpolation-at-lowering, scope-key stamping, and loop retargeting.
 import { describe, expect, it } from "vitest"
 import type { AutomationStep } from "../../shared/types"
+import { AutomationStepSchema } from "../../shared/types/automationValidation"
 import type { Selector } from "../../shared/types/workflow"
 import { WorkflowStepSchema } from "../../shared/types/workflowValidation"
 import {
@@ -13,6 +14,7 @@ import {
   lowerContentStep,
   retargetForLoopIteration,
   selectorsEquivalent,
+  stepExpectsNavigation,
 } from "./lowering"
 
 const css = (value: string, index?: number): Selector => ({
@@ -82,6 +84,27 @@ describe("step classification", () => {
     )
     expect(endsSegment({ op: "click", target: css("#go") })).toBe(false)
   })
+
+  it("treats automation expectNavigation click/submit as segment-ending", () => {
+    const navClick: AutomationStep = {
+      op: "click",
+      target: css("#go"),
+      expectNavigation: true,
+    }
+    const navSubmit: AutomationStep = {
+      op: "submit",
+      target: css("form"),
+      expectNavigation: true,
+    }
+
+    expect(stepExpectsNavigation(navClick)).toBe(true)
+    expect(stepExpectsNavigation(navSubmit)).toBe(true)
+    expect(endsSegment(navClick)).toBe(true)
+    expect(endsSegment(navSubmit)).toBe(true)
+    expect(stepExpectsNavigation({ op: "click", target: css("#go") })).toBe(
+      false,
+    )
+  })
 })
 
 describe("lowering", () => {
@@ -117,6 +140,36 @@ describe("lowering", () => {
       {},
     )
     expect(hide).toMatchObject({ scopeKey: "automation-script-1" })
+  })
+
+  it("accepts expectNavigation on automation click/submit but strips it before workflow execution", () => {
+    for (const step of [
+      { op: "click", target: css("#go"), expectNavigation: true },
+      { op: "submit", target: css("form"), expectNavigation: true },
+    ] as AutomationStep[]) {
+      expect(AutomationStepSchema.safeParse(step).success).toBe(true)
+
+      const lowered = lowerContentStep(step, "script-1", {}, {})
+      expect(lowered).not.toHaveProperty("expectNavigation")
+      expect(WorkflowStepSchema.safeParse(lowered).success).toBe(true)
+    }
+  })
+
+  it("keeps expectNavigation out of the public workflow schema", () => {
+    expect(
+      WorkflowStepSchema.safeParse({
+        op: "click",
+        target: css("#go"),
+        expectNavigation: true,
+      }).success,
+    ).toBe(false)
+    expect(
+      WorkflowStepSchema.safeParse({
+        op: "submit",
+        target: css("form"),
+        expectNavigation: true,
+      }).success,
+    ).toBe(false)
   })
 
   it("refuses to lower engine steps", () => {

@@ -33,6 +33,7 @@ import { getPermissions } from "./getPermissions"
 import { getSettingsCatalog } from "./getSettingsCatalog"
 import { getSnippets } from "./getSnippets"
 import { getUnsplashBackground } from "./getUnsplashBackground"
+import { ensureHostPermissionMessage } from "./hostPermissions"
 import { openPermissionGrantPage } from "./openPermissionGrantPage"
 import { requestPermission } from "./requestPermission"
 import { searchCommands } from "./searchCommands"
@@ -142,6 +143,9 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "monocle-permission-grant-page-open" }, async (msg) => {
       return await openPermissionGrantPage(msg)
+    })
+    .with({ type: "monocle-host-permission-ensure" }, async (msg) => {
+      return await ensureHostPermissionMessage(msg)
     })
     .with({ type: "monocle-workflow-execute" }, async (msg) => {
       return await executeWorkflow(msg, sender)
