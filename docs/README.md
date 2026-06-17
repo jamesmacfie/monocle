@@ -115,6 +115,12 @@ If you are adding a command, the fast path is
 
 ## Future proposals
 
+- [native-messaging/README.md](./native-messaging/README.md) — Proposed design
+  (not yet built) for a native-messaging bridge that lets an external desktop app
+  (first target: Raycast) request the active tab's command suggestions. Folder
+  covers the architecture, native host, wire protocol + `ExternalSuggestion` DTO,
+  bluetooth-style pairing/auth, the multiple-host problem, extension wiring, and
+  roadmap.
 - [proposals/README.md](./proposals/README.md) — Future-design proposals. These
   are intentionally not current behavior; promote details into the verified docs
   only after implementation.

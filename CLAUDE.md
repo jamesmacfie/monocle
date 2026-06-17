@@ -104,6 +104,15 @@ Use the feature docs as the source of truth before editing related code:
 - `docs/store-submission.md`: Chrome Web Store / Firefox AMO submission
   processes, Monocle-specific rejection risks, hard pre-submission blockers,
   and reviewer-notes guidance (external policy research, June 2026).
+- `docs/native-messaging/`: **proposed (not built)** design for a native-messaging
+  bridge letting an external desktop app (first target: Raycast) request the
+  active tab's command suggestions. Folder covers architecture, the native host
+  (manifests/registration/framing/loopback server), the wire protocol +
+  `ExternalSuggestion` DTO, bluetooth-style pairing/auth + loopback threat model,
+  the one-host-per-browser/profile problem, and extension wiring (a
+  `native-messaging` feature module reusing `getCommands`/`commandsToSuggestions`
+  + the search index, the pairing modal surface, and `nativeMessaging`/`tabs`/
+  Chrome-`key` manifest changes).
 - `docs/commands/`: per-category command catalogs: `browser.md`, `tools.md`,
   `ui.md`, `new-tab.md`, `automations.md` (automation rows),
   `features.md` (feature-module commands, including Focus Mode), and
