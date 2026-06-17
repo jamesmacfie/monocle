@@ -69,7 +69,7 @@ Enforced by the shared Zod schema at save, import, and the message boundary; the
 | `interval.everyMinutes` | 1 to one week (`7 × 24 × 60`) |
 | Trigger `delayMs` | ≤ 10000 |
 | `allOf` / `anyOf` child conditions | 1–10 each |
-| `navigate` load wait | engine-side max 15000ms (`NAVIGATION_COMPLETE_TIMEOUT_MS`) |
+| `navigate` / expected same-tab navigation load wait | engine-side max 15000ms (`NAVIGATION_COMPLETE_TIMEOUT_MS`) |
 | Regex pattern (`varMatches`) | ≤ 200, no user-supplied flags, must compile |
 | Comparison operators | `equals`/`equalsIgnoreCase`/`notEquals`/`contains`/`notContains`/`startsWith`/`endsWith`/`greaterThan`/`lessThan` |
 
@@ -88,7 +88,7 @@ Navigation steps (`navigate`, `openUrl` with `currentTab`) are rejected inside b
 | `schedule` | Daily at HH:MM local (`chrome.alarms`, self re-arming) | |
 | `onStartup` | Browser start | |
 
-Rules for every trigger: non-manual triggers never fire on `urlRules`-denied pages, non-http(s) pages, or the new-tab page; **imported scripts arrive with non-manual triggers disarmed** until the user reviews and arms them; a disabled script arms nothing. Page triggers and scheduled triggers share the same eligibility helper (`background/automations/eligibility.ts`), so script `urlRules`, user command URL-rule overrides, and hidden command settings are interpreted identically across both paths.
+Rules for every trigger: non-manual triggers never fire on `urlRules`-denied pages, non-http(s) pages, or the new-tab page; **imported scripts arrive with non-manual triggers disarmed** until the user reviews and arms them; a disabled script arms nothing. Page triggers and scheduled triggers share the same eligibility helper (`background/automations/eligibility.ts`), so script `urlRules`, user command URL-rule overrides, and hidden command settings are interpreted identically across both paths. Non-manual triggers also never request new host access: content/page steps run only when the browser already has the needed optional host grant, otherwise the run fails/skips with an access-needed error.
 
 Page-trigger flow is **pull-based** (no extra permissions): the content service (`content/automationTriggers.ts`) reports its URL via `monocle-automation-triggers-get`, receives the armed specs for that URL, and reports fires via `monocle-automation-trigger-fired`. The background **re-validates everything** on fire — script existence, enablement, armed state, and URL eligibility against the *sender's actual URL* (a page cannot claim a different URL) — before the engine runs. Content never receives steps and executes nothing on its own.
 
@@ -100,7 +100,7 @@ The `{{trigger.*}}` namespace delivers fire context into interpolation: `{{trigg
 
 ## Steps
 
-Two tiers, one rule: **content steps are workflow steps** (the full implemented vocabulary in [workflow-automation.md](./workflow-automation.md), reused verbatim and lowered 1:1); **engine steps** run in the background between content segments.
+Two tiers, one rule: **content steps lower onto workflow steps** (the full implemented vocabulary in [workflow-automation.md](./workflow-automation.md)); **engine steps** run in the background between content segments. Automations add one engine-only content-step hint: `click` and `submit` may set `expectNavigation: true` when the action should trigger a same-tab page load. The hint is accepted by automation validation, ends the current segment, and is stripped before the step is sent to the workflow executor.
 
 Engine steps:
 
@@ -118,6 +118,20 @@ Engine steps:
 | `branch` | If/else over a condition |
 | `forEach` | Loop over element matches or a variable's lines |
 | `while` | Loop while a condition holds (always capped) |
+
+### Same-tab navigation from content actions
+
+Use `expectNavigation: true` on a `click` or `submit` step when that page action should navigate the run's current tab before later steps continue:
+
+```json
+{ "op": "click", "target": { "strategy": "text", "value": "Next" }, "expectNavigation": true }
+```
+
+The engine starts watching the pinned tab before sending the segment, races the workflow response against `tabs.onUpdated`, and tolerates a lost response only when same-tab navigation is observed. If no navigation starts within the short grace window, the normal workflow result decides; if navigation starts but never completes within the bounded load wait, the run fails. After `navigate`, `openUrl` with `currentTab`, or an `expectNavigation` action, the engine refreshes the run's page context from `tabs.get(tabId)`, so later snippet placeholders such as `{url}` and `{title}` use the new page.
+
+Manual runs may request optional host access for the active tab before the first content segment. Known same-tab `navigate` and `openUrl { disposition:"currentTab" }` destinations are preflighted before the tab leaves the current page. After an `expectNavigation` action, prompts are disabled for the continuation: same-origin/matching-granted-origin pages continue normally, but a destination without an existing host grant fails clearly instead of attempting unauthorized injection.
+
+The next content segment is delivered through the normal workflow path, but `executeWorkflowOnTargetTab` retries only missing-content-script errors (`Receiving end does not exist` / `Could not establish connection`). It does not retry closed-port/lost-response errors because the previous content script may already have performed side effects. The host-access helper also injects `content-scripts/content.js` into already-loaded granted tabs when needed. This keeps the same-tab multipage case reliable without adding `webNavigation`, durable paused resumes, cross-tab continuation, or a standalone early content listener.
 
 ### Conditions
 
@@ -158,7 +172,8 @@ Interpolation runs **in the background engine before steps are sent to content**
 2. Re-checks structural caps; refuses disabled scripts.
 3. Pins the target tab (`resolveWorkflowTargetTabId` semantics; trigger runs use the sender tab) and enforces the runtime limits: **one concurrent run per script per tab** (re-entrant triggers dropped, not queued) and a 5s cooldown between non-manual runs per script.
 4. Builds the value bag (vars, trigger, params, inline snippet refs).
-5. Walks the step list: contiguous content steps buffer into a segment, lowered (`background/automations/lowering.ts` — the single place the automation→workflow mapping lives) and executed via `executeWorkflowOnTargetTab`; engine ops execute between segments; `getText` ends its segment and the returned `vars` merge into the bag.
+5. Walks the step list: contiguous content steps buffer into a segment, lowered (`background/automations/lowering.ts` — the single place the automation→workflow mapping lives) and executed via `executeWorkflowOnTargetTab`; engine ops execute between segments; `getText` ends its segment and the returned `vars` merge into the bag; `expectNavigation` click/submit steps end their segment so the engine can wait for same-tab load and refresh page context before continuing.
+   Before a content workflow/probe is delivered, the engine checks optional host access for the run's pinned tab. Manual runs can request a grant; trigger/scheduled runs only check existing grants.
 6. Aggregates per-step outcomes (op + id + success only — payloads never echo into logs, they may hold credentials) and toasts the result unless `options.showResultToast` is false.
 
 Execution from the palette records usage through the normal command dispatch path. Failures return `{ success: false, error, completedSteps, stepOutcomes }`; the run never throws.
@@ -187,6 +202,7 @@ Because rows are durable commands, keybindings (assigned on the keyboard setting
 Two components (+ `shared/store/slices/automations.slice.ts`): `#/automations` renders the list view `options/pages/AutomationsPage.tsx`; `#/automations/new` and `#/automations/:id` render the separate editor `options/pages/automations/AutomationEditorPage.tsx` (see `options/OptionsApp.tsx`):
 
 - List view (`AutomationsPage.tsx`): name, blurb (`automationBlurb`), enabled toggle, edit/delete/export, import, and **Add Examples**.
+- Editor save/create (`AutomationEditorPage.tsx`): if the validated draft contains page-interacting steps and the user has an active http(s) tab, the page sends `monocle-host-permission-ensure` as a best-effort request for that tab's origin. Denial does not block saving; it shows a warning because run-time permission state remains authoritative.
 - **Add Examples** (`options/pages/automations/examples.ts`) seeds a curated set of example automations covering every trigger type and most of the step vocabulary — saved through the normal add path (so they validate like any document, locked in by `examples.test.ts`), deduped by name, and with event/scheduled triggers shipped disarmed. They double as living documentation of what automations can do.
 - Editor: metadata, scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and the step list — per-op form rows for the flat vocabulary, JSON editing for control-flow steps. Validates as-you-type with the identical shared schema; save is disabled with field-level errors; unknown `{{var}}` references warn.
 - **Test on Active Tab** runs the script through the real engine and shows per-step outcomes — selector breakage, not vocabulary, is what defeats non-programmers.
@@ -206,7 +222,7 @@ The attacker model inverts the site SDK's: the user is trusted, but **imported d
 - The declarative engine is squarely in both stores' safe harbor: locally stored user configuration interpreted by bundled code. No remote step definitions ever; no eval anywhere; fixed verbs with capped nesting/loops ("configuration, not a language").
 - **`runJs` is deliberately not implemented.** Firefox AMO policy restricts user-provided JS to dedicated script managers, and a JS step would change the trust model and fork the builds. The schema does not reserve or accept the op.
 - Store listing language should say "automations"/"user-defined commands", not "scripting". Reviewer notes should name the interpreter files: `shared/types/automationValidation.ts`, `background/automations/engine.ts`, `content/workflow/executor.ts` (see [store-submission.md](./store-submission.md)).
-- New install-time permission: `alarms` ("run user-scheduled automations"). No `webNavigation` (SPA detection is content-side); Firefox `data_collection_permissions` stays `"none"` — a script typing into a page sends user-held data to that origin at the user's direction, which the privacy policy should state in one sentence.
+- New install-time permission: `alarms` ("run user-scheduled automations"). No `webNavigation` (SPA detection is content-side). Optional host access is declared for `http://*/*` and `https://*/*` but requested one current/destination origin at a time for user-authored page automations; the automation host-access path does not add an install-time `<all_urls>` host permission. The existing palette/Site SDK content scripts still match `<all_urls>` and are covered by [store-submission.md](./store-submission.md). Firefox `data_collection_permissions` stays `"none"` — a script typing into a page sends user-held data to that origin at the user's direction, which the privacy policy should state in one sentence.
 
 ## Manual test checklist
 

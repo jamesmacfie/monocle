@@ -152,11 +152,17 @@ export type AutomationCondition =
 // content/workflow/executor.ts. Engine steps execute in the background
 // between content segments (privileged APIs, snippets, control flow).
 
-import type { Step as WorkflowStep } from "./workflow"
+import type { ClickStep, SubmitStep, Step as WorkflowStep } from "./workflow"
 
-// Workflow ops a automation may embed directly. (The full workflow union is
-// reused; the validation schema is the enforcement surface for caps.)
-export type AutomationContentStep = WorkflowStep
+// Workflow ops an automation may embed directly. click/submit can add an
+// automation-only orchestration hint so the background engine waits for the
+// page load they trigger; the hint is stripped before reaching workflows.
+export type AutomationClickStep = ClickStep & { expectNavigation?: boolean }
+export type AutomationSubmitStep = SubmitStep & { expectNavigation?: boolean }
+export type AutomationContentStep =
+  | Exclude<WorkflowStep, ClickStep | SubmitStep>
+  | AutomationClickStep
+  | AutomationSubmitStep
 
 type EngineStepBase = {
   id?: string

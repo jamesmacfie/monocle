@@ -39,6 +39,10 @@ import { getSnippet, incrementSnippetCounter } from "../commands/snippets"
 import { removeSurface, upsertSurface } from "../surfaces"
 import { sendTabMessage } from "../utils/browser"
 import {
+  ensureHostPermission,
+  hostPermissionPatternForUrl,
+} from "../utils/hostPermissions"
+import {
   executeWorkflowOnTargetTab,
   resolveWorkflowTargetTabId,
 } from "../workflows/execution"
@@ -54,6 +58,7 @@ import {
   isEngineStep,
   lowerContentStep,
   retargetForLoopIteration,
+  stepExpectsNavigation,
 } from "./lowering"
 import { getAutomationById } from "./registry"
 import { checkRunCommandPolicy } from "./runCommandPolicy"
@@ -121,6 +126,7 @@ type RunState = {
   pageContext: AutomationPageContext
   values: AutomationValueBag
   isManualRun: boolean
+  hostPermissionRequestsAllowed: boolean
   outcomes: NonNullable<AutomationRunResult["stepOutcomes"]>
   executedSteps: number
 }
@@ -213,6 +219,7 @@ const executeRun = async (
     pageContext,
     values: {},
     isManualRun: input.invocation.kind === "manual",
+    hostPermissionRequestsAllowed: input.invocation.kind === "manual",
     outcomes: [],
     executedSteps: 0,
   }
@@ -284,7 +291,8 @@ const runStepList = async (
     }
     const segment = buffer
     buffer = []
-    await runContentSegment(segment, state)
+    const expectNavigation = stepExpectsNavigation(segment[segment.length - 1])
+    await runContentSegment(segment, state, expectNavigation)
   }
 
   for (const step of steps) {
@@ -312,16 +320,179 @@ const countExecutedStep = (state: RunState): void => {
   }
 }
 
+const hostAccessError = (
+  result: { originPattern?: string; error?: string },
+  fallbackUrl?: string,
+): string => {
+  if (result.error) {
+    return result.error
+  }
+  if (result.originPattern) {
+    return `Grant site access for ${result.originPattern} to run this automation`
+  }
+  return `Grant site access for ${fallbackUrl ?? "this page"} to run this automation`
+}
+
+const ensureAutomationHostAccess = async (
+  state: RunState,
+  options: {
+    url?: string
+    allowRequest?: boolean
+    ensureContentScript?: boolean
+  } = {},
+): Promise<void> => {
+  const allowRequest =
+    options.allowRequest ?? state.hostPermissionRequestsAllowed
+  const result = await ensureHostPermission({
+    tabId: state.tabId,
+    url: options.url ?? state.pageContext.url,
+    reason: "automation",
+    request: state.isManualRun && allowRequest,
+    ensureContentScript: options.ensureContentScript ?? true,
+  })
+
+  if (!result.granted) {
+    throw new AutomationRunError(
+      hostAccessError(result, options.url ?? state.pageContext.url),
+    )
+  }
+}
+
+const ensureKnownNavigationHostAccess = async (
+  state: RunState,
+  url: string,
+): Promise<void> => {
+  const pattern = hostPermissionPatternForUrl(url)
+  if (!pattern.ok) {
+    return
+  }
+
+  await ensureAutomationHostAccess(state, {
+    url,
+    allowRequest: state.hostPermissionRequestsAllowed,
+    ensureContentScript: false,
+  })
+}
+
 const runContentSegment = async (
   segment: AutomationStep[],
   state: RunState,
+  expectNavigation = false,
 ): Promise<void> => {
   const lowered: Step[] = segment.map((step) =>
     lowerContentStep(step, state.script.id, state.values, state.pageContext),
   )
 
-  const result = await runWorkflowSteps(lowered, state, state.script.name)
+  if (expectNavigation) {
+    await runNavigatingContentSegment(segment, lowered, state)
+    return
+  }
 
+  const result = await runWorkflowSteps(lowered, state, state.script.name)
+  recordSegmentResult(segment, result, state)
+
+  if (!result.success) {
+    throw new AutomationRunError(result.error ?? "Step failed")
+  }
+}
+
+type NavigationWaitResult =
+  | { kind: "navigated" }
+  | { kind: "noNavigation" }
+  | { kind: "timeout" }
+
+/**
+ * Runs a content segment whose final click/submit is expected to navigate the
+ * same tab. Navigation tears down the content script, so the response for the
+ * navigating action may be lost. That lost response is accepted only if we
+ * observe the tab navigation; otherwise the normal workflow result decides.
+ */
+const runNavigatingContentSegment = async (
+  segment: AutomationStep[],
+  lowered: Step[],
+  state: RunState,
+): Promise<void> => {
+  const trailing = segment[segment.length - 1]
+  const trailingTimeoutMs =
+    trailing && "timeoutMs" in trailing ? trailing.timeoutMs : undefined
+  const navPromise = waitForNavigationAfterAction(
+    state.tabId,
+    trailingTimeoutMs ?? NAVIGATION_COMPLETE_TIMEOUT_MS,
+  )
+  const workflowPromise = runWorkflowSteps(lowered, state, state.script.name)
+    .then((result) => ({ kind: "result", result }) as const)
+    .catch((error) => ({ kind: "error", error }) as const)
+
+  const first = await Promise.race([workflowPromise, navPromise])
+
+  if (first.kind === "navigated") {
+    recordSegmentSuccess(segment, state)
+    await refreshPageContext(state)
+    state.hostPermissionRequestsAllowed = false
+    return
+  }
+
+  if (first.kind === "timeout") {
+    throw new AutomationRunError("Timed out waiting for navigation to complete")
+  }
+
+  if (first.kind === "noNavigation") {
+    const outcome = await workflowPromise
+    if (outcome.kind === "error") {
+      throw outcome.error
+    }
+    recordSegmentResult(segment, outcome.result, state)
+    if (!outcome.result.success) {
+      throw new AutomationRunError(outcome.result.error ?? "Step failed")
+    }
+    return
+  }
+
+  const navResult = await navPromise
+  if (navResult.kind === "navigated") {
+    if (first.kind === "error") {
+      recordSegmentSuccess(segment, state)
+    } else {
+      recordSegmentResult(segment, first.result, state)
+      if (!first.result.success) {
+        throw new AutomationRunError(first.result.error ?? "Step failed")
+      }
+    }
+    await refreshPageContext(state)
+    state.hostPermissionRequestsAllowed = false
+    return
+  }
+
+  if (navResult.kind === "timeout") {
+    throw new AutomationRunError("Timed out waiting for navigation to complete")
+  }
+
+  if (first.kind === "error") {
+    throw first.error
+  }
+
+  recordSegmentResult(segment, first.result, state)
+  if (!first.result.success) {
+    throw new AutomationRunError(first.result.error ?? "Step failed")
+  }
+}
+
+const recordSegmentSuccess = (
+  segment: AutomationStep[],
+  state: RunState,
+): void => {
+  for (const step of segment) {
+    countExecutedStep(state)
+    state.outcomes.push({ op: step.op, id: step.id, success: true })
+  }
+}
+
+/** Threads getText vars into the value bag and records per-step outcomes. */
+const recordSegmentResult = (
+  segment: AutomationStep[],
+  result: WorkflowResult,
+  state: RunState,
+): void => {
   // Thread getText extractions (and only those — segments seed no vars)
   // into the value bag for later interpolation and conditions.
   for (const [name, value] of Object.entries(result.vars ?? {})) {
@@ -337,10 +508,6 @@ const runContentSegment = async (
       error: stepResult.error,
     })
   })
-
-  if (!result.success) {
-    throw new AutomationRunError(result.error ?? "Step failed")
-  }
 }
 
 const runWorkflowSteps = async (
@@ -348,6 +515,8 @@ const runWorkflowSteps = async (
   state: RunState,
   name?: string,
 ): Promise<WorkflowResult> => {
+  await ensureAutomationHostAccess(state)
+
   const { result } = await executeWorkflowOnTargetTab({
     workflow: { version: "1.0", name, steps },
     context: state.context,
@@ -403,8 +572,11 @@ const runEngineStep = async (
 
       case "navigate": {
         const url = interpolate(step.url)
+        await ensureKnownNavigationHostAccess(state, url)
         await getBrowserAPI().tabs.update(state.tabId, { url })
         await waitForTabComplete(state.tabId)
+        await refreshPageContext(state)
+        state.hostPermissionRequestsAllowed = false
         break
       }
 
@@ -413,8 +585,11 @@ const runEngineStep = async (
         const disposition = step.disposition ?? "newTab"
         const browserAPI = getBrowserAPI()
         if (disposition === "currentTab") {
+          await ensureKnownNavigationHostAccess(state, url)
           await browserAPI.tabs.update(state.tabId, { url })
           await waitForTabComplete(state.tabId)
+          await refreshPageContext(state)
+          state.hostPermissionRequestsAllowed = false
         } else if (disposition === "newWindow") {
           await browserAPI.windows.create({ url })
         } else {
@@ -424,6 +599,7 @@ const runEngineStep = async (
       }
 
       case "clipboardWrite":
+        await ensureAutomationHostAccess(state)
         await sendTabMessage(state.tabId, {
           type: "monocle-clipboard-write",
           message: interpolate(step.text),
@@ -431,6 +607,7 @@ const runEngineStep = async (
         break
 
       case "insertSnippet":
+        await ensureAutomationHostAccess(state)
         await runInsertSnippet(step.snippetId, step.target, state)
         break
 
@@ -756,3 +933,75 @@ const waitForTabComplete = (tabId: number): Promise<void> =>
     const timeoutId = setTimeout(finish, NAVIGATION_COMPLETE_TIMEOUT_MS)
     onUpdated.addListener(listener)
   })
+
+// How long to wait for a navigation to start after an expectNavigation action.
+const NO_NAVIGATION_GRACE_MS = 1500
+
+const waitForNavigationAfterAction = (
+  tabId: number,
+  timeoutMs: number,
+): Promise<NavigationWaitResult> =>
+  new Promise((resolve) => {
+    const onUpdated = getBrowserAPI().tabs?.onUpdated
+
+    if (!onUpdated?.addListener) {
+      setTimeout(
+        () => resolve({ kind: "noNavigation" }),
+        NO_NAVIGATION_GRACE_MS,
+      )
+      return
+    }
+
+    let settled = false
+    let navigationStarted = false
+
+    const finish = (result: NavigationWaitResult): void => {
+      if (settled) {
+        return
+      }
+      settled = true
+      onUpdated.removeListener?.(listener)
+      clearTimeout(graceId)
+      clearTimeout(timeoutId)
+      resolve(result)
+    }
+
+    const listener = (
+      updatedTabId: number,
+      changeInfo: { status?: string },
+    ): void => {
+      if (updatedTabId !== tabId) {
+        return
+      }
+      if (changeInfo.status === "loading") {
+        navigationStarted = true
+        clearTimeout(graceId)
+      } else if (changeInfo.status === "complete") {
+        navigationStarted = true
+        finish({ kind: "navigated" })
+      }
+    }
+
+    const graceId = setTimeout(() => {
+      if (!navigationStarted) {
+        finish({ kind: "noNavigation" })
+      }
+    }, NO_NAVIGATION_GRACE_MS)
+    const timeoutId = setTimeout(() => finish({ kind: "timeout" }), timeoutMs)
+    onUpdated.addListener(listener)
+  })
+
+const refreshPageContext = async (state: RunState): Promise<void> => {
+  try {
+    const tab = await getBrowserAPI().tabs.get(state.tabId)
+    const url = typeof tab?.url === "string" ? tab.url : state.pageContext.url
+    const title =
+      typeof tab?.title === "string" ? tab.title : state.pageContext.title
+
+    state.pageContext = { url, title }
+    state.context = { ...state.context, url: url ?? "", title: title ?? "" }
+  } catch {
+    // Some tabs/pages do not expose URL/title. Keep the previous context; the
+    // next content segment still targets by pinned tab id.
+  }
+}

@@ -123,6 +123,56 @@ describe("workflow target routing", () => {
     expect(sendTabMessage).not.toHaveBeenCalled()
   })
 
+  it("retries workflow delivery while the content listener is not ready", async () => {
+    vi.useFakeTimers()
+    try {
+      const sendTabMessage = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Receiving end does not exist"))
+        .mockRejectedValueOnce(new Error("Could not establish connection"))
+        .mockResolvedValueOnce({ result: { success: true } })
+
+      const runPromise = executeWorkflowOnTargetTab({
+        workflow,
+        context,
+        tabId: 4,
+        deps: {
+          sendTabMessage,
+        },
+      })
+
+      await vi.advanceTimersByTimeAsync(75)
+      await vi.advanceTimersByTimeAsync(75)
+
+      await expect(runPromise).resolves.toEqual({
+        tabId: 4,
+        result: { success: true },
+      })
+      expect(sendTabMessage).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("does not retry port-closed workflow delivery errors", async () => {
+    const sendTabMessage = vi.fn(async () => {
+      throw new Error("The message port closed before a response was received")
+    })
+
+    await expect(
+      executeWorkflowOnTargetTab({
+        workflow,
+        context,
+        tabId: 4,
+        deps: {
+          sendTabMessage,
+        },
+      }),
+    ).rejects.toThrow(/message port closed/i)
+
+    expect(sendTabMessage).toHaveBeenCalledTimes(1)
+  })
+
   it("unwraps malformed content responses as workflow failures", () => {
     expect(unwrapWorkflowResult({ received: true })).toEqual({
       success: false,

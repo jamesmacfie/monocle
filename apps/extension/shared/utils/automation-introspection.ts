@@ -71,6 +71,47 @@ export const walkAutomationSteps = (
   }
 }
 
+const BACKGROUND_ONLY_OPS = new Set<AutomationStep["op"]>([
+  "setVariable",
+  "toast",
+  "navigate",
+  "openUrl",
+  "clipboardWrite",
+  "runCommand",
+  "showSurface",
+  "hideSurface",
+  "branch",
+  "forEach",
+  "while",
+])
+
+export const automationTouchesPage = (steps: AutomationStep[]): boolean => {
+  let touchesPage = false
+  walkAutomationSteps(steps, (step) => {
+    if (!BACKGROUND_ONLY_OPS.has(step.op)) {
+      touchesPage = true
+    }
+    if (
+      step.op === "branch" &&
+      ["elementExists", "elementVisible", "elementText"].includes(step.if.kind)
+    ) {
+      touchesPage = true
+    }
+    if (
+      step.op === "while" &&
+      ["elementExists", "elementVisible", "elementText"].includes(
+        step.condition.kind,
+      )
+    ) {
+      touchesPage = true
+    }
+    if (step.op === "forEach" && "elements" in step.over) {
+      touchesPage = true
+    }
+  })
+  return touchesPage
+}
+
 export const collectInlineSnippetReferences = (
   steps: AutomationStep[],
 ): string[] => {

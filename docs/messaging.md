@@ -46,6 +46,7 @@ Every entry below is registered in `handleMessage`. "Direction" is always UI -> 
 | `monocle-permissions-get` | UI -> bg | `{}` (no context) | `{ isLoaded: true, access: Record<string, boolean> }` or throws | `background/messages/getPermissions.ts`, `getPermissions` | Report which optional permissions are currently granted. |
 | `monocle-permission-request` | UI -> bg | `{ permission }` (no context) | `{ granted: boolean, error? }` (`RequestPermissionResponse`) | `background/messages/requestPermission.ts`, `requestPermission` | Trigger the browser permission prompt and report the result. |
 | `monocle-permission-grant-page-open` | UI -> bg | `{ permission }` (no context) | `{ success: true }` | `background/messages/openPermissionGrantPage.ts`, `openPermissionGrantPage` | Open the new-tab page with a `grantPermission` query so the prompt runs in a user-gesture-friendly context. |
+| `monocle-host-permission-ensure` | UI -> bg | `{ tabId?, url?, reason: "automation" \| "elementHider" }` (no context) | `{ granted: boolean, originPattern?, error? }` | `background/messages/hostPermissions.ts`, `ensureHostPermissionMessage` | Request/check optional host access for one http(s) origin and inject the content script into the target tab when granted. |
 | `monocle-command-setting-update` | UI -> bg | discriminated by `setting` (see below) | `{ success: true }` or throws | `background/messages/updateCommandSetting.ts`, `updateCommandSetting` | Persist a per-command `keybinding`, `hidden`, or `urlRules` setting. |
 | `monocle-command-keybindings-update` | UI -> bg | `{ updates: { commandId, keybinding? }[], context? }` | `{ success: true, updated: number, conflicts: UpdateCommandKeybindingsConflict[] }` or throws | `background/messages/updateCommandKeybindings.ts`, `updateCommandKeybindings` | Batch-persist keybindings for template application without per-command toasts; conflicting updates are skipped and reported. |
 | `monocle-settings-catalog-get` | UI -> bg | `{ platform? }` | `SettingsCatalogResponse` | `background/messages/getSettingsCatalog.ts`, `getSettingsCatalog` | Return durable command rows for the options Commands page, including metadata, settings, favorite state, usage, and capabilities. |
@@ -76,6 +77,7 @@ Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMess
 | Type string | Direction | Payload | Sent from | Received by |
 | --- | --- | --- | --- | --- |
 | `monocle-workflow-content-execute` | bg -> content | `{ workflow, context }` | `background/workflows/execution.ts`, `executeWorkflowOnTargetTab` | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ result }`) |
+| `monocle-content-ping` | bg -> content | `{}` | `background/utils/hostPermissions.ts`, `ensureContentScriptForTab` | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
 | `monocle-toast` | bg -> tab | `{ level, message }` | `background/messages/showToast.ts` and several command executors (e.g. `background/utils/browserTabs.ts`) | `shared/components/ToastContainer.tsx` |
 | `monocle-ui-toggle` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, plus `debugWorkflow`/`github` command executors | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
 | `monocle-ui-show` | bg -> tab | `{}` | `background/utils/contentPalette.ts`, `toggleContentPalette` | `shared/hooks/useCommandPaletteStateRedux.tsx` (responds `{ received: true }`) |
@@ -175,11 +177,12 @@ Note this handler is **not** wrapped by `createMessageHandler`; it has its own t
 
 ### Permissions
 
-These three messages are the only ones the send hook does **not** attach `context` to (see `useSendMessage`):
+These four messages are the only ones the send hook does **not** attach `context` to (see `useSendMessage`):
 
 - **`monocle-permissions-get`** — `getPermissions` calls `permissions.getAll()` and maps known permission names into a boolean `access` object (`activeTab`, `bookmarks`, `browsingData`, `contextualIdentities` (Firefox only), `cookies`, `downloads`, `history`, `sessions`, `storage`, `tabs`, `tabGroups` (Chrome only), `management`). On failure it throws (surfaced as `{ error }` by the cross-browser wrapper).
 - **`monocle-permission-request`** — `requestPermission` calls `permissions.request` then `permissions.contains`, returning `RequestPermissionResponse` = `{ granted: boolean, error? }`.
 - **`monocle-permission-grant-page-open`** — `openPermissionGrantPage` opens `/newtab.html?grantPermission=<permission>` in a new active tab so the prompt fires from a stable extension page; returns `{ success: true }`.
+- **`monocle-host-permission-ensure`** — `ensureHostPermissionMessage` resolves a tab/url, requests a concrete optional http(s) origin when called from a user action, and injects `content-scripts/content.js` into the tab after a grant. It returns `{ granted, originPattern?, error? }`. This is separate from named permission requests and never broadens beyond the single current/destination origin.
 
 Browser permission state is authoritative; Redux mirrors it. See [permissions.md](permissions.md).
 
@@ -330,7 +333,7 @@ The generic declarative-UI query (handler: `background/messages/surfaces.ts`; se
 `shared/hooks/useSendMessage.tsx` returns a `sendMessage(message, contextOverride?)` callback. It:
 
 - Builds a base context `{ title: document.title, url: window.location.href, modifierKey: <current modifier> }` and shallow-merges `contextOverride`.
-- Attaches `context` to every message **except** `monocle-permissions-get`, `monocle-permission-request`, and `monocle-permission-grant-page-open`.
+- Attaches `context` to every message **except** `monocle-permissions-get`, `monocle-permission-request`, `monocle-permission-grant-page-open`, and `monocle-host-permission-ensure`.
 - Sends through the shared `sendRuntimeMessage` transport (`shared/utils/extension-api.ts`), which wraps `runtime.sendMessage` in a Promise; rejects with `runtime.lastError` if set, otherwise resolves with the raw response.
 
 Its `SendableMessage` union uses context-stripped variants (`Omit<..., "context">`) for the command/keybinding messages because the hook supplies context. The current modifier key is tracked through a ref fed by `useIsModifierKeyPressed`, so modifier-aware execution (e.g. enter vs cmd-enter) reflects the live key state.

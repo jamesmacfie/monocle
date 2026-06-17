@@ -5,6 +5,8 @@ const externalHosts = [
   "https://icons.duckduckgo.com/*",
 ]
 
+export const optionalHostPermissions = ["http://*/*", "https://*/*"] as const
+
 const remoteConnectSources = [
   "https://api.unsplash.com",
   "https://icons.duckduckgo.com",
@@ -134,6 +136,7 @@ export default defineConfig({
       extension_pages: getExtensionPagesCsp(command),
     },
     host_permissions: externalHosts,
+    optional_host_permissions: [...optionalHostPermissions],
     // "tabGroups" powers the native Chrome tab-group commands
     // (background/features/tabGroups/nativeCommands.ts). Chrome-only: Firefox
     // has no chrome.tabGroups API, and declaring an unknown optional permission

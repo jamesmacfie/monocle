@@ -8,7 +8,12 @@
 // background/features/index.ts. See docs/element-hider.md.
 import type { RecordListItem } from "../../../shared/types"
 import type { Step } from "../../../shared/types/workflow"
+import { showToast } from "../../messages/showToast"
 import { removeSurface } from "../../surfaces"
+import {
+  ensureHostPermission,
+  hostPermissionPatternForUrl,
+} from "../../utils/hostPermissions"
 import { executeWorkflowOnTargetTab } from "../../workflows/execution"
 import { getFeatureConfig, setFeatureConfig } from "../config"
 import type { FeatureActionContext, FeatureModule } from "../types"
@@ -40,17 +45,6 @@ const projectRules = (config: ElementHiderConfig): RecordListItem[] =>
       : rule.urlPattern,
   }))
 
-// A domain-wide pattern (`*://host/*`) — the sensible default scope for hiding
-// (nav bars, ads, banners recur across a site's pages).
-const domainPattern = (url: string): string | null => {
-  try {
-    const host = new URL(url).host
-    return host ? `*://${host}/*` : null
-  } catch {
-    return null
-  }
-}
-
 // Hide a selector immediately on the picked tab via a one-shot hideElement
 // workflow, so the user sees the effect without reloading.
 const hideNow = async (tabId: number, selector: string): Promise<void> => {
@@ -76,15 +70,33 @@ const handleElementPicked = async (
   if (!selector || !tab?.url) {
     return
   }
-  const pattern = domainPattern(tab.url)
-  if (!pattern) {
+  const pattern = hostPermissionPatternForUrl(tab.url)
+  if (!pattern.ok) {
+    return
+  }
+
+  const hostAccess = await ensureHostPermission({
+    tabId: tab.id,
+    url: tab.url,
+    reason: "elementHider",
+    request: false,
+    ensureContentScript: true,
+  })
+  if (!hostAccess.granted) {
+    await showToast({
+      type: "monocle-toast-show",
+      level: "warning",
+      message:
+        hostAccess.error ??
+        "Grant site access before hiding elements on this page",
+    })
     return
   }
 
   const config = await getConfig()
   const rule: ElementHiderRule = {
     id: crypto.randomUUID(),
-    urlPattern: pattern,
+    urlPattern: pattern.originPattern,
     selector,
     label: ctx.selection?.innerText
       ? ctx.selection.innerText.slice(0, 60)

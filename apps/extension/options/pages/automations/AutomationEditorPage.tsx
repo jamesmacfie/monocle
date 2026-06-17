@@ -22,8 +22,14 @@ import {
   updateAutomation,
 } from "../../../shared/store/slices/automations.slice"
 import { selectSnippets } from "../../../shared/store/slices/snippets.slice"
-import type { ColorName, IconName } from "../../../shared/types"
+import type {
+  ColorName,
+  EnsureHostPermissionResponse,
+  IconName,
+} from "../../../shared/types"
 import { validateAutomationDraft } from "../../../shared/types/automationValidation"
+import { automationTouchesPage } from "../../../shared/utils/automation-introspection"
+import { sendRuntimeMessage } from "../../../shared/utils/extension-api"
 import {
   Button,
   Checkbox,
@@ -91,6 +97,9 @@ export function AutomationEditorPage() {
   const [state, setState] = useState<EditorDraftState | null>(null)
   const [addOp, setAddOp] = useState("click")
   const [saving, setSaving] = useState(false)
+  const [hostAccessWarning, setHostAccessWarning] = useState<string | null>(
+    null,
+  )
 
   useEffect(() => {
     dispatch(clearLastRunResult())
@@ -179,7 +188,30 @@ export function AutomationEditorPage() {
       return
     }
     setSaving(true)
+    setHostAccessWarning(null)
     try {
+      if (automationTouchesPage(validation.automation.steps)) {
+        try {
+          const hostAccess =
+            await sendRuntimeMessage<EnsureHostPermissionResponse>({
+              type: "monocle-host-permission-ensure",
+              reason: "automation",
+            })
+          if (!hostAccess.granted && hostAccess.originPattern) {
+            setHostAccessWarning(
+              hostAccess.error ??
+                `Grant site access for ${hostAccess.originPattern} before running this automation on that site.`,
+            )
+          }
+        } catch (error) {
+          setHostAccessWarning(
+            error instanceof Error
+              ? error.message
+              : "Could not request site access before saving.",
+          )
+        }
+      }
+
       const action = isNew
         ? await dispatch(addAutomation({ automation: validation.automation }))
         : await dispatch(
@@ -263,6 +295,12 @@ export function AutomationEditorPage() {
       {sliceError && (
         <div className="rounded-md border border-[var(--color-error-border)] bg-[var(--color-error-bg)] px-3 py-2 text-sm text-[var(--color-error-fg)]">
           {sliceError}
+        </div>
+      )}
+
+      {hostAccessWarning && (
+        <div className="rounded-md border border-[var(--color-warning-border)] bg-[var(--color-warning-bg)] px-3 py-2 text-sm text-[var(--color-warning-fg)]">
+          {hostAccessWarning}
         </div>
       )}
 

@@ -272,6 +272,47 @@ export const AutomationConditionSchema: z.ZodType<AutomationCondition> = z.lazy(
 // Steps. Content steps reuse the workflow schema verbatim; engine steps are
 // validated here. branch/forEach/while recurse through the full union.
 
+const NonNegativeIntegerSchema = z.number().int().nonnegative()
+
+const AutomationRetryPolicySchema = z
+  .object({
+    retries: NonNegativeIntegerSchema,
+    delayMs: NonNegativeIntegerSchema.optional(),
+    backoff: z.enum(["none", "exponential"]).optional(),
+  })
+  .strict()
+
+const AutomationTargetingOptsSchema = z
+  .object({
+    scrollIntoView: z.boolean().optional(),
+    ensureVisible: z.boolean().optional(),
+  })
+  .strict()
+
+const AutomationContentStepBaseSchema = z.object({
+  id: z.string().optional(),
+  description: z.string().optional(),
+  timeoutMs: NonNegativeIntegerSchema.optional(),
+  retry: AutomationRetryPolicySchema.optional(),
+  targeting: AutomationTargetingOptsSchema.optional(),
+})
+
+const AutomationClickStepSchema = AutomationContentStepBaseSchema.extend({
+  op: z.literal("click"),
+  target: SelectorSchema,
+  button: z.enum(["left", "middle", "right"]).optional(),
+  clickCount: z.union([z.literal(1), z.literal(2)]).optional(),
+  delayMs: NonNegativeIntegerSchema.optional(),
+  modifiers: z.array(z.enum(["Alt", "Control", "Meta", "Shift"])).optional(),
+  expectNavigation: z.boolean().optional(),
+}).strict()
+
+const AutomationSubmitStepSchema = AutomationContentStepBaseSchema.extend({
+  op: z.literal("submit"),
+  target: SelectorSchema,
+  expectNavigation: z.boolean().optional(),
+}).strict()
+
 const EngineStepBaseSchema = z.object({
   id: z.string().max(USER_SCRIPT_NAME_MAX_LENGTH).optional(),
   description: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
@@ -358,6 +399,8 @@ const HideSurfaceStepSchema = EngineStepBaseSchema.extend({
 
 export const AutomationStepSchema: z.ZodType<AutomationStep> = z.lazy(() =>
   z.union([
+    AutomationClickStepSchema,
+    AutomationSubmitStepSchema,
     WorkflowStepSchema,
     SetVariableStepSchema,
     InsertSnippetStepSchema,

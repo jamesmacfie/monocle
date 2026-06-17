@@ -6,21 +6,41 @@
 // one). Workflow execution and the surfaces store are mocked.
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
+import type { ActionCommandNode } from "../../../shared/types"
 import { isFeatureAutomation } from "../../../shared/types/automations"
 import { AutomationSchema } from "../../../shared/types/automationValidation"
 import { getFeatureConfig, setFeatureConfig } from "../config"
 
-const { hideNow, removeSurface } = vi.hoisted(() => ({
-  hideNow: vi.fn(async () => ({ tabId: 1, result: { success: true } })),
-  removeSurface: vi.fn(async () => {}),
-}))
+const { hideNow, removeSurface, upsertSurface, ensureHostPermission } =
+  vi.hoisted(() => ({
+    hideNow: vi.fn(async () => ({ tabId: 1, result: { success: true } })),
+    removeSurface: vi.fn(async () => {}),
+    upsertSurface: vi.fn(async () => {}),
+    ensureHostPermission: vi.fn(async () => ({
+      granted: true,
+      originPattern: "https://shop.example.com/*",
+    })),
+  }))
 
 vi.mock("../../workflows/execution", () => ({
   executeWorkflowOnTargetTab: hideNow,
 }))
 vi.mock("../../surfaces", () => ({
   removeSurface,
-  upsertSurface: vi.fn(async () => {}),
+  upsertSurface,
+}))
+vi.mock("../../utils/hostPermissions", () => ({
+  ensureHostPermission,
+  hostPermissionPatternForUrl: (url: string) => {
+    if (!/^https?:\/\//.test(url)) {
+      return { ok: false, error: "not a web page" }
+    }
+    const parsed = new URL(url)
+    return {
+      ok: true,
+      originPattern: `${parsed.protocol}//${parsed.hostname}/*`,
+    }
+  },
 }))
 
 import { projectElementHiderAutomations } from "./automations"
@@ -38,6 +58,11 @@ beforeEach(async () => {
   await fakeBrowser.storage.local.clear()
   hideNow.mockClear()
   removeSurface.mockClear()
+  upsertSurface.mockClear()
+  ensureHostPermission.mockReset().mockResolvedValue({
+    granted: true,
+    originPattern: "https://shop.example.com/*",
+  })
 })
 
 const getConfig = () =>
@@ -126,10 +151,68 @@ describe("elementHiderFeature.settings.lists", () => {
   })
 })
 
+describe("elementHiderFeature.commands", () => {
+  const pickCommand = (): ActionCommandNode | undefined =>
+    elementHiderFeature
+      .commands?.()
+      .find((command): command is ActionCommandNode => {
+        return command.id === "element-hider-pick" && command.type === "action"
+      })
+
+  const stubActiveTab = (url = "https://shop.example.com/products") => {
+    vi.stubGlobal("chrome", {
+      runtime: { id: "monocle-test", lastError: undefined },
+      tabs: {
+        query: vi.fn((_query, callback) => callback([{ id: 7, url }])),
+        sendMessage: vi.fn((_tabId, _message, callback) =>
+          callback?.({ received: true }),
+        ),
+      },
+    })
+  }
+
+  it("requests host access before creating the picker surface", async () => {
+    stubActiveTab()
+
+    await pickCommand()?.execute?.({
+      url: "https://shop.example.com/products",
+      title: "Shop",
+      modifierKey: null,
+    })
+
+    expect(ensureHostPermission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tabId: 7,
+        url: "https://shop.example.com/products",
+        reason: "elementHider",
+        request: true,
+        ensureContentScript: true,
+      }),
+    )
+    expect(upsertSurface).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not create the picker when host access is denied", async () => {
+    stubActiveTab()
+    ensureHostPermission.mockResolvedValueOnce({
+      granted: false,
+      originPattern: "https://shop.example.com/*",
+    })
+
+    await pickCommand()?.execute?.({
+      url: "https://shop.example.com/products",
+      title: "Shop",
+      modifierKey: null,
+    })
+
+    expect(upsertSurface).not.toHaveBeenCalled()
+  })
+})
+
 describe("elementHiderFeature.handleAction", () => {
   const handle = elementHiderFeature.settings?.handleAction
 
-  it("element-picked saves a domain-scoped rule and hides immediately", async () => {
+  it("element-picked saves an origin-scoped rule and hides immediately", async () => {
     await handle?.("element-picked", {
       selection: {
         selector: ".cookie-banner",
@@ -142,7 +225,7 @@ describe("elementHiderFeature.handleAction", () => {
     const config = await getConfig()
     expect(config.rules).toHaveLength(1)
     expect(config.rules[0]).toMatchObject({
-      urlPattern: "*://shop.example.com/*",
+      urlPattern: "https://shop.example.com/*",
       selector: ".cookie-banner",
       label: "We use cookies",
     })
@@ -153,7 +236,7 @@ describe("elementHiderFeature.handleAction", () => {
     )
   })
 
-  it("preserves non-default ports in saved URL patterns", async () => {
+  it("uses the scheme and host for localhost URL patterns", async () => {
     await handle?.("element-picked", {
       selection: {
         selector: "#debug-panel",
@@ -164,9 +247,28 @@ describe("elementHiderFeature.handleAction", () => {
 
     const config = await getConfig()
     expect(config.rules[0]).toMatchObject({
-      urlPattern: "*://localhost:3000/*",
+      urlPattern: "http://localhost/*",
       selector: "#debug-panel",
     })
+  })
+
+  it("does not save or hide when host access was revoked before picking", async () => {
+    ensureHostPermission.mockResolvedValueOnce({
+      granted: false,
+      originPattern: "https://shop.example.com/*",
+    })
+
+    await handle?.("element-picked", {
+      selection: {
+        selector: ".cookie-banner",
+        tagName: "DIV",
+      },
+      tab: { id: 7, url: "https://shop.example.com/products" },
+    })
+
+    const config = await getConfig()
+    expect(config.rules).toHaveLength(0)
+    expect(hideNow).not.toHaveBeenCalled()
   })
 
   it("element-picked is a no-op without a selector or tab url", async () => {

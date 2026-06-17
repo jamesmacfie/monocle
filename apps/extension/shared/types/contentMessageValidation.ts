@@ -46,6 +46,7 @@ const SiteSdkInvokeRequestSchema = z.discriminatedUnion("type", [
 ])
 
 const PaletteControlMessageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("monocle-content-ping") }).strict(),
   z.object({ type: z.literal("monocle-ui-toggle") }).strict(),
   z.object({ type: z.literal("monocle-ui-show") }).strict(),
   z.object({ type: z.literal("monocle-ui-hide") }).strict(),

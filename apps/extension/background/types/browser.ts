@@ -6,6 +6,7 @@ export type BrowserAPIObject =
   | "windows"
   | "runtime"
   | "scripting"
+  | "permissions"
   | "bookmarks"
   | "history"
   | "browsingData"

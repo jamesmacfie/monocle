@@ -6,8 +6,10 @@
 // page. See docs/element-hider.md.
 import type { ActionCommandNode, CommandNode } from "../../../shared/types"
 import { openOptionsPage } from "../../../shared/utils/extension-api"
+import { showToast } from "../../messages/showToast"
 import { upsertSurface } from "../../surfaces"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
+import { ensureHostPermission } from "../../utils/hostPermissions"
 import { ELEMENT_HIDER_FEATURE_ID } from "./types"
 
 export const PICKER_SURFACE_ID = "picker"
@@ -33,6 +35,25 @@ const pickElementCommand: ActionCommandNode = {
           message: "Element picking only works on web pages",
         }).catch(() => undefined)
       }
+      return
+    }
+
+    const hostAccess = await ensureHostPermission({
+      tabId: activeTab?.id,
+      url,
+      reason: "elementHider",
+      request: true,
+      ensureContentScript: true,
+    })
+
+    if (!hostAccess.granted) {
+      await showToast({
+        type: "monocle-toast-show",
+        level: "warning",
+        message:
+          hostAccess.error ??
+          "Grant site access before hiding elements on this page",
+      })
       return
     }
 

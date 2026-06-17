@@ -195,6 +195,13 @@ export const OpenPermissionGrantPageMessageSchema = z.object({
   permission: z.string().min(1, "Permission name cannot be empty"),
 })
 
+export const EnsureHostPermissionMessageSchema = z.object({
+  type: z.literal("monocle-host-permission-ensure"),
+  tabId: z.number().int().positive().optional(),
+  url: z.string().min(1).max(4000).optional(),
+  reason: z.enum(["automation", "elementHider"]),
+})
+
 export const ExecuteWorkflowMessageSchema = z.object({
   type: z.literal("monocle-workflow-execute"),
   workflow: WorkflowSchema,
@@ -321,6 +328,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
   GetPermissionsMessageSchema,
   RequestPermissionMessageSchema,
   OpenPermissionGrantPageMessageSchema,
+  EnsureHostPermissionMessageSchema,
   ExecuteWorkflowMessageSchema,
   SiteSdkSyncMessageSchema,
   GetAutomationsMessageSchema,
