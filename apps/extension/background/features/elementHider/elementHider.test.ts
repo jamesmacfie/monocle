@@ -19,7 +19,13 @@ const {
   openHostPermissionGrantPage,
   showToast,
 } = vi.hoisted(() => ({
-  hideNow: vi.fn(async () => ({ tabId: 1, result: { success: true } })),
+  hideNow: vi.fn(async () => ({
+    tabId: 1,
+    result: {
+      success: true as boolean,
+      error: undefined as string | undefined,
+    },
+  })),
   removeSurface: vi.fn(async () => {}),
   upsertSurface: vi.fn(async () => {}),
   ensureHostPermission: vi.fn(async () => ({
@@ -71,7 +77,13 @@ beforeEach(async () => {
   fakeBrowser.reset()
   installBrowserStubs()
   await fakeBrowser.storage.local.clear()
-  hideNow.mockClear()
+  hideNow.mockReset().mockResolvedValue({
+    tabId: 1,
+    result: {
+      success: true as boolean,
+      error: undefined as string | undefined,
+    },
+  })
   removeSurface.mockClear()
   upsertSurface.mockClear()
   openHostPermissionGrantPage.mockClear()
@@ -259,6 +271,39 @@ describe("elementHiderFeature.handleAction", () => {
     )
   })
 
+  it("warns when the immediate hide workflow fails", async () => {
+    hideNow.mockResolvedValueOnce({
+      tabId: 7,
+      result: {
+        success: false,
+        error: "Could not find element for selector",
+      },
+    })
+
+    await handle?.("element-picked", {
+      selection: {
+        selector: ".cookie-banner",
+        tagName: "DIV",
+        innerText: "We use cookies",
+      },
+      tab: { id: 7, url: "https://shop.example.com/products?x=1" },
+    })
+
+    const config = await getConfig()
+    expect(config.rules).toHaveLength(1)
+    expect(hideNow).toHaveBeenCalledTimes(1)
+    expect(showToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: "warning",
+        message: "Could not find element for selector",
+      }),
+    )
+    expect(removeSurface).toHaveBeenCalledWith(
+      ELEMENT_HIDER_FEATURE_ID,
+      "picker",
+    )
+  })
+
   it("uses the scheme and host for localhost URL patterns", async () => {
     await handle?.("element-picked", {
       selection: {
@@ -292,6 +337,10 @@ describe("elementHiderFeature.handleAction", () => {
     const config = await getConfig()
     expect(config.rules).toHaveLength(0)
     expect(hideNow).not.toHaveBeenCalled()
+    expect(removeSurface).toHaveBeenCalledWith(
+      ELEMENT_HIDER_FEATURE_ID,
+      "picker",
+    )
   })
 
   it("element-picked is a no-op without a selector or tab url", async () => {
