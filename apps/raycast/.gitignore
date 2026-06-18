@@ -1,0 +1,10 @@
+# Raycast / npm build output
+node_modules
+.vscode
+*.log
+
+# ray build cache
+.raycast-swift-build
+.swiftpm
+compiled_raycast_*
+raycast-env.d.ts

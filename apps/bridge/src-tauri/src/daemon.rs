@@ -70,6 +70,17 @@ pub async fn run(port: u16, connected: Arc<AtomicBool>) -> std::io::Result<()> {
 
     // --- UDS listener (relay connections) ---
     let sock = paths::sock_path();
+    // Guard against clobbering a live daemon: if something is already serving the
+    // socket, another instance owns it (e.g. a racing relaunch that reached here
+    // before single-instance exited it). Don't unlink/rebind under the running
+    // daemon — bail and let the existing one keep the connection.
+    if UnixStream::connect(&sock).await.is_ok() {
+        eprintln!(
+            "[daemon] another daemon already owns {} — not starting servers",
+            sock.display()
+        );
+        return Ok(());
+    }
     let _ = std::fs::remove_file(&sock); // clear a stale socket from a crash
     let uds = UnixListener::bind(&sock)?;
     {

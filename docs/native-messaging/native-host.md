@@ -8,11 +8,12 @@
 > open.
 
 The native host is a small native binary that lives **outside the extension
-bundle**. The browser launches it when the extension calls
-`runtime.connectNative("com.monocle.bridge")`, exchanges JSON with it over
-stdio, and the host additionally runs a loopback HTTP server the external app
-calls. This document covers the host manifest, per-OS registration, the stdio
-framing, and the loopback server's transport rules.
+bundle**. The built app uses one binary in two modes: the user-launched daemon
+runs the loopback HTTP server the external app calls, while the browser-spawned
+relay mode is launched by `runtime.connectNative("com.monocle.bridge")` and
+exchanges JSON with the extension over stdio. This document covers the host
+manifest, per-OS registration, stdio framing, and the loopback server's
+transport rules.
 
 The host holds **no Monocle logic** — it is a relay with a transport gate. All
 authentication and suggestion-building happen in the extension background.
@@ -95,8 +96,8 @@ Size caps (per Chrome's documentation):
 - **browser → host**: a much larger cap (multi-GB). Requests are tiny, so this is
   never a concern.
 
-The host reads the same framing from the app side conceptually, but the app↔host
-link is HTTP (below), so the host translates HTTP bodies to/from stdio frames.
+The relay reads/writes this framing on the browser side. The app↔daemon link is
+HTTP (below), so the daemon translates HTTP bodies to/from framed relay messages.
 
 ---
 

@@ -7,6 +7,7 @@
 import { NATIVE_MESSAGING_HOST } from "../../../shared/types"
 import { getBrowserAPI } from "../../../shared/utils/extension-api"
 import { handleBridgeRequest } from "./pump"
+import { clearReconnectAlarm, ensureReconnectAlarm } from "./reconnect"
 
 // Minimal port surface we use — avoids depending on a specific @types/chrome
 // shape for connectNative's return (named differently across versions).
@@ -47,6 +48,9 @@ const scheduleReconnect = (): void => {
 
 export const connectBridge = async (): Promise<void> => {
   wantConnected = true
+  // Heartbeat survives worker death and re-opens the port even if the in-memory
+  // setTimeout reconnect below is lost when the worker is terminated.
+  ensureReconnectAlarm()
   if (port) {
     return
   }
@@ -104,6 +108,7 @@ export const connectBridge = async (): Promise<void> => {
 
 export const disconnectBridge = (): void => {
   wantConnected = false
+  clearReconnectAlarm()
   if (reconnectTimer) {
     clearTimeout(reconnectTimer)
     reconnectTimer = null

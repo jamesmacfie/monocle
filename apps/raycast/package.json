@@ -1,0 +1,63 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "monocle",
+  "title": "Monocle",
+  "description": "Search and run the active browser tab's Monocle commands from Raycast.",
+  "icon": "monocle-icon.png",
+  "author": "james_macfie",
+  "categories": ["Productivity", "Web"],
+  "license": "MIT",
+  "platforms": ["macOS"],
+  "commands": [
+    {
+      "name": "search-monocle",
+      "title": "Search Monocle",
+      "subtitle": "Active browser tab",
+      "description": "List and run the active tab's Monocle commands.",
+      "mode": "view"
+    },
+    {
+      "name": "pair-monocle",
+      "title": "Pair Monocle",
+      "subtitle": "Connect to the browser",
+      "description": "Pair Raycast with a running Monocle browser via the native bridge.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "port",
+      "type": "textfield",
+      "required": false,
+      "title": "Bridge port",
+      "description": "Loopback port the Monocle Bridge listens on. Leave blank to auto-discover from ~/.monocle/bridge.json (default 8765).",
+      "default": "8765"
+    },
+    {
+      "name": "host",
+      "type": "textfield",
+      "required": false,
+      "title": "Bridge host",
+      "description": "Loopback host. Almost always 127.0.0.1.",
+      "default": "127.0.0.1"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.99.0",
+    "@raycast/utils": "^1.19.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.0",
+    "@types/node": "22.14.0",
+    "@types/react": "^19.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.8.0"
+  },
+  "scripts": {
+    "dev": "ray develop",
+    "build": "ray build",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix"
+  }
+}

@@ -60,8 +60,8 @@ Bumping `v` is reserved for breaking changes; additive fields do not bump it.
 
 Unauthenticated methods are limited to discovery and pairing. Everything that
 reads Monocle data requires a token with the matching scope. Execution is a
-**v2** capability behind a distinct, higher-blast-radius scope (`commands:execute`);
-v1 ships only the read-only `suggestions/*` methods.
+**v2** capability behind a distinct, higher-blast-radius scope (`commands:execute`)
+and the global Allow-execution opt-in.
 
 ### `meta/info`
 
@@ -69,8 +69,9 @@ v1 ships only the read-only `suggestions/*` methods.
 // result
 {
   "protocolVersions": [1],
-  "scopes": ["suggestions:read"],
+  "scopes": ["suggestions:read", "commands:execute"],
   "bridgeEnabled": true,
+  "executionEnabled": false,
   "browser": { "name": "chrome", "channel": "stable", "extensionVersion": "0.0.1" }
 }
 ```
@@ -82,10 +83,10 @@ v1 ships only the read-only `suggestions/*` methods.
 {
   "ok": true,
   "browser": "firefox",
-  "profile": "default",        // when derivable
   "channel": "stable",
   "extensionVersion": "0.0.1",
   "bridgeEnabled": true,
+  "executionEnabled": false,
   "portOwner": true            // is this host the one holding the fixed port
 }
 ```
@@ -104,7 +105,7 @@ full flow and security parameters.
 // pair/submit-code params
 { "pairingId": "uuid", "code": "481920" }
 // pair/submit-code result (token returned exactly once, never again)
-{ "token": "<opaque>", "scopes": ["suggestions:read"] }
+{ "token": "<opaque>", "scopes": ["suggestions:read", "commands:execute"] }
 ```
 
 ### `suggestions/get-for-active-tab`
@@ -200,8 +201,7 @@ not leak.
   "subtitle": "Close the current tab",   // from description, optional
   "icon": "x",                      // normalized icon ref, optional
   "keywords": ["tab", "close"],     // optional
-  "requiresPermission": ["tabs"],   // from Suggestion.permissions, optional
-  "source": "browser"               // category/source bucket, for grouping in the app
+  "requiresPermission": ["tabs"]    // from Suggestion.permissions, optional
 }
 ```
 
@@ -214,7 +214,7 @@ Mapping rules (implemented by the named mapper in
 - `requiresPermission` ← `Suggestion.permissions`.
 - Dropped entirely: `actions`, `rankWeight`, `executionPayload`,
   `modifierActionLabel`, `confirmAction`, `inputField`, calculation `content`
-  blocks. v1 does not execute, so execution-only fields are not exposed.
+  blocks, and command source/category metadata.
 - `calculation`-type suggestions: expose `title`/`subtitle` from the rendered
   value but **not** the structured `ContentBlock`s.
 

@@ -20,6 +20,7 @@ import {
 } from "./commands/searchIndex"
 import { clearSiteSdkScopesForTab } from "./commands/siteSdk"
 import { initFeatures } from "./features"
+import { initializeBridgeReconnect } from "./features/nativeMessaging/reconnect"
 import { initializeKeybindingRegistry } from "./keybindings/registry"
 import { initializeKeybindingEntriesInvalidation } from "./keybindings/source"
 import { handleMessage } from "./messages"
@@ -70,6 +71,11 @@ export function initializeBackground() {
   // Feature modules: run startup lifecycle hooks (e.g. Focus Mode re-arms its
   // session-end alarm and rebuilds its surfaces). See docs/features.md.
   initFeatures().catch(console.error)
+
+  // Register the native-bridge reconnect alarm listener synchronously so an
+  // alarm-wake re-attaches the connectNative port even after the worker was
+  // idle-terminated (the port's in-memory reconnect doesn't survive that).
+  initializeBridgeReconnect()
 
   browserAPI.tabs?.onRemoved?.addListener((tabId: number) => {
     forgetActivatedTab(tabId)

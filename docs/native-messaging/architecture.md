@@ -4,10 +4,11 @@
 > (macOS M0+M1).** This document is the design/contract; the canonical build
 > status lives in [README.md](./README.md) and the project `CLAUDE.md`.
 
-This document describes the three components of the bridge, why native messaging
-is the transport, the service-worker lifecycle constraints, and the end-to-end
-flow of a single suggestions request — terminating in the existing command-query
-code so the bridge stays a thin adapter rather than a parallel implementation.
+This document describes the four runtime components of the bridge, why native
+messaging is still part of the transport, the service-worker lifecycle
+constraints, and the end-to-end flow of a single suggestions request —
+terminating in the existing command-query code so the bridge stays a thin
+adapter rather than a parallel implementation.
 
 ---
 
@@ -15,15 +16,16 @@ code so the bridge stays a thin adapter rather than a parallel implementation.
 
 | Component | Where it runs | Responsibility |
 | --- | --- | --- |
-| **External app** | Desktop (Raycast) | Initiates pairing, holds the bearer token, sends JSON requests to the loopback port, renders the returned suggestions. |
-| **Native host** | A native child process the browser launches | Owns the loopback HTTP server **and** the stdio pipe to the extension. Relays JSON between them, enforces transport-level rules (method, content-type, `Origin` rejection). Holds no Monocle logic. |
-| **Extension background** | Monocle's MV3 service worker | Calls `connectNative`, authenticates requests, resolves the active tab, builds suggestions by reusing `getCommands` / the search index, maps them to the public DTO, and drives the pairing modal. |
+| **External app** | Desktop (Raycast) | Initiates pairing, holds the bearer token, sends JSON requests to the loopback port, renders returned suggestions, and handles execute results. |
+| **Bridge daemon** | Persistent `apps/bridge` Tauri app | Owns `127.0.0.1:<port>`, writes `~/.monocle/bridge.json`, listens on `~/.monocle/bridge.sock`, rejects browser `Origin`, injects the bearer token from the HTTP header, and routes replies by envelope `id`. |
+| **Relay** | Browser-spawned `connectNative` child process (same binary, relay mode) | Pumps frames between browser native-messaging stdio and the daemon's UDS. No UI, no Monocle logic. |
+| **Extension background** | Monocle's MV3 service worker | Calls `connectNative`, authenticates requests, resolves the active tab, builds suggestions by reusing `getCommands` / the search index / child page resolver, maps them to the public DTO, executes allowed commands, and drives the pairing modal. |
 
-The split matters: the host is deliberately ignorant. It cannot read tabs, build
-suggestions, or decide pairing — it only moves bytes and rejects obviously
-illegitimate callers. Every decision that touches Monocle data lives in the
-background worker, behind the same validation the in-extension message router
-already applies.
+The split matters: the daemon and relay are deliberately ignorant. They cannot
+read tabs, build suggestions, mint tokens, or decide pairing — they only move
+bytes and reject obviously illegitimate callers. Every decision that touches
+Monocle data lives in the background worker, behind the same validation the
+in-extension message router already applies.
 
 ---
 
@@ -41,11 +43,12 @@ connections. Three options exist for reaching it from outside the browser:
 3. The extension polling a remote server — unacceptable latency and a network
    round trip for local data.
 
-Native messaging wins for v1: the browser manages the host's lifecycle (no
-separate daemon to install and keep alive), and the `allowed_origins` /
-`allowed_extensions` manifest field cryptographically ties the host to *this*
-extension. Its one weakness — one host process per browser — is the subject of
-[multi-instance.md](./multi-instance.md).
+The built bridge combines native messaging with a persistent daemon: the
+browser-spawned relay preserves native messaging's `allowed_origins` /
+`allowed_extensions` binding to *this* extension, while the daemon gives the
+caller a stable loopback endpoint and useful "browser not connected" diagnostics.
+The remaining weakness — caller-side browser/profile selection — is the subject
+of [multi-instance.md](./multi-instance.md).
 
 See [native-host.md](./native-host.md) for the host manifest, registration, and
 framing details.
@@ -75,10 +78,11 @@ disconnects it and lets the worker idle normally.
 
 1. The app sends an authenticated `POST` to `127.0.0.1:<port>` with its bearer
    token and the request envelope.
-2. The native host validates transport rules (method `POST`, JSON content-type,
-   no browser `Origin`), then writes the JSON to stdout (stdio framing) to the
-   extension's port.
-3. The background `port.onMessage` handler:
+2. The daemon validates transport rules (method `POST`, JSON body, no browser
+   `Origin`), injects the bearer token into `env.auth.token`, and writes the
+   JSON frame to the connected relay over `~/.monocle/bridge.sock`.
+3. The relay pumps the frame to the extension's native-messaging port over stdio.
+4. The background `port.onMessage` handler:
    - **Authenticates** the token (hash compare, scope check — see
      [authentication-and-security.md](./authentication-and-security.md)).
    - **Resolves the active tab** with
@@ -96,10 +100,11 @@ disconnects it and lets the worker idle normally.
    - **Maps** the resulting internal `Suggestion[]` to the public
      `ExternalSuggestion[]` DTO (see [protocol.md](./protocol.md)) — the internal
      `Suggestion` type is never sent over the wire.
-4. The background posts the response back over the port; the host frames it back
-   onto the HTTP response.
+5. The background posts the response back over the port; the relay returns it to
+   the daemon, and the daemon matches the response to the waiting HTTP request by
+   envelope `id`.
 
-`suggestions/search-active-tab` is identical except step 3 routes through the
+`suggestions/search-active-tab` is identical except the background dispatch routes through the
 search path (the `monocle-commands-search` handler + `background/commands/searchIndex.ts`
 scoring) with the app-supplied query.
 
@@ -113,11 +118,11 @@ the page's `window.Monocle` registrations. A native-host request has **no
 content-script sender**, so page-owned SDK commands cannot be resolved and are
 absent from bridge results.
 
-v1 accepts this and documents it: bridge suggestions are the privileged,
-background-owned command set for the active URL, **minus** site-SDK commands. v2
-may reconstruct a top-frame tab scope (look up the active tab's top frame and ask
-it for its SDK registrations) to close the gap. Until then, do not claim bridge
-results are byte-identical to the palette.
+Current bridge behavior accepts this and documents it: bridge suggestions are the
+privileged, background-owned command set for the active URL, **minus** site-SDK
+commands. A future version may reconstruct a top-frame tab scope (look up the
+active tab's top frame and ask it for its SDK registrations) to close the gap.
+Until then, do not claim bridge results are byte-identical to the palette.
 
 ---
 

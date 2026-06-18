@@ -30,8 +30,9 @@ Goal: a Raycast extension can pair once and list/search the active tab's command
 - **Multi-instance selection**: the instance registry + per-instance pairing, and
   a Raycast setting to choose the browser/profile (see
   [multi-instance.md](./multi-instance.md)).
-- **The Raycast extension itself** (separate repo): pairing UI, instance picker,
-  suggestion list/search views.
+- **The Raycast extension itself** (new isolated `apps/raycast` app): pairing UI,
+  suggestion list/search views, nested navigation, execution result handling, and
+  eventually an instance picker.
 - **Command execution** through the bridge — **built (extension side)**, see
   [execution.md](./execution.md). Done: the `external` config field on
   `CommandNodeBase`; the bridge execution policy (`runCommandPolicy` extended
@@ -72,7 +73,8 @@ Goal: a Raycast extension can pair once and list/search the active tab's command
   [../store-submission.md](../store-submission.md). Confirm reviewer-notes wording
   before submitting a build that ships the bridge.
 - **Result fidelity disclosure.** Decide how the app communicates that bridge
-  results exclude site-SDK commands (and, in v1, are read-only).
+  results exclude site-SDK commands and incognito tabs, and that some command
+  types are intentionally not executable from external apps.
 
 ---
 

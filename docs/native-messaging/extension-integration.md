@@ -27,9 +27,10 @@ Module responsibilities:
   and `port.onDisconnect` (reconnect with backoff while still enabled). If the
   flag is off, do nothing.
 - **`port.onMessage`**: the request pump (below).
-- **`configSchema`** (Zod): `{ enabled: boolean, pairedClients: PairedClient[] }`
-  where `PairedClient` holds `{ instanceId, name, tokenHash, scopes, createdAt,
-  lastUsedAt }`. Durable, in `monocle-feature-config`.
+- **`configSchema`** (Zod):
+  `{ enabled: boolean, allowExecution: boolean, pairedClients: PairedClient[] }` where
+  `PairedClient` holds `{ instanceId, name, tokenHash, scopes, createdAt, lastUsedAt }`. Durable, in
+  `monocle-feature-config`.
 - **Pending pairing state**: `{ pairingId, codeHash, expiresAt, attempts,
   client }` in `monocle-feature-state` (transient, cleared on resolve/expiry).
 - **Settings page**: an `enabled` toggle + a `record-list` of paired clients with
@@ -99,8 +100,9 @@ unit-tested (input `Suggestion`, output `ExternalSuggestion`).
 On `pair/request`, push a `modal` surface (display-only: code text + client name
 + `countdownTo`; `dismiss` = cancel). Owner is a session-scoped id (e.g.
 `native-messaging`), so it is cleared on startup like other ephemeral owners.
-When no `SurfaceHost` is mounted on the active tab (e.g. `chrome://`), fall back
-to opening the extension pairing page — see
+Current implementation note: when no `SurfaceHost` is mounted on the active tab (e.g. `chrome://`),
+there is no dedicated extension pairing page fallback yet. The user must switch to a normal page or
+Monocle new tab and restart pairing. See
 [authentication-and-security.md](./authentication-and-security.md).
 
 ---

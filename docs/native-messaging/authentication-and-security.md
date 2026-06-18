@@ -19,7 +19,9 @@ External messaging is **disabled by default**. A toggle on the bridge's settings
 page (see [extension-integration.md](./extension-integration.md)) flips a durable
 flag in `monocle-feature-config`. While off:
 
-- The extension does **not** call `connectNative` (no host process, no port).
+- The extension does **not** call `connectNative`, so no browser relay is attached to the native
+  host. The standalone Bridge app may still be running and answering `GET /status`, but protocol
+  calls that require the extension either have no connected browser or are rejected by the extension.
 - All pairing requests are rejected with `not_enabled`.
 
 Disabling the feature disconnects the port, revokes nothing automatically (tokens
@@ -59,15 +61,14 @@ silently.
   supersedes any pending one for that client.
 - **Comparison:** constant-time over the hashes, not string `===`.
 
-### Pairing-UI fallback
+### Pairing UI availability
 
 A modal surface only renders where a `SurfaceHost` is mounted — the active tab's
 content overlay, or the new tab. On `chrome://*`, the Chrome Web Store, the
-add-ons gallery, a discarded/sleeping tab, or any page without a content host,
-the modal would never appear and pairing would silently stall. So when no host is
-available, the extension **opens a dedicated Monocle extension page** (an options
-/ new-tab pairing route) and shows the code there instead. Pairing must never
-depend on the active tab being a normal web page.
+add-ons gallery, a discarded/sleeping tab, or any page without a content host, the current
+implementation has nowhere to show the code. The user must switch to a normal page or Monocle new tab
+and restart pairing. A dedicated Monocle extension pairing page is the right future fallback, but it
+is not built today.
 
 ---
 
@@ -110,7 +111,7 @@ checks the feature is still enabled.
 | Port exposed to other machines | Bind `127.0.0.1` only, never `0.0.0.0`. |
 | Silent pairing by a background process | Code is shown only in the browser and must be typed back by a human; short expiry + attempt cap. |
 | Token at rest | Stored hashed; plaintext returned once. |
-| Replay / broad blast radius | Per-client tokens, scopes, and revocation; v1 is read-only (no execution). |
+| Replay / broad blast radius | Per-client tokens, scopes, revocation, and a second global opt-in before command execution. |
 
 **Out of v1 (documented limit):** bearer tokens do **not** defend against local
 malware that can read another process's memory or the app's token store. If that

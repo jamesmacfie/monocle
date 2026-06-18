@@ -1,22 +1,17 @@
 # Native Messaging Bridge
 
-> **Status: v1 extension side implemented; bridge app M0+M1 built (macOS).** The
-> relay host now lives in-repo at `apps/bridge` (Tauri daemon+relay; see
-> [bridge-app-prd.md](./bridge-app-prd.md)) — built and verified headless on
-> macOS, pending real-browser end-to-end + signing + cross-platform. The
+> **Status: extension side implemented; bridge app M0+M1 built (macOS).** The
 > Monocle-side bridge is built as the `native-messaging` feature module
-> (`apps/extension/background/features/nativeMessaging/`): the opt-in toggle +
-> palette enable/disable commands, the `connectNative` port + reconnect, the
-> request pump (envelope validation, auth, dispatch), bluetooth-style pairing
-> (CSPRNG code, hashed/constant-time verify, attempt cap + expiry), scoped
-> hashed bearer tokens with per-client Revoke, and the `Suggestion` →
-> `ExternalSuggestion` mapper, all reusing `getCommands` / the search path /
-> Surfaces. The **native host is now in-repo** at `apps/bridge` (macOS M0+M1),
-> but the real browser→relay→daemon round-trip is not yet manually exercised
-> (needs the extension loaded). The `nativeMessaging`/`tabs` optional
-> permissions are wired; pinning a stable Chrome `key` is still open (see
-> [extension-integration.md](./extension-integration.md)). v2 items (execution,
-> multi-instance selection, site-SDK, signed requests) remain design-only.
+> (`apps/extension/background/features/nativeMessaging/`): opt-in toggle,
+> enable/disable commands, `connectNative` port + reconnect, protocol validation,
+> auth/scope dispatch, pairing, hashed bearer tokens with per-client Revoke,
+> active-tab suggestions/search/children, and **v2 command execution**
+> (`commands/execute`) behind the global Allow-execution opt-in. The native host
+> is in-repo at `apps/bridge` (Tauri, macOS M0+M1): a persistent daemon owns
+> `127.0.0.1:8765` + `~/.monocle/bridge.sock`, and a browser-spawned relay pumps
+> stdio⇄UDS. Headless HTTP/UDS relay tests pass; still open are the real
+> browser→relay→daemon round-trip, Chrome `key` pin, signing/notarization, and
+> Windows/Linux support.
 
 The **native messaging bridge** lets an external desktop application — the first
 target is a Raycast extension — ask Monocle for the command-palette suggestions
@@ -33,40 +28,45 @@ out of an MV3 service worker are outbound `fetch`/WebSocket connections and
 the external app calls.
 
 ```text
-┌────────────┐   POST 127.0.0.1:<port>   ┌──────────────┐   stdio (JSON)   ┌─────────────────────┐
-│ external   │ ────────────────────────► │ native host  │ ◄──────────────► │ Monocle background  │
-│ app        │ ◄──────────────────────── │ (the broker) │   connectNative  │ service worker      │
-│ (Raycast)  │      JSON response        │              │      Port        │                     │
-└────────────┘                           └──────────────┘                  └─────────────────────┘
+┌────────────┐   HTTP loopback    ┌─────────────────┐   UDS frames   ┌──────────────┐   stdio   ┌─────────────────────┐
+│ external   │ ─────────────────▶ │ bridge daemon   │ ─────────────▶ │ relay mode   │ ────────▶ │ Monocle background  │
+│ app        │ ◀───────────────── │ apps/bridge     │ ◀───────────── │ connectNative│ ◀──────── │ service worker      │
+│ (Raycast)  │  JSON response     │                 │                │ child        │           │                     │
+└────────────┘                    └─────────────────┘                └──────────────┘           └─────────────────────┘
 ```
 
-The host is a dumb relay with an auth gate: it owns the loopback port and the
-stdio pipe, and forwards JSON between them. All real work — resolving the active
-tab, building suggestions, the pairing decision — happens in the extension's
-background worker, reusing the existing command-query code.
+The bridge app is a dumb relay with a transport gate: the daemon owns the
+loopback HTTP server and injects the bearer token from the `Authorization`
+header; the relay is spawned by the browser and pumps bytes between stdio and
+the daemon's UDS. All real work — resolving the active tab, building suggestions,
+pairing, auth policy, and command execution — happens in the extension's
+background worker, reusing the existing command-query and execution code.
 
-## v1 scope
+## Built scope
 
-In scope:
+In scope today:
 
-- Read-only suggestions for the active tab: a root list
-  (`suggestions/get-for-active-tab`) and a query-driven search
-  (`suggestions/search-active-tab`).
+- Active-tab suggestions: root list (`suggestions/get-for-active-tab`),
+  query-driven search (`suggestions/search-active-tab`), and nested
+  group/search navigation (`suggestions/get-children`).
+- Command execution (`commands/execute`) with `commands:execute` scope plus the
+  global Allow-execution opt-in. See [execution.md](./execution.md).
 - Opt-in: the bridge is **off by default**; a settings toggle must be enabled
   before the extension will call `connectNative` or accept any pairing.
-- Bluetooth-style pairing with a per-client bearer token (see
+- Bluetooth-style pairing with per-client bearer tokens (see
   [authentication-and-security.md](./authentication-and-security.md)).
-- A single reachable browser instance (see [multi-instance.md](./multi-instance.md)).
+- One reachable browser instance from the caller's point of view (see
+  [multi-instance.md](./multi-instance.md)).
 
-Explicitly **out of v1** (but **execution is now designed** for v2 — see
-[execution.md](./execution.md)):
+Known gaps:
 
-- Executing commands through the bridge (v1 suggestions are read-only).
 - Site-SDK (`window.Monocle`) commands — they need a content-script sender the
   bridge does not have; see [architecture.md](./architecture.md).
-- Incognito / private windows — excluded unless explicitly enabled.
+- Incognito / private windows — excluded.
 - Multi-instance selection (Chrome **and** Firefox, multiple profiles/channels
-  running at once). v1 assumes one instance; v2 adds selection.
+  running at once). The daemon can accept relays, but the caller cannot choose a
+  browser/profile yet.
+- Pairing fallback page for tabs without a `SurfaceHost`.
 
 ## Reading order
 
@@ -82,9 +82,8 @@ Explicitly **out of v1** (but **execution is now designed** for v2 — see
    assumption, and the v2 instance registry.
 6. [extension-integration.md](./extension-integration.md) — concrete Monocle
    wiring: the feature module, reuse points, manifest changes, files to touch.
-7. [execution.md](./execution.md) — **v2 design**: executing commands through the
-   bridge — the per-command opt-out, the focus model, the bridge policy, and the
-   result channel.
+7. [execution.md](./execution.md) — implemented v2 command execution through the
+   bridge: per-command opt-out, focus model, bridge policy, and result channel.
 8. [bridge-app-prd.md](./bridge-app-prd.md) — PRD for the **bridge app**: the
    downloadable cross-platform (Tauri) tray/menu-bar host that ships the relay
    to users — the persistent-daemon-plus-connectNative-relay design, the minimal

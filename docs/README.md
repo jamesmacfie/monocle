@@ -119,6 +119,17 @@ If you are adding a command, the fast path is
   covers the architecture, native host, wire protocol + `ExternalSuggestion` DTO,
   bluetooth-style pairing/auth, the multiple-host problem, extension wiring, v2
   execution, the bridge-app PRD, and roadmap.
+- [extension-extension/README.md](./extension-extension/README.md) —
+  **Design-only (not built)** spec for letting other browser extensions
+  contribute commands to Monocle. Peer announces over native cross-extension
+  messaging (`onConnectExternal`/`onMessageExternal`, no native bridge), the user
+  approves it on an Extensions settings page (the browser-verified extension id is
+  the identity — approval-only, no pairing code), and its declarative command tree
+  is hosted in the palette. Folder covers the architecture, the **shared
+  external-command provider** refactored out of the site SDK, the wire protocol,
+  the declarable command schema, registration/trust + threat model (incl. the
+  Firefox `externally_connectable` gap), Monocle wiring, a peer author guide, and
+  the roadmap.
 - [raycast/README.md](./raycast/README.md) — **Design-only** build spec for a
   Raycast extension that drives Monocle through the native bridge: the client
   view of the protocol (HTTP client, pairing flow, `ExternalSuggestion` →
