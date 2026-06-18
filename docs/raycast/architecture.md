@@ -1,7 +1,7 @@
 # Architecture
 
-> **Status: design-only.** Describes how the Raycast extension fits the existing bridge. Protocol
-> authority: [`../native-messaging/`](../native-messaging/README.md).
+> Describes how the implemented Raycast extension fits the existing bridge.
+> Protocol authority: [`../native-messaging/`](../native-messaging/README.md).
 
 ## The four actors
 
@@ -62,7 +62,7 @@ The corresponding **data exits** are:
 | Building request envelopes, `id` generation | Decide what a command does — it only carries the command `id` |
 | Rendering `ExternalSuggestion` → `List.Item` | Send an `Origin` header (the daemon rejects it → 403) |
 | Mapping icon names → Raycast `Icon` | Persist suggestions long-term (they are active-tab-specific) |
-| Navigation stack for nested groups | Assume which browser/profile is connected (v1: first-to-bind) |
+| Navigation stack for nested groups | Assume which browser/profile is connected (v1: daemon has one active relay) |
 | Result handling (clipboard, HUD, focus) | Store the token in plain preferences |
 
 ## End-to-end: search then execute
@@ -96,9 +96,10 @@ always for whatever tab is frontmost in the connected browser at request time.
   hold it alive and reconnects with backoff. A request can still hit a moment where no browser is
   connected → the daemon returns `not_enabled` / "no browser connected". Treat it as transient
   (retry / show "browser not connected").
-- **Single instance (v1).** If two browsers each run a relay, only one owns port 8765. The other is
-  reachable only on its own (different) port. v1 is "first-to-bind"; use `status` / `meta/info` to
-  show which browser you reached. See [`../native-messaging/multi-instance.md`](../native-messaging/multi-instance.md).
+- **Single active relay (v1).** The daemon owns port 8765 and stores one active
+  browser relay at a time; if another browser relay connects, it becomes the
+  responder. Use `status` / `meta/info` to show which browser you reached. See
+  [`../native-messaging/multi-instance.md`](../native-messaging/multi-instance.md).
 - **Site-SDK absent.** Bridge requests have no content-script sender, so page-owned
   `window.Monocle` commands never appear in bridge results. Documented v1 gap.
 - **Incognito excluded.** If the active tab is incognito/private, suggestion and execute calls

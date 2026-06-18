@@ -10,6 +10,13 @@ contract** — the external app codes against it — so it deliberately does **n
 expose Monocle's internal types. Suggestions cross the wire as the
 `ExternalSuggestion` DTO, not the internal `Suggestion`.
 
+The public TypeScript contract for this protocol lives in
+`packages/native-bridge-protocol` (`src/wire.ts` for dependency-free DTOs and
+method maps, `src/validation.ts` for the Zod request schema and response
+helpers). `apps/extension/shared/types/nativeMessaging.ts` re-exports that
+package for extension-local compatibility, and `apps/raycast/src/lib/types.ts`
+imports the same wire types instead of mirroring them by hand.
+
 ---
 
 ## Envelope
@@ -199,7 +206,8 @@ not leak.
   "type": "action",                 // action | submit | group | search | display | calculation
   "title": "Close Tab",             // from Suggestion.name (breadcrumb joined if array)
   "subtitle": "Close the current tab",   // from description, optional
-  "icon": "x",                      // normalized icon ref, optional
+  "icon": "X",                      // v1 icon ref, optional
+  "iconType": "lucide",             // lucide | url, optional
   "keywords": ["tab", "close"],     // optional
   "requiresPermission": ["tabs"]    // from Suggestion.permissions, optional
 }
@@ -210,7 +218,11 @@ Mapping rules (implemented by the named mapper in
 
 - `title` ← `Suggestion.name` (join with `›` when it is a breadcrumb array).
 - `subtitle` ← `Suggestion.description`.
-- `icon` ← normalized from `Suggestion.icon` to a string ref the app can resolve.
+- `icon` ← v1-compatible string from `Suggestion.icon`: a Lucide catalog name
+  (`"X"`, `"FolderOpen"`, ...) or an http(s) URL.
+- `iconType` ← `"lucide"` or `"url"` when `icon` is present. This is additive
+  metadata for clients that need to render the string through their own icon
+  system instead of guessing.
 - `requiresPermission` ← `Suggestion.permissions`.
 - Dropped entirely: `actions`, `rankWeight`, `executionPayload`,
   `modifierActionLabel`, `confirmAction`, `inputField`, calculation `content`

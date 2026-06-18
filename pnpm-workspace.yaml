@@ -1,7 +1,7 @@
 packages:
   - apps/extension
   - apps/bridge
-  - "!apps/raycast" # npm-managed Raycast app, isolated from the pnpm workspace
+  - "!apps/raycast" # Raycast app, isolated from the pnpm workspace
   - packages/*
 allowBuilds:
   esbuild: true

@@ -1,7 +1,7 @@
 import { Clipboard, closeMainWindow, showHUD, showToast, Toast } from "@raycast/api";
 import { bridgeRequest } from "./bridge";
 import { clearToken, getToken } from "./auth";
-import type { BridgeErrorCode, ExecuteResult } from "./types";
+import type { BridgeErrorCode } from "./types";
 
 function executeErrorTitle(code: BridgeErrorCode): string {
   switch (code) {
@@ -36,7 +36,7 @@ export async function runCommand(id: string): Promise<void> {
     return;
   }
 
-  const res = await bridgeRequest<ExecuteResult>("commands/execute", { id }, token);
+  const res = await bridgeRequest("commands/execute", { id }, token);
   if (!res.ok) {
     if (res.error.code === "unauthorized" || res.error.code === "forbidden_scope") {
       await clearToken();

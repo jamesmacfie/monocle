@@ -1,16 +1,19 @@
 # Multiple instances
 
 > **Status: extension side implemented; bridge host built at `apps/bridge`
-> (macOS M0+M1) — v1 single-instance (fixed-port, first-to-bind).** This document
-> is the design/contract; the canonical build status lives in
+> (macOS M0+M1) — v1 fixed-port daemon with one active browser relay.** This
+> document is the design/contract; the canonical build status lives in
 > [README.md](./README.md) and the project `CLAUDE.md`.
 
-Native messaging launches **one host process per connecting extension instance**.
-If Monocle is installed and running in more than one browser at once, each
-browser independently calls `connectNative` and spawns its own copy of the host.
-Each copy wants the same fixed loopback port — only one can bind it. This is the
-known limitation of the native-messaging transport, and this document is how the
-design handles it.
+Native messaging launches **one relay process per connecting extension
+instance**. In the current bridge app, those relays connect to one persistent
+daemon over `~/.monocle/bridge.sock`; the daemon owns the fixed loopback port
+(`127.0.0.1:8765` by default) and keeps a single active relay write-half.
+
+That means v1 avoids a port fight, but it does **not** yet provide browser/profile
+selection. If multiple browsers/profiles connect, the newest relay becomes the
+responder and an older relay may be displaced. This is the known v1 limitation
+and this document is how the design handles it.
 
 It is **not only** a Chrome-vs-Firefox problem. Several copies of the host can
 exist on one machine:
@@ -21,47 +24,46 @@ exist on one machine:
 
 ---
 
-## v1: assume a single reachable instance
+## v1: assume one active browser relay
 
 v1 keeps this deliberately simple (a single instance is the common case and what
 the user signed off on):
 
-- The host binds a **fixed port**. **First to bind wins.**
-- A second host that finds the port taken does **not** crash — it stays running
-  for its own browser's stdio link (so the extension still works) but reports
-  itself as **not** the port owner and serves no app traffic.
-- The external app talks to whoever owns the port. It cannot pick.
+- The daemon binds a **fixed port** and writes `~/.monocle/bridge.json`.
+- Relays connect to the daemon over a Unix-domain socket.
+- The daemon stores one active relay; a newer relay can replace the older one.
+- The external app talks to whichever browser relay is currently active. It
+  cannot pick.
 
-This is a documented limitation, not a silent failure: the `status` endpoint
-(below) lets the app **tell the user which instance it reached**, so a surprising
-answer ("why are these Firefox's tabs?") is explainable rather than mysterious.
+This is a documented limitation, not a silent failure. `GET /status` tells the
+app whether a browser relay is currently connected, and the protocol `status` /
+`meta/info` responses identify the browser that answered.
 
 ### `status` / `GET /status`
 
-Both the host (`GET /status`, unauthenticated) and the protocol (`status` method)
-expose enough identity for the app to surface what it connected to:
+The daemon (`GET /status`, unauthenticated) exposes loopback liveness:
 
 ```jsonc
 {
   "ok": true,
-  "browser": "chrome",
-  "profile": "Default",       // when derivable
-  "channel": "stable",
-  "extensionVersion": "0.0.1",
-  "bridgeEnabled": true,
+  "bridge": "monocle",
+  "connected": true,
+  "loopbackPort": 8765,
   "portOwner": true
 }
 ```
 
-The app shows this in its UI ("Connected to Chrome · Default"). If `bridgeEnabled`
-is false or the port is unreachable, the app guides the user to enable the bridge.
+The protocol `status` method over `POST /` gives extension-level identity
+(`browser`, `channel`, `extensionVersion`, `bridgeEnabled`,
+`executionEnabled`). The app can combine these if it needs to explain what it
+reached.
 
 ---
 
 ## v2: instance registry + selection
 
-When multi-instance becomes a real need (and to power the Raycast "choose your
-browser" setting), v1's first-to-bind is replaced by discovery:
+When multi-instance becomes a real need (and to power a Raycast "choose your
+browser" setting), v1's single-active-relay model is replaced by discovery:
 
 - Each host binds an **ephemeral** port and writes a small registration file to a
   well-known directory, e.g. `~/.monocle/instances/<id>.json`:

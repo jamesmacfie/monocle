@@ -92,10 +92,11 @@ Known gaps:
 
 ## The client
 
-- [../raycast/README.md](../raycast/README.md) — **design-only** build spec for the
-  Raycast extension that consumes this protocol: the client view of pairing,
-  suggestions, nested-group navigation, and execution. This folder is the
-  protocol authority; the raycast folder is the consumer.
+- [../raycast/README.md](../raycast/README.md) — the Raycast extension client
+  that consumes this protocol: the client view of pairing, suggestions,
+  nested-group navigation, and execution. The shared TypeScript wire contract is
+  `packages/native-bridge-protocol`; this folder remains the behavioral
+  protocol authority, and the Raycast folder is the consumer.
 
 ## Related docs
 

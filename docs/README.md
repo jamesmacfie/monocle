@@ -118,7 +118,9 @@ If you are adding a command, the fast path is
   ships as the **Monocle Bridge** Tauri app (`apps/bridge`, macOS M0+M1). Folder
   covers the architecture, native host, wire protocol + `ExternalSuggestion` DTO,
   bluetooth-style pairing/auth, the multiple-host problem, extension wiring, v2
-  execution, the bridge-app PRD, and roadmap.
+  execution, the bridge-app PRD, and roadmap. The public TypeScript wire
+  contract lives in `packages/native-bridge-protocol` and is re-exported by the
+  extension for compatibility.
 - [extension-extension/README.md](./extension-extension/README.md) —
   **Design-only (not built)** spec for letting other browser extensions
   contribute commands to Monocle. Peer announces over native cross-extension
@@ -130,13 +132,13 @@ If you are adding a command, the fast path is
   the declarable command schema, registration/trust + threat model (incl. the
   Firefox `externally_connectable` gap), Monocle wiring, a peer author guide, and
   the roadmap.
-- [raycast/README.md](./raycast/README.md) — **Design-only** build spec for a
-  Raycast extension that drives Monocle through the native bridge: the client
-  view of the protocol (HTTP client, pairing flow, `ExternalSuggestion` →
-  `List.Item` mapping, nested-group navigation via `suggestions/get-children`,
-  `commands/execute` result handling), the `apps/raycast` monorepo isolation
-  (npm + `ray`, excluded from the pnpm workspace), and a `curl`-based test
-  checklist. No protocol changes required.
+- [raycast/README.md](./raycast/README.md) — The in-repo Raycast extension
+  client (`apps/raycast`) that drives Monocle through the native bridge: the
+  client view of the protocol (HTTP client, pairing flow,
+  `ExternalSuggestion` → `List.Item` mapping, nested-group navigation via
+  `suggestions/get-children`, `commands/execute` result handling), monorepo
+  isolation (excluded from the pnpm workspace), and a `curl`-based test
+  checklist.
 
 ## Future proposals
 

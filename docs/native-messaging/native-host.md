@@ -108,12 +108,16 @@ fixed v1 port. Transport rules enforced by the host before anything reaches the
 extension:
 
 - Require method **`POST`** (reject `GET` on data routes; allow `GET /status`).
-- Require `Content-Type: application/json`.
-- Require an `Authorization: Bearer <token>` header on authenticated routes.
+- Parse the body as JSON and require a string `id` so responses can be routed
+  back to the caller.
+- If an `Authorization: Bearer <token>` header is present, inject it into
+  `env.auth.token` before forwarding to the extension. The daemon does not know
+  which protocol methods are authenticated; missing/invalid auth is rejected by
+  the extension.
 - **Reject requests carrying a browser `Origin` header** by default — this blocks
   web pages from driving the bridge via loopback `fetch`. No permissive CORS
   headers are ever sent.
-- Expose only the narrow route set defined in [protocol.md](./protocol.md).
+- Expose only `POST /` for RPC and `GET /status` for daemon-level liveness.
 
 These are necessary-but-not-sufficient; the real authorization is the bearer
 token checked in the background. See

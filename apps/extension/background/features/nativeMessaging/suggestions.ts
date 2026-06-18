@@ -8,9 +8,12 @@
 // docs/native-messaging/architecture.md.
 import type {
   Browser,
-  ExternalSuggestion,
+  GetChildrenParams,
+  GetForActiveTabParams,
+  SearchActiveTabParams,
   SearchCommandsResponse,
   Suggestion,
+  SuggestionsResult,
 } from "../../../shared/types"
 import { allCommands, commandsToSuggestions, getCommands } from "../../commands"
 import { getCommandPageCommands } from "../../commands/query"
@@ -36,22 +39,6 @@ const bridgeDeniedIds = (): Set<string> => {
     )
   }
   return deniedIdsCache
-}
-
-type ActiveTabResult = {
-  url: string
-  title: string
-  suggestions: ExternalSuggestion[]
-}
-
-export type GetForActiveTabParams = {
-  limit?: number
-  includeFavorites?: boolean
-}
-
-export type SearchActiveTabParams = {
-  query: string
-  limit?: number
 }
 
 const clampLimit = (limit?: number): number =>
@@ -86,7 +73,7 @@ const resolveActiveContext = async (): Promise<Browser.Context | null> => {
 
 export const getForActiveTab = async (
   params: GetForActiveTabParams,
-): Promise<ActiveTabResult | null> => {
+): Promise<SuggestionsResult | null> => {
   const context = await resolveActiveContext()
   if (!context) {
     return null
@@ -110,7 +97,7 @@ export const getForActiveTab = async (
 
 export const searchActiveTab = async (
   params: SearchActiveTabParams,
-): Promise<(ActiveTabResult & { query: string }) | null> => {
+): Promise<SuggestionsResult | null> => {
   const context = await resolveActiveContext()
   if (!context) {
     return null
@@ -143,12 +130,6 @@ export const searchActiveTab = async (
   }
 }
 
-export type GetChildrenParams = {
-  path: string[]
-  query?: string
-  limit?: number
-}
-
 // Drill into a group/search node and return its children — the bridge half of
 // the palette's nested navigation. Reuses the same path-based page resolver
 // (`getCommandPageCommands`) the palette uses, so dynamic/contextual children
@@ -157,10 +138,7 @@ export type GetChildrenParams = {
 // groups carry `type:"group"`, so the caller nests by appending to `path`.
 export const getChildrenForActiveTab = async (
   params: GetChildrenParams,
-): Promise<
-  | (ActiveTabResult & { path: string[] })
-  | { error: "no_active_tab" | "not_found" }
-> => {
+): Promise<SuggestionsResult | { error: "no_active_tab" | "not_found" }> => {
   const context = await resolveActiveContext()
   if (!context) {
     return { error: "no_active_tab" }

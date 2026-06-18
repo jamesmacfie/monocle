@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { bridgeRequest } from "../lib/bridge";
 import { clearToken, getToken } from "../lib/auth";
 import { CommandRow } from "./CommandRow";
-import type { ExternalSuggestion, SuggestionsResult } from "../lib/types";
+import type { BridgeErrorCode, ExternalSuggestion } from "../lib/types";
 
 /**
  * A nested command page, reached by drilling into a group/search node. Fetches
@@ -37,7 +37,7 @@ export function CommandList({
         if (!cancelled) setLoading(false);
         return;
       }
-      const res = await bridgeRequest<SuggestionsResult>(
+      const res = await bridgeRequest(
         "suggestions/get-children",
         { path, query: isSearchPage ? query : undefined, limit: 50 },
         token,
@@ -81,7 +81,7 @@ export function CommandList({
   );
 }
 
-function errorTitle(code: string): string {
+function errorTitle(code: BridgeErrorCode): string {
   switch (code) {
     case "no_active_tab":
       return "Switch to a normal browser tab";

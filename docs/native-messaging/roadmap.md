@@ -19,9 +19,9 @@ Phasing for the bridge, and the decisions still to settle before/while building.
 - Read-only suggestions for the active tab: `suggestions/get-for-active-tab`
   (root) and `suggestions/search-active-tab` (query).
 - `meta/info` + `status` for capability/identity discovery.
-- Single reachable instance (first-to-bind); `status` reports who that is.
-- **Excluded:** command execution, site-SDK commands, incognito windows,
-  multi-instance selection.
+- Single reachable browser relay through the daemon; `status` reports liveness
+  and protocol `status` / `meta/info` identify the browser that answered.
+- **Excluded:** site-SDK commands, incognito windows, multi-instance selection.
 
 Goal: a Raycast extension can pair once and list/search the active tab's commands.
 
@@ -30,9 +30,9 @@ Goal: a Raycast extension can pair once and list/search the active tab's command
 - **Multi-instance selection**: the instance registry + per-instance pairing, and
   a Raycast setting to choose the browser/profile (see
   [multi-instance.md](./multi-instance.md)).
-- **The Raycast extension itself** (new isolated `apps/raycast` app): pairing UI,
-  suggestion list/search views, nested navigation, execution result handling, and
-  eventually an instance picker.
+- **The Raycast extension itself** (`apps/raycast`): pairing UI, suggestion
+  list/search views, nested navigation, execution result handling, and eventually
+  an instance picker.
 - **Command execution** through the bridge — **built (extension side)**, see
   [execution.md](./execution.md). Done: the `external` config field on
   `CommandNodeBase`; the bridge execution policy (`runCommandPolicy` extended
@@ -54,10 +54,9 @@ Goal: a Raycast extension can pair once and list/search the active tab's command
 
 ## Open questions
 
-- **`nativeMessaging`: optional or required?** Can it live in
-  `optional_permissions` (requested on enable, off the default warning) or must it
-  be a required permission with an always-visible warning? Resolve against current
-  Chrome/Firefox rules; prefer optional to match the opt-in posture.
+- **`nativeMessaging` optional-permission smoke.** It now lives in
+  `optional_permissions` and is requested on enable; keep manual Chrome/Firefox
+  smoke coverage around the grant prompt before shipping.
 - **Chrome extension ID stability.** A `key` must be pinned in `wxt.config.ts` so
   the host manifest's `allowed_origins` matches; decide the key/ID strategy for
   dev vs store builds.

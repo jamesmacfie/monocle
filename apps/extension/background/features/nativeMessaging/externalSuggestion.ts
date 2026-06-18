@@ -9,6 +9,8 @@ import type {
   Suggestion,
 } from "../../../shared/types"
 
+type ExternalSuggestionIcon = Pick<ExternalSuggestion, "icon" | "iconType">
+
 // Suggestion types that exist on the wire. `input` rows are inline form fields
 // with no meaning to a read-only external client, so they are dropped.
 const WIRE_TYPES = new Set<ExternalSuggestion["type"]>([
@@ -23,18 +25,18 @@ const WIRE_TYPES = new Set<ExternalSuggestion["type"]>([
 // A breadcrumb name array is joined with this separator into a single title.
 const TITLE_SEPARATOR = " › "
 
-const normalizeIcon = (icon?: CommandIcon): string | undefined => {
+const normalizeIcon = (icon?: CommandIcon): ExternalSuggestionIcon => {
   if (!icon) {
-    return undefined
+    return {}
   }
   if (icon.type === "lucide") {
-    return icon.name
+    return { icon: icon.name, iconType: "lucide" }
   }
   if (icon.type === "url") {
-    return icon.url
+    return { icon: icon.url, iconType: "url" }
   }
   // `svg` icons are inline markup — too large/opaque for the wire. Omitted.
-  return undefined
+  return {}
 }
 
 // Maps one internal Suggestion to the public DTO, or null when the suggestion
@@ -60,8 +62,11 @@ export const toExternalSuggestion = (
     external.subtitle = suggestion.description
   }
   const icon = normalizeIcon(suggestion.icon)
-  if (icon) {
-    external.icon = icon
+  if (icon.icon) {
+    external.icon = icon.icon
+  }
+  if (icon.iconType) {
+    external.iconType = icon.iconType
   }
   if (suggestion.keywords && suggestion.keywords.length > 0) {
     external.keywords = suggestion.keywords

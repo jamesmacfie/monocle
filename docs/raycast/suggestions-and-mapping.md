@@ -1,8 +1,9 @@
 # Suggestions and mapping
 
-> **Status: design-only.** The DTO is defined in
-> `apps/extension/shared/types/nativeMessaging.ts` and projected by
-> `apps/extension/background/features/nativeMessaging/externalSuggestion.ts`.
+> The DTO is defined in `packages/native-bridge-protocol/src/wire.ts`,
+> re-exported from `apps/extension/shared/types/nativeMessaging.ts`, projected
+> by `apps/extension/background/features/nativeMessaging/externalSuggestion.ts`,
+> and imported locally through `apps/raycast/src/lib/types.ts`.
 
 ## The `ExternalSuggestion` DTO
 
@@ -15,7 +16,8 @@ type ExternalSuggestion = {
   type: "action" | "submit" | "group" | "search" | "display" | "calculation"
   title: string              // breadcrumb name arrays are pre-joined with " › "
   subtitle?: string          // from the command description
-  icon?: string              // a Lucide icon NAME (e.g. "copy") OR an http(s) URL; svg icons omitted
+  icon?: string              // a Lucide icon name (e.g. "Copy") OR an http(s) URL; svg icons omitted
+  iconType?: "lucide" | "url" // additive v1 metadata; old clients can ignore it
   keywords?: string[]
   requiresPermission?: string[]
 }
@@ -94,7 +96,7 @@ function CommandItem({ s }: { s: ExternalSuggestion }) {
     <List.Item
       title={s.title}
       subtitle={s.subtitle}
-      icon={iconFor(s.icon)}                 // see icon mapping below
+      icon={iconFor(s)}                      // see icon mapping below
       keywords={s.keywords}
       accessories={accessoriesFor(s)}        // e.g. permission badge, type tag
       actions={actionsFor(s)}                // routed by s.type (table above)
@@ -113,55 +115,33 @@ function CommandItem({ s }: { s: ExternalSuggestion }) {
 
 ## Icon mapping
 
-`icon` is either a **Lucide icon name** (e.g. `"copy"`, `"bookmark"`, `"history"`) or an **http(s)
-URL** (favicons, remote images). SVG icons are omitted by the extension, so `icon` is never inline
-markup.
+`icon` is either a **Lucide icon name** (e.g. `"Copy"`, `"Bookmark"`, `"History"`) or an
+**http(s) URL** (favicons, remote images). `iconType` says which one it is. SVG icons are omitted by
+the extension, so `icon` is never inline markup.
 
 Strategy (`src/lib/icons.ts`):
 
-1. If `icon` looks like a URL (`/^https?:\/\//`) → pass straight through as `{ source: icon }`.
-2. Else treat it as a Lucide name → look it up in a `lucideToRaycast` map of Raycast `Icon` enum
-   members.
-3. Unknown name → a sensible default (`Icon.Circle`).
+1. If `iconType === "url"` (or a legacy string looks like a URL), render `{ source: icon, fallback }`.
+2. Else treat it as a Lucide name. Normalize legacy lower/kebab-case strings, try an exact Raycast
+   `Icon` enum match, then fall back to the Monocle-specific alias table.
+3. Unknown or absent icons use a semantic fallback based on suggestion `type` (`Folder` for groups,
+   `MagnifyingGlass` for search pages, `Calculator` for calculations, etc.) instead of a generic
+   circle.
 
 ```ts
 import { Icon, type Image } from "@raycast/api";
 
-// Starter map of the Lucide names Monocle actually emits → Raycast Icon.
-// Extend as you see misses (Raycast's Icon enum has 600+ members).
-const lucideToRaycast: Record<string, Icon> = {
-  copy: Icon.CopyClipboard,
-  clipboard: Icon.Clipboard,
-  bookmark: Icon.Bookmark,
-  history: Icon.Clock,
-  search: Icon.MagnifyingGlass,
-  "x": Icon.Xmark,
-  trash: Icon.Trash,
-  settings: Icon.Gear,
-  star: Icon.Star,
-  globe: Icon.Globe,
-  link: Icon.Link,
-  "external-link": Icon.ArrowNe,
-  download: Icon.Download,
-  "refresh-cw": Icon.ArrowClockwise,
-  folder: Icon.Folder,
-  window: Icon.Window,
-  layers: Icon.AppWindowGrid3x3,
-  calculator: Icon.Calculator,
-  // …extend based on the real catalog…
-};
-
-export function iconFor(icon?: string): Image.ImageLike {
-  if (!icon) return Icon.Circle;
-  if (/^https?:\/\//.test(icon)) return { source: icon };
-  return lucideToRaycast[icon] ?? Icon.Circle;
+export function iconFor(s: ExternalSuggestion): Image.ImageLike {
+  const fallback = fallbackByType[s.type];
+  if (!s.icon) return fallback;
+  if (s.iconType === "url") return { source: s.icon, fallback };
+  return raycastIconForLucideName(s.icon) ?? fallback;
 }
 ```
 
-> Building the full map: Monocle's icon names come from its command catalog (Lucide). Rather than
-> mapping all 600+ Lucide icons, seed the map with the names that actually appear (grep the catalog
-> / observe live suggestions) and fall back to `Icon.Circle` for the rest. Misses degrade to a
-> neutral dot, never an error.
+> The alias table is intentionally based on Monocle's closed Lucide catalog, not Raycast's whole icon
+> set. When adding a new Monocle icon name, check whether Raycast has an exact enum member first; add
+> an alias only when the two sets use different names.
 
 ## Empty / error states
 

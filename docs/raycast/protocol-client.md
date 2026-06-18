@@ -1,9 +1,9 @@
 # Protocol client
 
-> **Status: design-only.** The protocol is fixed and owned by
+> The protocol is fixed and owned by
 > [`../native-messaging/protocol.md`](../native-messaging/protocol.md). Types live in
-> `apps/extension/shared/types/nativeMessaging.ts`. This doc is the client view: how a Node process
-> inside Raycast talks to the loopback daemon correctly.
+> `packages/native-bridge-protocol/src/wire.ts`. This doc is the client view:
+> how a Node process inside Raycast talks to the loopback daemon correctly.
 
 ## Transport rules (a Node client MUST obey)
 
@@ -13,7 +13,7 @@ the extension:
 | Rule | Why | Failure |
 |------|-----|---------|
 | `POST` JSON to `/` for all RPC | `/` is the only RPC route | — |
-| `Content-Type: application/json` | body is parsed as JSON | `400 invalid json` |
+| JSON body | body is parsed as JSON | `400 invalid json` |
 | Envelope must include a string `id` | the daemon routes replies by `id` | `400 missing id` |
 | **Never send an `Origin` header** | blocks web pages driving the bridge via `fetch` | `403 origin not allowed` |
 | `Authorization: Bearer <token>` on authed methods | daemon injects it into `env.auth.token` | `unauthorized` from extension |

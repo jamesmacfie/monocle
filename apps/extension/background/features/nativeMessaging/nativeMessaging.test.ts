@@ -90,19 +90,19 @@ describe("toExternalSuggestion mapper", () => {
     expect(result?.title).toBe("Browser › Close Tab")
   })
 
-  it("normalizes lucide and url icons, drops svg", () => {
+  it("normalizes lucide and url icons with explicit type, drops svg", () => {
     expect(
       toExternalSuggestion({
         ...base,
         icon: { type: "lucide", name: "X" },
-      } as Suggestion)?.icon,
-    ).toBe("X")
+      } as Suggestion),
+    ).toMatchObject({ icon: "X", iconType: "lucide" })
     expect(
       toExternalSuggestion({
         ...base,
         icon: { type: "url", url: "https://i/x.png" },
-      } as Suggestion)?.icon,
-    ).toBe("https://i/x.png")
+      } as Suggestion),
+    ).toMatchObject({ icon: "https://i/x.png", iconType: "url" })
     expect(
       toExternalSuggestion({
         ...base,

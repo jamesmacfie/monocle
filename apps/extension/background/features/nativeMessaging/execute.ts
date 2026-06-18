@@ -7,7 +7,7 @@
 // clipboard). All the safety lives in the preflight: the runCommand policy
 // (bridge mode), per-command `external`, permissions, platform, incognito, and
 // generated-action rejection. See docs/native-messaging/execution.md.
-import type { BridgeErrorCode } from "../../../shared/types"
+import type { BridgeErrorCode, ExecuteResult } from "../../../shared/types"
 import { checkRunCommandPolicy } from "../../automations/runCommandPolicy"
 import { executeResolvedCommand } from "../../commands/execution"
 import { parseGeneratedCommandAction } from "../../commands/generatedActions"
@@ -16,13 +16,6 @@ import { resolveCommandById } from "../../commands/query"
 import { updateWindow } from "../../utils/browser"
 import { checkPermissions } from "../../utils/permissions"
 import { resolveActiveTab } from "./suggestions"
-
-export type ExecuteResult = {
-  ran: true
-  focused?: boolean
-  value?: string
-  contentType?: string
-}
 
 type ExecuteError = { error: BridgeErrorCode }
 

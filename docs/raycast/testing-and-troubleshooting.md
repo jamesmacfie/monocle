@@ -1,6 +1,6 @@
 # Testing and troubleshooting
 
-> **Status: design-only.** Manual verification — there is no automated harness for a cross-process
+> Manual verification — there is no automated harness for a cross-process
 > bridge round-trip. Mirrors the `curl`-based test approach in
 > [`../native-messaging/`](../native-messaging/README.md).
 
@@ -55,8 +55,9 @@
      -d '{"v":1,"id":"e1","method":"commands/execute","params":{"id":"copy-current-url"}}'
    # -> {"ran":true,"value":"https://…","contentType":"text/plain"}  (for a data-returning command)
    ```
-8. **In Raycast.** `npm run dev` in `apps/raycast`, open "Search Monocle", verify list/search/drill/
-   execute and that a copied value lands on the clipboard.
+8. **In Raycast.** Run `pnpm run dev:raycast` from the repo root, open "Search
+   Monocle", verify list/search/drill/execute and that a copied value lands on
+   the clipboard.
 
 ## Origin rejection (must verify)
 

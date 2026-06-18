@@ -77,10 +77,13 @@ Every node extends this base (`shared/types/commands.ts`, `CommandNodeBase`).
 | `keybinding` | `string` | no | Author-default keybinding in canonical angle-bracket format, e.g. `<cmd-t>`. User overrides in command settings take precedence. See [keybindings.md](keybindings.md). |
 | `keybindingBehavior` | `"execute" \| "openPaletteAtCommand"` | no | Defaults to `"execute"`. `action`/`submit` commands execute by default; `group`/`search` commands may opt into `"openPaletteAtCommand"` so their shortcut opens the palette at that command page. |
 | `settingsCatalog` | `{ includeChildren?: boolean; configurable?: boolean }` | no | Controls whether this command (and optionally its children) get durable settings-catalog rows. Root commands are cataloged by default; children are cataloged only when a parent sets `includeChildren: true`, so volatile browser-data rows do not get durable settings by accident. Consumed by `background/commands/settingsCatalog.ts`. |
+| `external` | `{ allowed?: boolean; focusBrowser?: boolean; result?: "none" \| "value" }` | no | Native-bridge execution policy hints. `allowed:false` hides/refuses the command for external apps, `allowed:true` opts a normally-denied command in without overriding universal safety denies, `focusBrowser:true` raises the browser after bridge execution, and `result:"value"` lets the command return a `CommandResult` to the external app. See [native-messaging/execution.md](native-messaging/execution.md). |
 
 > `permissions` is declared on the base (not just on action nodes) so that groups, inputs, and search nodes can also participate in permission gating and inheritance. Note that `permissions` is **not** an `AsyncValue` — it is a plain static array.
 
-> **Proposed (not yet implemented):** a base `external?: { allowed?; focusBrowser?; result? }` field is designed for the native-messaging bridge — it controls whether a command is reachable by an external app (Raycast), whether running it raises the browser, and whether it returns a value to the caller. It does not exist in the schema today. See [native-messaging/execution.md](native-messaging/execution.md).
+`external` is bridge-only metadata. It does not expose executors to the UI and
+does not change palette/keybinding behavior; it only affects the native bridge's
+suggestion visibility and `commands/execute` preflight/result handling.
 
 ### `name` as string vs array
 

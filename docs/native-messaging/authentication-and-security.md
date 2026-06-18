@@ -106,7 +106,7 @@ checks the feature is still enabled.
 
 | Threat | Mitigation (v1) |
 | --- | --- |
-| Any local process can connect to the port | Human-confirmed pairing + scoped bearer token; transport requires `POST`+JSON+`Authorization`. |
+| Any local process can connect to the port | Human-confirmed pairing + scoped bearer token; the daemon accepts only loopback `POST` JSON and forwards any bearer token for extension-side validation. |
 | A web page issues loopback `fetch` to the port | Host **rejects requests with a browser `Origin` header** and sends no permissive CORS; data routes require a token the page cannot have. |
 | Port exposed to other machines | Bind `127.0.0.1` only, never `0.0.0.0`. |
 | Silent pairing by a background process | Code is shown only in the browser and must be typed back by a human; short expiry + attempt cap. |

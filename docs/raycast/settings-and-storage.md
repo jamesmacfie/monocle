@@ -1,6 +1,6 @@
 # Settings and storage
 
-> **Status: design-only.** Raycast APIs: `getPreferenceValues`, `LocalStorage`,
+> Implemented with Raycast APIs: `getPreferenceValues`, `LocalStorage`, and
 > `openExtensionPreferences` (<https://developers.raycast.com>).
 
 ## What lives where
@@ -18,17 +18,16 @@ by pairing and should not be shown or edited in the preferences UI.
 
 ## Reading preferences
 
-Raycast auto-generates the `Preferences` type from the manifest, so prefs are typed:
+The app declares a tiny local `Prefs` type in `src/lib/types.ts` so bare
+TypeScript checks work without relying on Raycast-generated env types:
 
 ```ts
 import { getPreferenceValues } from "@raycast/api";
+import type { Prefs } from "./types";
 
-const { port, host } = getPreferenceValues<Preferences>();
+const { port, host } = getPreferenceValues<Prefs>();
 // port/host are strings (textfield). Empty string when unset.
 ```
-
-Per-command typing (`Preferences.SearchMonocle`) also works; since `port`/`host` are extension-level
-and inherited, the top-level `Preferences` is fine.
 
 ## `LocalStorage`
 

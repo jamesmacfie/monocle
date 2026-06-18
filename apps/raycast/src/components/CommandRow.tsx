@@ -1,4 +1,12 @@
-import { Action, ActionPanel, Clipboard, List, showHUD, showToast, Toast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Clipboard,
+  List,
+  showHUD,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { iconFor } from "../lib/icons";
 import { runCommand } from "../lib/execute";
 import type { ExternalSuggestion } from "../lib/types";
@@ -7,7 +15,10 @@ import { CommandList } from "./CommandList";
 function accessoriesFor(s: ExternalSuggestion): List.Item.Accessory[] {
   const acc: List.Item.Accessory[] = [];
   if (s.requiresPermission && s.requiresPermission.length > 0) {
-    acc.push({ icon: "🔐", tooltip: `May prompt for: ${s.requiresPermission.join(", ")}` });
+    acc.push({
+      icon: "🔐",
+      tooltip: `May prompt for: ${s.requiresPermission.join(", ")}`,
+    });
   }
   if (s.type === "group" || s.type === "search") {
     acc.push({ text: s.type });
@@ -18,7 +29,8 @@ function accessoriesFor(s: ExternalSuggestion): List.Item.Accessory[] {
 async function notRunnable() {
   await showToast({
     style: Toast.Style.Failure,
-    title: "Enable “Allow command execution” in Monocle settings to run commands from Raycast",
+    title:
+      "Enable “Allow command execution” in Monocle settings to run commands from Raycast",
   });
 }
 
@@ -42,10 +54,16 @@ export function CommandRow({
     <List.Item
       title={s.title}
       subtitle={s.subtitle}
-      icon={iconFor(s.icon)}
+      icon={iconFor(s)}
       keywords={s.keywords}
       accessories={accessoriesFor(s)}
-      actions={<CommandActions s={s} parentPath={parentPath} executionEnabled={executionEnabled} />}
+      actions={
+        <CommandActions
+          s={s}
+          parentPath={parentPath}
+          executionEnabled={executionEnabled}
+        />
+      }
     />
   );
 }
@@ -93,7 +111,10 @@ function CommandActions({
   if (s.type === "action" || s.type === "submit") {
     return (
       <ActionPanel>
-        <Action title="Run" onAction={() => (executionEnabled ? runCommand(s.id) : notRunnable())} />
+        <Action
+          title="Run"
+          onAction={() => (executionEnabled ? runCommand(s.id) : notRunnable())}
+        />
       </ActionPanel>
     );
   }

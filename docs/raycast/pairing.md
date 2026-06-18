@@ -1,6 +1,6 @@
 # Pairing
 
-> **Status: design-only.** The pairing protocol is implemented in
+> The pairing protocol is implemented in
 > `apps/extension/background/features/nativeMessaging/pairing.ts`. Threat model:
 > [`../native-messaging/authentication-and-security.md`](../native-messaging/authentication-and-security.md).
 

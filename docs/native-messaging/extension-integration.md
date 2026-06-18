@@ -5,8 +5,8 @@
 > status lives in [README.md](./README.md) and the project `CLAUDE.md`.
 
 This document specifies how the bridge plugs into Monocle: the feature module
-that owns it, the exact reuse points, the manifest changes, and the files to add
-or touch. The guiding principle is that the bridge is an **adapter** — it
+that owns it, the exact reuse points, the manifest posture, and the implemented
+file map. The guiding principle is that the bridge is an **adapter** — it
 reuses the existing command-query, surfaces, settings, and validation machinery
 rather than duplicating any of it.
 
@@ -14,7 +14,7 @@ rather than duplicating any of it.
 
 ## Shape: a feature module
 
-Implement the bridge as a `native-messaging` **feature module** under
+The bridge is implemented as a `native-messaging` **feature module** under
 `background/features/`, alongside `focus/`, `tabGroups/`, and `elementHider/`.
 This gives it, for free, the two stores (`monocle-feature-config`,
 `monocle-feature-state`), a declarative settings page, an `init()` lifecycle hook,
@@ -46,9 +46,9 @@ in-extension router (`background/messages/index.ts`, `handleMessage` + `ts-patte
 + schema validation) but is a **separate entry point** fed by the port rather
 than the runtime listener. For each request:
 
-1. Validate the envelope against a Zod schema (new entries in
-   `shared/types/messaging.ts` + `shared/types/validation.ts`, following the
-   existing message-validation pattern).
+1. Validate the envelope against `BridgeRequestSchema` from
+   `packages/native-bridge-protocol/src/validation.ts` (re-exported through
+   `shared/types/nativeMessaging.ts` for extension-local imports).
 2. For authenticated methods: hash + constant-time-compare the bearer token
    against `pairedClients`, check scope, check `enabled`.
 3. Resolve the active tab:
@@ -107,52 +107,42 @@ Monocle new tab and restart pairing. See
 
 ---
 
-## Manifest changes (`wxt.config.ts`)
+## Manifest posture (`wxt.config.ts`)
 
-- **Add `nativeMessaging`.** It is absent today (`permissions` arrays around
-  `wxt.config.ts:123`/`:141`). **Open question:** whether `nativeMessaging` can
-  sit in `optional_permissions` (requested only when the user enables the bridge,
-  keeping it off the default install warning) or must be a required permission
-  (always-visible warning). Confirm against the current Chrome/Firefox permission
-  rules during build; prefer optional + request-on-enable if allowed, to honour
-  the opt-in posture.
-- **`tabs`** is already optional (`wxt.config.ts:20`). Request it at the same time
-  the user enables the bridge; without it the active tab's `url`/`title` are not
-  readable (see [architecture.md](./architecture.md)).
-- **Pin a Chrome extension ID.** No `key` is pinned today, so the Chrome
-  extension ID is not stable; the host manifest's `allowed_origins` needs a stable
-  ID. Add a `key` (deterministic ID) before shipping. Firefox is already stable
-  via `gecko.id = "ff@monocle.com"`.
+- **`nativeMessaging`** is in `optional_permissions`, requested on demand when
+  the user enables the bridge. This keeps it off the default install warning and
+  preserves the opt-in posture.
+- **`tabs`** is also optional and requested with the bridge; without it the
+  active tab's `url`/`title` are not readable (see [architecture.md](./architecture.md)).
+- **Chrome extension ID remains open.** No Chrome `key` is pinned yet, so the
+  bridge host manifest uses `MONOCLE_CHROME_EXTENSION_ID` / config override for
+  Chrome. Firefox is stable via `gecko.id = "ff@monocle.com"`.
 
 ---
 
-## Files to add / touch
-
-Add:
+## Implemented files
 
 - `background/features/nativeMessaging/index.ts` — the `FeatureModule` (init,
-  config schema, settings page, `handleAction` for revoke).
-- `background/features/nativeMessaging/port.ts` — `connectNative`, the request
-  pump, reconnect.
-- `background/features/nativeMessaging/pairing.ts` — code generation, modal push,
-  verification, token minting.
+  config schema, settings page, revoke action).
+- `background/features/nativeMessaging/port.ts` — `connectNative`, port
+  lifecycle, reconnect.
+- `background/features/nativeMessaging/pump.ts` — protocol validation and method
+  dispatch.
+- `background/features/nativeMessaging/pairing.ts` — code generation, modal
+  push, verification, token minting.
+- `background/features/nativeMessaging/auth.ts` and `crypto.ts` — bearer-token
+  authentication, hashing, constant-time comparison, token/code generation.
+- `background/features/nativeMessaging/suggestions.ts` — active-tab root,
+  search, and child suggestions.
+- `background/features/nativeMessaging/execute.ts` — `commands/execute`
+  preflight, command execution, focus/result handling.
 - `background/features/nativeMessaging/externalSuggestion.ts` — the DTO mapper.
-- `shared/types/nativeMessaging.ts` — protocol envelope + `ExternalSuggestion`
-  types and Zod schemas.
-- Tests: mapper, pairing (code/expiry/attempts/constant-time), envelope
-  validation, auth/scope checks, active-tab resolution (mocked
-  `chrome.tabs.query`).
+- `packages/native-bridge-protocol/src/wire.ts` and `src/validation.ts` —
+  public protocol DTOs, method maps, and Zod schemas.
+- Tests live in `background/features/nativeMessaging/*.test.ts`.
 
-Touch:
-
-- `background/index.ts` — call the module's `init()`.
-- `background/features/` registry — register the module.
-- `wxt.config.ts` — `nativeMessaging` + Chrome `key` (see above).
-- `shared/types/messaging.ts` / `validation.ts` — if any in-extension messages
-  are needed for the settings page beyond the generic feature messages.
-
-The native host binary and installer live **outside** this repo's extension
-package — see [native-host.md](./native-host.md).
+The native host binary and installer live in `apps/bridge` — see
+[native-host.md](./native-host.md) and [bridge-app-prd.md](./bridge-app-prd.md).
 
 ---
 

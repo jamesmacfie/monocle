@@ -4,7 +4,7 @@ import { bridgeRequest } from "./lib/bridge";
 import { clearToken, getToken } from "./lib/auth";
 import { CommandRow } from "./components/CommandRow";
 import PairMonocle from "./pair-monocle";
-import type { ExternalSuggestion, MetaInfo, SuggestionsResult } from "./lib/types";
+import type { BridgeErrorCode, ExternalSuggestion } from "./lib/types";
 
 type Phase = "loading" | "ready" | "needs-pairing" | "error";
 
@@ -12,14 +12,14 @@ export default function SearchMonocle() {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<ExternalSuggestion[]>([]);
   const [phase, setPhase] = useState<Phase>("loading");
-  const [errorCode, setErrorCode] = useState<string>("");
+  const [errorCode, setErrorCode] = useState<BridgeErrorCode | "">("");
   const [executionEnabled, setExecutionEnabled] = useState(false);
   const [nonce, setNonce] = useState(0); // bump to force a refetch (retry)
 
   // Capability probe once on mount: is the bridge on, can we execute?
   useEffect(() => {
     (async () => {
-      const meta = await bridgeRequest<MetaInfo>("meta/info", {});
+      const meta = await bridgeRequest("meta/info", {});
       if (meta.ok) setExecutionEnabled(meta.result.executionEnabled);
     })();
   }, []);
@@ -34,12 +34,8 @@ export default function SearchMonocle() {
         return;
       }
       const res = query.trim()
-        ? await bridgeRequest<SuggestionsResult>("suggestions/search-active-tab", { query, limit: 50 }, token)
-        : await bridgeRequest<SuggestionsResult>(
-            "suggestions/get-for-active-tab",
-            { limit: 50, includeFavorites: true },
-            token,
-          );
+        ? await bridgeRequest("suggestions/search-active-tab", { query, limit: 50 }, token)
+        : await bridgeRequest("suggestions/get-for-active-tab", { limit: 50, includeFavorites: true }, token);
       if (cancelled) return;
       if (res.ok) {
         setItems(res.result.suggestions);
@@ -122,7 +118,7 @@ export default function SearchMonocle() {
   );
 }
 
-function errorTitle(code: string): string {
+function errorTitle(code: BridgeErrorCode | ""): string {
   switch (code) {
     case "not_enabled":
       return "Bridge off or no browser connected";
@@ -135,7 +131,7 @@ function errorTitle(code: string): string {
   }
 }
 
-function errorDescription(code: string): string {
+function errorDescription(code: BridgeErrorCode | ""): string {
   switch (code) {
     case "not_enabled":
       return "Open your browser and enable the Monocle bridge, then retry. Make sure the Monocle Bridge app is running.";

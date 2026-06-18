@@ -1,7 +1,7 @@
 # Nested navigation
 
-> **Status: design-only.** Backed by the `suggestions/get-children` method
-> (`apps/extension/shared/types/nativeMessaging.ts`) and
+> Backed by the `suggestions/get-children` method
+> (`packages/native-bridge-protocol/src/wire.ts`) and
 > `getChildrenForActiveTab` in `apps/extension/background/features/nativeMessaging/suggestions.ts`.
 
 ## Why this exists
@@ -111,7 +111,7 @@ export function CommandList({ path, isSearchPage }: { path: string[]; isSearchPa
           key={s.id}
           title={s.title}
           subtitle={s.subtitle}
-          icon={iconFor(s.icon)}
+          icon={iconFor(s)}
           keywords={s.keywords}
           actions={
             <ActionPanel>

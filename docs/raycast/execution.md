@@ -1,7 +1,8 @@
 # Execution
 
-> **Status: design-only.** Backed by `commands/execute`, implemented in
-> `apps/extension/background/features/nativeMessaging/execute.ts`. Design:
+> Backed by the implemented `commands/execute` method in
+> `apps/extension/background/features/nativeMessaging/execute.ts`. Design and
+> policy details live in
 > [`../native-messaging/execution.md`](../native-messaging/execution.md).
 
 ## The call

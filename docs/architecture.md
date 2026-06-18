@@ -1,6 +1,6 @@
 # Architecture
 
-Monocle is a WXT-built browser extension that adds a VS Code-style command palette to the browser. The palette runs in two UI surfaces — a content-script overlay injected into every page inside a closed shadow DOM, and a new-tab page replacement — both backed by a single background service worker that owns all privileged behavior. Monocle also has a WXT options page for settings management. The UI surfaces are deliberately thin: they fetch UI-safe data from the background, render it, and send typed messages back for privileged work. This document maps the runtime modes, the entrypoints, the background ownership model, the Redux store layout, the build system, and the core data flows, with pointers into the deep-dive docs for each subsystem.
+Monocle is a WXT-built browser extension that adds a VS Code-style command palette to the browser. The palette runs in two UI surfaces — a content-script overlay injected into every page inside a closed shadow DOM, and a new-tab page replacement — both backed by a single background service worker that owns all privileged behavior. Monocle also has a WXT options page for settings management, a Tauri native Bridge app, and a Raycast client that talks to the browser through that bridge. The UI surfaces are deliberately thin: they fetch UI-safe data from the background, render it, and send typed messages back for privileged work. This document maps the runtime modes, the entrypoints, the background ownership model, the Redux store layout, the build system, and the core data flows, with pointers into the deep-dive docs for each subsystem.
 
 ## Runtime modes
 
@@ -106,36 +106,19 @@ Typed hooks (`useAppDispatch`, `useAppSelector`, `useAppStore`) live in `shared/
 
 ```text
 monocle/
-├── entrypoints/         # WXT background, content, and new-tab entrypoints
-│   ├── background.ts
-│   ├── content.tsx
-│   ├── newtab/          # index.html + main.tsx
-│   └── options/         # index.html + main.tsx
-├── background/          # Service worker: commands, messages, keybindings, utils
-│   ├── index.ts         # initializeBackground()
-│   ├── commands/        # command sources, query, execution, suggestions, settings
-│   ├── messages/        # message router and handlers
-│   ├── keybindings/     # registry
-│   ├── automations/     # automation storage, engine, triggers, alarms, commands
-│   ├── features/        # feature-module registry (config/state, focus-mode, tabGroups, elementHider)
-│   ├── surfaces.ts      # owner-namespaced declarative overlay/badge store
-│   ├── workflows/       # workflow target resolution + forwarding
-│   └── utils/           # privileged browser API helpers, contentPalette
-├── content/             # Content overlay rendering, workflow executor
-│   ├── workflow/        # workflow executor core + op modules
-│   └── automationTriggers.ts  # page-side trigger service (pull/report)
-├── newtab/              # Browser new-tab replacement app
-├── options/             # Browser options/settings app
-├── shared/              # Shared React components, hooks, store, types, utils
-│   ├── components/
-│   ├── hooks/
-│   ├── store/           # store factories, slices, sendMessage
-│   ├── types/           # commands.ts, ui.ts, etc.
-│   └── utils/           # key-normalizer, theme, extension-api, validation
-├── docs/                # Feature/architecture docs (this folder)
-├── server/              # Local support server (node server/index.js)
-└── test-inputs.html     # Manual workflow/input fixture page
+├── apps/
+│   ├── extension/       # WXT extension: background/content/newtab/options/shared
+│   ├── bridge/          # Tauri native bridge daemon + browser-spawned relay
+│   ├── raycast/         # Raycast client, excluded from pnpm workspace
+│   └── marketing/       # Static marketing/docs HTML
+├── packages/
+│   └── native-bridge-protocol/ # Public bridge DTOs, method maps, Zod validation
+└── docs/                # Feature/architecture docs
 ```
+
+Inside `apps/extension/`, paths in this and most feature docs are extension-relative:
+`entrypoints/`, `background/`, `content/`, `newtab/`, `options/`, `shared/`, and
+`test-inputs.html`.
 
 ## Build system
 
@@ -159,12 +142,16 @@ pnpm scripts (`package.json` — always use `pnpm`, never `npm`/`yarn`):
 | `pnpm run build` | `tsc --noEmit` then `wxt build` (Chrome MV3). |
 | `pnpm run build:firefox` | Type-check then `wxt build -b firefox --mv3`. |
 | `pnpm run build:zip` / `build:firefox:zip` | Build and zip for distribution. |
+| `pnpm run dev:bridge` / `build:bridge` | Run/build the Tauri bridge app. |
+| `pnpm run dev:raycast` / `build:raycast` | Run/build the isolated Raycast client with `pnpm --dir apps/raycast`. |
 | `pnpm run tsc` | Type-check only. |
 | `pnpm run fmt` / `fmt:check` | Biome write / check. |
 | `pnpm test` / `test:watch` | Vitest (focused suite). |
 | `pnpm run server` | Local support server. |
 
 Stack: React 19, Redux Toolkit, CMDK (palette), `ts-pattern` (message routing), Zod (validation), Tailwind v4, Biome (lint/format), Vitest (tests).
+
+`packages/native-bridge-protocol` is the only shared package today. It contains the public native-bridge wire contract (`ExternalSuggestion`, bridge error codes, method params/results, request schema, and response helpers). The extension re-exports it from `shared/types/nativeMessaging.ts` for compatibility, and the Raycast client imports the wire types through `apps/raycast/src/lib/types.ts`. Extension-internal `CommandNode`, `Suggestion`, message, store, and browser API types intentionally stay inside `apps/extension`.
 
 ## Core data flows
 

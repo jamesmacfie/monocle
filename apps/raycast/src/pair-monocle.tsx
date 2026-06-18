@@ -2,6 +2,7 @@ import { Action, ActionPanel, Form, showToast, Toast, useNavigation } from "@ray
 import { useEffect, useRef, useState } from "react";
 import { bridgeRequest } from "./lib/bridge";
 import { getInstanceId, setToken } from "./lib/auth";
+import type { BridgeErrorCode } from "./lib/types";
 
 export default function PairMonocle() {
   const { pop } = useNavigation();
@@ -11,7 +12,7 @@ export default function PairMonocle() {
   // Start pairing on mount: the browser shows a 6-digit code in a modal.
   useEffect(() => {
     (async () => {
-      const res = await bridgeRequest<{ pairingId: string; expiresInSeconds: number }>("pair/request", {
+      const res = await bridgeRequest("pair/request", {
         client: { name: "Raycast", instanceId: await getInstanceId() },
       });
       if (res.ok) {
@@ -30,7 +31,7 @@ export default function PairMonocle() {
       await showToast({ style: Toast.Style.Failure, title: "Pairing hasn’t started — reopen Pair Monocle" });
       return;
     }
-    const res = await bridgeRequest<{ token: string; scopes: string[] }>("pair/submit-code", {
+    const res = await bridgeRequest("pair/submit-code", {
       pairingId: pairingId.current,
       code: code.trim(),
     });
@@ -57,7 +58,7 @@ export default function PairMonocle() {
   );
 }
 
-function pairingErrorTitle(code: string): string {
+function pairingErrorTitle(code: BridgeErrorCode): string {
   switch (code) {
     case "pairing_expired":
       return "Code expired — restart pairing";

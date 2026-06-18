@@ -20,10 +20,11 @@
 
 The three-part bridge is **extension → bridge → caller**
 ([architecture.md](./architecture.md)). The extension half is built
-(`apps/extension/background/features/nativeMessaging/`). The **bridge** — the
-native relay that holds the loopback socket and the stdio pipe — is not, and a
-browser extension fundamentally cannot ship it (MV3 can't open a socket; the
-relay must be a native binary outside the browser).
+(`apps/extension/background/features/nativeMessaging/`) and the macOS M0+M1
+bridge app now lives at `apps/bridge`. A browser extension still fundamentally
+cannot ship this native component itself (MV3 can't open a socket; the relay
+must be a native binary outside the browser), so the bridge remains a separate
+downloadable app.
 
 This PRD proposes shipping that relay as a **minimal cross-platform tray /
 menu-bar app built with Tauri**, so distribution is a normal "download and run"
@@ -105,9 +106,10 @@ Why this is the right call:
   worth the extra moving part.
 - **Zero changes to the built extension** — it still calls
   `connectNative("com.monocle.bridge")` and speaks the protocol over stdio.
-- **Solves multi-instance** ([multi-instance.md](./multi-instance.md)): one
-  daemon owns the loopback port; every browser's relay multiplexes into it, so
-  there's no "first-to-bind-wins" port fight.
+- **Defers multi-instance selection** ([multi-instance.md](./multi-instance.md)):
+  one daemon owns the loopback port, but the current M1 implementation keeps a
+  single active browser relay (`latest relay wins`). Rich multi-browser
+  selection/multiplexing remains an M2+ item.
 - **Caller always has someone to talk to**: the daemon answers even when no
   browser is connected (returns a "no connected browser" status).
 
@@ -141,7 +143,7 @@ fallback if manifest registration proves too brittle in the field.
   daemon).
 - **Small footprint** vs Electron (uses the OS webview; for a tray-only app we
   barely use a webview at all — the relay/daemon core is plain Rust + tokio).
-- Native-messaging stdio framing (u32-LE length prefix + UTF-8 JSON) and
+- Native-messaging stdio framing (native-endian u32 length prefix + UTF-8 JSON) and
   UDS/named-pipe IPC are straightforward in Rust/tokio.
 
 The relay path is pure Rust (no webview): `fn main()` branches on argv/stdin

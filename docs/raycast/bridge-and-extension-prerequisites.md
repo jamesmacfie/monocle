@@ -1,6 +1,6 @@
 # Bridge and extension prerequisites
 
-> **Status: design-only.** This doc is about dependencies, not new work.
+> This doc is about runtime dependencies and setup, not new protocol work.
 
 ## No protocol or bridge changes are required
 
@@ -11,9 +11,9 @@ The bridge contract already covers everything the Raycast extension needs:
 - Execute + return values: `commands/execute` with `{ ran, focused?, value?, contentType? }`.
 - Pairing + auth: `pair/request` / `pair/submit-code`, bearer tokens, scopes.
 
-So building the Raycast extension touches **no** code in `apps/bridge` or
-`apps/extension/background/features/nativeMessaging/`. It is a new isolated app plus the user-side
-toggles below.
+The current Raycast app uses this contract without requiring new code in
+`apps/bridge` or `apps/extension/background/features/nativeMessaging/`. Runtime
+success still depends on the user-side toggles below.
 
 ## What the user/dev must have in place
 
@@ -46,9 +46,10 @@ For the extension to actually return suggestions and run commands, these must be
   ([`../native-messaging/extension-integration.md`](../native-messaging/extension-integration.md),
   [`../native-messaging/roadmap.md`](../native-messaging/roadmap.md)). If the bridge "won't connect"
   on Chrome dev builds, this is usually why — not a Raycast issue.
-- **Multi-instance is v1 first-to-bind.** If two browsers run relays, only one owns port 8765. The
-  Raycast client reaches whoever owns the port; it cannot choose. Use `status` / `meta/info` to show
-  *which* browser answered. Selection across instances is a v2 item
+- **Multi-instance is v1 single-active-relay.** The daemon owns port 8765 and
+  keeps one active browser relay. If a second browser relay connects, it becomes
+  the responder; the Raycast client cannot choose. Use `status` / `meta/info` to
+  show *which* browser answered. Selection across instances is a v2 item
   ([`../native-messaging/multi-instance.md`](../native-messaging/multi-instance.md)).
 - **Pairing code visibility depends on a Monocle surface host.** The current extension shows the
   code through a `modal` surface, not a dedicated pairing page. If the active browser page cannot run

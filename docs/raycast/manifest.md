@@ -1,9 +1,10 @@
 # Manifest (`package.json`)
 
-> **Status: design-only.** The Raycast manifest is a superset of npm's `package.json`. Field
-> reference: <https://developers.raycast.com/information/manifest>.
+The Raycast manifest is a superset of npm's `package.json`. The current manifest
+lives at `apps/raycast/package.json`. Field reference:
+<https://developers.raycast.com/information/manifest>.
 
-## Proposed manifest
+## Current manifest shape
 
 ```jsonc
 {
@@ -11,8 +12,8 @@
   "name": "monocle",
   "title": "Monocle",
   "description": "Search and run the active browser tab's Monocle commands from Raycast.",
-  "icon": "monocle-icon.png",            // assets/monocle-icon.png, 512×512 PNG (+ @dark variant)
-  "author": "your-raycast-handle",
+  "icon": "monocle-icon.png",            // assets/monocle-icon.png
+  "author": "james_macfie",
   "categories": ["Productivity", "Web"],
   "license": "MIT",
   "platforms": ["macOS"],
@@ -51,8 +52,8 @@
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.x",
-    "@raycast/utils": "^1.x"
+    "@raycast/api": "^1.99.0",
+    "@raycast/utils": "^1.19.0"
   },
   "scripts": {
     "dev": "ray develop",
@@ -76,16 +77,17 @@
 
 **Preferences (extension-level).** `port` and `host` are user-editable, non-secret connection
 settings. They are inherited by every command. Read them with
-`getPreferenceValues<Preferences>()` (Raycast auto-generates the `Preferences` type from this
-manifest — see [settings-and-storage.md](./settings-and-storage.md)).
+`getPreferenceValues<Prefs>()`; the app keeps a small local `Prefs` type in
+`src/lib/types.ts` so bare TypeScript checks work without relying on generated
+Raycast env types. See [settings-and-storage.md](./settings-and-storage.md).
 
 > The **token and `instanceId` are NOT preferences.** Secrets and derived ids belong in
 > `LocalStorage` (encrypted, not user-editable, never logged), not in plain-text preferences. See
 > [settings-and-storage.md](./settings-and-storage.md).
 
-**Icon.** A 512×512 PNG in `assets/`, referenced by filename. Provide a `@dark` variant
-(`monocle-icon@dark.png`) for dark mode. (This is the *extension* icon shown in Raycast; per-row
-icons come from suggestion data — see icon mapping.)
+**Icon.** A PNG in `assets/`, referenced by filename. This is the *extension*
+icon shown in Raycast; per-row icons come from suggestion data — see icon
+mapping.
 
 **Distribution.** Since we are dev-mode only, the Store-required fields (screenshots, strict
 categories, `ray lint` passing clean) are not gates. Keep `ray lint` roughly clean anyway so the

@@ -3,7 +3,14 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { getPreferenceValues } from "@raycast/api";
-import type { BridgeReply, Prefs } from "./types";
+import {
+  BRIDGE_PROTOCOL_VERSION,
+  type BridgeMethod,
+  type BridgeParams,
+  type BridgeReply,
+  type BridgeResult,
+  type Prefs,
+} from "./types";
 
 // Resolution order: port preference → ~/.monocle/bridge.json → 8765.
 export async function resolvePort(): Promise<number> {
@@ -32,11 +39,11 @@ function resolveHost(): string {
  * The daemon injects `auth.token` from the Bearer header, so the client only
  * passes the raw token.
  */
-export async function bridgeRequest<T>(
-  method: string,
-  params: unknown,
+export async function bridgeRequest<M extends BridgeMethod>(
+  method: M,
+  params: BridgeParams<M>,
   token?: string,
-): Promise<BridgeReply<T>> {
+): Promise<BridgeReply<BridgeResult<M>>> {
   const host = resolveHost();
   const port = await resolvePort();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -50,10 +57,15 @@ export async function bridgeRequest<T>(
     const res = await fetch(`http://${host}:${port}/`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ v: 1, id: randomUUID(), method, params }),
+      body: JSON.stringify({
+        v: BRIDGE_PROTOCOL_VERSION,
+        id: randomUUID(),
+        method,
+        params,
+      }),
       signal: controller.signal,
     });
-    return (await res.json()) as BridgeReply<T>;
+    return (await res.json()) as BridgeReply<BridgeResult<M>>;
   } catch (err) {
     // ECONNREFUSED (daemon not running) or an abort (timeout). Map to the normal
     // error envelope so callers never have to try/catch the transport.
