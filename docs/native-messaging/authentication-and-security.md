@@ -1,6 +1,8 @@
 # Authentication and security
 
-> **Status: proposed (v1 design).** Not yet built.
+> **Status: extension side implemented; bridge host built at `apps/bridge`
+> (macOS M0+M1).** This document is the design/contract; the canonical build
+> status lives in [README.md](./README.md) and the project `CLAUDE.md`.
 
 The bridge exposes a loopback port that **any local process can reach**. That is
 the central threat. Defense is layered: the feature is off until the user opts

@@ -1,0 +1,14 @@
+{
+  "name": "@monocle/bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monocle Bridge — native-messaging relay daemon (tray app)",
+  "scripts": {
+    "dev:bridge": "tauri dev",
+    "build:bridge": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

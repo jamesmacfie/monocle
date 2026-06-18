@@ -1,0 +1,30 @@
+[package]
+name = "monocle-bridge"
+version = "0.1.0"
+description = "Monocle native-messaging bridge"
+authors = ["James Macfie"]
+edition = "2021"
+
+# The binary the browser spawns (relay mode) and the user launches (daemon mode)
+# are the same artifact.
+[[bin]]
+name = "monocle-bridge"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "io-std", "sync", "process", "time"] }
+axum = "0.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"

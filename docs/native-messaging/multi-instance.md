@@ -1,6 +1,9 @@
 # Multiple instances
 
-> **Status: proposed (v1 design).** Not yet built.
+> **Status: extension side implemented; bridge host built at `apps/bridge`
+> (macOS M0+M1) — v1 single-instance (fixed-port, first-to-bind).** This document
+> is the design/contract; the canonical build status lives in
+> [README.md](./README.md) and the project `CLAUDE.md`.
 
 Native messaging launches **one host process per connecting extension instance**.
 If Monocle is installed and running in more than one browser at once, each

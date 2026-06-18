@@ -1,6 +1,9 @@
 # Native Messaging Bridge
 
-> **Status: v1 extension side implemented; native host still external.** The
+> **Status: v1 extension side implemented; bridge app M0+M1 built (macOS).** The
+> relay host now lives in-repo at `apps/bridge` (Tauri daemon+relay; see
+> [bridge-app-prd.md](./bridge-app-prd.md)) — built and verified headless on
+> macOS, pending real-browser end-to-end + signing + cross-platform. The
 > Monocle-side bridge is built as the `native-messaging` feature module
 > (`apps/extension/background/features/nativeMessaging/`): the opt-in toggle +
 > palette enable/disable commands, the `connectNative` port + reconnect, the
@@ -8,9 +11,9 @@
 > (CSPRNG code, hashed/constant-time verify, attempt cap + expiry), scoped
 > hashed bearer tokens with per-client Revoke, and the `Suggestion` →
 > `ExternalSuggestion` mapper, all reusing `getCommands` / the search path /
-> Surfaces. The **native host binary + installer live outside this repo** (see
-> [native-host.md](./native-host.md)) and are still unbuilt, so end-to-end flow
-> is not yet manually exercised. The `nativeMessaging`/`tabs` optional
+> Surfaces. The **native host is now in-repo** at `apps/bridge` (macOS M0+M1),
+> but the real browser→relay→daemon round-trip is not yet manually exercised
+> (needs the extension loaded). The `nativeMessaging`/`tabs` optional
 > permissions are wired; pinning a stable Chrome `key` is still open (see
 > [extension-integration.md](./extension-integration.md)). v2 items (execution,
 > multi-instance selection, site-SDK, signed requests) remain design-only.
@@ -87,6 +90,13 @@ Explicitly **out of v1** (but **execution is now designed** for v2 — see
    to users — the persistent-daemon-plus-connectNative-relay design, the minimal
    tray UI, and per-OS manifest registration + signing.
 9. [roadmap.md](./roadmap.md) — phasing and open questions.
+
+## The client
+
+- [../raycast/README.md](../raycast/README.md) — **design-only** build spec for the
+  Raycast extension that consumes this protocol: the client view of pairing,
+  suggestions, nested-group navigation, and execution. This folder is the
+  protocol authority; the raycast folder is the consumer.
 
 ## Related docs
 

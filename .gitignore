@@ -12,6 +12,10 @@ dist
 # turbo
 .turbo
 
+# tauri / rust (apps/bridge)
+target
+apps/bridge/src-tauri/gen
+
 # misc
 .DS_Store
 

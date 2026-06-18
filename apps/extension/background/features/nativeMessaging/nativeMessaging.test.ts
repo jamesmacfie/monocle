@@ -25,6 +25,12 @@ vi.mock("./suggestions", () => ({
     suggestions: [{ id: "x", type: "action", title: "X" }],
   })),
   searchActiveTab: vi.fn(async () => null),
+  getChildrenForActiveTab: vi.fn(async () => ({
+    url: "https://example.com/",
+    title: "Example",
+    path: ["bookmarks"],
+    suggestions: [{ id: "bm-1", type: "action", title: "A bookmark" }],
+  })),
 }))
 
 // The execute orchestration reaches the command system + active tab; the pump
@@ -296,6 +302,40 @@ describe("request pump", () => {
     }
     return minted.token
   }
+
+  it("suggestions/get-children requires a token (read scope, no execution opt-in)", async () => {
+    await enableBridge()
+    const res = await handleBridgeRequest({
+      v: 1,
+      id: "c",
+      method: "suggestions/get-children",
+      params: { path: ["bookmarks"] },
+    })
+    expect(res).toMatchObject({ ok: false, error: { code: "unauthorized" } })
+  })
+
+  it("suggestions/get-children returns children for a valid read token", async () => {
+    const now = 8_000_000
+    await enableBridge()
+    const token = await mintToken(now)
+    const res = await handleBridgeRequest(
+      {
+        v: 1,
+        id: "c2",
+        method: "suggestions/get-children",
+        params: { path: ["bookmarks"] },
+        auth: { token },
+      },
+      now,
+    )
+    expect(res).toMatchObject({
+      ok: true,
+      result: {
+        path: ["bookmarks"],
+        suggestions: [{ id: "bm-1", type: "action", title: "A bookmark" }],
+      },
+    })
+  })
 
   it("commands/execute requires a token", async () => {
     await enableBridge({ allowExecution: true })

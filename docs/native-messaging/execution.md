@@ -11,8 +11,10 @@
 > `commands:execute` scope + `commands/execute` method, and the settings toggle.
 > The copy family returns its value; representative focus-and-act / deny
 > annotations are applied (default-allow covers the rest). The native host that
-> carries these requests is still external (see
-> [bridge-app-prd.md](./bridge-app-prd.md)). Below is the design as built.
+> carries these requests is now in-repo at `apps/bridge` (macOS M0+M1; see
+> [bridge-app-prd.md](./bridge-app-prd.md)), though the real
+> browser→relay→daemon→execute round-trip is not yet manually exercised. Below is
+> the design as built.
 
 Listing the active tab's commands is only useful if the app can also run them.
 Execution is a larger blast radius than reading, so it is a **separately granted**

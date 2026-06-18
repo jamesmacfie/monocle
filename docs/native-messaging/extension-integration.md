@@ -1,6 +1,8 @@
 # Extension integration
 
-> **Status: proposed (v1 design).** Not yet built.
+> **Status: extension side implemented; bridge host built at `apps/bridge`
+> (macOS M0+M1).** This document is the design/contract; the canonical build
+> status lives in [README.md](./README.md) and the project `CLAUDE.md`.
 
 This document specifies how the bridge plugs into Monocle: the feature module
 that owns it, the exact reuse points, the manifest changes, and the files to add
@@ -57,6 +59,11 @@ than the runtime listener. For each request:
      `commandsToSuggestions(commands, context)` (`background/commands/suggestions.ts`).
    - search → the `monocle-commands-search` scoring path
      (`background/commands/searchIndex.ts`) with the supplied query.
+   - group/search drill-down (`suggestions/get-children`) →
+     `getCommandPageCommands(context, path, query)` (`background/commands/query.ts`),
+     the same path-based page resolver the palette uses; children that are
+     groups can be drilled again (infinite nesting). Scoped to `suggestions:read`
+     — navigation is a read, not `commands:execute`.
 5. Map `Suggestion[]` → `ExternalSuggestion[]` via the mapper (below).
 6. `port.postMessage` the response envelope.
 
@@ -69,6 +76,7 @@ than the runtime listener. For each request:
 | Root suggestions for a URL | `getCommands` / `getCommandCollections` (`background/commands/query.ts`) |
 | `CommandNode` → UI row | `commandsToSuggestions` (`background/commands/suggestions.ts`) |
 | Query-scored suggestions | the `monocle-commands-search` handler + `background/commands/searchIndex.ts` |
+| Group/search children (nesting) | `getCommandPageCommands(context, path, query)` (`background/commands/query.ts`) |
 | Context type | `Browser.Context` (`shared/types/browser.ts`) |
 | Pairing modal | `upsertSurface(ownerId, surface)` (`background/surfaces.ts`), pattern from `background/commands/tools/urlAsQrCode.ts` |
 | Durable config / transient state | `getFeatureConfig`/`setFeatureConfig` (`background/features/config.ts`), `getFeatureState`/`setFeatureState`/`clearFeatureState` (`background/features/state.ts`) |

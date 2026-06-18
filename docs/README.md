@@ -112,15 +112,23 @@ If you are adding a command, the fast path is
   validation" checklist. Paste into an LLM to generate or extend an automation
   JSON blob for the paste-import / copy-export sharing flow. References no
   source files, so it stands alone.
+- [native-messaging/README.md](./native-messaging/README.md) — The native-messaging
+  bridge that lets an external desktop app (first target: Raycast) request the
+  active tab's command suggestions. Extension side is implemented and the host
+  ships as the **Monocle Bridge** Tauri app (`apps/bridge`, macOS M0+M1). Folder
+  covers the architecture, native host, wire protocol + `ExternalSuggestion` DTO,
+  bluetooth-style pairing/auth, the multiple-host problem, extension wiring, v2
+  execution, the bridge-app PRD, and roadmap.
+- [raycast/README.md](./raycast/README.md) — **Design-only** build spec for a
+  Raycast extension that drives Monocle through the native bridge: the client
+  view of the protocol (HTTP client, pairing flow, `ExternalSuggestion` →
+  `List.Item` mapping, nested-group navigation via `suggestions/get-children`,
+  `commands/execute` result handling), the `apps/raycast` monorepo isolation
+  (npm + `ray`, excluded from the pnpm workspace), and a `curl`-based test
+  checklist. No protocol changes required.
 
 ## Future proposals
 
-- [native-messaging/README.md](./native-messaging/README.md) — Proposed design
-  (not yet built) for a native-messaging bridge that lets an external desktop app
-  (first target: Raycast) request the active tab's command suggestions. Folder
-  covers the architecture, native host, wire protocol + `ExternalSuggestion` DTO,
-  bluetooth-style pairing/auth, the multiple-host problem, extension wiring, and
-  roadmap.
 - [proposals/README.md](./proposals/README.md) — Future-design proposals. These
   are intentionally not current behavior; promote details into the verified docs
   only after implementation.

@@ -1,10 +1,18 @@
 # PRD: Monocle Bridge — the cross-platform host app
 
-> **Status: proposed (design).** Not yet built. This PRD specifies the **bridge
-> app** — the downloadable native component that sits between the Monocle
-> browser extension and an external caller (e.g. Raycast). It operationalizes
-> the "host distribution & signing" open question in [roadmap.md](./roadmap.md)
-> and refines the single-binary host in [native-host.md](./native-host.md).
+> **Status: M0+M1 implemented (macOS).** The bridge app lives at `apps/bridge`
+> (Tauri, the daemon+relay design in §3). The two-mode binary, the loopback HTTP
+> server, the relay UDS pump + id-routing, manifest registration, the discovery
+> file, and the tray are built; framing + id-routing have unit tests and the
+> daemon's HTTP/relay path is verified headless (`MONOCLE_BRIDGE_HEADLESS=1`).
+> **Still open:** real browser→relay→daemon round-trip (needs the extension
+> loaded — the manual checklist), the Chrome `key`/ID pin (§8/§11), and M2–M4
+> (Windows/Linux, signing/notarization, multi-browser selection). This PRD
+> specifies the **bridge app** — the downloadable native component that sits
+> between the Monocle browser extension and an external caller (e.g. Raycast).
+> It operationalizes the "host distribution & signing" open question in
+> [roadmap.md](./roadmap.md) and refines the single-binary host in
+> [native-host.md](./native-host.md).
 
 ---
 
@@ -285,7 +293,7 @@ registration.
   two-mode binary + IPC.
 - **M1 — working relay (macOS, unsigned dev)**: full daemon (loopback HTTP +
   IPC), relay mode, one browser; Raycast-style `curl` pairs and lists commands
-  end-to-end. Replaces the `test-host/` scripts.
+  end-to-end.
 - **M2 — cross-platform + lifecycle**: Windows + Linux; autostart,
   single-instance, tray status, re-register, clean quit.
 - **M3 — distributable**: signing/notarization, installers, auto-update.
@@ -315,4 +323,3 @@ registration.
 - [multi-instance.md](./multi-instance.md) — the registry/selection this app's
   daemon brings forward.
 - [roadmap.md](./roadmap.md) — where host distribution sits in the phasing.
-- `test-host/` — the throwaway script harness this app replaces.

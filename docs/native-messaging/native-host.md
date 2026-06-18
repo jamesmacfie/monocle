@@ -1,6 +1,11 @@
 # The native host
 
-> **Status: proposed (v1 design).** Not yet built.
+> **Status: implemented at `apps/bridge` (macOS M0+M1).** This document is the
+> host's spec; the Tauri app that implements it (the daemon+relay two-mode binary,
+> the loopback server below, stdio framing, and per-OS manifest registration)
+> lives in-repo — see [bridge-app-prd.md](./bridge-app-prd.md) and
+> `apps/bridge/README.md`. Windows/Linux, signing, and the Chrome `key` pin remain
+> open.
 
 The native host is a small native binary that lives **outside the extension
 bundle**. The browser launches it when the extension calls
@@ -118,10 +123,13 @@ model and the signed-request upgrade path.
 
 ## Install and distribution (v1)
 
-v1 ships the host as a **manually installed** artifact (a downloaded installer or
-a Raycast-extension-bundled helper) that writes the manifest(s) and binary. The
-binary must be code-signed/notarized on macOS to run without Gatekeeper friction.
-Auto-update and signing pipeline are a v2 concern — see [roadmap.md](./roadmap.md).
+The host ships as the **Monocle Bridge** Tauri app (`apps/bridge`): a menu-bar
+daemon that, on launch, registers the manifest(s) for every installed supported
+browser (so there is no manual manifest editing) and is also the binary the
+browser re-spawns as the relay. On macOS today it builds to a `.app`/`.dmg`; the
+binary still needs code-signing/notarization to run without Gatekeeper friction,
+and auto-update + the signing pipeline remain a v2 concern — see
+[bridge-app-prd.md](./bridge-app-prd.md) and [roadmap.md](./roadmap.md).
 
 ---
 

@@ -1,6 +1,8 @@
 # Wire protocol
 
-> **Status: proposed (v1 design).** Not yet built.
+> **Status: extension side implemented; bridge host built at `apps/bridge`
+> (macOS M0+M1).** This document is the design/contract; the canonical build
+> status lives in [README.md](./README.md) and the project `CLAUDE.md`.
 
 This document defines the JSON protocol between the external app and the
 extension (carried verbatim by the native host). It is a **stable public
@@ -53,6 +55,7 @@ Bumping `v` is reserved for breaking changes; additive fields do not bump it.
 | `pair/submit-code` | none | Submit the human-entered code; on success returns a bearer token **once**. |
 | `suggestions/get-for-active-tab` | `suggestions:read` | Root suggestions for the active tab. |
 | `suggestions/search-active-tab` | `suggestions:read` | Query-scored suggestions for the active tab. |
+| `suggestions/get-children` | `suggestions:read` | Drill into a group/search node; returns its children (which may be groups → infinite nesting). |
 | `commands/execute` | `commands:execute` | **v2.** Run a command by id; optionally returns a value. See [execution.md](./execution.md). |
 
 Unauthenticated methods are limited to discovery and pairing. Everything that
@@ -124,6 +127,35 @@ full flow and security parameters.
 
 `limit` is clamped server-side and exists partly to keep responses under the
 host→browser **1 MB** native-messaging cap (see [native-host.md](./native-host.md)).
+
+### `suggestions/get-children`
+
+Group and search suggestions are navigational containers, not executable
+(`commands/execute` denies them — see [execution.md](./execution.md)). This method
+returns a container's children, mirroring how the palette nests command pages.
+Navigation is a **read**, so it is scoped to `suggestions:read`, not
+`commands:execute` — browsing the command tree works even when command execution
+is disabled.
+
+`path` is the breadcrumb of command ids from root to the node being entered. The
+caller nests by appending the id of any returned `group`/`search` child:
+
+```jsonc
+// params — drill into "Bookmarks", then a nested folder
+{ "path": ["bookmarks"], "query": "design", "limit": 50 }
+// result
+{
+  "url": "https://example.com/",
+  "title": "Example",
+  "path": ["bookmarks"],
+  "suggestions": [ /* ExternalSuggestion[] — children; groups can be drilled again */ ]
+}
+```
+
+`query` is optional (used by `search`-type nodes and to filter a page). An empty
+result is a real-but-empty page; a `path` that doesn't resolve to a group/search
+node returns `not_found`. Site-SDK children are absent (no content sender), the
+same v1 gap as the other suggestion methods.
 
 ### `commands/execute` (v2)
 

@@ -1,6 +1,8 @@
 # Bridge architecture
 
-> **Status: proposed (v1 design).** Not yet built.
+> **Status: extension side implemented; bridge host built at `apps/bridge`
+> (macOS M0+M1).** This document is the design/contract; the canonical build
+> status lives in [README.md](./README.md) and the project `CLAUDE.md`.
 
 This document describes the three components of the bridge, why native messaging
 is the transport, the service-worker lifecycle constraints, and the end-to-end

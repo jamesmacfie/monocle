@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Tray-only daemon; no frontend invoke surface.",
+  "windows": [],
+  "permissions": ["core:default"]
+}

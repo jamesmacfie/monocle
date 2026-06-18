@@ -112,6 +112,20 @@ export const BridgeRequestSchema = z.discriminatedUnion("method", [
   }),
   z.object({
     ...EnvelopeBase,
+    // Drill into a group/search node. `path` is the breadcrumb of command ids
+    // from root to the node being entered (["bookmarks"], ["a","b"], …); the
+    // returned suggestions are that node's children, which may themselves be
+    // groups — so the caller nests by appending to `path`. A read, scoped to
+    // `suggestions:read` like the other suggestion methods.
+    method: z.literal("suggestions/get-children"),
+    params: z.object({
+      path: z.array(z.string().min(1)).min(1).max(20),
+      query: z.string().optional(),
+      limit: z.number().int().positive().optional(),
+    }),
+  }),
+  z.object({
+    ...EnvelopeBase,
     method: z.literal("commands/execute"),
     params: z.object({ id: z.string().min(1) }),
   }),

@@ -13,6 +13,7 @@ import type {
   Suggestion,
 } from "../../../shared/types"
 import { allCommands, commandsToSuggestions, getCommands } from "../../commands"
+import { getCommandPageCommands } from "../../commands/query"
 import { searchCommands } from "../../messages/searchCommands"
 import { getActiveTab } from "../../utils/browser"
 import { toExternalSuggestions } from "./externalSuggestion"
@@ -139,5 +140,51 @@ export const searchActiveTab = async (
     title: context.title,
     query: params.query,
     suggestions: toExternalSuggestions(results).slice(0, limit),
+  }
+}
+
+export type GetChildrenParams = {
+  path: string[]
+  query?: string
+  limit?: number
+}
+
+// Drill into a group/search node and return its children — the bridge half of
+// the palette's nested navigation. Reuses the same path-based page resolver
+// (`getCommandPageCommands`) the palette uses, so dynamic/contextual children
+// and permission inheritance behave identically. No siteSdk (the bridge has no
+// content-script sender) — matching the v1 gap. Children that are themselves
+// groups carry `type:"group"`, so the caller nests by appending to `path`.
+export const getChildrenForActiveTab = async (
+  params: GetChildrenParams,
+): Promise<
+  | (ActiveTabResult & { path: string[] })
+  | { error: "no_active_tab" | "not_found" }
+> => {
+  const context = await resolveActiveContext()
+  if (!context) {
+    return { error: "no_active_tab" }
+  }
+
+  const limit = clampLimit(params.limit)
+  const page = await getCommandPageCommands(context, params.path, params.query)
+
+  // A path that does not resolve to a real group/search page is not_found
+  // (vs. a real but empty page, which returns an empty suggestions list).
+  if (!page.pageCommand) {
+    return { error: "not_found" }
+  }
+
+  const rows: Suggestion[] = await commandsToSuggestions(
+    page.commands.filter((command) => command.external?.allowed !== false),
+    context,
+    page.parentNames?.[0],
+    page.inheritedPermissions,
+  )
+  return {
+    url: context.url,
+    title: context.title,
+    path: params.path,
+    suggestions: toExternalSuggestions(rows).slice(0, limit),
   }
 }

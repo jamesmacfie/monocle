@@ -21,7 +21,11 @@ import { getFeatureConfig } from "../config"
 import { authenticate } from "./auth"
 import { executeForActiveTab } from "./execute"
 import { beginPairing, submitCode } from "./pairing"
-import { getForActiveTab, searchActiveTab } from "./suggestions"
+import {
+  getChildrenForActiveTab,
+  getForActiveTab,
+  searchActiveTab,
+} from "./suggestions"
 import {
   NATIVE_MESSAGING_FEATURE_ID,
   type NativeMessagingConfig,
@@ -156,6 +160,21 @@ export const handleBridgeRequest = async (
         const result = await searchActiveTab(req.params)
         if (!result) {
           return bridgeError(id, "no_active_tab", "No active tab")
+        }
+        return bridgeOk(id, result)
+      })
+      .with({ method: "suggestions/get-children" }, async (req) => {
+        const auth = await authenticate(
+          req.auth?.token,
+          "suggestions:read",
+          now,
+        )
+        if (!auth.ok) {
+          return bridgeError(id, auth.code, authMessage(auth.code))
+        }
+        const result = await getChildrenForActiveTab(req.params)
+        if ("error" in result) {
+          return bridgeError(id, result.error, authMessage(result.error))
         }
         return bridgeOk(id, result)
       })

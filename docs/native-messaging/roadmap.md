@@ -1,6 +1,9 @@
 # Roadmap and open questions
 
-> **Status: proposed (v1 design).** Not yet built.
+> **Status: extension side built; bridge app M0+M1 built (macOS).** The host now
+> lives at `apps/bridge` (Tauri daemon+relay). Remaining v1 work is the real
+> end-to-end smoke test, the Chrome `key` pin, and signing; M2–M4 (cross-platform,
+> distribution, multi-instance) are still ahead.
 
 Phasing for the bridge, and the decisions still to settle before/while building.
 
@@ -8,7 +11,9 @@ Phasing for the bridge, and the decisions still to settle before/while building.
 
 ## v1 — the smoke-test integration
 
-- Native-messaging host (manually installed) + loopback server.
+- Native-messaging host + loopback server — **built** as the Monocle Bridge Tauri
+  app (`apps/bridge`, macOS): auto-registers manifests, daemon owns the loopback
+  port + relay UDS, browser-spawned relay pumps stdio⇄UDS.
 - Opt-in toggle, off by default.
 - Bluetooth-style pairing with a scoped, hashed, revocable bearer token.
 - Read-only suggestions for the active tab: `suggestions/get-for-active-tab`
@@ -55,8 +60,10 @@ Goal: a Raycast extension can pair once and list/search the active tab's command
 - **Chrome extension ID stability.** A `key` must be pinned in `wxt.config.ts` so
   the host manifest's `allowed_origins` matches; decide the key/ID strategy for
   dev vs store builds.
-- **Host distribution & signing.** How users install the host (bundled with the
-  Raycast extension? standalone installer?), and macOS notarization.
+- **Host distribution & signing.** The host app exists (`apps/bridge`, macOS
+  `.app`/`.dmg`); still open: code-signing + macOS notarization, how users install
+  it (bundled with the Raycast extension? standalone installer?), and Windows/Linux
+  artifacts.
 - **SW-lifecycle robustness.** Confirm the persistent `connectNative` port reliably
   keeps the worker alive across browsers, and that the reconnect-on-disconnect
   path is solid.
