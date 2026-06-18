@@ -1,0 +1,22 @@
+{
+  "name": "@monocle/native-bridge-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Public TypeScript wire contract for the Monocle native bridge",
+  "license": "PolyForm Noncommercial License 1.0.0",
+  "scripts": {
+    "tsc": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "zod": "^4.1.8"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}
