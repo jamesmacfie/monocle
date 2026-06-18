@@ -16,6 +16,8 @@ export const manageAllowList: GroupCommandNode = {
   description: "Configure which domains commands are allowed to appear on",
   icon: { type: "lucide", name: "Shield" },
   keywords: ["allow", "whitelist", "domain", "filter", "manage"],
+  // A palette-only configuration surface — not meaningful via the bridge.
+  external: { allowed: false },
   children: async () => {
     const commands: CommandNode[] = []
 

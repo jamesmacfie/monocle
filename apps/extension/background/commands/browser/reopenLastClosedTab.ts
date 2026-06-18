@@ -15,6 +15,8 @@ export const reopenLastClosedTab: CommandNode = {
   keywords: ["reopen", "restore", "closed", "tab", "undo", "last", "recent"],
   actionLabel: "Reopen",
   permissions: ["sessions"],
+  // Reopens a tab the user wants to see — raise the browser after running.
+  external: { focusBrowser: true },
   execute: async () => {
     try {
       const recentlyClosed = await getRecentlyClosed()

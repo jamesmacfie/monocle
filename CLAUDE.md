@@ -112,7 +112,12 @@ Use the feature docs as the source of truth before editing related code:
   the one-host-per-browser/profile problem, and extension wiring (a
   `native-messaging` feature module reusing `getCommands`/`commandsToSuggestions`
   + the search index, the pairing modal surface, and `nativeMessaging`/`tabs`/
-  Chrome-`key` manifest changes).
+  Chrome-`key` manifest changes). `execution.md` is the v2 design for **running**
+  commands through the bridge: a per-command `external` opt-out flag on
+  `CommandNodeBase`, the focus model (`focusBrowser` raises the window), a bridge
+  policy reusing `runCommandPolicy`, and a result channel (widened
+  `CommandExecutor` return + copy-family clipboard reconciliation) so
+  data-producing commands return their value to the app.
 - `docs/commands/`: per-category command catalogs: `browser.md`, `tools.md`,
   `ui.md`, `new-tab.md`, `automations.md` (automation rows),
   `features.md` (feature-module commands, including Focus Mode), and
@@ -141,12 +146,13 @@ Current feature status:
 | Calculations | Working with review notes | Inline calculations (`background/calculations/`, a sibling registry to features). Providers are data + one pure synchronous `parse` (Math/Units via **mathjs**, Time via `Intl.DateTimeFormat`); `runCalculationProviders` is called from `handleSearchCommands` and **prepends** ephemeral `calculation` suggestions to root search (no new message, excluded from favorites/usage/index). Results render structured `ContentBlock`s (`shared/types/content.ts` + Zod `contentValidation.ts`) via the shared `ContentBlocks` renderer (`shared/components/ContentBlocks/`, built on the new `shared/components/ui/` boundary — the shadcn-consolidation seed). The `calculation` suggestion copies `copyValue` on select (copy-and-stay) via `useCopyToClipboard`/`useToast`. mathjs is hardened (injection functions disabled) and lives in the background bundle only. Replaced the old `calculator` group command. The Units provider splits on the last `in`/`to` keyword and normalizes the source for natural weight/height notation (alias pre-pass incl. `pounds`/`st`, foot-inch symbols `5'10"`, and `+`-summed multi-unit phrases like `6 stone 4 lb`). Provider parsing (incl. weight/height notation), content-block validation, and dual-DOM ContentBlocks rendering have focused tests; manual palette smoke (both modes) still needed. |
 | Tab Groups | Working with review notes | Second feature (`background/features/tabGroups/`). Cross-browser **saved collections** (named tab lists with per-tab `pinned`, Firefox container `cookieStoreId`, and `muted` audio state, stored in `monocle-feature-config`): Save Tabs as Group, Restore Tab Group, managed on the settings page via the `record-list` field (Restore/Rename/Delete per group, Pin/Unpin per tab). Restore reapplies `muted` cross-browser and reopens tabs in their saved container on Firefox only (Chrome ignores `cookieStoreId`). Chrome-only **native-group** commands (`chrome.tabs.group`/`chrome.tabGroups.*`, wrapped in `background/utils/browserTabGroups.ts`, gated `supportedBrowsers:["chrome"]` + optional `tabGroups` permission): add tab to group, group window, rename/recolor/collapse/ungroup. Capture/restore (pinned + container + mute), storage CRUD + pin toggle, handleAction routing, lists projection, and native `supportedBrowsers` have focused tests; manual Chrome/Firefox smoke still needed. |
 | Element Hider | Working with review notes | Third feature (`background/features/elementHider/`) and first consumer of the picker/owner-routing/feature-automation extensions. Config (`monocle-feature-config`) is per-domain `{id,urlPattern,selector,label}` rules. "Hide element on this page" pushes a tab-targeted `picker` surface; on click the feature `handleAction("element-picked")` saves a domain rule (`*://host/*`, preserving non-default ports), removes the picker, and hides immediately via a one-shot `hideElement` workflow. `automations(config)` projects one read-only `elementAppears` automation per rule (one `hideElement` step) so stale selectors cannot block unrelated hides. Settings page manages rules via `record-list` (Delete per row). Projection (per-rule + every doc valid against `AutomationSchema` + deterministic ids), `handleAction` (picked/delete), selector round-trip, picker gesture suppression, and the merged registry have focused tests; manual pick/hide/reload smoke still needed. |
+| Native Bridge | Partial (extension side) | Fourth feature (`background/features/nativeMessaging/`) — the extension half of the native-messaging bridge (`docs/native-messaging/`). Off by default; `nativeMessaging`+`tabs` optional permissions requested via the enable command's existing grant flow. `init()`/`onConfigChange` open a `connectNative("com.monocle.bridge")` port (kept alive while enabled, reconnect-with-backoff on disconnect; port/pump loaded via dynamic import to avoid a registry import cycle). The request pump (`pump.ts`) validates the public Zod envelope (`shared/types/nativeMessaging.ts`), then dispatches `meta/info`/`status`/`pair/request`/`pair/submit-code`/`suggestions/get-for-active-tab`/`suggestions/search-active-tab`. Suggestions REUSE `getCommands`+`commandsToSuggestions` (root) and the `monocle-commands-search` path (query) against the active tab (incognito excluded; site-SDK absent — no content sender), projected to the public `ExternalSuggestion` DTO by the pure `externalSuggestion.ts` mapper. Bluetooth-style pairing (`pairing.ts`): CSPRNG 6-digit code shown in a `modal` Surface, stored hashed in `monocle-feature-state` with expiry + 5-attempt cap; `pair/submit-code` constant-time-compares and mints an opaque token, stored HASHED in `monocle-feature-config` as a per-client record (scope `suggestions:read`), returned plaintext once. Settings page: enable switch + paired-client `record-list` with per-row Revoke. Mapper, crypto (constant-time/code/token), pairing (mint/wrong/expiry/attempt-cap/revoke), auth gating, and pump dispatch have focused tests. **v2 command execution is now implemented (extension side):** a `commands/execute` method + `commands:execute` scope gated by a global `allowExecution` opt-in (off by default, settings toggle); commands carry an optional `external` field (`{allowed?,focusBrowser?,result?}` on `CommandNodeBase`); `CommandExecutor` may return a `CommandResult`; the bridge orchestration (`background/features/nativeMessaging/execute.ts`) preflights via `checkRunCommandPolicy` (new `executionMode:"manual"|"automation"|"bridge"` — bridge bypasses the non-manual allowlist, keeps the universal confirmAction/automation/debug denies, adds the `external.allowed` override) + permission + platform + incognito + generated-action checks, runs through the shared `executeResolvedCommand` with a new `delivery:"clipboard"|"return"` mode, and raises the window for `focusBrowser` commands; the copy family returns its value via the `clipboardDelivery` seam (palette still writes the clipboard, bridge returns the value). Bridge execute preflight/focus, the policy's bridge mode, the delivery seam, and the execute pump dispatch (scope + opt-in gate) have focused tests. **The native host binary + installer are out of repo and unbuilt, so end-to-end is not manually exercised; pinning a stable Chrome `key` is still open. Other v2 items (multi-instance/site-SDK/signed-requests) remain design-only.** |
 
 Last verified validation:
 
 - `pnpm run tsc` passes.
 - `pnpm run fmt:check` passes.
-- `pnpm test` passes cleanly (exit 0, 611 tests) with focused command-system,
+- `pnpm test` passes cleanly (exit 0, 673 tests) with focused command-system,
   palette-search (index/scoring/monocle-commands-search/slice staleness),
   browser-command, keybinding, URL-filtering, settings-management,
   snippet-storage, workflow-executor (full op vocabulary), automation
@@ -167,8 +173,12 @@ Last verified validation:
   surfaces-store (owner set/clear/upsert/remove, URL gating, session-owner
   cleanup incl. `command:`, `ownerId` stamping, change broadcast), modal surface
   render + dismiss (dual-DOM SurfaceHost), QR generation (background SVG data
-  URL), feature/surfaces/monocle-surface-action-message validation, and GitHub
-  parsing coverage. (Note: a fire-and-forget toast that rejects when the
+  URL), feature/surfaces/monocle-surface-action-message validation, GitHub
+  parsing coverage, and native-bridge (ExternalSuggestion mapper, crypto
+  constant-time/code/token, pairing mint/wrong-code/expiry/attempt-cap/revoke,
+  auth gating, request-pump dispatch, v2 command execution: runCommand-policy
+  bridge mode, clipboard delivery-mode seam, bridge execute preflight/focus, and
+  commands/execute scope + opt-in gating). (Note: a fire-and-forget toast that rejects when the
   background is unreachable used to surface as an unhandled rejection and make
   the run exit non-zero despite all tests passing — `useToast` now swallows that
   rejection, and the DOM-test harness registers a `fakeBrowser` message
@@ -198,7 +208,7 @@ monocle/
 │   │   ├── entrypoints/ # WXT background, content, and new-tab entrypoints
 │   │   ├── background/  # Service worker, commands, messages, keybindings,
 │   │   │                #   automations (storage/engine/triggers/alarms),
-│   │   │                #   features (registry/config/state, focus/, tabGroups/, elementHider/), surfaces,
+│   │   │                #   features (registry/config/state, focus/, tabGroups/, elementHider/, nativeMessaging/), surfaces,
 │   │   │                #   calculations (inline-calculation provider registry)
 │   │   ├── content/     # Content-script overlay, workflow executor
 │   │   │                #   (content/workflow/), automation trigger service

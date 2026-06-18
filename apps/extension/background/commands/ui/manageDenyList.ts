@@ -15,6 +15,8 @@ export const manageDenyList: GroupCommandNode = {
   name: "Manage Command Deny List",
   description: "Configure which domains commands are blocked from appearing on",
   icon: { type: "lucide", name: "ShieldX" },
+  // A palette-only configuration surface — not meaningful via the bridge.
+  external: { allowed: false },
   keywords: [
     "deny",
     "blacklist",

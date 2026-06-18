@@ -1,5 +1,6 @@
 import type { CommandNode } from "../../../shared/types"
-import { getActiveTab, sendTabMessage } from "../../utils/browser"
+import { getActiveTab } from "../../utils/browser"
+import { deliverClipboard } from "../clipboardDelivery"
 
 export const copyCurrentTabUrl: CommandNode = {
   type: "group",
@@ -15,19 +16,18 @@ export const copyCurrentTabUrl: CommandNode = {
         name: "Copy URL",
         icon: { type: "lucide", name: "Copy" },
         keybinding: "enter",
+        external: { result: "value" },
         async execute() {
           const activeTab = await getActiveTab()
-          if (activeTab?.url) {
-            await sendTabMessage(activeTab.id, {
-              type: "monocle-clipboard-write",
-              message: activeTab.url,
-            })
-            await sendTabMessage(activeTab.id, {
-              type: "monocle-toast",
-              level: "success",
-              message: "URL copied to clipboard",
-            })
+          if (!activeTab?.url) {
+            return
           }
+          await deliverClipboard(
+            activeTab.id,
+            activeTab.url,
+            "URL copied to clipboard",
+          )
+          return { value: activeTab.url }
         },
       },
       {
@@ -36,34 +36,23 @@ export const copyCurrentTabUrl: CommandNode = {
         name: "Copy URL without parameters",
         icon: { type: "lucide", name: "Copy" },
         keybinding: "<cmd-enter>",
+        external: { result: "value" },
         async execute() {
           const activeTab = await getActiveTab()
-          if (activeTab?.url) {
-            try {
-              const url = new URL(activeTab.url)
-              const cleanUrl = `${url.protocol}//${url.host}${url.pathname}`
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-clipboard-write",
-                message: cleanUrl,
-              })
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-toast",
-                level: "success",
-                message: "Clean URL copied to clipboard",
-              })
-            } catch (_error) {
-              // Fallback to original URL if parsing fails
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-clipboard-write",
-                message: activeTab.url,
-              })
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-toast",
-                level: "success",
-                message: "URL copied to clipboard",
-              })
-            }
+          if (!activeTab?.url) {
+            return
           }
+          let value = activeTab.url
+          let toast = "URL copied to clipboard"
+          try {
+            const url = new URL(activeTab.url)
+            value = `${url.protocol}//${url.host}${url.pathname}`
+            toast = "Clean URL copied to clipboard"
+          } catch (_error) {
+            // Fallback to original URL if parsing fails
+          }
+          await deliverClipboard(activeTab.id, value, toast)
+          return { value }
         },
       },
       {
@@ -72,33 +61,22 @@ export const copyCurrentTabUrl: CommandNode = {
         name: "Copy domain only",
         icon: { type: "lucide", name: "Globe" },
         keybinding: "<cmd-shift-enter>",
+        external: { result: "value" },
         async execute() {
           const activeTab = await getActiveTab()
-          if (activeTab?.url) {
-            try {
-              const url = new URL(activeTab.url)
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-clipboard-write",
-                message: url.hostname,
-              })
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-toast",
-                level: "success",
-                message: "Domain copied to clipboard",
-              })
-            } catch (_error) {
-              // Fallback to original URL if parsing fails
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-clipboard-write",
-                message: activeTab.url,
-              })
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-toast",
-                level: "success",
-                message: "URL copied to clipboard",
-              })
-            }
+          if (!activeTab?.url) {
+            return
           }
+          let value = activeTab.url
+          let toast = "URL copied to clipboard"
+          try {
+            value = new URL(activeTab.url).hostname
+            toast = "Domain copied to clipboard"
+          } catch (_error) {
+            // Fallback to original URL if parsing fails
+          }
+          await deliverClipboard(activeTab.id, value, toast)
+          return { value }
         },
       },
     ]

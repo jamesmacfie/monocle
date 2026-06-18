@@ -25,6 +25,11 @@ const baseOptionalPermissions = [
   // it is a high-scrutiny permission (it can disable/uninstall other
   // extensions).
   "management",
+  // "nativeMessaging" powers the Native Bridge feature
+  // (background/features/nativeMessaging/). Optional + requested on demand
+  // (when the user enables the bridge) to keep it off the default install
+  // warning and honour the opt-in posture. See docs/native-messaging/.
+  "nativeMessaging",
 ] as const
 
 const actionShortcutCommand = {

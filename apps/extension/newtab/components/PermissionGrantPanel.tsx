@@ -43,6 +43,7 @@ const permissionDisplayNames: Record<BrowserPermission, string> = {
   tabs: "Tabs",
   tabGroups: "Tab Groups",
   management: "Manage Extensions",
+  nativeMessaging: "Native Messaging",
 }
 
 export const normalizeGrantPermission = (

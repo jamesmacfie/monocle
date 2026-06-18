@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react"
 import { useEffect } from "react"
 import { Link, useParams } from "wouter"
 import { Icon } from "../../shared/components/Icon"
+import { SurfaceHost } from "../../shared/components/SurfaceHost"
 import { useAppDispatch, useAppSelector } from "../../shared/store/hooks"
 import {
   executeFeatureAction,
@@ -11,7 +12,19 @@ import {
   selectFeaturesLoading,
   updateFeatureConfig,
 } from "../../shared/store/slices/features.slice"
+import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { SchemaForm } from "../components/SchemaForm"
+
+// Features whose `enabled` toggle needs optional permissions before the
+// background can act. Requested here, from the Save-click gesture (the options
+// page is a real extension page, so permissions.request works), so the toggle
+// behaves like the equivalent palette command. The background still gates on
+// the actual grant, so a denied/failed request just leaves the feature inert.
+// ponytail: one entry today; generalize to a descriptor field if a second
+// feature needs gated permissions.
+const PERMISSIONS_ON_ENABLE: Record<string, string[]> = {
+  "native-messaging": ["nativeMessaging", "tabs"],
+}
 
 export function FeatureSettingsPage() {
   const params = useParams<{ id?: string }>()
@@ -28,6 +41,20 @@ export function FeatureSettingsPage() {
   useEffect(() => {
     dispatch(loadFeatures())
   }, [dispatch])
+
+  const handleSave = async (config: Record<string, unknown>) => {
+    const needed = PERMISSIONS_ON_ENABLE[featureId]
+    if (needed && config.enabled === true) {
+      try {
+        await getBrowserAPI().permissions.request({
+          permissions: needed as chrome.runtime.ManifestPermissions[],
+        })
+      } catch {
+        // Background still verifies the real grant before opening the port.
+      }
+    }
+    dispatch(updateFeatureConfig({ featureId, config }))
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -51,6 +78,12 @@ export function FeatureSettingsPage() {
         </div>
       ) : (
         <>
+          {/* The pairing code is pushed as a `modal` surface; render it here too
+              so a user can pair while sitting on this settings page (which has no
+              content host). Reuses the same surface the content overlay shows. */}
+          {featureId === "native-messaging" ? (
+            <SurfaceHost kinds={["modal"]} />
+          ) : null}
           <header className="flex items-center gap-3">
             <Icon icon={feature.icon} />
             <div>
@@ -69,9 +102,7 @@ export function FeatureSettingsPage() {
               config={feature.config}
               lists={feature.lists}
               busy={updating}
-              onSave={(config) =>
-                dispatch(updateFeatureConfig({ featureId, config }))
-              }
+              onSave={handleSave}
               onAction={(action) =>
                 dispatch(
                   executeFeatureAction({ featureId, actionId: action.id }),

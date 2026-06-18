@@ -57,6 +57,7 @@ export const BROWSER_PERMISSIONS = [
   "tabs",
   "tabGroups",
   "management",
+  "nativeMessaging",
 ] as const
 
 export type BrowserPermission = (typeof BROWSER_PERMISSIONS)[number]
@@ -116,6 +117,21 @@ export interface CommandNodeBase {
     includeChildren?: boolean
     configurable?: boolean
   }
+  // Controls reachability and behavior when run through the native-messaging
+  // bridge (docs/native-messaging/execution.md). Lives on the base so any node
+  // type can carry it (unlike confirmAction, which is action/submit-only).
+  external?: {
+    // undefined → the bridge policy decides (default-allow for safe commands).
+    // false → never reachable by the bridge. true → opt a normally-denied
+    // command in (never overrides confirmAction / automation / debug denies).
+    allowed?: boolean
+    // true → the bridge raises the browser window after a successful execute
+    // (the focus-and-act shape: open history item, switch tab, …).
+    focusBrowser?: boolean
+    // "value" → execute returns a CommandResult the bridge forwards to the app
+    // (the data-returning shape: copy URL, generate UUID, …). Default "none".
+    result?: "none" | "value"
+  }
 }
 
 // Group of children; replaces UI forms composed of multiple fields
@@ -125,13 +141,32 @@ export interface GroupCommandNode extends CommandNodeBase {
   enableDeepSearch?: boolean
 }
 
+// A value an executor can hand back to its caller. Returned by data-producing
+// commands (copy URL, generate UUID, …) so the native-messaging bridge can
+// forward it to the external app. The palette/keybinding paths ignore it (the
+// command still delivers to the clipboard via the delivery helper). See
+// docs/native-messaging/execution.md.
+export type CommandResult = {
+  value: string
+  contentType?: string
+  toast?: string
+}
+
 // The side-effecting body of an executable node, run in the background with the
 // browser context and (for submits/forms) the collected form values. Never
-// crosses to the UI — only the background holds these functions.
+// crosses to the UI — only the background holds these functions. May return a
+// CommandResult (back-compatible: existing executors return void, and no
+// palette/keybinding/automation caller reads the return).
+//
+// `void` (not `undefined`) keeps existing `Promise<void>` executors assignable;
+// the Promise arms are split (`Promise<void>` | `Promise<CommandResult |
+// undefined>`) rather than `Promise<void | CommandResult>` so biome's
+// noConfusingVoidType rule does not autofix `void`→`undefined` and silently
+// break every command.
 export type CommandExecutor = (
   context?: Browser.Context,
   values?: Record<string, string>,
-) => void | Promise<void>
+) => void | CommandResult | Promise<void> | Promise<CommandResult | undefined>
 
 export interface ActionCommandNode extends CommandNodeBase, ActionLabel {
   type: "action"

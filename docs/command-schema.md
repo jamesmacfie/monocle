@@ -80,6 +80,8 @@ Every node extends this base (`shared/types/commands.ts`, `CommandNodeBase`).
 
 > `permissions` is declared on the base (not just on action nodes) so that groups, inputs, and search nodes can also participate in permission gating and inheritance. Note that `permissions` is **not** an `AsyncValue` — it is a plain static array.
 
+> **Proposed (not yet implemented):** a base `external?: { allowed?; focusBrowser?; result? }` field is designed for the native-messaging bridge — it controls whether a command is reachable by an external app (Raycast), whether running it raises the browser, and whether it returns a value to the caller. It does not exist in the schema today. See [native-messaging/execution.md](native-messaging/execution.md).
+
 ### `name` as string vs array
 
 `name` is `string | string[]`. The array form encodes a breadcrumb where index 0 is the command's own name and later indices are ancestor names:

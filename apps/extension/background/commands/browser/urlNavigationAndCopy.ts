@@ -3,9 +3,9 @@ import {
   callBrowserAPI,
   getActiveTab,
   sendErrorToastToActiveTab,
-  sendTabMessage,
   updateTab,
 } from "../../utils/browser"
+import { deliverClipboard } from "../clipboardDelivery"
 
 type UrlCommandConfig = {
   id: string
@@ -13,7 +13,10 @@ type UrlCommandConfig = {
   description: string
   icon: CommandIcon
   keywords: string[]
-  execute: () => Promise<void>
+  external?: ActionCommandNode["external"]
+  // Reuse the executor type (accepts void or a CommandResult) instead of an
+  // inline void union, which biome's noConfusingVoidType would autofix.
+  execute: ActionCommandNode["execute"]
 }
 
 const createUrlCommand = ({
@@ -22,6 +25,7 @@ const createUrlCommand = ({
   description,
   icon,
   keywords,
+  external,
   execute,
 }: UrlCommandConfig): ActionCommandNode => ({
   type: "action",
@@ -31,37 +35,22 @@ const createUrlCommand = ({
   icon,
   color: "teal",
   keywords,
+  ...(external ? { external } : {}),
   execute,
 })
 
-const withActiveTabUrl = async (
-  callback: (tab: { id: number; title?: string; url: string }) => Promise<void>,
-): Promise<void> => {
+const withActiveTabUrl = async <T>(
+  callback: (tab: { id: number; title?: string; url: string }) => Promise<T>,
+): Promise<T | undefined> => {
   const activeTab = await getActiveTab()
   if (!activeTab?.id || !activeTab.url) {
-    return
+    return undefined
   }
 
-  await callback({
+  return callback({
     id: activeTab.id,
     title: activeTab.title,
     url: activeTab.url,
-  })
-}
-
-const copyToActiveTabClipboard = async (
-  tabId: number,
-  message: string,
-  successMessage: string,
-) => {
-  await sendTabMessage(tabId, {
-    type: "monocle-clipboard-write",
-    message,
-  })
-  await sendTabMessage(tabId, {
-    type: "monocle-toast",
-    level: "success",
-    message: successMessage,
   })
 }
 
@@ -218,9 +207,11 @@ export const copyCurrentUrl = createUrlCommand({
   description: "Copy the current tab URL",
   icon: { type: "lucide", name: "Copy" },
   keywords: ["copy", "url", "link", "yank", "vim"],
+  external: { result: "value" },
   execute: async () =>
     withActiveTabUrl(async (tab) => {
-      await copyToActiveTabClipboard(tab.id, tab.url, "URL copied to clipboard")
+      await deliverClipboard(tab.id, tab.url, "URL copied to clipboard")
+      return { value: tab.url }
     }),
 })
 
@@ -230,13 +221,12 @@ export const copyCleanCurrentUrl = createUrlCommand({
   description: "Copy the current tab URL without query parameters or hash",
   icon: { type: "lucide", name: "ClipboardCheck" },
   keywords: ["copy", "url", "clean", "parameters", "vim"],
+  external: { result: "value" },
   execute: async () =>
     withActiveTabUrl(async (tab) => {
-      await copyToActiveTabClipboard(
-        tab.id,
-        cleanUrl(tab.url),
-        "Clean URL copied to clipboard",
-      )
+      const value = cleanUrl(tab.url)
+      await deliverClipboard(tab.id, value, "Clean URL copied to clipboard")
+      return { value }
     }),
 })
 
@@ -246,14 +236,12 @@ export const copyCurrentDomain = createUrlCommand({
   description: "Copy the current tab domain",
   icon: { type: "lucide", name: "Globe" },
   keywords: ["copy", "domain", "host", "vim"],
+  external: { result: "value" },
   execute: async () =>
     withActiveTabUrl(async (tab) => {
-      const url = new URL(tab.url)
-      await copyToActiveTabClipboard(
-        tab.id,
-        url.hostname,
-        "Domain copied to clipboard",
-      )
+      const value = new URL(tab.url).hostname
+      await deliverClipboard(tab.id, value, "Domain copied to clipboard")
+      return { value }
     }),
 })
 
@@ -263,13 +251,12 @@ export const copyCurrentTitle = createUrlCommand({
   description: "Copy the current tab title",
   icon: { type: "lucide", name: "FileText" },
   keywords: ["copy", "title", "page", "vim"],
+  external: { result: "value" },
   execute: async () =>
     withActiveTabUrl(async (tab) => {
-      await copyToActiveTabClipboard(
-        tab.id,
-        tab.title || tab.url,
-        "Page title copied to clipboard",
-      )
+      const value = tab.title || tab.url
+      await deliverClipboard(tab.id, value, "Page title copied to clipboard")
+      return { value }
     }),
 })
 
@@ -279,16 +266,19 @@ export const copyCanonicalUrl = createUrlCommand({
   description: "Copy the page canonical URL when available",
   icon: { type: "lucide", name: "Link" },
   keywords: ["copy", "canonical", "url", "vim"],
+  external: { result: "value" },
   execute: async () =>
     withActiveTabUrl(async (tab) => {
       const canonicalUrl = await getCanonicalUrl(tab.id)
-      await copyToActiveTabClipboard(
+      const value = canonicalUrl || tab.url
+      await deliverClipboard(
         tab.id,
-        canonicalUrl || tab.url,
+        value,
         canonicalUrl
           ? "Canonical URL copied to clipboard"
           : "URL copied to clipboard",
       )
+      return { value }
     }),
 })
 

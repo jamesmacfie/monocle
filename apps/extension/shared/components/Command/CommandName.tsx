@@ -24,6 +24,7 @@ const humanReadableMap: {
   tabs: "tabs",
   tabGroups: "tab groups",
   management: "extension management",
+  nativeMessaging: "native messaging",
 }
 
 const formatHumanReadablePermissions = (

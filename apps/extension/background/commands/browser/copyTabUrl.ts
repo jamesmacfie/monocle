@@ -1,6 +1,7 @@
 import type { CommandNode } from "../../../shared/types"
-import { getActiveTab, queryTabs, sendTabMessage } from "../../utils/browser"
+import { getActiveTab, queryTabs } from "../../utils/browser"
 import { getFaviconIcon } from "../../utils/favicon"
+import { deliverClipboard } from "../clipboardDelivery"
 
 export const copyTabUrl: CommandNode = {
   type: "group",
@@ -24,19 +25,17 @@ export const copyTabUrl: CommandNode = {
               url: tab.url,
             })
           },
+          external: { result: "value" },
           execute: async () => {
             const activeTab = await getActiveTab()
             if (activeTab) {
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-clipboard-write",
-                message: tab.url,
-              })
-              await sendTabMessage(activeTab.id, {
-                type: "monocle-toast",
-                level: "success",
-                message: "URL copied to clipboard",
-              })
+              await deliverClipboard(
+                activeTab.id,
+                tab.url,
+                "URL copied to clipboard",
+              )
             }
+            return { value: tab.url }
           },
         }
 

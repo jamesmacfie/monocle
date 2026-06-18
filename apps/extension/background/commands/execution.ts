@@ -13,11 +13,13 @@ import type {
   Browser,
   CommandExecutionScope,
   CommandNode,
+  CommandResult,
 } from "../../shared/types"
 import { showToast } from "../messages/showToast"
 import { isSettingsCatalogConfigurable } from "../utils/commands"
 import { checkPermissions } from "../utils/permissions"
 import { createUrlPatternForDomain, extractDomain } from "../utils/urlFilter"
+import { runWithDelivery } from "./clipboardDelivery"
 import { toggleFavoriteCommandId } from "./favorites"
 import {
   type GeneratedCommandAction,
@@ -85,14 +87,18 @@ const shouldRecordUsage = (command: CommandNode): boolean => {
  * Executes an already-resolved command: permission check, executor call,
  * usage recording. Both the public executeCommand entry and generated-action
  * dispatch funnel through here so the permission/usage invariants hold on
- * every path.
+ * every path. The native-messaging bridge also calls this directly with
+ * delivery "return" so data commands hand their value back instead of writing
+ * the browser clipboard (see ./clipboardDelivery). Returns the executor's
+ * CommandResult when it produced one; undefined otherwise.
  */
-const executeResolvedCommand = async (
+export const executeResolvedCommand = async (
   resolved: ResolvedCommand,
   context: Browser.Context,
   formValues: Record<string, string | string[]>,
   parentNames?: string[],
-): Promise<void> => {
+  options?: { delivery?: "clipboard" | "return" },
+): Promise<CommandResult | undefined> => {
   const { command, permissions } = resolved
 
   if (
@@ -109,12 +115,14 @@ const executeResolvedCommand = async (
 
     if (!hasAllPermissions) {
       await showMissingPermissionsToast(missingPermissions)
-      return
+      return undefined
     }
   }
 
   try {
-    await command.execute?.(context, normalizeFormValues(formValues))
+    const result = await runWithDelivery(options?.delivery ?? "clipboard", () =>
+      command.execute?.(context, normalizeFormValues(formValues)),
+    )
 
     if (shouldRecordUsage(command)) {
       await recordCommandUsage(
@@ -123,6 +131,8 @@ const executeResolvedCommand = async (
         resolved.parentIds,
       )
     }
+
+    return result ?? undefined
   } catch (error) {
     console.error(
       `[ExecuteCommand] Error executing action ${command.id}:`,

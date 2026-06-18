@@ -77,9 +77,18 @@ depend on the active tab being a normal web page.
   metadata (client name, created-at, last-used, scopes). The plaintext is
   returned once at pairing and never recoverable — a lost token requires
   re-pairing.
-- **Scoped.** v1 has a single scope, `suggestions:read`, but the scope field
-  exists from day one so later capabilities (e.g. `commands:execute`) are
-  additive and individually grantable.
+- **Scoped.** v1 had a single scope, `suggestions:read`. **`commands:execute`**
+  (v2 — running commands, see [execution.md](./execution.md)) is a **separate,
+  higher-blast-radius scope**: reading never implies the right to execute. As
+  built, a fresh pairing mints **both** scopes, but execution has a **second,
+  independent gate** — a global **Allow execution** opt-in (`allowExecution`,
+  off by default) on the settings page. `commands/execute` is refused unless the
+  client's token carries `commands:execute` **and** the opt-in is on (else
+  `forbidden_scope` / `execution_disabled` respectively). Because scopes are
+  baked into the token at pairing, a client paired under v1 (token predating the
+  scope) must **re-pair** to gain execution — re-pairing is the consent gesture
+  for the expanded capability. (Per-client execution grants, rather than the
+  global flag, are a possible future refinement.)
 - **Revocable.** The settings page lists paired clients with created/last-used
   timestamps and a per-client **Revoke**. Revoking deletes the stored hash;
   subsequent requests with that token return `unauthorized`.

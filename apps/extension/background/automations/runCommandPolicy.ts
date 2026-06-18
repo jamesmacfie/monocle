@@ -53,15 +53,23 @@ const ALWAYS_DENIED_COMMAND_IDS: ReadonlySet<string> = new Set([
   "debug-workflow",
 ])
 
+// Who initiated the run. "manual" = palette/keybinding gesture; "automation" =
+// an automation trigger (the bounded, allowlist-restricted surface); "bridge" =
+// a gesture in a paired external app via the native-messaging bridge — human-
+// initiated like manual, so NOT subject to the non-manual allowlist, but gated
+// per-command by `external.allowed`. See docs/native-messaging/execution.md.
+export type RunCommandExecutionMode = "manual" | "automation" | "bridge"
+
 export type RunCommandPolicyInput = {
   commandId: string
-  // True when the run started from a palette selection/keybinding (manual
-  // trigger); false for event/scheduled triggers.
-  isManualRun: boolean
+  executionMode: RunCommandExecutionMode
   // Resolved target metadata supplied by the command bridge.
   target: {
     exists: boolean
     confirmAction: boolean
+    // The command's `external.allowed` (bridge mode only): false force-denies,
+    // true opts a default-denied command in (never past the universal denies).
+    externalAllowed?: boolean
   }
 }
 
@@ -70,15 +78,17 @@ export type RunCommandPolicyVerdict =
   | { allowed: false; reason: string }
 
 /**
- * Applies the runCommand policy. Called at save time (by validation in the
- * message layer, with isManualRun true to apply only universal rules) and
- * re-checked by the engine immediately before dispatch.
+ * Applies the runCommand policy. The universal deny rules apply to every mode;
+ * the non-manual allowlist applies only to "automation"; "bridge" adds the
+ * `external.allowed` override. Re-checked by the engine immediately before
+ * dispatch and by the bridge execute path.
  */
 export const checkRunCommandPolicy = (
   input: RunCommandPolicyInput,
 ): RunCommandPolicyVerdict => {
-  const { commandId } = input
+  const { commandId, executionMode } = input
 
+  // Universal denies (all modes). external.allowed:true never overrides these.
   if (commandId.startsWith("automation-")) {
     return {
       allowed: false,
@@ -101,10 +111,20 @@ export const checkRunCommandPolicy = (
     }
   }
 
-  if (!input.isManualRun && !NON_MANUAL_RUN_COMMAND_ALLOWLIST.has(commandId)) {
+  if (
+    executionMode === "automation" &&
+    !NON_MANUAL_RUN_COMMAND_ALLOWLIST.has(commandId)
+  ) {
     return {
       allowed: false,
       reason: `Command ${commandId} is not allowed from automatic triggers`,
+    }
+  }
+
+  if (executionMode === "bridge" && input.target.externalAllowed === false) {
+    return {
+      allowed: false,
+      reason: `Command ${commandId} is not available to external apps`,
     }
   }
 

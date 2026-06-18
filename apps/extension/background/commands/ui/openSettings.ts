@@ -10,6 +10,8 @@ export const openSettings: CommandNode = {
   color: "gray",
   keywords: ["settings", "preferences", "options", "configure"],
   actionLabel: "Open",
+  // Opens a Monocle extension page — nothing for an external app to host.
+  external: { allowed: false },
   execute: async () => {
     await openOptionsPage()
   },

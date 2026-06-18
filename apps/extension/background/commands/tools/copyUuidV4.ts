@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid"
 import type { ActionCommandNode } from "../../../shared/types"
-import { getActiveTab, sendTabMessage } from "../../utils/browser"
+import { getActiveTab } from "../../utils/browser"
+import { deliverClipboard } from "../clipboardDelivery"
 
 export const copyUuidV4: ActionCommandNode = {
   id: "uuidv4",
@@ -8,19 +9,13 @@ export const copyUuidV4: ActionCommandNode = {
   name: "Copy UUID v4",
   icon: { type: "lucide", name: "Copy" },
   color: "teal",
+  external: { result: "value" },
   execute: async () => {
     const uuid = uuidv4()
     const activeTab = await getActiveTab()
     if (activeTab?.id) {
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-clipboard-write",
-        message: uuid,
-      })
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-toast",
-        level: "success",
-        message: "UUID copied to clipboard",
-      })
+      await deliverClipboard(activeTab.id, uuid, "UUID copied to clipboard")
     }
+    return { value: uuid }
   },
 }

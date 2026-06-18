@@ -1,5 +1,6 @@
 import type { ActionCommandNode } from "../../../shared/types"
-import { getActiveTab, sendTabMessage } from "../../utils/browser"
+import { getActiveTab } from "../../utils/browser"
+import { deliverClipboard } from "../clipboardDelivery"
 
 export const copyTitleAndUrlAsMarkdown: ActionCommandNode = {
   type: "action",
@@ -8,21 +9,19 @@ export const copyTitleAndUrlAsMarkdown: ActionCommandNode = {
   description: "Copy the current page as [title](url)",
   icon: { type: "lucide", name: "Link" },
   color: "teal",
+  external: { result: "value" },
   async execute() {
     const activeTab = await getActiveTab()
     if (!activeTab?.id || !activeTab.url) {
       return
     }
     const title = (activeTab.title ?? activeTab.url).replace(/[[\]]/g, "\\$&")
-    const markdown = `[${title}](${activeTab.url})`
-    await sendTabMessage(activeTab.id, {
-      type: "monocle-clipboard-write",
-      message: markdown,
-    })
-    await sendTabMessage(activeTab.id, {
-      type: "monocle-toast",
-      level: "success",
-      message: "Markdown link copied to clipboard",
-    })
+    const value = `[${title}](${activeTab.url})`
+    await deliverClipboard(
+      activeTab.id,
+      value,
+      "Markdown link copied to clipboard",
+    )
+    return { value }
   },
 }

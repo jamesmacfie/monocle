@@ -16,6 +16,7 @@ import { AutomationSchema } from "../../shared/types/automationValidation"
 import { getFeatureConfig } from "./config"
 import { elementHiderFeature } from "./elementHider"
 import { focusFeature } from "./focus"
+import { nativeMessagingFeature } from "./nativeMessaging"
 import { tabGroupsFeature } from "./tabGroups"
 import type { FeatureModule } from "./types"
 
@@ -25,6 +26,7 @@ const features: FeatureModule<any>[] = [
   focusFeature,
   tabGroupsFeature,
   elementHiderFeature,
+  nativeMessagingFeature,
 ]
 
 export const getFeatures = (): FeatureModule<any>[] => features

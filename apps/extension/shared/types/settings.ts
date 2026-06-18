@@ -52,6 +52,7 @@ export interface PermissionSettings {
     tabs: boolean
     tabGroups: boolean
     management: boolean
+    nativeMessaging: boolean
   }
 }
 

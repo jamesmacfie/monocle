@@ -34,7 +34,9 @@ Every request and response shares an envelope:
 
 Error `code` values: `bad_request`, `unauthorized`, `forbidden_scope`,
 `not_enabled`, `pairing_expired`, `pairing_rejected`, `rate_limited`,
-`no_active_tab`, `internal`. The app branches on `code`, never on `message`.
+`no_active_tab`, `internal`, and (v2 execution) `not_found`, `forbidden`,
+`execution_disabled`, `execution_failed`. The app branches on `code`, never on
+`message`.
 
 Bumping `v` is reserved for breaking changes; additive fields do not bump it.
 `meta/info` advertises the versions a given host/extension supports.
@@ -51,9 +53,12 @@ Bumping `v` is reserved for breaking changes; additive fields do not bump it.
 | `pair/submit-code` | none | Submit the human-entered code; on success returns a bearer token **once**. |
 | `suggestions/get-for-active-tab` | `suggestions:read` | Root suggestions for the active tab. |
 | `suggestions/search-active-tab` | `suggestions:read` | Query-scored suggestions for the active tab. |
+| `commands/execute` | `commands:execute` | **v2.** Run a command by id; optionally returns a value. See [execution.md](./execution.md). |
 
 Unauthenticated methods are limited to discovery and pairing. Everything that
-reads Monocle data requires a token with the matching scope.
+reads Monocle data requires a token with the matching scope. Execution is a
+**v2** capability behind a distinct, higher-blast-radius scope (`commands:execute`);
+v1 ships only the read-only `suggestions/*` methods.
 
 ### `meta/info`
 
@@ -119,6 +124,32 @@ full flow and security parameters.
 
 `limit` is clamped server-side and exists partly to keep responses under the
 host→browser **1 MB** native-messaging cap (see [native-host.md](./native-host.md)).
+
+### `commands/execute` (v2)
+
+Run a command by id. The bridge applies the execution policy + per-command
+opt-out, resolves the active tab, runs the command, optionally raises the
+browser, and optionally returns a produced value. See [execution.md](./execution.md)
+for the full model.
+
+```jsonc
+// params (v2: id only — form values are not carried over the wire, so submit
+// commands are denied by default)
+{ "id": "copy-title-and-url-as-markdown" }
+// result
+{
+  "ran": true,
+  "focused": true,         // present when the browser was raised (focusBrowser commands)
+  "value": "[Example](https://example.com/)",  // present only for result:"value" commands
+  "contentType": "text/markdown"               // optional hint for value
+}
+```
+
+Errors specific to execution: `forbidden_scope` (token lacks `commands:execute`),
+`execution_disabled` (the global Allow-execution opt-in is off), `forbidden`
+(policy / `external.allowed:false` / confirmAction / wrong platform / missing
+permission / submit-by-default / generated-action id), `not_found`,
+`no_active_tab`, `execution_failed` (the executor threw).
 
 ---
 

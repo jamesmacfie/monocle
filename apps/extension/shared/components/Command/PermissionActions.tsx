@@ -30,6 +30,7 @@ const permissionDisplayNames: Record<PermissionKey, string> = {
   tabs: "Tabs",
   tabGroups: "Tab Groups",
   management: "Manage Extensions",
+  nativeMessaging: "Native Messaging",
 }
 
 export function PermissionActions({

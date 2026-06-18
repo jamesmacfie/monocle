@@ -27,6 +27,7 @@ export const getPermissions = async (_message: GetPermissionsMessage) => {
       // Chrome-only permission; absent (false) on Firefox.
       tabGroups: permissions.includes("tabGroups" as any),
       management: permissions.includes("management"),
+      nativeMessaging: permissions.includes("nativeMessaging" as any),
     }
 
     return {

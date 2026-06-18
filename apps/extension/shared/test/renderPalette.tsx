@@ -133,6 +133,7 @@ export const renderPalette = (
           tabs: true,
           tabGroups: true,
           management: true,
+          nativeMessaging: true,
         },
       },
       "test",

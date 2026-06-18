@@ -18,6 +18,7 @@ export type PermissionKey =
   | "tabs"
   | "tabGroups"
   | "management"
+  | "nativeMessaging"
 
 let lastPermissionRefreshAt = 0
 const PERMISSION_REFRESH_THROTTLE_MS = 1000

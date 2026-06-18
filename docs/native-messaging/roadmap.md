@@ -27,8 +27,17 @@ Goal: a Raycast extension can pair once and list/search the active tab's command
   [multi-instance.md](./multi-instance.md)).
 - **The Raycast extension itself** (separate repo): pairing UI, instance picker,
   suggestion list/search views.
-- **Command execution** through the bridge (a new `commands:execute` scope and a
-  confirmation policy — execution is a much larger blast radius than reading).
+- **Command execution** through the bridge — **built (extension side)**, see
+  [execution.md](./execution.md). Done: the `external` config field on
+  `CommandNodeBase`; the bridge execution policy (`runCommandPolicy` extended
+  with `executionMode`); the widened `CommandExecutor`/`CommandResult` + the
+  `clipboardDelivery` produce-and-return seam; the `commands:execute` scope +
+  `commands/execute` method + the global **Allow execution** opt-in; and a
+  representative catalog annotation (copy family `result:"value"`, a focus-and-act
+  example, deny on UI commands — default-allow covers the rest). Remaining:
+  finish annotating the full catalog, a **user-facing** per-command opt-out
+  (stored in `monocle-settings` like `hidden`), and a surface-modal path for
+  `confirmAction` confirmation.
 - **Site-SDK inclusion** by reconstructing a top-frame tab scope so bridge results
   match the palette (the [architecture.md](./architecture.md) gap).
 - **Signed-request auth** (client key pair) if local-malware/token-theft is in

@@ -750,7 +750,7 @@ const runCommandStep = async (
   const meta = await commandBridge.resolveCommandMeta(commandId, state.context)
   const verdict = checkRunCommandPolicy({
     commandId,
-    isManualRun: state.isManualRun,
+    executionMode: state.isManualRun ? "manual" : "automation",
     target: meta,
   })
 

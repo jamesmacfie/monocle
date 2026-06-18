@@ -1,8 +1,19 @@
 # Native Messaging Bridge
 
-> **Status: proposed (v1 design).** This folder specifies a not-yet-built
-> feature. Nothing here is shipped behavior. Treat it as the agreed design to
-> implement against, not as a description of current code.
+> **Status: v1 extension side implemented; native host still external.** The
+> Monocle-side bridge is built as the `native-messaging` feature module
+> (`apps/extension/background/features/nativeMessaging/`): the opt-in toggle +
+> palette enable/disable commands, the `connectNative` port + reconnect, the
+> request pump (envelope validation, auth, dispatch), bluetooth-style pairing
+> (CSPRNG code, hashed/constant-time verify, attempt cap + expiry), scoped
+> hashed bearer tokens with per-client Revoke, and the `Suggestion` →
+> `ExternalSuggestion` mapper, all reusing `getCommands` / the search path /
+> Surfaces. The **native host binary + installer live outside this repo** (see
+> [native-host.md](./native-host.md)) and are still unbuilt, so end-to-end flow
+> is not yet manually exercised. The `nativeMessaging`/`tabs` optional
+> permissions are wired; pinning a stable Chrome `key` is still open (see
+> [extension-integration.md](./extension-integration.md)). v2 items (execution,
+> multi-instance selection, site-SDK, signed requests) remain design-only.
 
 The **native messaging bridge** lets an external desktop application — the first
 target is a Raycast extension — ask Monocle for the command-palette suggestions
@@ -44,9 +55,10 @@ In scope:
   [authentication-and-security.md](./authentication-and-security.md)).
 - A single reachable browser instance (see [multi-instance.md](./multi-instance.md)).
 
-Explicitly **out of v1**:
+Explicitly **out of v1** (but **execution is now designed** for v2 — see
+[execution.md](./execution.md)):
 
-- Executing commands through the bridge (suggestions are read-only).
+- Executing commands through the bridge (v1 suggestions are read-only).
 - Site-SDK (`window.Monocle`) commands — they need a content-script sender the
   bridge does not have; see [architecture.md](./architecture.md).
 - Incognito / private windows — excluded unless explicitly enabled.
@@ -67,7 +79,14 @@ Explicitly **out of v1**:
    assumption, and the v2 instance registry.
 6. [extension-integration.md](./extension-integration.md) — concrete Monocle
    wiring: the feature module, reuse points, manifest changes, files to touch.
-7. [roadmap.md](./roadmap.md) — phasing and open questions.
+7. [execution.md](./execution.md) — **v2 design**: executing commands through the
+   bridge — the per-command opt-out, the focus model, the bridge policy, and the
+   result channel.
+8. [bridge-app-prd.md](./bridge-app-prd.md) — PRD for the **bridge app**: the
+   downloadable cross-platform (Tauri) tray/menu-bar host that ships the relay
+   to users — the persistent-daemon-plus-connectNative-relay design, the minimal
+   tray UI, and per-OS manifest registration + signing.
+9. [roadmap.md](./roadmap.md) — phasing and open questions.
 
 ## Related docs
 

@@ -51,6 +51,7 @@ const initialState: SettingsState = {
       tabs: false,
       tabGroups: false,
       management: false,
+      nativeMessaging: false,
     },
   },
   loading: false,
