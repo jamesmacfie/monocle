@@ -19,6 +19,7 @@ import { allCommands, commandsToSuggestions, getCommands } from "../../commands"
 import { getCommandPageCommands } from "../../commands/query"
 import { searchCommands } from "../../messages/searchCommands"
 import { getActiveTab } from "../../utils/browser"
+import { getGrantedPermissions } from "../../utils/permissions"
 import { toExternalSuggestions } from "./externalSuggestion"
 
 const DEFAULT_LIMIT = 50
@@ -43,6 +44,26 @@ const bridgeDeniedIds = (): Set<string> => {
 
 const clampLimit = (limit?: number): number =>
   Math.min(Math.max(1, Math.floor(limit ?? DEFAULT_LIMIT)), MAX_LIMIT)
+
+// The bridge has no permission-grant flow, so a command needing an optional
+// permission the user has not granted would only fail from the external app.
+// Drop those rows up front (one `getAll` per request, then a subset check) so
+// the app never lists a command it cannot run.
+// Pure subset check: a row is kept when it needs no permission or all of its
+// permissions are in the granted set. Exported for unit testing.
+export const permittedByGrants = (
+  rows: Suggestion[],
+  granted: Set<string>,
+): Suggestion[] =>
+  rows.filter(
+    (row) =>
+      !row.permissions?.length || row.permissions.every((p) => granted.has(p)),
+  )
+
+const filterByGrantedPermissions = async (
+  rows: Suggestion[],
+): Promise<Suggestion[]> =>
+  permittedByGrants(rows, await getGrantedPermissions())
 
 // Resolves the active tab into its tab object + a Browser.Context, or null when
 // there is none / it is incognito (excluded). Shared by suggestions and command
@@ -87,7 +108,9 @@ export const getForActiveTab = async (
     includeFavorites ? [...favorites, ...suggestions] : suggestions
   ).filter((command) => command.external?.allowed !== false)
 
-  const rows: Suggestion[] = await commandsToSuggestions(commands, context)
+  const rows = await filterByGrantedPermissions(
+    await commandsToSuggestions(commands, context),
+  )
   return {
     url: context.url,
     title: context.title,
@@ -119,8 +142,10 @@ export const searchActiveTab = async (
   )) as SearchCommandsResponse | { error: string }
 
   const denied = bridgeDeniedIds()
-  const results = ("results" in response ? response.results : []).filter(
-    (suggestion) => !denied.has(suggestion.id),
+  const results = await filterByGrantedPermissions(
+    ("results" in response ? response.results : []).filter(
+      (suggestion) => !denied.has(suggestion.id),
+    ),
   )
   return {
     url: context.url,
@@ -153,11 +178,13 @@ export const getChildrenForActiveTab = async (
     return { error: "not_found" }
   }
 
-  const rows: Suggestion[] = await commandsToSuggestions(
-    page.commands.filter((command) => command.external?.allowed !== false),
-    context,
-    page.parentNames?.[0],
-    page.inheritedPermissions,
+  const rows = await filterByGrantedPermissions(
+    await commandsToSuggestions(
+      page.commands.filter((command) => command.external?.allowed !== false),
+      context,
+      page.parentNames?.[0],
+      page.inheritedPermissions,
+    ),
   )
   return {
     url: context.url,

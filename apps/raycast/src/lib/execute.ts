@@ -35,7 +35,11 @@ function executeErrorTitle(code: BridgeErrorCode): string {
  *   focused:true   → browser was raised, close the Raycast window
  *   ran:true only  → silent side-effect, success toast
  */
-export async function runCommand(id: string, target: string): Promise<void> {
+export async function runCommand(
+  id: string,
+  target: string,
+  confirmed?: boolean,
+): Promise<void> {
   const token = await getToken(target);
   if (!token) {
     await showToast({
@@ -45,7 +49,12 @@ export async function runCommand(id: string, target: string): Promise<void> {
     return;
   }
 
-  const res = await bridgeRequest("commands/execute", { id }, token, target);
+  const res = await bridgeRequest(
+    "commands/execute",
+    { id, confirmed },
+    token,
+    target,
+  );
   if (!res.ok) {
     if (
       res.error.code === "unauthorized" ||

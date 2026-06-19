@@ -63,6 +63,11 @@ export type RunCommandExecutionMode = "manual" | "automation" | "bridge"
 export type RunCommandPolicyInput = {
   commandId: string
   executionMode: RunCommandExecutionMode
+  // The caller already obtained explicit user confirmation for this run. Lets a
+  // confirm-gated command through — the caller, not this policy, owns *where*
+  // that confirmation happened (a palette dialog, a Raycast alert, etc.).
+  // Automations never set this, so scripts still cannot bypass a confirm.
+  confirmed?: boolean
   // Resolved target metadata supplied by the command bridge.
   target: {
     exists: boolean
@@ -104,10 +109,10 @@ export const checkRunCommandPolicy = (
     return { allowed: false, reason: `Command not found: ${commandId}` }
   }
 
-  if (input.target.confirmAction) {
+  if (input.target.confirmAction && !input.confirmed) {
     return {
       allowed: false,
-      reason: `Command ${commandId} requires confirmation and cannot be scripted`,
+      reason: `Command ${commandId} requires confirmation`,
     }
   }
 

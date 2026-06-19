@@ -74,6 +74,10 @@ export type ExternalSuggestion = {
   iconType?: "lucide" | "url"
   keywords?: string[]
   requiresPermission?: string[]
+  // True when running the command requires user confirmation (a destructive or
+  // irreversible action). A client must confirm with the user and send
+  // `confirmed: true` on the execute request, or the command is refused.
+  confirmAction?: boolean
 }
 
 export type ClientIdentity = {
@@ -144,6 +148,9 @@ export type SuggestionsResult = {
 
 export type ExecuteParams = {
   id: string
+  // The client confirmed a destructive command with the user. Required to run
+  // any command whose suggestion carries `confirmAction: true`.
+  confirmed?: boolean
 }
 
 export type ExecuteResult = {

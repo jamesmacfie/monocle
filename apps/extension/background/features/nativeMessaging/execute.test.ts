@@ -93,6 +93,15 @@ describe("executeForActiveTab preflight", () => {
     })
   })
 
+  it("runs a confirmAction command when the request is confirmed", async () => {
+    mockResolveCommandById.mockResolvedValue(
+      resolved({ type: "action", id: "clear", confirmAction: true }),
+    )
+    expect(await executeForActiveTab({ id: "clear", confirmed: true })).toEqual(
+      { ran: true },
+    )
+  })
+
   it("denies commands not supported on this platform", async () => {
     mockResolveCommandById.mockResolvedValue(
       resolved({ type: "action", id: "x" }),

@@ -47,6 +47,30 @@ describe("runCommand policy", () => {
     }
   })
 
+  it("allows a confirm-gated command when the caller confirmed (any mode)", () => {
+    for (const executionMode of ["manual", "bridge"] as const) {
+      expect(
+        checkRunCommandPolicy({
+          commandId: "close-current-tab",
+          executionMode,
+          confirmed: true,
+          target: { exists: true, confirmAction: true },
+        }).allowed,
+      ).toBe(true)
+    }
+  })
+
+  it("still denies a confirm-gated command from an automation even if confirmed (allowlist)", () => {
+    expect(
+      checkRunCommandPolicy({
+        commandId: "clear-browser-data",
+        executionMode: "automation",
+        confirmed: true,
+        target: { exists: true, confirmAction: true },
+      }).allowed,
+    ).toBe(false)
+  })
+
   it("allows any eligible command for manual runs", () => {
     expect(
       checkRunCommandPolicy({

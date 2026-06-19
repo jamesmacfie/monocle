@@ -21,8 +21,9 @@ type ExecuteError = { error: BridgeErrorCode }
 
 export const executeForActiveTab = async (params: {
   id: string
+  confirmed?: boolean
 }): Promise<ExecuteResult | ExecuteError> => {
-  const { id } = params
+  const { id, confirmed } = params
 
   // Generated-action ids (favorite/hide/keybinding/modifier rows) are a UI
   // concern, never a bridge target.
@@ -65,6 +66,7 @@ export const executeForActiveTab = async (params: {
   const verdict = checkRunCommandPolicy({
     commandId: id,
     executionMode: "bridge",
+    confirmed,
     target: {
       exists: true,
       confirmAction,

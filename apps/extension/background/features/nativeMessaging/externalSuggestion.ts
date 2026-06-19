@@ -74,6 +74,9 @@ export const toExternalSuggestion = (
   if (suggestion.permissions && suggestion.permissions.length > 0) {
     external.requiresPermission = [...suggestion.permissions]
   }
+  if ("confirmAction" in suggestion && suggestion.confirmAction) {
+    external.confirmAction = true
+  }
 
   return external
 }

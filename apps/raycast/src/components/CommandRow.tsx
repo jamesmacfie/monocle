@@ -1,7 +1,9 @@
 import {
   Action,
   ActionPanel,
+  Alert,
   Clipboard,
+  confirmAlert,
   List,
   showHUD,
   showToast,
@@ -14,12 +16,6 @@ import { CommandList } from "./CommandList";
 
 function accessoriesFor(s: ExternalSuggestion): List.Item.Accessory[] {
   const acc: List.Item.Accessory[] = [];
-  if (s.requiresPermission && s.requiresPermission.length > 0) {
-    acc.push({
-      icon: "🔐",
-      tooltip: `May prompt for: ${s.requiresPermission.join(", ")}`,
-    });
-  }
   if (s.type === "group" || s.type === "search") {
     acc.push({ text: s.type });
   }
@@ -115,14 +111,26 @@ function CommandActions({
   }
 
   if (s.type === "action" || s.type === "submit") {
+    const run = async () => {
+      if (!executionEnabled) {
+        await notRunnable();
+        return;
+      }
+      // Destructive commands carry the same confirm contract as the palette;
+      // the bridge refuses them unless we confirm here and pass `confirmed`.
+      if (s.confirmAction) {
+        const ok = await confirmAlert({
+          title: s.title,
+          message: "This action may be destructive. Continue?",
+          primaryAction: { title: "Run", style: Alert.ActionStyle.Destructive },
+        });
+        if (!ok) return;
+      }
+      await runCommand(s.id, target, s.confirmAction);
+    };
     return (
       <ActionPanel>
-        <Action
-          title="Run"
-          onAction={() =>
-            executionEnabled ? runCommand(s.id, target) : notRunnable()
-          }
-        />
+        <Action title="Run" onAction={run} />
       </ActionPanel>
     );
   }

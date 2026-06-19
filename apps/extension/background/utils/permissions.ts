@@ -2,6 +2,23 @@ import type { BrowserPermission } from "../../shared/types"
 import { isFirefox } from "../../shared/utils/browser"
 
 /**
+ * The set of optional permissions currently granted to the extension. One
+ * `getAll` call so callers can subset-check many commands in memory instead of
+ * one `contains` call per permission. Returns an empty set on error (fail
+ * closed — treat everything as ungranted).
+ */
+export async function getGrantedPermissions(): Promise<Set<string>> {
+  try {
+    const browserAPI = isFirefox ? browser : chrome
+    const all = await browserAPI.permissions.getAll()
+    return new Set(all.permissions ?? [])
+  } catch (error) {
+    console.error("[Permissions] Error reading granted permissions:", error)
+    return new Set()
+  }
+}
+
+/**
  * Cross-browser compatible permission checking utility
  */
 export async function checkPermissions(

@@ -75,7 +75,10 @@ export const BridgeRequestSchema = z.discriminatedUnion("method", [
   z.object({
     ...EnvelopeBase,
     method: z.literal("commands/execute"),
-    params: z.object({ id: z.string().min(1) }),
+    params: z.object({
+      id: z.string().min(1),
+      confirmed: z.boolean().optional(),
+    }),
   }),
 ])
 
