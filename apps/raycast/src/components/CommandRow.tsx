@@ -44,10 +44,12 @@ async function notRunnable() {
 export function CommandRow({
   s,
   parentPath,
+  target,
   executionEnabled,
 }: {
   s: ExternalSuggestion;
   parentPath: string[];
+  target: string;
   executionEnabled: boolean;
 }) {
   return (
@@ -61,6 +63,7 @@ export function CommandRow({
         <CommandActions
           s={s}
           parentPath={parentPath}
+          target={target}
           executionEnabled={executionEnabled}
         />
       }
@@ -71,10 +74,12 @@ export function CommandRow({
 function CommandActions({
   s,
   parentPath,
+  target,
   executionEnabled,
 }: {
   s: ExternalSuggestion;
   parentPath: string[];
+  target: string;
   executionEnabled: boolean;
 }) {
   if (s.type === "group" || s.type === "search") {
@@ -85,6 +90,7 @@ function CommandActions({
           target={
             <CommandList
               path={[...parentPath, s.id]}
+              target={target}
               isSearchPage={s.type === "search"}
               executionEnabled={executionEnabled}
             />
@@ -113,7 +119,9 @@ function CommandActions({
       <ActionPanel>
         <Action
           title="Run"
-          onAction={() => (executionEnabled ? runCommand(s.id) : notRunnable())}
+          onAction={() =>
+            executionEnabled ? runCommand(s.id, target) : notRunnable()
+          }
         />
       </ActionPanel>
     );

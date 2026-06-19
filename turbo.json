@@ -10,7 +10,18 @@
     "dev": { "cache": false, "persistent": true },
     "dev:chrome": { "cache": false, "persistent": true },
     "dev:firefox": { "cache": false, "persistent": true },
-    "dev:bridge": { "cache": false, "persistent": true },
-    "build:bridge": { "outputs": ["src-tauri/target/release/bundle/**"] }
+    "dev:bridge": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "MONOCLE_CHROME_EXTENSION_ID",
+        "MONOCLE_BRIDGE_PORT",
+        "MONOCLE_BRIDGE_HEADLESS"
+      ]
+    },
+    "build:bridge": {
+      "outputs": ["src-tauri/target/release/bundle/**"],
+      "passThroughEnv": ["MONOCLE_CHROME_EXTENSION_ID", "MONOCLE_BRIDGE_PORT"]
+    }
   }
 }

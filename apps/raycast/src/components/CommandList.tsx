@@ -13,10 +13,12 @@ import type { BridgeErrorCode, ExternalSuggestion } from "../lib/types";
  */
 export function CommandList({
   path,
+  target,
   isSearchPage,
   executionEnabled,
 }: {
   path: string[];
+  target: string;
   isSearchPage: boolean;
   executionEnabled: boolean;
 }) {
@@ -32,7 +34,7 @@ export function CommandList({
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const token = await getToken();
+      const token = await getToken(target);
       if (!token) {
         if (!cancelled) setLoading(false);
         return;
@@ -41,19 +43,29 @@ export function CommandList({
         "suggestions/get-children",
         { path, query: isSearchPage ? query : undefined, limit: 50 },
         token,
+        target,
       );
       if (cancelled) return;
       if (res.ok) {
         setItems(res.result.suggestions);
       } else {
-        if (res.error.code === "unauthorized" || res.error.code === "forbidden_scope") {
-          await clearToken();
+        if (
+          res.error.code === "unauthorized" ||
+          res.error.code === "forbidden_scope"
+        ) {
+          await clearToken(target);
         }
         if (res.error.code === "not_found") {
-          await showToast({ style: Toast.Style.Failure, title: "This list is no longer available" });
+          await showToast({
+            style: Toast.Style.Failure,
+            title: "This list is no longer available",
+          });
           pop();
         } else {
-          await showToast({ style: Toast.Style.Failure, title: errorTitle(res.error.code) });
+          await showToast({
+            style: Toast.Style.Failure,
+            title: errorTitle(res.error.code),
+          });
         }
         setItems([]);
       }
@@ -75,7 +87,13 @@ export function CommandList({
     >
       <List.EmptyView title={loading ? "Loading…" : "Nothing here"} />
       {items.map((s) => (
-        <CommandRow key={s.id} s={s} parentPath={path} executionEnabled={executionEnabled} />
+        <CommandRow
+          key={s.id}
+          s={s}
+          parentPath={path}
+          target={target}
+          executionEnabled={executionEnabled}
+        />
       ))}
     </List>
   );

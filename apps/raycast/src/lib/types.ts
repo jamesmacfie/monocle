@@ -2,6 +2,7 @@
 // Raycast-specific `Prefs` here, but source all wire DTOs from packages/*.
 export {
   BRIDGE_PROTOCOL_VERSION,
+  MONOCLE_TARGET_HEADER,
   type BridgeErrorCode,
   type BridgeMethod,
   type BridgeParams,
@@ -9,6 +10,8 @@ export {
   type BridgeResult,
   type ExecuteResult,
   type ExternalSuggestion,
+  type InstanceMeta,
+  type InstancesResult,
   type MetaInfo,
   type PairRequestResult,
   type PairSubmitCodeResult,

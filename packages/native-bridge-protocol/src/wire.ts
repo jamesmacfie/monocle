@@ -7,6 +7,26 @@ export const NATIVE_MESSAGING_HOST = "com.monocle.bridge"
 
 export const BRIDGE_PROTOCOL_VERSION = 1
 
+// HTTP header a caller sets to target a specific connected browser when more
+// than one is attached. The daemon strips it (it never reaches the extension)
+// and routes to the matching relay by `id`. Absent + one browser → that one;
+// absent + multiple → bad_request.
+export const MONOCLE_TARGET_HEADER = "X-Monocle-Target"
+
+// One connected browser, as reported by the daemon-local `GET /instances` route.
+// `id` is the routing key (browser type, e.g. "chrome") and goes in the target
+// header; `name` is for display.
+export type InstanceMeta = {
+  id: string
+  name: string
+  channel?: string
+  extensionVersion?: string
+}
+
+export type InstancesResult = {
+  instances: InstanceMeta[]
+}
+
 // Scopes a paired client can hold. `commands:execute` is a larger blast radius
 // than reading, so it is also gated by the extension's global allowExecution
 // opt-in.

@@ -3,11 +3,16 @@
 > **Status: M0+M1 implemented (macOS).** The bridge app lives at `apps/bridge`
 > (Tauri, the daemon+relay design in §3). The two-mode binary, the loopback HTTP
 > server, the relay UDS pump + id-routing, manifest registration, the discovery
-> file, and the tray are built; framing + id-routing have unit tests and the
-> daemon's HTTP/relay path is verified headless (`MONOCLE_BRIDGE_HEADLESS=1`).
+> file, and the tray are built; framing + id-routing + `select_relay` have unit
+> tests and the daemon's HTTP/relay path (incl. a headless two-relay multi-browser
+> round-trip) is verified headless (`MONOCLE_BRIDGE_HEADLESS=1`).
+> **Multi-browser is implemented** (the daemon tracks all connected relays,
+> identifies each via the connect-time `meta/info` handshake, exposes
+> `GET /instances`, and routes by the `X-Monocle-Target` header — see
+> [multi-instance.md](./multi-instance.md)).
 > **Still open:** real browser→relay→daemon round-trip (needs the extension
 > loaded — the manual checklist), the Chrome `key`/ID pin (§8/§11), and M2–M4
-> (Windows/Linux, signing/notarization, multi-browser selection). This PRD
+> (Windows/Linux, signing/notarization, profile-level instance selection). This PRD
 > specifies the **bridge app** — the downloadable native component that sits
 > between the Monocle browser extension and an external caller (e.g. Raycast).
 > It operationalizes the "host distribution & signing" open question in
@@ -106,10 +111,12 @@ Why this is the right call:
   worth the extra moving part.
 - **Zero changes to the built extension** — it still calls
   `connectNative("com.monocle.bridge")` and speaks the protocol over stdio.
-- **Defers multi-instance selection** ([multi-instance.md](./multi-instance.md)):
-  one daemon owns the loopback port, but the current M1 implementation keeps a
-  single active browser relay (`latest relay wins`). Rich multi-browser
-  selection/multiplexing remains an M2+ item.
+- **Multi-browser selection is implemented** ([multi-instance.md](./multi-instance.md)):
+  one daemon owns the loopback port and multiplexes ALL connected relays — it
+  learns each browser's identity at the connect-time `meta/info` handshake, lists
+  them at `GET /instances`, and routes by the `X-Monocle-Target` header. Identity
+  is browser-type-only (profiles collapse, last relay wins); **profile-level**
+  selection remains an M2+ item.
 - **Caller always has someone to talk to**: the daemon answers even when no
   browser is connected (returns a "no connected browser" status).
 
@@ -279,9 +286,10 @@ registration.
   known IDs, support a user override, or all three. See §8.
 - **IPC choice** — UDS+named-pipe (recommended) vs a loopback TCP control port.
 - **Auto-update** — Tauri updater vs OS package managers; signing channel.
-- **Caller↔instance selection** — when 2+ browsers are connected, does the
-  daemon expose them for the caller to pick (protocol `status`/registry), or
-  relay a single "primary"? v1 may relay one; design the protocol now.
+- **Caller↔instance selection** — *resolved.* The daemon multiplexes all
+  connected relays, exposes them at `GET /instances`, and the caller targets one
+  with the `X-Monocle-Target` header (see [multi-instance.md](./multi-instance.md)).
+  Open follow-up: profile-level granularity within a single browser.
 - **Should the app offer the WebSocket transport** (§3 alternative) as a
   fallback toggle if native-messaging registration is unreliable on some setup?
 - **Uninstall hygiene** — guarantee manifests + IPC files are removed.
@@ -300,6 +308,7 @@ registration.
   single-instance, tray status, re-register, clean quit.
 - **M3 — distributable**: signing/notarization, installers, auto-update.
 - **M4 — multi-browser**: connected-browser routing + caller instance selection.
+  ✅ *Implemented* (browser-type granularity; profile-level selection deferred).
 
 ---
 

@@ -5,10 +5,13 @@ import { randomUUID } from "node:crypto";
 import { getPreferenceValues } from "@raycast/api";
 import {
   BRIDGE_PROTOCOL_VERSION,
+  MONOCLE_TARGET_HEADER,
   type BridgeMethod,
   type BridgeParams,
   type BridgeReply,
   type BridgeResult,
+  type InstanceMeta,
+  type InstancesResult,
   type Prefs,
 } from "./types";
 
@@ -20,7 +23,9 @@ export async function resolvePort(): Promise<number> {
     if (Number.isFinite(n) && n > 0) return n;
   }
   try {
-    const disc = JSON.parse(await readFile(join(homedir(), ".monocle", "bridge.json"), "utf8"));
+    const disc = JSON.parse(
+      await readFile(join(homedir(), ".monocle", "bridge.json"), "utf8"),
+    );
     if (typeof disc.loopbackPort === "number") return disc.loopbackPort;
   } catch {
     // fall through to default
@@ -43,11 +48,17 @@ export async function bridgeRequest<M extends BridgeMethod>(
   method: M,
   params: BridgeParams<M>,
   token?: string,
+  target?: string,
 ): Promise<BridgeReply<BridgeResult<M>>> {
   const host = resolveHost();
   const port = await resolvePort();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (token) headers.Authorization = `Bearer ${token}`;
+  // Name the browser to route to. Optional when a single browser is connected;
+  // the daemon errors with bad_request if it's ambiguous and unset.
+  if (target) headers[MONOCLE_TARGET_HEADER] = target;
 
   // The daemon has a 30s RPC timeout; keep the client a bit longer so its
   // protocol-shaped `internal` timeout wins over an abort.
@@ -72,8 +83,31 @@ export async function bridgeRequest<M extends BridgeMethod>(
     const aborted = err instanceof Error && err.name === "AbortError";
     return aborted
       ? { ok: false, error: { code: "internal", message: "Bridge timed out" } }
-      : { ok: false, error: { code: "not_enabled", message: "Monocle Bridge app is not running" } };
+      : {
+          ok: false,
+          error: {
+            code: "not_enabled",
+            message: "Monocle Bridge app is not running",
+          },
+        };
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/**
+ * The browsers currently connected to the daemon (daemon-local `GET /instances`
+ * — no browser round-trip). Returns [] if the daemon is unreachable, so callers
+ * treat "app not running" and "no browsers" the same: nothing to target.
+ */
+export async function listInstances(): Promise<InstanceMeta[]> {
+  const host = resolveHost();
+  const port = await resolvePort();
+  try {
+    const res = await fetch(`http://${host}:${port}/instances`);
+    const body = (await res.json()) as InstancesResult;
+    return body.instances ?? [];
+  } catch {
+    return [];
   }
 }

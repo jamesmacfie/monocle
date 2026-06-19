@@ -10,8 +10,7 @@ mod paths;
 mod registry;
 mod relay;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
@@ -45,7 +44,10 @@ fn main() {
     if std::env::var("MONOCLE_BRIDGE_HEADLESS").as_deref() == Ok("1") {
         registry::register_all();
         let rt = tokio::runtime::Runtime::new().expect("daemon runtime");
-        if let Err(e) = rt.block_on(daemon::run(loopback_port(), Arc::new(AtomicBool::new(false)))) {
+        if let Err(e) = rt.block_on(daemon::run(
+            loopback_port(),
+            Arc::new(StdMutex::new(Vec::new())),
+        )) {
             eprintln!("[daemon] fatal: {e}");
         }
         return;
@@ -69,15 +71,16 @@ fn run_daemon() {
     // Idempotent manifest registration up front (PRD §5.1).
     registry::register_all();
 
-    let connected = Arc::new(AtomicBool::new(false));
+    // Display names of connected browsers, shared daemon → tray.
+    let tray_names = Arc::new(StdMutex::new(Vec::<String>::new()));
     let port = loopback_port();
 
     // Daemon servers run on their own tokio runtime; Tauri owns the main thread.
     {
-        let connected = connected.clone();
+        let tray_names = tray_names.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().expect("daemon runtime");
-            if let Err(e) = rt.block_on(daemon::run(port, connected)) {
+            if let Err(e) = rt.block_on(daemon::run(port, tray_names)) {
                 eprintln!("[daemon] fatal: {e}");
             }
         });
@@ -94,7 +97,7 @@ fn run_daemon() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            build_tray(app.handle(), connected.clone(), port)?;
+            build_tray(app.handle(), tray_names.clone(), port)?;
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -109,8 +112,18 @@ fn run_daemon() {
         });
 }
 
-fn build_tray(app: &AppHandle, connected: Arc<AtomicBool>, port: u16) -> tauri::Result<()> {
-    let status = MenuItem::with_id(app, "status", "Starting…", false, None::<&str>)?;
+const TRAY_ID: &str = "monocle-bridge";
+
+/// Build the tray menu for the given set of connected browser display names.
+/// One status line per browser (or a single "none" line), then the static items.
+/// The `on_menu_event` handler lives on the tray icon, not the menu, so it
+/// survives a `set_menu` rebuild — only the action-item ids must stay stable.
+fn build_menu(
+    app: &AppHandle,
+    names: &[String],
+    port: u16,
+) -> tauri::Result<Menu<tauri::Wry>> {
+    let sep = PredefinedMenuItem::separator(app)?;
     let listening = MenuItem::with_id(
         app,
         "listening",
@@ -131,25 +144,48 @@ fn build_tray(app: &AppHandle, connected: Arc<AtomicBool>, port: u16) -> tauri::
     let diagnostics =
         MenuItem::with_id(app, "diagnostics", "Copy diagnostics", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Monocle Bridge", true, None::<&str>)?;
-    let sep = PredefinedMenuItem::separator(app)?;
 
-    let menu = Menu::with_items(
-        app,
-        &[
-            &status,
-            &listening,
-            &sep,
-            &openlogin,
-            &reregister,
-            &diagnostics,
-            &sep,
-            &quit,
-        ],
-    )?;
+    let menu = Menu::new(app)?;
+    if names.is_empty() {
+        menu.append(&MenuItem::with_id(
+            app,
+            "status-none",
+            "○ No browser connected",
+            false,
+            None::<&str>,
+        )?)?;
+    } else {
+        for (i, name) in names.iter().enumerate() {
+            menu.append(&MenuItem::with_id(
+                app,
+                format!("status-{i}"),
+                format!("● {name}"),
+                false,
+                None::<&str>,
+            )?)?;
+        }
+    }
+    menu.append_items(&[
+        &sep,
+        &listening,
+        &openlogin,
+        &reregister,
+        &diagnostics,
+        &sep,
+        &quit,
+    ])?;
+    Ok(menu)
+}
 
+fn build_tray(
+    app: &AppHandle,
+    tray_names: Arc<StdMutex<Vec<String>>>,
+    port: u16,
+) -> tauri::Result<()> {
+    let menu = build_menu(app, &[], port)?;
     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
 
-    TrayIconBuilder::with_id("monocle-bridge")
+    TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .icon_as_template(true)
         .tooltip("Monocle Bridge")
@@ -170,20 +206,26 @@ fn build_tray(app: &AppHandle, connected: Arc<AtomicBool>, port: u16) -> tauri::
         })
         .build(app)?;
 
-    // Poll the shared flag and refresh the status line on the main thread
+    // Poll the shared names and rebuild the menu on change, on the main thread
     // (AppKit menu mutation must not happen off-thread).
     let handle = app.clone();
-    std::thread::spawn(move || loop {
-        let on = connected.load(Ordering::SeqCst);
-        let item = status.clone();
-        let _ = handle.run_on_main_thread(move || {
-            let _ = item.set_text(if on {
-                "● Browser connected"
-            } else {
-                "○ No browser connected"
-            });
-        });
-        std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::spawn(move || {
+        let mut last: Vec<String> = Vec::new();
+        loop {
+            let names = tray_names.lock().map(|g| g.clone()).unwrap_or_default();
+            if names != last {
+                last = names.clone();
+                let h = handle.clone();
+                let _ = handle.run_on_main_thread(move || {
+                    if let (Ok(menu), Some(tray)) =
+                        (build_menu(&h, &names, port), h.tray_by_id(TRAY_ID))
+                    {
+                        let _ = tray.set_menu(Some(menu));
+                    }
+                });
+            }
+            std::thread::sleep(std::time::Duration::from_secs(2));
+        }
     });
 
     Ok(())

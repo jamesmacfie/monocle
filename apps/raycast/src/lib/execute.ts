@@ -1,4 +1,10 @@
-import { Clipboard, closeMainWindow, showHUD, showToast, Toast } from "@raycast/api";
+import {
+  Clipboard,
+  closeMainWindow,
+  showHUD,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { bridgeRequest } from "./bridge";
 import { clearToken, getToken } from "./auth";
 import type { BridgeErrorCode } from "./types";
@@ -29,19 +35,28 @@ function executeErrorTitle(code: BridgeErrorCode): string {
  *   focused:true   → browser was raised, close the Raycast window
  *   ran:true only  → silent side-effect, success toast
  */
-export async function runCommand(id: string): Promise<void> {
-  const token = await getToken();
+export async function runCommand(id: string, target: string): Promise<void> {
+  const token = await getToken(target);
   if (!token) {
-    await showToast({ style: Toast.Style.Failure, title: "Pair with Monocle first" });
+    await showToast({
+      style: Toast.Style.Failure,
+      title: "Pair with Monocle first",
+    });
     return;
   }
 
-  const res = await bridgeRequest("commands/execute", { id }, token);
+  const res = await bridgeRequest("commands/execute", { id }, token, target);
   if (!res.ok) {
-    if (res.error.code === "unauthorized" || res.error.code === "forbidden_scope") {
-      await clearToken();
+    if (
+      res.error.code === "unauthorized" ||
+      res.error.code === "forbidden_scope"
+    ) {
+      await clearToken(target);
     }
-    await showToast({ style: Toast.Style.Failure, title: executeErrorTitle(res.error.code) });
+    await showToast({
+      style: Toast.Style.Failure,
+      title: executeErrorTitle(res.error.code),
+    });
     return;
   }
 
