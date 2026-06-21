@@ -43,6 +43,15 @@ describe("ContentMessageSchema", () => {
     ).toBeNull()
   })
 
+  it("accepts the no-payload copy-page-markdown message", () => {
+    expect(
+      validateContentMessage({ type: "monocle-copy-page-markdown" })?.type,
+    ).toBe("monocle-copy-page-markdown")
+    expect(
+      validateContentMessage({ type: "monocle-copy-page-markdown", x: 1 }),
+    ).toBeNull()
+  })
+
   it("accepts site SDK invoke requests with validated context", () => {
     const message = validateContentMessage({
       type: "monocle-site-sdk-invoke",

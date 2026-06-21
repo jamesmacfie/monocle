@@ -4,6 +4,7 @@ import type { CommandExecutionScope } from "../../shared/types"
 const { useEffect, useCallback } = React
 
 import { CommandPalette } from "../../shared/components/Command"
+import CopyPageAsMarkdownListener from "../../shared/components/Listeners/CopyPageAsMarkdownListener"
 import CopyToClipboardListener from "../../shared/components/Listeners/CopyToClipboardListener"
 import InsertTextListener from "../../shared/components/Listeners/InsertTextListener"
 import NewTabListener from "../../shared/components/Listeners/NewTabListener"
@@ -145,6 +146,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
       )}
       {/* Always mounted so screenshot capture works after the palette hides. */}
       <CopyToClipboardListener />
+      <CopyPageAsMarkdownListener />
       <InsertTextListener />
       <NewTabListener />
       <ScrollListener />

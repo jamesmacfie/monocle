@@ -84,6 +84,7 @@ const MonocleEventMessageSchema = z.discriminatedUnion("type", [
       message: MessageTextSchema,
     })
     .strict(),
+  z.object({ type: z.literal("monocle-copy-page-markdown") }).strict(),
   z
     .object({
       type: z.literal("monocle-text-insert"),

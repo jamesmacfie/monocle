@@ -8,6 +8,7 @@ import { closeOtherTabs } from "./closeOtherTabs"
 import { closeTabsToLeft } from "./closeTabsToLeft"
 import { closeTabsToRight } from "./closeTabsToRight"
 import { copyCurrentTabUrl } from "./copyCurrentTabUrl"
+import { copyPageAsMarkdown } from "./copyPageAsMarkdown"
 import { copyTabUrl } from "./copyTabUrl"
 import { copyTitleAndUrl } from "./copyTitleAndUrl"
 import { copyTitleAndUrlAsMarkdown } from "./copyTitleAndUrlAsMarkdown"
@@ -58,6 +59,7 @@ export const browserCommands = [
   closeTabsToLeft,
   closeTabsToRight,
   copyCurrentTabUrl,
+  copyPageAsMarkdown,
   copyTabUrl,
   copyTitleAndUrl,
   copyTitleAndUrlAsMarkdown,
