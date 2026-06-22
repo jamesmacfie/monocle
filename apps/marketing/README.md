@@ -17,6 +17,7 @@ cd marketing && python3 -m http.server 8080
 | `index.html` | Home — hero, live demo palette, product tour, feature grid, site SDK, CTA |
 | `features.html` | Every command and feature: tabs, library, themes, Focus Mode, Tab Groups, Element Hider, calculations, snippets, GitHub |
 | `automations.html` | Automations overview — what they are, how a run unfolds, what ships today |
+| `integrations.html` | Integrations — Raycast, the local-only native bridge, extension-to-extension commands, and the page-world site SDK |
 | `developers.html` | Architecture, data flows, command schema, message protocol, storage, site SDK, stack |
 | `reviewers.html` | For Web Store reviewers — single purpose, permission justifications, security model, validation, residual risks |
 | `guide-getting-started.html` | Automation guide: overview + first-run walkthrough |

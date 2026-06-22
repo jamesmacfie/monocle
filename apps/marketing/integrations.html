@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Integrations — Monocle</title>
+    <meta
+      name="description"
+      content="Monocle reaches beyond the browser. Run your active tab's commands from Raycast over a local-only native bridge, and let other browser extensions contribute their own commands to your palette."
+    />
+    <meta property="og:title" content="Integrations — Monocle" />
+    <meta
+      property="og:description"
+      content="Drive Monocle from Raycast, talk to it over a loopback-only native bridge, and let peer extensions add their commands to your palette."
+    />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html">
+        <img src="assets/monocle-mark.svg" alt="" width="28" height="28" />
+        Monocle
+      </a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="integrations.html" aria-current="page">Integrations</a></li>
+        <li><a href="guide-getting-started.html">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="index.html#install">Install</a>
+    </header>
+
+    <main>
+      <section class="section wrap">
+        <p class="eyebrow">Integrations</p>
+        <h1 class="hero__headline" style="font-size: var(--text-display-s); max-width: 20ch; margin: 0 0 var(--space-md)">
+          A command layer other tools plug into.
+        </h1>
+        <p class="lede">
+          Monocle isn't sealed inside one browser tab. Drive your active tab's
+          commands from Raycast, talk to the browser over a local-only native
+          bridge, and let other extensions add their own commands to your
+          palette. Same keyboard-first model — reaching outward and accepting
+          contributions inward.
+        </p>
+        <ul class="pills">
+          <li class="pill"><a href="#raycast" style="color: inherit">Raycast</a></li>
+          <li class="pill"><a href="#bridge" style="color: inherit">Native bridge</a></li>
+          <li class="pill"><a href="#extensions" style="color: inherit">Peer extensions</a></li>
+          <li class="pill"><a href="#sdk" style="color: inherit">Your own pages</a></li>
+        </ul>
+      </section>
+
+      <!-- RAYCAST -->
+      <section class="section wrap" id="raycast">
+        <div class="split">
+          <div>
+            <p class="eyebrow">Raycast</p>
+            <h2>Run your tab from Raycast.</h2>
+            <p>
+              Open Raycast, search <strong>Monocle</strong>, and you're looking
+              at the exact command list the active browser tab would show in the
+              palette — ranked the same way, navigable the same way. Pick one and
+              Monocle runs it in the browser. No tab-switching, no clicking
+              through menus.
+            </p>
+            <ul class="stack" style="list-style: none; padding: 0">
+              <li>
+                <strong>Pair once.</strong> A Bluetooth-style pairing code links
+                Raycast to a running browser; each client gets its own token you
+                can revoke.
+              </li>
+              <li>
+                <strong>Active-tab aware.</strong> Suggestions, search, and
+                nested groups all reflect whatever tab is in front — including
+                site commands like GitHub navigation.
+              </li>
+              <li>
+                <strong>Runs the real command.</strong> Execution happens in the
+                browser's background worker, reusing the same query and execution
+                code as the palette.
+              </li>
+            </ul>
+            <p>
+              <a class="link-arrow" href="index.html#install">Get the Raycast extension →</a>
+            </p>
+          </div>
+          <div class="tour__panel mini" aria-hidden="true">
+            <div class="mini__meta" style="margin-bottom: var(--space-xs)">
+              Raycast · Search Monocle · github.com
+            </div>
+            <div class="mini__row is-active"><span>Files Changed</span><span class="mini__meta">Go to</span></div>
+            <div class="mini__row"><span>Reload current tab</span><span class="mini__meta">⌘R</span></div>
+            <div class="mini__row"><span>Capture screenshot</span><span class="mini__meta">Command</span></div>
+            <div class="mini__row"><span>Close duplicate tabs</span><span class="mini__meta">Command</span></div>
+            <div class="mini__row"><span>Toggle Star</span><span class="mini__meta">Action</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- NATIVE BRIDGE -->
+      <section class="section wrap" id="bridge">
+        <article class="tour__block reveal">
+          <div class="tour__copy">
+            <h2>A bridge that never leaves your machine.</h2>
+            <p>
+              A browser extension can't open a socket for an app to dial into, so
+              Monocle ships a small native helper. The Raycast extension talks to
+              it over loopback HTTP; the helper relays to the browser over native
+              messaging. Every hop is on <code>127.0.0.1</code> — nothing
+              touches the network, and the bridge is off until you turn it on.
+            </p>
+            <ul class="stack" style="list-style: none; padding: 0">
+              <li><strong>Opt-in.</strong> Disabled by default; one settings toggle arms it.</li>
+              <li><strong>Local only.</strong> Loopback HTTP and a Unix socket — no cloud, no remote endpoint.</li>
+              <li><strong>Token-gated.</strong> Each paired client carries a hashed bearer token you can revoke at any time.</li>
+            </ul>
+          </div>
+          <div class="tour__panel split--code" aria-hidden="true">
+            <div class="code-label">all on 127.0.0.1 · no network</div>
+            <pre><code>Raycast app
+   │  loopback HTTP
+   ▼
+Monocle Bridge   (127.0.0.1:8765)
+   │  native messaging
+   ▼
+Monocle in your browser</code></pre>
+          </div>
+        </article>
+      </section>
+
+      <!-- EXTENSION TO EXTENSION -->
+      <section class="section wrap" id="extensions">
+        <div class="split">
+          <div class="split--code" style="order: 0">
+            <div class="code-label">peer extension</div>
+            <pre><code>chrome.runtime.sendMessage(MONOCLE_ID, {
+  type: "register",
+  namespace: "notes",
+  name: "Notes",
+  commands: [{
+    id: "new-note",
+    type: "action",
+    name: "New Note",
+  }],
+})
+// → user approves once on the
+//   Integrations settings page</code></pre>
+          </div>
+          <div>
+            <p class="eyebrow">Extension to extension</p>
+            <h2>Other extensions can join your palette.</h2>
+            <p>
+              A peer browser extension can register its own commands straight into
+              Monocle. You approve it once on the <strong>Integrations</strong>
+              settings page — then its commands behave like any built-in: they're
+              searchable, bindable to a shortcut, hideable per site, and
+              favoritable. Run one and Monocle simply tells the peer "the user
+              picked your command"; the peer does the work in its own sandbox.
+            </p>
+            <ul class="stack" style="list-style: none; padding: 0">
+              <li>
+                <strong>You approve each one.</strong> The browser-verified
+                extension id is the identity — no pairing code, and nothing shows
+                up until you say yes.
+              </li>
+              <li>
+                <strong>Contained.</strong> A peer can add commands, not
+                permissions. It can't make Monocle do privileged work; execution
+                is a one-way notification.
+              </li>
+              <li>
+                <strong>Always there.</strong> Approved commands are cached, so
+                they render in the palette even while the peer is asleep.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- SITE SDK POINTER -->
+      <section class="section wrap" id="sdk">
+        <div class="split">
+          <div>
+            <p class="eyebrow">window.Monocle</p>
+            <h2>And any page can join in.</h2>
+            <p>
+              The same idea works from inside a web page. Through
+              <code>window.Monocle</code>, a site can register session-only
+              commands — open its search, jump to a section, run a saved query —
+              with no extension permissions and no build step. It's the site SDK
+              that extension-to-extension generalises.
+            </p>
+            <p>
+              <a class="link-arrow" href="developers.html">Read the developer reference →</a>
+            </p>
+          </div>
+          <div class="split--code">
+            <div class="code-label">page javascript</div>
+            <pre><code>window.Monocle.commands.register({
+  namespace: "docs",
+  name: "Docs",
+  commands: [{
+    id: "open-search",
+    type: "action",
+    name: "Open Site Search",
+    onExecute() {
+      document
+        .querySelector("[type='search']")
+        ?.focus()
+    },
+  }],
+})</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRUST NOTE -->
+      <section class="section--tight wrap">
+        <div class="note">
+          <span class="note__title">You're in control of every connection</span>
+          <p>
+            Each integration is opt-in and revocable. The native bridge is off
+            until you enable it and stays on loopback; peer extensions and paired
+            clients only appear after you approve them, and you can revoke either
+            at any time. As everywhere in Monocle, commands are data, not code —
+            nothing runs arbitrary JavaScript on your behalf.
+            <a class="link-arrow" href="reviewers.html">Security &amp; privacy →</a>
+          </p>
+        </div>
+      </section>
+
+      <section class="cta-final wrap">
+        <h2 class="cta-final__line">One palette, wherever you work.</h2>
+        <a class="btn btn--accent btn--lg" href="index.html#install">Install Monocle</a>
+        <p class="cta-final__alt">
+          <a href="index.html#install">Chrome</a> ·
+          <a href="index.html#install">Firefox</a> ·
+          <a href="developers.html">Build from source</a>
+        </p>
+      </section>
+    </main>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm">
+          <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
+        </span>
+        <nav class="foot__links">
+          <a href="features.html">Features</a>
+          <a href="automations.html">Automations</a>
+          <a href="integrations.html">Integrations</a>
+          <a href="guide-getting-started.html">Guide</a>
+          <a href="developers.html">Developers</a>
+          <a href="reviewers.html">For Reviewers</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

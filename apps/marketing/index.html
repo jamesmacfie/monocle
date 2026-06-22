@@ -6,12 +6,12 @@
     <title>Monocle — a command palette for your browser</title>
     <meta
       name="description"
-      content="Monocle puts a fast, keyboard-driven command palette on every page and your new tab. Press Cmd+Shift+K, type, and run browser actions, tabs, history, bookmarks, automations, and site commands. Chrome and Firefox."
+      content="Monocle puts a fast, keyboard-driven command palette on every page and your new tab. Press Cmd+Shift+K to run browser actions, tabs, history, bookmarks, and your own automations — and drive it all from Raycast or other extensions too. Chrome and Firefox."
     />
     <meta property="og:title" content="Monocle — a command palette for your browser" />
     <meta
       property="og:description"
-      content="Press Cmd+Shift+K on any page. Search tabs, history, bookmarks, and hundreds of browser commands. Build your own automations. No mouse required."
+      content="Press Cmd+Shift+K on any page. Search tabs, history, bookmarks, and hundreds of browser commands. Build your own automations, run them from Raycast, and let other extensions join in. No mouse required."
     />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -32,6 +32,7 @@
       <ul class="nav-links" id="nav-links" data-nav-links>
         <li><a href="features.html">Features</a></li>
         <li><a href="automations.html">Automations</a></li>
+        <li><a href="integrations.html">Integrations</a></li>
         <li><a href="guide-getting-started.html">Guide</a></li>
         <li><a href="developers.html">Developers</a></li>
         <li><a href="reviewers.html">Reviewers</a></li>
@@ -59,7 +60,8 @@
           Monocle is a command palette for Chrome and Firefox. Press
           <kbd data-key="palette">⌘⇧K</kbd> on any page, type what you want —
           tabs, history, bookmarks, browser actions, your own automations, site
-          commands — and hit Enter.
+          commands — and hit Enter. Then reach the same commands from Raycast,
+          and let other extensions add theirs.
         </p>
         <div class="hero__ctas" id="install">
           <a class="btn btn--accent btn--lg" href="#install">Add to Chrome</a>
@@ -255,6 +257,28 @@ toast  "Logged in ✓"</code></pre>
             <div class="mini__row"><span>Toggle Star</span><span class="mini__meta">Action</span></div>
           </div>
         </article>
+
+        <article class="tour__block reveal">
+          <div class="tour__copy">
+            <h2>Not sealed inside the browser.</h2>
+            <p>
+              Search and run your active tab's commands straight from Raycast,
+              over a bridge that never leaves <code>127.0.0.1</code>. Other
+              browser extensions can register their own commands into your
+              palette once you approve them. One keyboard-driven command layer,
+              reaching outward and accepting contributions in.
+            </p>
+            <a class="link-arrow" href="integrations.html">See the integrations →</a>
+          </div>
+          <div class="tour__panel mini" aria-hidden="true">
+            <div class="mini__meta" style="margin-bottom: var(--space-xs)">
+              Raycast · Search Monocle
+            </div>
+            <div class="mini__row is-active"><span>Reload current tab</span><span class="mini__meta">⌘R</span></div>
+            <div class="mini__row"><span>Capture screenshot</span><span class="mini__meta">Command</span></div>
+            <div class="mini__row"><span>New Note</span><span class="mini__meta">notes ext</span></div>
+          </div>
+        </article>
       </section>
 
       <!-- FEATURE GRID -->
@@ -269,7 +293,7 @@ toast  "Logged in ✓"</code></pre>
         <div class="bento">
           <div class="card reveal span-3 tall">
             <span class="card__icon">◑</span>
-            <h3>Ten live themes</h3>
+            <h3>Thirteen live themes</h3>
             <p>
               Solarized, Monokai, Nord, the Catppuccin family, One Dark, Dracula
               — plus System, Light, and Dark. Arrow through the list and the
@@ -417,6 +441,7 @@ toast  "Logged in ✓"</code></pre>
         <nav class="foot__links">
           <a href="features.html">Features</a>
           <a href="automations.html">Automations</a>
+          <a href="integrations.html">Integrations</a>
           <a href="guide-getting-started.html">Guide</a>
           <a href="developers.html">Developers</a>
           <a href="reviewers.html">For Reviewers</a>
