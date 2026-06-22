@@ -1,12 +1,22 @@
 # Extension-to-Extension Commands
 
-> **Status: proposed — not built.** This folder is a design specification for
-> letting **other browser extensions** contribute commands to Monocle. No code
-> exists yet. Everything here describes a feature to be built; anywhere a doc
-> cites an existing Monocle symbol or file, that citation is real and is the
-> reuse/refactor target, but the extension-to-extension feature itself is not
-> implemented. Treat this folder like `docs/proposals/` until the feature ships
-> and the verified docs are updated.
+> **Status: implemented (v1).** The feature is built: the shared external-command
+> provider, the `extensionSdk` adapter + durable registry, the cross-extension
+> protocol + `onMessageExternal` handler, and the `external-extensions` feature
+> module managed on the **Integrations** settings page. CLAUDE.md owns the
+> authoritative status. Two intentional divergences from this spec, taken for v1:
+>
+> - **Schema reuse, not relocation.** The declarative schema was NOT physically
+>   moved out of `shared/types/siteSdk.ts`; instead `shared/types/externalCommands.ts`
+>   re-exports it under transport-neutral `External*` names. The valuable dedup —
+>   one conversion **engine** (`background/commands/externalProvider/`) — landed;
+>   relocating the 660-line schema file (and risking the site SDK's public types)
+>   was deemed churn without benefit. A future physical move is a pure rename.
+> - **Trimmed protocol.** v1 ships `announce` / `register` / `dispose` only — no
+>   `ping`/`pong`, no separate `update` (a re-`register` replaces whole), and
+>   `execute` is fire-and-forget (the data-returning `CommandResult` channel is
+>   deferred). Dead-owner GC is manual (Revoke); `management.onUninstalled` GC is
+>   deferred. All were "v1/roadmap" here already.
 
 The **extension-to-extension** feature lets a *peer browser extension* register
 its own commands into Monocle's command palette. Once the user approves the peer

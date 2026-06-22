@@ -50,15 +50,27 @@ export const nativeMessagingConfigSchema = z.object({
   pairedClients: z.array(pairedClientSchema).max(50),
 })
 
-// Transient pending pairing (feature-state). Single global pending slot: a new
-// pair/request supersedes any outstanding one (v1 — single instance, single
-// human at the browser). The code is stored hashed, like the token.
-// ponytail: single pending slot; promote to per-instanceId map if concurrent
-// pairings ever matter.
+// Transient pending pairing (feature-state). A LIST now (not a single slot):
+// the Integrations page lists everything that has attempted to integrate, so
+// concurrent requests from different apps must coexist. Keyed by pairingId; a
+// new request from the same instanceId supersedes its prior one. The code is
+// stored hashed, like the token.
+//
+// Direction B: the human types the code on the browser's Integrations page, so
+// the browser verifies + mints the token (status -> "approved", approvedToken
+// set transiently), and the app collects it on its next `pair/poll-status`.
+// ponytail: plaintext token sits in transient feature-state between Accept and
+// the app's next poll — acceptable; it is the same value sent over the wire and
+// is cleared on read/startup.
 export type PendingPairing = {
   pairingId: string
   codeHash: string
   expiresAt: number
   attempts: number
+  status: "pending" | "approved"
+  approvedToken?: string
   client: { name: string; instanceId: string }
 }
+
+// The feature-state value: the full list of pending/approved pairings.
+export type PendingPairings = PendingPairing[]

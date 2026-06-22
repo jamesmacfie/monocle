@@ -29,6 +29,7 @@ import { FavoritesPage } from "./pages/FavoritesPage"
 import { FeatureSettingsPage } from "./pages/FeatureSettingsPage"
 import { FeaturesPage } from "./pages/FeaturesPage"
 import { GeneralPage } from "./pages/GeneralPage"
+import { IntegrationsPage } from "./pages/IntegrationsPage"
 import { KeyboardPage } from "./pages/KeyboardPage"
 import { NewTabPage } from "./pages/NewTabPage"
 import { SnippetsPage } from "./pages/SnippetsPage"
@@ -120,6 +121,7 @@ function OptionsAppContent() {
           <Route path="/automations/:id" component={AutomationEditorPage} />
           <Route path="/features" component={FeaturesPage} />
           <Route path="/features/:id" component={FeatureSettingsPage} />
+          <Route path="/integrations" component={IntegrationsPage} />
           <Route path="/url-rules" component={UrlRulesPage} />
           <Route path="/about" component={AboutPage} />
           <Route>

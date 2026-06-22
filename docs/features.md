@@ -77,8 +77,19 @@ type FeatureDescriptor = {
   config: Record<string, unknown>   // persisted config merged over defaults
   lists?: Record<string, RecordListItem[]>  // derived rows for record-list fields
   hasSettings: boolean
+  hiddenFromFeaturesPage?: boolean   // managed on a bespoke page instead (e.g. Integrations)
 }
 ```
+
+A feature may set `hiddenFromFeaturesPage: true` (mirrored onto the descriptor)
+when its UI lives on a **bespoke** settings page rather than the generic Features
+list. The Native Bridge does this — its pending requests, code entry, connected
+apps, and enable/allow-execution toggles render on the **Integrations** page
+(`options/pages/IntegrationsPage.tsx`, driven by `options/integrations/providers.ts`),
+reusing the same `monocle-feature-config-update` / `monocle-feature-action-execute`
+messages. The module still registers commands/config/lifecycle normally; only the
+generic Features page skips it. See
+[settings-page.md](./settings-page.md) and [native-messaging/](./native-messaging/).
 
 `FeatureSettingsSchema` deliberately **reuses the existing `FormField` union**
 (`shared/types/ui.ts`) — `text-list`, `switch`, `number`, `text`, `select`, …

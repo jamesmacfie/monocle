@@ -1,7 +1,7 @@
 import {
   Action,
   ActionPanel,
-  Form,
+  Detail,
   Icon,
   List,
   openExtensionPreferences,
@@ -9,23 +9,66 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { bridgeRequest, listInstances } from "./lib/bridge";
 import { getInstanceId, setToken } from "./lib/auth";
 import { BrowserPicker } from "./components/BrowserPicker";
-import type { BridgeErrorCode, InstanceMeta } from "./lib/types";
+import type { InstanceMeta } from "./lib/types";
+
+const POLL_INTERVAL_MS = 2000;
 
 /**
- * The pairing form for ONE browser. `browserId` is both the daemon routing
- * target and the key the minted token is stored under (tokens are per-browser).
+ * Pairing for ONE browser. `browserId` is both the daemon routing target and
+ * the key the minted token is stored under (tokens are per-browser).
+ *
+ * Direction B: we ask the browser for a code, DISPLAY it here, and the human
+ * types it on the browser's Integrations page. The browser mints the token on
+ * Accept; we collect it by polling `pair/poll-status`.
  */
 export function PairForm({ browserId }: { browserId: string }) {
   const { pop } = useNavigation();
-  const pairingId = useRef<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
   const [status, setStatus] = useState("Requesting a pairing code…");
 
-  // Start pairing on mount: the browser shows a 6-digit code in a modal.
   useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const poll = async (pairingId: string) => {
+      if (cancelled) return;
+      const res = await bridgeRequest(
+        "pair/poll-status",
+        { pairingId },
+        undefined,
+        browserId,
+      );
+      if (cancelled) return;
+      if (res.ok) {
+        const result = res.result;
+        if (result.status === "approved") {
+          await setToken(browserId, result.token);
+          await showToast({
+            style: Toast.Style.Success,
+            title: "Paired with Monocle",
+          });
+          pop();
+          return;
+        }
+        if (result.status === "expired") {
+          setCode(null);
+          setStatus("Code expired — reopen Pair Monocle to retry.");
+          return;
+        }
+        if (result.status === "rejected") {
+          setCode(null);
+          setStatus("Request was declined in the browser.");
+          return;
+        }
+      }
+      // pending (or a transient transport error) → keep polling
+      timer = setTimeout(() => poll(pairingId), POLL_INTERVAL_MS);
+    };
+
     (async () => {
       const res = await bridgeRequest(
         "pair/request",
@@ -33,11 +76,13 @@ export function PairForm({ browserId }: { browserId: string }) {
         undefined,
         browserId,
       );
+      if (cancelled) return;
       if (res.ok) {
-        pairingId.current = res.result.pairingId;
+        setCode(res.result.code);
         setStatus(
-          `A code is showing in your browser. Enter it within ${res.result.expiresInSeconds}s.`,
+          `Enter this code in your browser — Monocle → Settings → Integrations — within ${res.result.expiresInSeconds}s.`,
         );
+        poll(res.result.pairingId);
       } else if (res.error.code === "not_enabled") {
         setStatus(
           "The bridge is off or no browser is connected. Enable it in Monocle and reopen.",
@@ -48,52 +93,26 @@ export function PairForm({ browserId }: { browserId: string }) {
         );
       }
     })();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [browserId]);
 
-  async function onSubmit({ code }: { code: string }) {
-    if (!pairingId.current) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Pairing hasn’t started — reopen Pair Monocle",
-      });
-      return;
-    }
-    const res = await bridgeRequest(
-      "pair/submit-code",
-      { pairingId: pairingId.current, code: code.trim() },
-      undefined,
-      browserId,
-    );
-    if (res.ok) {
-      await setToken(browserId, res.result.token);
-      await showToast({
-        style: Toast.Style.Success,
-        title: "Paired with Monocle",
-      });
-      pop();
-    } else {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: pairingErrorTitle(res.error.code),
-      });
-    }
-  }
+  const markdown = code
+    ? `# Pair Monocle\n\n## \`${code}\`\n\n${status}`
+    : `# Pair Monocle\n\n${status}`;
 
   return (
-    <Form
+    <Detail
+      markdown={markdown}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Pair" onSubmit={onSubmit} />
+          <Action title="Close" onAction={pop} />
         </ActionPanel>
       }
-    >
-      <Form.Description text={status} />
-      <Form.TextField
-        id="code"
-        title="Pairing code"
-        placeholder="6-digit code from the browser"
-      />
-    </Form>
+    />
   );
 }
 
@@ -144,17 +163,4 @@ export default function PairMonocle() {
       renderTarget={(inst) => <PairForm browserId={inst.id} />}
     />
   );
-}
-
-function pairingErrorTitle(code: BridgeErrorCode): string {
-  switch (code) {
-    case "pairing_expired":
-      return "Code expired — restart pairing";
-    case "pairing_rejected":
-      return "Wrong code (or too many attempts) — restart pairing";
-    case "not_enabled":
-      return "Bridge is off / no browser connected";
-    default:
-      return "Pairing failed";
-  }
 }

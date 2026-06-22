@@ -5,6 +5,7 @@ import {
   Globe2,
   Image,
   Keyboard,
+  Plug,
   Settings,
   Shield,
   Star,
@@ -14,6 +15,9 @@ import type { PropsWithChildren } from "react"
 import { Link, useLocation } from "wouter"
 import { MonocleMark } from "../../shared/components/MonocleMark"
 import { cn } from "../../shared/components/ui/cn"
+import { useAppSelector } from "../../shared/store/hooks"
+import { selectFeatures } from "../../shared/store/slices/features.slice"
+import { countPendingRequests } from "../integrations/providers"
 
 const navItems = [
   { href: "/", label: "General", icon: Settings },
@@ -24,12 +28,16 @@ const navItems = [
   { href: "/snippets", label: "Snippets", icon: FileText },
   { href: "/automations", label: "Automations", icon: Workflow },
   { href: "/features", label: "Features", icon: Shield },
+  { href: "/integrations", label: "Integrations", icon: Plug },
   { href: "/url-rules", label: "URL Rules", icon: Globe2 },
   { href: "/about", label: "About", icon: Github },
 ]
 
 export function OptionsShell({ children }: PropsWithChildren) {
   const [location] = useLocation()
+  const pendingRequests = useAppSelector((state) =>
+    countPendingRequests(selectFeatures(state)),
+  )
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-page)] text-[var(--color-fg)]">
@@ -59,7 +67,12 @@ export function OptionsShell({ children }: PropsWithChildren) {
                   href={item.href}
                 >
                   <Icon className="h-4 w-4" />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {item.href === "/integrations" && pendingRequests > 0 ? (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-accent)] px-1.5 text-xs font-semibold text-white">
+                      {pendingRequests}
+                    </span>
+                  ) : null}
                 </Link>
               )
             })}

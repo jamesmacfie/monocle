@@ -39,10 +39,9 @@ export const BridgeRequestSchema = z.discriminatedUnion("method", [
   }),
   z.object({
     ...EnvelopeBase,
-    method: z.literal("pair/submit-code"),
+    method: z.literal("pair/poll-status"),
     params: z.object({
       pairingId: z.string().min(1),
-      code: z.string().min(1).max(32),
     }),
   }),
   z.object({

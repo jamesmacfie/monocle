@@ -12,6 +12,7 @@ import {
   forgetActivatedTab,
   recordActivatedTab,
 } from "./commands/browser/tabActivationHistory"
+import { initExtensionRegistry } from "./commands/extensionSdk"
 import { resolveCommandById } from "./commands/query"
 import {
   initializeSearchIndexInvalidation,
@@ -20,7 +21,9 @@ import {
 } from "./commands/searchIndex"
 import { clearSiteSdkScopesForTab } from "./commands/siteSdk"
 import { initFeatures } from "./features"
+import { initExtensionMessaging } from "./features/extensionRegistry/handler"
 import { initializeBridgeReconnect } from "./features/nativeMessaging/reconnect"
+import { initIntegrationsBadge } from "./integrations-badge"
 import { initializeKeybindingRegistry } from "./keybindings/registry"
 import { initializeKeybindingEntriesInvalidation } from "./keybindings/source"
 import { handleMessage } from "./messages"
@@ -76,6 +79,19 @@ export function initializeBackground() {
   // alarm-wake re-attaches the connectNative port even after the worker was
   // idle-terminated (the port's in-memory reconnect doesn't survive that).
   initializeBridgeReconnect()
+
+  // Keep the toolbar badge in sync with pending integration requests.
+  initIntegrationsBadge()
+
+  // Warm the durable peer-extension command registry, then rebuild the search
+  // index so approved peers' commands are searchable after a cold start.
+  initExtensionRegistry()
+    .then(() => invalidateSearchIndex())
+    .catch(console.error)
+
+  // Register the externally-reachable peer-extension listener synchronously so
+  // an inbound announce/register/dispose is never missed after a worker wake.
+  initExtensionMessaging()
 
   browserAPI.tabs?.onRemoved?.addListener((tabId: number) => {
     forgetActivatedTab(tabId)

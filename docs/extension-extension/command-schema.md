@@ -1,6 +1,6 @@
 # Declarable command schema
 
-> **Status: proposed — not built.** See [README.md](./README.md).
+> **Status: implemented (v1).** See [README.md](./README.md) for status + the two v1 divergences (schema reuse, trimmed protocol).
 
 This is the reference for what a peer extension may declare. It is the **shared
 external-command schema** (`shared/types/externalCommands.ts` after the

@@ -58,8 +58,8 @@ Bumping `v` is reserved for breaking changes; additive fields do not bump it.
 | --- | --- | --- |
 | `meta/info` | none | Capability discovery: supported protocol versions, available scopes, build identity. |
 | `status` | none | Liveness + instance identity (also `GET /status`; see [multi-instance.md](./multi-instance.md)). |
-| `pair/request` | none | Begin pairing; triggers the in-extension code modal. |
-| `pair/submit-code` | none | Submit the human-entered code; on success returns a bearer token **once**. |
+| `pair/request` | none | Begin pairing; returns a code for the app to **display** (the human types it on the browser's Integrations page). |
+| `pair/poll-status` | none | Poll a pairing by id; returns `pending` until the human Accepts in the browser, then the bearer token **once**. |
 | `suggestions/get-for-active-tab` | `suggestions:read` | Root suggestions for the active tab. |
 | `suggestions/search-active-tab` | `suggestions:read` | Query-scored suggestions for the active tab. |
 | `suggestions/get-children` | `suggestions:read` | Drill into a group/search node; returns its children (which may be groups → infinite nesting). |
@@ -98,21 +98,27 @@ and the global Allow-execution opt-in.
 }
 ```
 
-### `pair/request` → `pair/submit-code`
+### `pair/request` → `pair/poll-status`
 
-See [authentication-and-security.md](./authentication-and-security.md) for the
-full flow and security parameters.
+Direction B: the app displays the code; the human types it on the browser's
+**Integrations** settings page; the browser mints the token on Accept and the
+app collects it by polling. See
+[authentication-and-security.md](./authentication-and-security.md) for the full
+flow and security parameters.
 
 ```jsonc
 // pair/request params
 { "client": { "name": "Raycast", "instanceId": "uuid" } }
-// pair/request result
-{ "pairingId": "uuid", "expiresInSeconds": 60 }
+// pair/request result — `code` is shown to the human, who types it in the browser
+{ "pairingId": "uuid", "code": "481920", "expiresInSeconds": 60 }
 
-// pair/submit-code params
-{ "pairingId": "uuid", "code": "481920" }
-// pair/submit-code result (token returned exactly once, never again)
-{ "token": "<opaque>", "scopes": ["suggestions:read", "commands:execute"] }
+// pair/poll-status params (poll ~2s until terminal)
+{ "pairingId": "uuid" }
+// pair/poll-status result — one of:
+{ "status": "pending" }
+{ "status": "approved", "token": "<opaque>", "scopes": ["suggestions:read", "commands:execute"] } // token once
+{ "status": "expired" }
+{ "status": "rejected" }
 ```
 
 ### `suggestions/get-for-active-tab`

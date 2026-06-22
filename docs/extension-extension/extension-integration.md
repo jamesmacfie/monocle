@@ -1,6 +1,6 @@
 # Monocle integration
 
-> **Status: proposed — not built.** See [README.md](./README.md).
+> **Status: implemented (v1).** See [README.md](./README.md) for status + the two v1 divergences (schema reuse, trimmed protocol).
 
 This is the concrete wiring inside the Monocle extension: the new folders, the
 feature module + settings page, the external-message handler, manifest changes,

@@ -1,17 +1,17 @@
 // Architecture: background feature layer (Native Messaging bridge). The
-// bluetooth-style pairing flow: the confirmation code travels extension → human
-// → app, never extension → app directly. beginPairing shows the plaintext code
-// in a modal surface and returns only a pairingId; submitCode verifies the
-// human-typed code (constant-time over hashes), mints a scoped bearer token, and
-// returns the plaintext token EXACTLY ONCE. See
+// bluetooth-style pairing flow, Direction B: the confirmation code travels
+// extension → app → human → browser. beginPairing generates a code, returns it
+// to the app to DISPLAY, and records a pending request. The human reads the code
+// from the app and types it on the browser's Integrations page; acceptPairing
+// verifies it (constant-time over hashes), mints a scoped bearer token, and
+// stashes the plaintext on the pending record. The app collects the token
+// EXACTLY ONCE via pollStatus, which then drops the record. See
 // docs/native-messaging/authentication-and-security.md.
 import {
   BRIDGE_SCOPES,
   type BridgeScope,
   type ClientIdentity,
-  type ContentBlock,
 } from "../../../shared/types"
-import { removeSurface, upsertSurface } from "../../surfaces"
 import { getFeatureConfig, setFeatureConfig } from "../config"
 import { clearFeatureState, getFeatureState, setFeatureState } from "../state"
 import {
@@ -26,35 +26,49 @@ import {
   nativeMessagingConfigDefaults,
   type PairedClient,
   type PendingPairing,
+  type PendingPairings,
 } from "./types"
 
 const PAIRING_TTL_MS = 60_000
 const MAX_ATTEMPTS = 5
-export const PAIRING_MODAL_ID = "pairing"
 
-export type BeginPairingResult = { pairingId: string; expiresInSeconds: number }
-export type SubmitCodeResult =
-  | { ok: true; token: string; scopes: BridgeScope[] }
-  | {
-      ok: false
-      code: "pairing_rejected" | "pairing_expired"
-    }
+export type BeginPairingResult = {
+  pairingId: string
+  code: string
+  expiresInSeconds: number
+}
+
+export type AcceptPairingResult =
+  | { ok: true }
+  | { ok: false; code: "pairing_rejected" | "pairing_expired" }
+
+export type PollStatusResult =
+  | { status: "pending" }
+  | { status: "approved"; token: string; scopes: BridgeScope[] }
+  | { status: "expired" }
+  | { status: "rejected" }
 
 const readConfig = (): Promise<NativeMessagingConfig> =>
   getFeatureConfig(NATIVE_MESSAGING_FEATURE_ID, nativeMessagingConfigDefaults)
 
-// Remove the pairing modal from whatever host is showing it. Owner is the bare
-// feature id (not session-prefixed); init() also clears a stale one on startup.
-const clearPairingModal = (): Promise<void> =>
-  removeSurface(NATIVE_MESSAGING_FEATURE_ID, PAIRING_MODAL_ID)
+const readPending = async (): Promise<PendingPairings> =>
+  (await getFeatureState<PendingPairings>(NATIVE_MESSAGING_FEATURE_ID)) ?? []
 
-const clearPending = async (): Promise<void> => {
-  await clearFeatureState(NATIVE_MESSAGING_FEATURE_ID)
-  await clearPairingModal()
+const writePending = (pending: PendingPairings): Promise<void> =>
+  setFeatureState<PendingPairings>(NATIVE_MESSAGING_FEATURE_ID, pending)
+
+// Pending requests still within their TTL, for the Integrations page list.
+// Expired records are not surfaced (and are pruned lazily on the next write).
+export const getPendingPairings = async (
+  now: number = Date.now(),
+): Promise<PendingPairing[]> => {
+  const pending = await readPending()
+  return pending.filter((p) => now <= p.expiresAt)
 }
 
-// Begin pairing: generate a code, store its hash + expiry transiently, and show
-// the plaintext code in a modal. A new request supersedes any pending one.
+// Begin pairing: generate a code, record it (hashed) as a pending request, and
+// return the plaintext code for the app to display. A new request from the same
+// instanceId supersedes its prior pending record.
 export const beginPairing = async (
   client: ClientIdentity,
   now: number,
@@ -64,64 +78,57 @@ export const beginPairing = async (
   const pairingId = crypto.randomUUID()
   const expiresAt = now + PAIRING_TTL_MS
 
-  const pending: PendingPairing = {
+  const record: PendingPairing = {
     pairingId,
     codeHash,
     expiresAt,
     attempts: 0,
+    status: "pending",
     client: { name: client.name, instanceId: client.instanceId },
   }
-  await setFeatureState<PendingPairing>(NATIVE_MESSAGING_FEATURE_ID, pending)
 
-  const blocks: ContentBlock[] = [{ type: "markdown", text: `# ${code}` }]
-  // ponytail: modal shows on every tab with a SurfaceHost (no urlMatch). The
-  // chrome:// fallback page is a v2 concern; the focused tab is what matters and
-  // the modal self-clears in 60s.
-  await upsertSurface(NATIVE_MESSAGING_FEATURE_ID, {
-    id: PAIRING_MODAL_ID,
-    kind: "modal",
-    content: {
-      icon: "Link",
-      title: `Pair “${client.name}”`,
-      text: `Enter this code in ${client.name} to connect:`,
-      countdownTo: expiresAt,
-      blocks,
-    },
-  })
+  const pending = (await readPending()).filter(
+    (p) => now <= p.expiresAt && p.client.instanceId !== client.instanceId,
+  )
+  await writePending([...pending, record])
 
-  return { pairingId, expiresInSeconds: Math.round(PAIRING_TTL_MS / 1000) }
+  return {
+    pairingId,
+    code,
+    expiresInSeconds: Math.round(PAIRING_TTL_MS / 1000),
+  }
 }
 
-// Verify the human-entered code and, on success, mint + persist a token hash.
-export const submitCode = async (
+// Verify the human-entered code (typed on the Integrations page) and, on
+// success, mint + persist a token hash and stash the plaintext on the pending
+// record for the app to collect via pollStatus.
+export const acceptPairing = async (
   pairingId: string,
   code: string,
   now: number,
-): Promise<SubmitCodeResult> => {
-  const pending = await getFeatureState<PendingPairing>(
-    NATIVE_MESSAGING_FEATURE_ID,
-  )
+): Promise<AcceptPairingResult> => {
+  const pending = await readPending()
+  const record = pending.find((p) => p.pairingId === pairingId)
 
-  if (!pending || pending.pairingId !== pairingId) {
+  if (!record || record.status === "approved") {
     return { ok: false, code: "pairing_rejected" }
   }
 
-  if (now > pending.expiresAt) {
-    await clearPending()
+  if (now > record.expiresAt) {
+    await writePending(pending.filter((p) => p.pairingId !== pairingId))
     return { ok: false, code: "pairing_expired" }
   }
 
-  const matches = constantTimeEqual(await sha256Hex(code), pending.codeHash)
+  const matches = constantTimeEqual(await sha256Hex(code), record.codeHash)
   if (!matches) {
-    const attempts = pending.attempts + 1
+    const attempts = record.attempts + 1
     if (attempts >= MAX_ATTEMPTS) {
-      await clearPending()
+      await writePending(pending.filter((p) => p.pairingId !== pairingId))
       return { ok: false, code: "pairing_rejected" }
     }
-    await setFeatureState<PendingPairing>(NATIVE_MESSAGING_FEATURE_ID, {
-      ...pending,
-      attempts,
-    })
+    await writePending(
+      pending.map((p) => (p.pairingId === pairingId ? { ...p, attempts } : p)),
+    )
     return { ok: false, code: "pairing_rejected" }
   }
 
@@ -130,8 +137,8 @@ export const submitCode = async (
   const scopes: BridgeScope[] = [...BRIDGE_SCOPES]
 
   const client: PairedClient = {
-    instanceId: pending.client.instanceId,
-    name: pending.client.name,
+    instanceId: record.client.instanceId,
+    name: record.client.name,
     tokenHash,
     scopes,
     createdAt: now,
@@ -147,9 +154,56 @@ export const submitCode = async (
     pairedClients,
   })
 
-  await clearPending()
-  return { ok: true, token, scopes }
+  await writePending(
+    pending.map((p) =>
+      p.pairingId === pairingId
+        ? { ...p, status: "approved" as const, approvedToken: token }
+        : p,
+    ),
+  )
+
+  return { ok: true }
 }
 
-// Startup/teardown cleanup of any stale pairing modal + pending state.
-export const clearStalePairing = clearPending
+// Reject (or dismiss) a pending request from the Integrations page.
+export const rejectPairing = async (pairingId: string): Promise<void> => {
+  const pending = await readPending()
+  await writePending(pending.filter((p) => p.pairingId !== pairingId))
+}
+
+// The app polls this after pair/request. Returns the minted token EXACTLY ONCE
+// (the record is dropped on read), otherwise pending/expired/rejected.
+export const pollStatus = async (
+  pairingId: string,
+  now: number,
+): Promise<PollStatusResult> => {
+  const pending = await readPending()
+  const record = pending.find((p) => p.pairingId === pairingId)
+
+  if (!record) {
+    // Unknown id: either rejected/collected or never existed. "rejected" is the
+    // honest answer for a request the user dismissed; the app treats both ends
+    // the same (stop polling).
+    return { status: "rejected" }
+  }
+
+  if (record.status === "approved" && record.approvedToken) {
+    await writePending(pending.filter((p) => p.pairingId !== pairingId))
+    return {
+      status: "approved",
+      token: record.approvedToken,
+      scopes: [...BRIDGE_SCOPES],
+    }
+  }
+
+  if (now > record.expiresAt) {
+    await writePending(pending.filter((p) => p.pairingId !== pairingId))
+    return { status: "expired" }
+  }
+
+  return { status: "pending" }
+}
+
+// Startup/teardown cleanup of all pending pairing state.
+export const clearStalePairing = (): Promise<void> =>
+  clearFeatureState(NATIVE_MESSAGING_FEATURE_ID)

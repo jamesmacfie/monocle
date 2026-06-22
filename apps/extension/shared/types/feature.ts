@@ -49,6 +49,9 @@ export type FeatureDescriptor = {
   // by the feature from its config (raw config shape ≠ row shape).
   lists?: Record<string, RecordListItem[]>
   hasSettings: boolean
+  // Mirrors FeatureModule.hiddenFromFeaturesPage: the generic Features page
+  // filters these out (their UI lives on a bespoke page, e.g. Integrations).
+  hiddenFromFeaturesPage?: boolean
 }
 
 // Payload sent with a record-list action: identifies the group row (`itemId`),

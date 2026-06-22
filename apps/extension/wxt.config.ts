@@ -150,6 +150,16 @@ export default defineConfig({
       browser === "firefox"
         ? [...baseOptionalPermissions]
         : [...baseOptionalPermissions, "tabGroups"],
+    // Lets other browser extensions message Monocle (the extension-to-extension
+    // feature — background/features/extensionRegistry/). `ids: ["*"]` allows any
+    // peer to *reach* the handler; the real gate is the master opt-in + the
+    // user-approved id allowlist enforced in handler.ts. Chrome-only: Firefox
+    // does not support the `externally_connectable` manifest key (it would trip
+    // the build) yet still delivers onMessageExternal, so the handler allowlist
+    // is the cross-browser gate. See docs/extension-extension/registration-and-trust.md.
+    ...(browser === "firefox"
+      ? {}
+      : { externally_connectable: { ids: ["*"] } }),
     ...(shouldDeclareActionShortcut(browser, command)
       ? actionShortcutCommand
       : {}),

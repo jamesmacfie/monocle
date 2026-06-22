@@ -12,6 +12,7 @@ import type {
 import { automationCommands } from "../automations/commands"
 import { getFeatureCommands } from "../features"
 import { browserCommands, firefoxCommands } from "./browser"
+import { loadExtensionSdkCommands } from "./extensionSdk"
 import { extensionsCommands } from "./extensions"
 import { clearFavoritesCommand } from "./favorites"
 import { newTabCommands } from "./newTab"
@@ -75,6 +76,9 @@ export const loadCommandEntries = (
     ...mapCommandsToEntries(getFeatureCommands(context), categories.features),
     ...mapCommandsToEntries([clearFavoritesCommand], categories.favorites),
     ...mapCommandsToEntries(extensionsCommands, categories.extensions),
+    // Peer-extension commands are durable + context-free (no per-request
+    // sender), so they load for any context from the warmed registry cache.
+    ...mapCommandsToEntries(loadExtensionSdkCommands(), categories.extensions),
   ]
 
   if (context?.isNewTab) {

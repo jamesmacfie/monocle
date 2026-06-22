@@ -1,9 +1,15 @@
 # Provider refactor: a shared external-command provider
 
-> **Status: proposed — not built.** See [README.md](./README.md). This doc
-> describes a refactor of existing, working code (the site SDK). The refactor is
-> a prerequisite for the extension-to-extension feature and must land as a
-> self-contained, behavior-preserving change *before* the new feature is built.
+> **Status: implemented, with one divergence.** The conversion **engine** was
+> extracted to `background/commands/externalProvider/` (parameterised by the
+> five-member adapter below) and `siteSdk/commands.ts` now delegates through a
+> `siteAdapter` — the existing `siteSdk.test.ts` passes unchanged (behavior
+> preserved). DIVERGENCE: the declarative **schema** was NOT moved into a new
+> `shared/types/externalCommands.ts`; that file instead re-exports the
+> still-in-`siteSdk.ts` schema under `External*` names. Moving the schema added
+> risk to the site SDK's public surface for no dedup benefit (extension commands
+> use the identical schema), so it was kept in place. The rest of this doc
+> (engine, adapter shape, what-stays-identical) is accurate as built.
 
 ## Why refactor instead of copy
 

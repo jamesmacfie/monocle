@@ -1,6 +1,6 @@
 # Registration, trust, and security
 
-> **Status: proposed — not built.** See [README.md](./README.md).
+> **Status: implemented (v1).** See [README.md](./README.md) for status + the two v1 divergences (schema reuse, trimmed protocol).
 
 This doc covers the lifecycle of a peer (discovery → approval → registration →
 revocation/GC), the durable stores behind it, and the security model — including

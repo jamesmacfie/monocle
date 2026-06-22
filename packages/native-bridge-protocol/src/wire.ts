@@ -109,18 +109,25 @@ export type PairRequestParams = {
 
 export type PairRequestResult = {
   pairingId: string
+  // The code the app DISPLAYS so the human can type it on the browser's
+  // Integrations page. The browser mints the token on Accept; the app then
+  // collects it via `pair/poll-status`. See docs/native-messaging/.
+  code: string
   expiresInSeconds: number
 }
 
-export type PairSubmitCodeParams = {
+export type PairPollStatusParams = {
   pairingId: string
-  code: string
 }
 
-export type PairSubmitCodeResult = {
-  token: string
-  scopes: BridgeScope[]
-}
+// The app long-polls this after `pair/request` while the human approves in the
+// browser. `approved` carries the minted token exactly once (the pending record
+// is dropped on read); subsequent polls return `expired`.
+export type PairPollStatusResult =
+  | { status: "pending" }
+  | { status: "approved"; token: string; scopes: BridgeScope[] }
+  | { status: "expired" }
+  | { status: "rejected" }
 
 export type GetForActiveTabParams = {
   limit?: number
@@ -166,7 +173,7 @@ export type BridgeRequestParams = {
   "meta/info": EmptyParams
   status: EmptyParams
   "pair/request": PairRequestParams
-  "pair/submit-code": PairSubmitCodeParams
+  "pair/poll-status": PairPollStatusParams
   "suggestions/get-for-active-tab": GetForActiveTabParams | undefined
   "suggestions/search-active-tab": SearchActiveTabParams
   "suggestions/get-children": GetChildrenParams
@@ -177,7 +184,7 @@ export type BridgeResultMap = {
   "meta/info": MetaInfo
   status: StatusResult
   "pair/request": PairRequestResult
-  "pair/submit-code": PairSubmitCodeResult
+  "pair/poll-status": PairPollStatusResult
   "suggestions/get-for-active-tab": SuggestionsResult
   "suggestions/search-active-tab": SuggestionsResult
   "suggestions/get-children": SuggestionsResult

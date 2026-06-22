@@ -2,7 +2,6 @@ import { ArrowLeft } from "lucide-react"
 import { useEffect } from "react"
 import { Link, useParams } from "wouter"
 import { Icon } from "../../shared/components/Icon"
-import { SurfaceHost } from "../../shared/components/SurfaceHost"
 import { useAppDispatch, useAppSelector } from "../../shared/store/hooks"
 import {
   executeFeatureAction,
@@ -78,12 +77,6 @@ export function FeatureSettingsPage() {
         </div>
       ) : (
         <>
-          {/* The pairing code is pushed as a `modal` surface; render it here too
-              so a user can pair while sitting on this settings page (which has no
-              content host). Reuses the same surface the content overlay shows. */}
-          {featureId === "native-messaging" ? (
-            <SurfaceHost kinds={["modal"]} />
-          ) : null}
           <header className="flex items-center gap-3">
             <Icon icon={feature.icon} />
             <div>

@@ -13,8 +13,8 @@ export {
   type InstanceMeta,
   type InstancesResult,
   type MetaInfo,
+  type PairPollStatusResult,
   type PairRequestResult,
-  type PairSubmitCodeResult,
   type SuggestionsResult,
 } from "../../../../packages/native-bridge-protocol/src/wire";
 

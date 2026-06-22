@@ -60,6 +60,10 @@ export type FeatureModule<TConfig = Record<string, unknown>> = {
   name: string
   description?: string
   icon?: CommandIcon
+  // When true, the generic options Features page does not list this feature —
+  // its UI lives on a bespoke page instead (e.g. the native bridge on the
+  // Integrations page). The module still registers commands/config/lifecycle.
+  hiddenFromFeaturesPage?: boolean
   // Synchronous so it composes into the sync command loader (source.ts).
   // Runtime state surfaces through async name/description resolvers on the
   // returned nodes, not here.

@@ -1,6 +1,6 @@
 # Wire protocol
 
-> **Status: proposed — not built.** See [README.md](./README.md).
+> **Status: implemented (v1) — `announce`/`register`/`dispose` + the invoke RPC.** No `ping`/`pong`, no separate `update`, and `execute` is fire-and-forget in v1. See [README.md](./README.md).
 
 This is the contract between a peer extension and Monocle, carried over native
 cross-extension messaging. It is deliberately close to the site SDK's

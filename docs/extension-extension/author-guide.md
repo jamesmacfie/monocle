@@ -1,6 +1,6 @@
 # Peer author guide
 
-> **Status: proposed — not built.** See [README.md](./README.md). This guide
+> **Status: implemented (v1).** See [README.md](./README.md). This guide
 > describes the developer experience for a *third-party* extension that wants to
 > add commands to Monocle, once the feature ships. The APIs below are the
 > proposed shapes from [protocol.md](./protocol.md) and

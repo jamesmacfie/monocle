@@ -1,6 +1,6 @@
 # Roadmap and open questions
 
-> **Status: proposed — not built.** See [README.md](./README.md).
+> **Status: v1 implemented; this file lists what remains.** See [README.md](./README.md).
 
 ## Phasing
 

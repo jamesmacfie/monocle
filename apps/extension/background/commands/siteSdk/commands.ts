@@ -1,22 +1,26 @@
-// Architecture: background command system, site-SDK bridge. Converts the
-// untrusted, page-owned command declarations registered via window.Monocle
-// (validated by the public schema) into background-owned CommandNodes the rest
-// of the palette treats as ordinary commands. The page never runs in the
-// background: every execute/children/search/getResults handler closes over the
-// owning tab's scope and round-trips back into the page world through the
-// content bridge (invokeSiteSdk -> monocle-sdk-invoke). Internal ids encode
-// origin + registration + public path so dynamic children resolve and
-// settings/favorites stay scoped to the site. See docs/site-sdk.md and
-// docs/site-sdk-security.md.
+// Architecture: background command system, site-SDK bridge. The site SDK is now
+// a thin ADAPTER over the shared external-command provider
+// (background/commands/externalProvider/). This file supplies only what is
+// genuinely site-specific: the "site:" id prefix, the origin-hash scope token,
+// the transport (round-trip into the owning tab's page world via the content
+// bridge), the page-derived fallback context, the generated per-site group, and
+// the `placement: "root"` split. The shared engine owns the per-node-type
+// conversion, id encoding, and re-validation of callback output. See
+// docs/site-sdk.md, docs/site-sdk-security.md, and
+// docs/extension-extension/provider-refactor.md.
 import type {
-  Browser,
   CommandNode,
-  SiteSdkCommand,
-  SiteSdkInvokeRequest,
-  SiteSdkRegistration,
+  ExternalCommand,
+  ExternalInvokeRequest,
+  ExternalRegistration,
 } from "../../../shared/types"
-import { validateSiteSdkCommandList } from "../../../shared/types"
+import { validateExternalCommandList } from "../../../shared/types"
 import { sendTabMessage } from "../../utils/browser"
+import {
+  createExternalRootCommands,
+  type ExternalProviderAdapter,
+  isExternalCommandId,
+} from "../externalProvider"
 import type { SiteSdkRegistryEntry } from "./registry"
 import {
   getSiteSdkHostLabel,
@@ -26,39 +30,18 @@ import {
 
 export const SITE_SDK_COMMAND_ID_PREFIX = "site:"
 
-type ConvertContext = {
-  scope: SiteSdkScope
-  registration: SiteSdkRegistration
-  path: string[]
-}
-
-const normalizeValues = (
-  values: Record<string, string> | undefined,
-): Record<string, string> => {
-  return values ?? {}
-}
-
 /**
  * Identifies commands produced from page-owned SDK declarations.
  *
  * This is used by ordering/keybinding logic without importing the registry.
  */
-export const isSiteSdkCommandId = (id: string): boolean => {
-  return id.startsWith(SITE_SDK_COMMAND_ID_PREFIX)
-}
-
-// Internal ids include origin, registration, and public path so dynamic
-// children can be resolved and settings/favorites stay scoped to the site.
-const toInternalCommandId = (context: ConvertContext, publicId: string) => {
-  const originHash = hashSiteSdkOrigin(context.scope.origin)
-  const path = [...context.path, publicId].join(".")
-  return `${SITE_SDK_COMMAND_ID_PREFIX}${originHash}:${context.registration.id}:${path}`
-}
+export const isSiteSdkCommandId = (id: string): boolean =>
+  isExternalCommandId(SITE_SDK_COMMAND_ID_PREFIX, id)
 
 // Callback-returned children/results are untrusted page output, so they are
 // validated again and treated as nested commands where `placement` is illegal.
-const validateCallbackCommands = (commands: unknown): SiteSdkCommand[] => {
-  const validation = validateSiteSdkCommandList(commands, {
+const validateCallbackCommands = (commands: unknown): ExternalCommand[] => {
+  const validation = validateExternalCommandList(commands, {
     allowPlacement: false,
   })
 
@@ -73,8 +56,8 @@ const validateCallbackCommands = (commands: unknown): SiteSdkCommand[] => {
 // registration. The bridge then crosses into the page world.
 const invokeSiteSdk = async (
   scope: SiteSdkScope,
-  request: SiteSdkInvokeRequest,
-): Promise<SiteSdkCommand[] | undefined> => {
+  request: ExternalInvokeRequest,
+): Promise<ExternalCommand[] | undefined> => {
   const response = await sendTabMessage(scope.tabId, {
     type: "monocle-site-sdk-invoke",
     request,
@@ -91,216 +74,37 @@ const invokeSiteSdk = async (
   return undefined
 }
 
-// Preserve only schema-backed display fields. Privileged fields such as
-// permissions/keybindings are never present on SDK command declarations.
-const createBaseCommand = (
-  command: SiteSdkCommand,
-  context: ConvertContext,
-) => ({
-  id: toInternalCommandId(context, command.id),
-  name: command.name,
-  description: command.description,
-  icon: command.icon,
-  color: command.color,
-  keywords: command.keywords,
-  executionPayload: command.executionPayload,
-  urlRules: command.urlRules,
-  settingsCatalog: {
-    configurable: false,
+// The site-specific adapter: the only behavioral differences from the extension
+// provider are transport (page bridge), scope token (origin hash), fallback
+// context (the page url/title), and the `placement: "root"` split.
+const siteAdapter: ExternalProviderAdapter<SiteSdkRegistryEntry> = {
+  idPrefix: SITE_SDK_COMMAND_ID_PREFIX,
+  scopeId: (entry) => hashSiteSdkOrigin(entry.scope.origin),
+  invoke: (entry, request) => invokeSiteSdk(entry.scope, request),
+  fallbackContext: (entry) => ({
+    url: entry.scope.url,
+    title: entry.scope.title,
+    modifierKey: null,
+  }),
+  ownerGroup: (entry, registration: ExternalRegistration) => {
+    const hostLabel = getSiteSdkHostLabel(entry.scope.origin)
+    return {
+      publicId: "__site-group",
+      name: registration.name || hostLabel,
+      description: `Commands from ${hostLabel}`,
+      icon: registration.icon || { type: "lucide", name: "Globe" },
+      color: "gray",
+      keywords: ["site", "website", hostLabel, registration.namespace],
+    }
   },
-})
-
-// Convert the serialized public schema into background-owned CommandNode
-// wrappers, preserving the path used for internal ids.
-const convertCommands = (
-  commands: SiteSdkCommand[],
-  context: ConvertContext,
-): CommandNode[] => {
-  return commands.map((command) => convertCommand(command, context))
-}
-
-// Wrap one SDK command as a normal background command, one branch per public
-// node type (action/submit/group/search/input/display). The wrapper never
-// holds page logic: every executable/dynamic field becomes a closure that
-// invokeSiteSdk's back into the owning page (re-validating any returned
-// children/results) so privileged background code never trusts or runs page
-// output. allowCustomKeybinding is forced false — page-owned commands must not
-// claim global keybindings.
-const convertCommand = (
-  command: SiteSdkCommand,
-  context: ConvertContext,
-): CommandNode => {
-  const base = createBaseCommand(command, context)
-
-  if (command.type === "action") {
-    return {
-      ...base,
-      type: "action",
-      actionLabel: command.actionLabel,
-      modifierActionLabel: command.modifierActionLabel,
-      confirmAction: command.confirmAction,
-      remainOpenOnSelect: command.remainOpenOnSelect,
-      allowCustomKeybinding: false,
-      execute: async (browserContext, values) => {
-        await invokeSiteSdk(context.scope, {
-          type: "execute",
-          callbackId: command.execute.callbackId,
-          commandId: command.id,
-          context: browserContext || {
-            url: context.scope.url,
-            title: context.scope.title,
-            modifierKey: null,
-          },
-          values: normalizeValues(values),
-          executionPayload: command.executionPayload,
-        })
-      },
-    }
-  }
-
-  if (command.type === "submit") {
-    return {
-      ...base,
-      type: "submit",
-      actionLabel: command.actionLabel,
-      confirmAction: command.confirmAction,
-      remainOpenOnSelect: command.remainOpenOnSelect,
-      doNotAddToRecents: command.doNotAddToRecents,
-      allowCustomKeybinding: false,
-      execute: async (browserContext, values) => {
-        await invokeSiteSdk(context.scope, {
-          type: "execute",
-          callbackId: command.execute.callbackId,
-          commandId: command.id,
-          context: browserContext || {
-            url: context.scope.url,
-            title: context.scope.title,
-            modifierKey: null,
-          },
-          values: normalizeValues(values),
-          executionPayload: command.executionPayload,
-        })
-      },
-    }
-  }
-
-  if (command.type === "group") {
-    return {
-      ...base,
-      type: "group",
-      enableDeepSearch: command.enableDeepSearch !== false,
-      children: async (browserContext: Browser.Context) => {
-        if (command.children.type === "static") {
-          return convertCommands(command.children.commands, {
-            ...context,
-            path: [...context.path, command.id],
-          })
-        }
-
-        const children = await invokeSiteSdk(context.scope, {
-          type: "children",
-          callbackId: command.children.callback.callbackId,
-          commandId: command.id,
-          context: browserContext,
-        })
-
-        return convertCommands(children || [], {
-          ...context,
-          path: [...context.path, command.id],
-        })
-      },
-    }
-  }
-
-  if (command.type === "search") {
-    return {
-      ...base,
-      type: "search",
-      actionLabel: command.actionLabel,
-      execute: command.execute
-        ? async (browserContext, values) => {
-            await invokeSiteSdk(context.scope, {
-              type: "execute",
-              callbackId: command.execute!.callbackId,
-              commandId: command.id,
-              context: browserContext || {
-                url: context.scope.url,
-                title: context.scope.title,
-                modifierKey: null,
-              },
-              values: normalizeValues(values),
-              executionPayload: command.executionPayload,
-            })
-          }
-        : undefined,
-      getResults: async (browserContext, search) => {
-        const results = await invokeSiteSdk(context.scope, {
-          type: "search",
-          callbackId: command.getResults.callbackId,
-          commandId: command.id,
-          context: browserContext,
-          search,
-        })
-
-        return convertCommands(results || [], {
-          ...context,
-          path: [...context.path, command.id],
-        })
-      },
-    }
-  }
-
-  if (command.type === "input") {
-    return {
-      ...base,
-      type: "input",
-      field: command.field,
-    }
-  }
-
-  return {
-    ...base,
-    type: "display",
-  }
-}
-
-// Commands without `placement: "root"` live under this generated group so a
-// site can add a compact top-level entry without naming its own group.
-const createSiteGroupCommand = (
-  entry: SiteSdkRegistryEntry,
-  registration: SiteSdkRegistration,
-  commands: SiteSdkCommand[],
-): CommandNode => {
-  const hostLabel = getSiteSdkHostLabel(entry.scope.origin)
-  const originHash = hashSiteSdkOrigin(entry.scope.origin)
-  const id = `${SITE_SDK_COMMAND_ID_PREFIX}${originHash}:${registration.id}:__site-group`
-
-  return {
-    type: "group",
-    id,
-    name: registration.name || hostLabel,
-    description: `Commands from ${hostLabel}`,
-    icon: registration.icon || { type: "lucide", name: "Globe" },
-    color: "gray",
-    keywords: ["site", "website", hostLabel, registration.namespace],
-    settingsCatalog: {
-      configurable: false,
-    },
-    enableDeepSearch: true,
-    children: async () =>
-      convertCommands(commands, {
-        scope: entry.scope,
-        registration,
-        path: ["__site-group"],
-      }),
-  }
+  partitionRoot: (commands) => ({
+    root: commands.filter((command) => command.placement === "root"),
+    grouped: commands.filter((command) => command.placement !== "root"),
+  }),
 }
 
 /**
  * Builds the root commands contributed by one scoped SDK registry entry.
- *
- * Ordering matters: root-placed commands are emitted before the generated site
- * group so query sorting can place all SDK entries before native suggestions.
  */
 export const createSiteSdkRootCommands = (
   entry?: SiteSdkRegistryEntry,
@@ -309,28 +113,5 @@ export const createSiteSdkRootCommands = (
     return []
   }
 
-  const rootCommands: CommandNode[] = []
-
-  for (const registration of entry.registrations) {
-    const placedAtRoot = registration.commands.filter(
-      (command) => command.placement === "root",
-    )
-    const grouped = registration.commands.filter(
-      (command) => command.placement !== "root",
-    )
-
-    rootCommands.push(
-      ...convertCommands(placedAtRoot, {
-        scope: entry.scope,
-        registration,
-        path: [],
-      }),
-    )
-
-    if (grouped.length > 0) {
-      rootCommands.push(createSiteGroupCommand(entry, registration, grouped))
-    }
-  }
-
-  return rootCommands
+  return createExternalRootCommands(siteAdapter, entry, entry.registrations)
 }

@@ -8,7 +8,12 @@ import type { RecordListItem } from "../../../shared/types"
 import { getFeatureConfig, setFeatureConfig } from "../config"
 import type { FeatureModule } from "../types"
 import { nativeMessagingCommands } from "./commands"
-import { clearStalePairing } from "./pairing"
+import {
+  acceptPairing,
+  clearStalePairing,
+  getPendingPairings,
+  rejectPairing,
+} from "./pairing"
 import {
   NATIVE_MESSAGING_FEATURE_ID,
   type NativeMessagingConfig,
@@ -16,9 +21,17 @@ import {
   nativeMessagingConfigSchema,
 } from "./types"
 
-const projectClients = (
+// Both record-list fields the Integrations page renders: apps still requesting
+// access (pending, from transient state) and apps that completed pairing
+// (connected, from durable config).
+const projectLists = async (
   config: NativeMessagingConfig,
-): Record<string, RecordListItem[]> => ({
+): Promise<Record<string, RecordListItem[]>> => ({
+  pendingRequests: (await getPendingPairings()).map((p) => ({
+    id: p.pairingId,
+    label: p.client.name,
+    sublabel: "Requesting access",
+  })),
   pairedClients: config.pairedClients.map((client) => ({
     id: client.instanceId,
     label: client.name,
@@ -33,6 +46,9 @@ export const nativeMessagingFeature: FeatureModule<NativeMessagingConfig> = {
   name: "Native Bridge",
   description: "Let paired desktop apps (e.g. Raycast) read tab commands",
   icon: { type: "lucide", name: "Link" },
+  // UI lives on the bespoke Integrations page (pending requests + code entry +
+  // connected apps), not the generic Features page.
+  hiddenFromFeaturesPage: true,
   commands: () => nativeMessagingCommands(),
   init: async () => {
     // Drop any pairing modal/pending left over from a previous session.
@@ -51,7 +67,7 @@ export const nativeMessagingFeature: FeatureModule<NativeMessagingConfig> = {
   settings: {
     configSchema: nativeMessagingConfigSchema,
     defaults: nativeMessagingConfigDefaults,
-    lists: (config) => projectClients(config),
+    lists: (config) => projectLists(config),
     schema: {
       sections: [
         {
@@ -95,12 +111,37 @@ export const nativeMessagingFeature: FeatureModule<NativeMessagingConfig> = {
       ],
     },
     handleAction: async (actionId, { payload }) => {
-      if (actionId !== "revoke") {
+      const itemId = typeof payload?.itemId === "string" ? payload.itemId : ""
+
+      // Accept a pending request: verify the code the human typed on the
+      // Integrations page (itemId is the pairingId, value is the code). Throw on
+      // a bad/expired code so the options page can surface it.
+      if (actionId === "accept") {
+        if (!itemId) {
+          return
+        }
+        const code = typeof payload?.value === "string" ? payload.value : ""
+        const result = await acceptPairing(itemId, code, Date.now())
+        if (!result.ok) {
+          throw new Error(
+            result.code === "pairing_expired"
+              ? "Pairing request expired"
+              : "Incorrect code",
+          )
+        }
         return
       }
-      const instanceId =
-        typeof payload?.itemId === "string" ? payload.itemId : ""
-      if (!instanceId) {
+
+      // Reject/dismiss a pending request.
+      if (actionId === "reject") {
+        if (itemId) {
+          await rejectPairing(itemId)
+        }
+        return
+      }
+
+      // Revoke a connected app's token (itemId is the instanceId).
+      if (actionId !== "revoke" || !itemId) {
         return
       }
       const config = await getFeatureConfig(
@@ -110,7 +151,7 @@ export const nativeMessagingFeature: FeatureModule<NativeMessagingConfig> = {
       await setFeatureConfig(NATIVE_MESSAGING_FEATURE_ID, {
         ...config,
         pairedClients: config.pairedClients.filter(
-          (client) => client.instanceId !== instanceId,
+          (client) => client.instanceId !== itemId,
         ),
       })
     },

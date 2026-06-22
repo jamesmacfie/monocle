@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
 import type { Suggestion } from "../../../shared/types"
-import { getSurfacesForUrl } from "../../surfaces"
 import { getFeatureConfig, setFeatureConfig } from "../config"
 import { authenticate } from "./auth"
 import { constantTimeEqual, generatePairingCode, generateToken } from "./crypto"
@@ -9,7 +8,13 @@ import {
   toExternalSuggestion,
   toExternalSuggestions,
 } from "./externalSuggestion"
-import { beginPairing, submitCode } from "./pairing"
+import {
+  acceptPairing,
+  beginPairing,
+  getPendingPairings,
+  pollStatus,
+  rejectPairing,
+} from "./pairing"
 import {
   NATIVE_MESSAGING_FEATURE_ID,
   type NativeMessagingConfig,
@@ -69,14 +74,22 @@ const enableBridge = (
     ...overrides,
   })
 
-// Pull the plaintext code out of the pairing modal surface the bridge pushes
-// (the only place it appears in cleartext), so tests can complete pairing.
-const readPairingCode = async (): Promise<string> => {
-  const surfaces = await getSurfacesForUrl("https://example.com/")
-  const modal = surfaces.find((s) => s.id === "pairing")
-  const block = modal?.content.blocks?.[0]
-  const text = block && block.type === "markdown" ? block.text : ""
-  return text.replace(/[^0-9]/g, "")
+// Direction B: begin → accept (browser verifies the code) → poll (app collects
+// the minted token). Helper that runs the full handshake and returns the token.
+const mint = async (
+  client: { name: string; instanceId: string },
+  now: number,
+): Promise<string> => {
+  const begin = await beginPairing(client, now)
+  const accepted = await acceptPairing(begin.pairingId, begin.code, now)
+  if (!accepted.ok) {
+    throw new Error(`accept failed: ${accepted.code}`)
+  }
+  const polled = await pollStatus(begin.pairingId, now)
+  if (polled.status !== "approved") {
+    throw new Error(`poll not approved: ${polled.status}`)
+  }
+  return polled.token
 }
 
 describe("toExternalSuggestion mapper", () => {
@@ -141,64 +154,96 @@ describe("crypto primitives", () => {
 })
 
 describe("pairing + auth", () => {
-  it("mints a token for the correct code and authenticates with it", async () => {
+  it("returns a code + pairingId and lists it as pending", async () => {
     await enableBridge()
     const now = 1_000_000
-
     const begin = await beginPairing(
       { name: "Raycast", instanceId: "inst-1" },
       now,
     )
     expect(begin.expiresInSeconds).toBe(60)
+    expect(begin.code).toMatch(/^\d{6}$/)
+    expect(begin.pairingId).toBeTruthy()
 
-    const code = await readPairingCode()
-    expect(code).toMatch(/^\d{6}$/)
+    const pending = await getPendingPairings(now)
+    expect(pending).toHaveLength(1)
+    expect(pending[0]).toMatchObject({
+      pairingId: begin.pairingId,
+      status: "pending",
+      client: { name: "Raycast", instanceId: "inst-1" },
+    })
+  })
 
-    const result = await submitCode(begin.pairingId, code, now + 1_000)
-    expect(result.ok).toBe(true)
-    if (!result.ok) {
-      return
-    }
+  it("mints a token on accept, delivers it once via poll, then authenticates", async () => {
+    await enableBridge()
+    const now = 1_500_000
+    const token = await mint({ name: "Raycast", instanceId: "inst-1" }, now)
 
-    const auth = await authenticate(result.token, "suggestions:read", now)
+    const auth = await authenticate(token, "suggestions:read", now)
     expect(auth.ok).toBe(true)
 
     const bad = await authenticate("not-the-token", "suggestions:read", now)
     expect(bad).toEqual({ ok: false, code: "unauthorized" })
+
+    // The request is gone after the token is collected — a second poll fails.
+    const pending = await getPendingPairings(now)
+    expect(pending).toHaveLength(0)
   })
 
-  it("rejects a wrong code and clears after the attempt cap", async () => {
+  it("poll returns the token exactly once", async () => {
+    await enableBridge()
+    const now = 1_700_000
+    const begin = await beginPairing(
+      { name: "App", instanceId: "inst-1b" },
+      now,
+    )
+    await acceptPairing(begin.pairingId, begin.code, now)
+
+    const first = await pollStatus(begin.pairingId, now)
+    expect(first.status).toBe("approved")
+    const second = await pollStatus(begin.pairingId, now)
+    expect(second.status).toBe("rejected")
+  })
+
+  it("rejects a wrong code on accept and clears after the attempt cap", async () => {
     await enableBridge()
     const now = 2_000_000
     const begin = await beginPairing({ name: "App", instanceId: "inst-2" }, now)
 
     for (let i = 0; i < 5; i++) {
-      const r = await submitCode(begin.pairingId, "000000", now)
+      const r = await acceptPairing(begin.pairingId, "000000", now)
       expect(r).toEqual({ ok: false, code: "pairing_rejected" })
     }
     // Cap reached → pending cleared, so even the right code now fails.
-    const after = await submitCode(begin.pairingId, "000000", now)
+    const after = await acceptPairing(begin.pairingId, begin.code, now)
     expect(after).toEqual({ ok: false, code: "pairing_rejected" })
   })
 
-  it("expires a pending pairing", async () => {
+  it("reject removes a pending request", async () => {
+    await enableBridge()
+    const now = 2_500_000
+    const begin = await beginPairing(
+      { name: "App", instanceId: "inst-2c" },
+      now,
+    )
+    await rejectPairing(begin.pairingId)
+    expect(await getPendingPairings(now)).toHaveLength(0)
+    const polled = await pollStatus(begin.pairingId, now)
+    expect(polled.status).toBe("rejected")
+  })
+
+  it("expires a pending pairing on accept", async () => {
     await enableBridge()
     const now = 3_000_000
     const begin = await beginPairing({ name: "App", instanceId: "inst-3" }, now)
-    const code = await readPairingCode()
-    const r = await submitCode(begin.pairingId, code, now + 61_000)
+    const r = await acceptPairing(begin.pairingId, begin.code, now + 61_000)
     expect(r).toEqual({ ok: false, code: "pairing_expired" })
   })
 
   it("revoking a client invalidates its token", async () => {
     await enableBridge()
     const now = 4_000_000
-    const begin = await beginPairing({ name: "App", instanceId: "inst-4" }, now)
-    const code = await readPairingCode()
-    const result = await submitCode(begin.pairingId, code, now)
-    if (!result.ok) {
-      throw new Error("pairing failed")
-    }
+    const token = await mint({ name: "App", instanceId: "inst-4" }, now)
 
     const config = await getFeatureConfig(
       NATIVE_MESSAGING_FEATURE_ID,
@@ -209,7 +254,7 @@ describe("pairing + auth", () => {
       pairedClients: [],
     })
 
-    const auth = await authenticate(result.token, "suggestions:read", now)
+    const auth = await authenticate(token, "suggestions:read", now)
     expect(auth).toEqual({ ok: false, code: "unauthorized" })
   })
 
@@ -256,6 +301,50 @@ describe("request pump", () => {
     expect(res).toMatchObject({ ok: false, error: { code: "not_enabled" } })
   })
 
+  it("pair/request returns a code; pair/poll-status walks pending → approved", async () => {
+    await enableBridge()
+    const begin = await handleBridgeRequest({
+      v: 1,
+      id: "pr",
+      method: "pair/request",
+      params: { client: { name: "A", instanceId: "i" } },
+    })
+    expect(begin).toMatchObject({ ok: true })
+    if (!begin.ok) {
+      throw new Error("pair/request failed")
+    }
+    const { pairingId, code } = begin.result as {
+      pairingId: string
+      code: string
+    }
+    expect(code).toMatch(/^\d{6}$/)
+
+    const pendingPoll = await handleBridgeRequest({
+      v: 1,
+      id: "pp",
+      method: "pair/poll-status",
+      params: { pairingId },
+    })
+    expect(pendingPoll).toMatchObject({
+      ok: true,
+      result: { status: "pending" },
+    })
+
+    // Human accepts on the Integrations page.
+    await acceptPairing(pairingId, code, Date.now())
+
+    const approvedPoll = await handleBridgeRequest({
+      v: 1,
+      id: "pa",
+      method: "pair/poll-status",
+      params: { pairingId },
+    })
+    expect(approvedPoll).toMatchObject({
+      ok: true,
+      result: { status: "approved" },
+    })
+  })
+
   it("requires a token for suggestions", async () => {
     await enableBridge()
     const res = await handleBridgeRequest({
@@ -270,12 +359,7 @@ describe("request pump", () => {
   it("returns suggestions for a valid token", async () => {
     const now = 5_000_000
     await enableBridge()
-    const begin = await beginPairing({ name: "A", instanceId: "i" }, now)
-    const code = await readPairingCode()
-    const minted = await submitCode(begin.pairingId, code, now)
-    if (!minted.ok) {
-      throw new Error("pairing failed")
-    }
+    const token = await mint({ name: "A", instanceId: "i" }, now)
 
     const res = await handleBridgeRequest(
       {
@@ -283,7 +367,7 @@ describe("request pump", () => {
         id: "s2",
         method: "suggestions/get-for-active-tab",
         params: {},
-        auth: { token: minted.token },
+        auth: { token },
       },
       now,
     )
@@ -293,15 +377,8 @@ describe("request pump", () => {
     })
   })
 
-  const mintToken = async (now: number): Promise<string> => {
-    const begin = await beginPairing({ name: "A", instanceId: "i" }, now)
-    const code = await readPairingCode()
-    const minted = await submitCode(begin.pairingId, code, now)
-    if (!minted.ok) {
-      throw new Error("pairing failed")
-    }
-    return minted.token
-  }
+  const mintToken = (now: number): Promise<string> =>
+    mint({ name: "A", instanceId: "i" }, now)
 
   it("suggestions/get-children requires a token (read scope, no execution opt-in)", async () => {
     await enableBridge()

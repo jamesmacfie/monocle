@@ -13,9 +13,13 @@ import { Panel } from "../components/ui"
 
 export function FeaturesPage() {
   const dispatch = useAppDispatch()
-  const features = useAppSelector(selectFeatures)
+  const allFeatures = useAppSelector(selectFeatures)
   const loading = useAppSelector(selectFeaturesLoading)
   const error = useAppSelector(selectFeaturesError)
+
+  // Integration providers (e.g. the native bridge) manage themselves on the
+  // Integrations page, not here.
+  const features = allFeatures.filter((f) => !f.hiddenFromFeaturesPage)
 
   useEffect(() => {
     dispatch(loadFeatures())

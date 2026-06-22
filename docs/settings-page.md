@@ -138,6 +138,7 @@ A left sidebar with these sections (Wouter hash routes in parentheses):
 | **Snippets** | `#/snippets` | Manage saved text snippets (create/edit/delete; bodies support insert-time placeholders). |
 | **Automations** | `#/automations` | Build, test, import/export, and arm automations (implemented — see [automations.md](./automations.md)). |
 | **Features** | `#/features` | Feature-module settings pages (implemented — see [features.md](./features.md)). |
+| **Integrations** | `#/integrations` | Approve/revoke desktop apps and (future) extensions that connect to Monocle. Lists pending requests (Accept/Reject, code-gated for loopback apps), connected integrations (Revoke), and the bridge enable/allow-execution toggles. Nav + toolbar badge counts pending requests. See [native-messaging/authentication-and-security.md](./native-messaging/authentication-and-security.md). |
 | **URL Rules** | `#/url-rules` | Per-command allow/deny rule overview and bulk clearing. |
 | **Permissions** | `#/permissions` | Grant/revoke optional permissions. |
 | **Data & Privacy** | `#/data` | Export/import settings, granular reset, usage analytics, clear-data shortcuts. |

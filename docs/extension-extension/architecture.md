@@ -1,6 +1,6 @@
 # Architecture
 
-> **Status: proposed — not built.** See [README.md](./README.md).
+> **Status: implemented (v1).** See [README.md](./README.md) for status + the two v1 divergences (schema reuse, trimmed protocol).
 
 This doc covers the moving parts, how they map onto Monocle's existing command
 system, the MV3 service-worker lifecycle constraints that shape the design, and

@@ -20,7 +20,7 @@ import { getBrowserAPI } from "../../../shared/utils/extension-api"
 import { getFeatureConfig } from "../config"
 import { authenticate } from "./auth"
 import { executeForActiveTab } from "./execute"
-import { beginPairing, submitCode } from "./pairing"
+import { beginPairing, pollStatus } from "./pairing"
 import {
   getChildrenForActiveTab,
   getForActiveTab,
@@ -113,25 +113,12 @@ export const handleBridgeRequest = async (
         const result = await beginPairing(req.params.client, now)
         return bridgeOk(id, result)
       })
-      .with({ method: "pair/submit-code" }, async (req) => {
-        const result = await submitCode(
-          req.params.pairingId,
-          req.params.code,
-          now,
-        )
-        if (!result.ok) {
-          return bridgeError(
-            id,
-            result.code,
-            result.code === "pairing_expired"
-              ? "Pairing code expired"
-              : "Pairing rejected",
-          )
-        }
-        return bridgeOk(id, {
-          token: result.token,
-          scopes: result.scopes,
-        })
+      .with({ method: "pair/poll-status" }, async (req) => {
+        // No auth: the app has no token yet — this IS how it gets one. The
+        // pairingId is the (single-use, expiring) capability. The human already
+        // gated the mint by typing the code on the Integrations page.
+        const result = await pollStatus(req.params.pairingId, now)
+        return bridgeOk(id, result)
       })
       .with({ method: "suggestions/get-for-active-tab" }, async (req) => {
         const auth = await authenticate(

@@ -15,6 +15,7 @@ import type {
 import { AutomationSchema } from "../../shared/types/automationValidation"
 import { getFeatureConfig } from "./config"
 import { elementHiderFeature } from "./elementHider"
+import { extensionRegistryFeature } from "./extensionRegistry"
 import { focusFeature } from "./focus"
 import { nativeMessagingFeature } from "./nativeMessaging"
 import { tabGroupsFeature } from "./tabGroups"
@@ -27,6 +28,7 @@ const features: FeatureModule<any>[] = [
   tabGroupsFeature,
   elementHiderFeature,
   nativeMessagingFeature,
+  extensionRegistryFeature,
 ]
 
 export const getFeatures = (): FeatureModule<any>[] => features
@@ -122,6 +124,7 @@ const projectFeatureDescriptor = async (
     config,
     lists,
     hasSettings: Boolean(feature.settings),
+    hiddenFromFeaturesPage: feature.hiddenFromFeaturesPage,
   }
 }
 
