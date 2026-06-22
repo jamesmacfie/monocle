@@ -421,6 +421,89 @@ kbd {
   margin-bottom: var(--space-2xl);
 }
 
+/* ---------- Works-with logo row ---------- */
+.logos {
+  text-align: center;
+}
+.logos__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin: 0 0 var(--space-md);
+}
+.logos__row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-md) var(--space-xl);
+}
+.logos__mark {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-ink-2);
+  opacity: 0.72;
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+.logos__mark:hover {
+  opacity: 1;
+  color: var(--color-ink);
+}
+.logos__mark a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ---------- By the numbers ---------- */
+.stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-md);
+  text-align: center;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-lg) var(--space-sm);
+  background: var(--color-glass);
+  border: 1px solid var(--color-rule-2);
+  border-radius: var(--radius-lg);
+}
+.stat__num {
+  font-family: var(--font-display);
+  font-size: var(--text-display-s);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+}
+.stat__label {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+@media (max-width: 760px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stat:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ---------- Demo palette — floating product window ---------- */
 
 .demo {

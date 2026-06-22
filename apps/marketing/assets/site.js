@@ -61,6 +61,54 @@
     }
   }
 
+  /* ---------- 5. Stat count-up ---------- */
+  var statNums = Array.prototype.slice.call(
+    document.querySelectorAll("[data-count-to]"),
+  )
+  if (statNums.length) {
+    var finalText = (el) => {
+      var to = parseInt(el.getAttribute("data-count-to"), 10) || 0
+      return to + (el.getAttribute("data-count-suffix") || "")
+    }
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+      statNums.forEach((el) => {
+        el.textContent = finalText(el)
+      })
+    } else {
+      var countUp = (el) => {
+        var to = parseInt(el.getAttribute("data-count-to"), 10) || 0
+        var suffix = el.getAttribute("data-count-suffix") || ""
+        if (to === 0) {
+          el.textContent = "0" + suffix
+          return
+        }
+        var start = null
+        var dur = 1100
+        var frame = (ts) => {
+          if (start === null) start = ts
+          var p = Math.min((ts - start) / dur, 1)
+          var eased = 1 - Math.pow(1 - p, 3)
+          el.textContent = Math.round(eased * to) + suffix
+          if (p < 1) requestAnimationFrame(frame)
+          else el.textContent = to + suffix
+        }
+        requestAnimationFrame(frame)
+      }
+      var statIO = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              countUp(e.target)
+              statIO.unobserve(e.target)
+            }
+          })
+        },
+        { rootMargin: "0px 0px -10% 0px", threshold: 0.4 },
+      )
+      statNums.forEach((el) => statIO.observe(el))
+    }
+  }
+
   /* ---------- 2. Demo palette loop ---------- */
   var demo = document.querySelector("[data-demo]")
   if (!demo) return
