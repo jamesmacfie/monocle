@@ -7,10 +7,10 @@ settings layer. Before suggestions are built, the background filters every
 command source against the current page URL using the matcher in
 `background/utils/urlFilter.ts`. The same filter also enforces the global
 `CommandSettings.hidden` flag before any URL-rule checks. This is the command
-visibility layer today — it is not yet a plugin system. This document describes
-the rule shape, the exact matching and precedence semantics, where filtering
-runs, and the management surfaces (Hide Command, Hide from Domain, Manage Allow
-List, Manage Deny List).
+visibility layer today — not yet a plugin system. This document describes the
+rule shape, the matching and precedence semantics, where filtering runs, and the
+management surfaces (Hide Command, Hide from Domain, Manage Allow List, Manage
+Deny List).
 
 ## The `UrlRules` shape
 
@@ -46,7 +46,7 @@ Matching is implemented by `matchesUrlPattern(url, patterns)` in
 regular expression via the internal `patternToRegex` helper and tests the URL
 against it. A URL matches a list if it matches **any** pattern in the list.
 
-The conversion rules, in order:
+Conversion rules, in order:
 
 1. The pattern is trimmed.
 2. Regex special characters (`. + ? ^ $ { } ( ) | [ ] \`) are escaped, leaving
@@ -95,10 +95,10 @@ These examples are taken from `background/utils/urlFilter.test.ts`.
 
 There is no special handling for `about:`, `chrome://`, or other non-HTTP
 schemes inside the matcher — they are matched literally by the regex like any
-other URL string. The important guard is upstream: when the current URL is empty
-(`""`), `filterCommandsByUrl` skips URL-rule matching but still removes commands
-with `CommandSettings.hidden === true`. This is how new-tab mode keeps
-allow-listed commands visible while still respecting global hides. See
+other URL string. The guard is upstream: when the current URL is empty (`""`),
+`filterCommandsByUrl` skips URL-rule matching but still removes commands with
+`CommandSettings.hidden === true`. This is how new-tab mode keeps allow-listed
+commands visible while still respecting global hides. See
 [new-tab-and-theme.md](./new-tab-and-theme.md).
 
 ## Precedence: command rules vs user rules
@@ -121,9 +121,9 @@ Precedence, highest first:
 
 Behavioral consequences, all covered by tests in `urlFilter.test.ts`:
 
-- A user **allow** rule overrides a command **deny** rule. Example: a command
-  denies `*://blocked.example.com/*`, but the user allow-lists that same URL —
-  the command appears there.
+- A user **allow** rule overrides a command **deny** rule: a command denies
+  `*://blocked.example.com/*`, but the user allow-lists that same URL — the
+  command appears there.
 - A user **deny** rule beats everything, including a user allow rule for the
   same URL (deny is checked first and returns immediately).
 - Within command rules alone, command **deny** wins over command **allow**
@@ -154,8 +154,7 @@ invoked for:
 Because filtering is centralized here, it also guards favorites, deep-search
 descendants, direct command execution, keybinding registry snapshots, and
 keybinding conflict checks — anything that resolves through the shared query
-path. See
-[search-and-ranking.md](./search-and-ranking.md) and
+path. See [search-and-ranking.md](./search-and-ranking.md) and
 [execution-and-actions.md](./execution-and-actions.md).
 
 ## Hide Command (generated action)
@@ -267,13 +266,13 @@ if ("urlRules" in partialSettings) {
 }
 ```
 
-This one-level merge is what lets the allow-list editor update `allowUrls`
-without clobbering a previously saved `denyUrls`, and vice versa. The hazard:
-the merge is only **one level deep**. Because `allowUrls`/`denyUrls` are arrays,
-passing a new array for a key fully **replaces** that array — it does not merge
+This one-level merge lets the allow-list editor update `allowUrls` without
+clobbering a previously saved `denyUrls`, and vice versa. The hazard: the merge
+is only **one level deep**. Because `allowUrls`/`denyUrls` are arrays, passing a
+new array for a key fully **replaces** that array — it does not merge
 element-wise. Callers that want to add a single pattern (as Hide from Domain
 does) must read the existing list, append, and write the full array back. After
-merging, `pruneCommandSettings`/`pruneUrlRules` drop empty rule objects so that
+merging, `pruneCommandSettings`/`pruneUrlRules` drop empty rule objects so
 clearing both lists removes `urlRules` (and an empty command-settings object is
 deleted entirely).
 
@@ -297,12 +296,12 @@ from `background/commands/websites/`. See [site-sdk.md](./site-sdk.md).
 **Open design question:** whether website commands should remain command arrays
 filtered by `urlRules`, or become a first-class plugin registry with metadata,
 activation policy, scoped settings, and plugin hooks. Treat `urlRules` as the
-current visibility layer that a future plugin model could build on, not as the
-plugin system itself. One concrete risk: user URL rules are keyed by command id,
-so a plugin that generates many dynamic command ids could fragment settings
-storage. SDK command ids are internally prefixed with a `site:` origin and
-registration path, so stable public ids matter if a site wants user URL-rule
-settings to keep applying across reloads.
+current visibility layer a future plugin model could build on, not as the plugin
+system itself. One risk: user URL rules are keyed by command id, so a plugin
+generating many dynamic command ids could fragment settings storage. SDK command
+ids are internally prefixed with a `site:` origin and registration path, so
+stable public ids matter if a site wants user URL-rule settings to keep applying
+across reloads.
 
 ## Known issues / review notes
 

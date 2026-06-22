@@ -1,6 +1,6 @@
 # Command Schema Reference
 
-Every command in Monocle is a typed `CommandNode` value defined in `shared/types/commands.ts`. The background owns these nodes (including their executable functions and dynamic resolvers); the React UI never sees a `CommandNode`. Instead, the background resolves each node's async values against the current `Browser.Context` and converts it into a serializable `Suggestion` (`shared/types/ui.ts`) via `commandsToSuggestions` in `background/commands/suggestions.ts`. This document is the field-by-field reference for authoring nodes: the shared base, the six node types, the `AsyncValue` resolution model, action labels, the full `FormField` catalog, and exactly which fields survive the node-to-suggestion conversion.
+Every command in Monocle is a typed `CommandNode` value defined in `shared/types/commands.ts`. The background owns these nodes (including their executable functions and dynamic resolvers); the React UI never sees a `CommandNode`. The background resolves each node's async values against the current `Browser.Context` and converts it into a serializable `Suggestion` (`shared/types/ui.ts`) via `commandsToSuggestions` in `background/commands/suggestions.ts`. This is the field-by-field reference for authoring nodes: the shared base, the six node types, the `AsyncValue` resolution model, action labels, the full `FormField` catalog, and which fields survive the node-to-suggestion conversion.
 
 For how to register and place a command, see [authoring-commands.md](authoring-commands.md). For the six types in narrative depth, see [command-types.md](command-types.md). For the executor flow and generated action menus, see [execution-and-actions.md](execution-and-actions.md).
 
@@ -19,7 +19,7 @@ export type AsyncValue<T> = T | ((context: Browser.Context) => Promise<T>)
 
 Source: `shared/types/commands.ts`, `AsyncValue`.
 
-Most display-facing fields on `CommandNodeBase` accept either a **static value** or an **async function of `Browser.Context`**. The async form lets a command render differently depending on the current page, the active modifier key, or persisted settings. `toggleTheme` (`background/commands/ui/theme.ts`) uses async `name`, `description`, and `icon` to reflect the current theme mode; `gotoTab` (`background/commands/browser/gotoTab.ts`) uses an async `name`/`icon` per tab.
+Most display-facing fields on `CommandNodeBase` accept either a **static value** or an **async function of `Browser.Context`**. The async form lets a command render differently depending on the current page, the active modifier key, or persisted settings. `toggleTheme` (`background/commands/ui/theme.ts`) uses async `name`/`description`/`icon` to reflect the current theme mode; `gotoTab` (`background/commands/browser/gotoTab.ts`) uses async `name`/`icon` per tab.
 
 ### Where and when resolution happens
 
@@ -359,10 +359,12 @@ export function createNoOpCommand(
 export type CommandExecutor = (
   context?: Browser.Context,
   values?: Record<string, string>,
-) => void | Promise<void>
+) => void | CommandResult | Promise<void> | Promise<CommandResult | undefined>
 ```
 
 Source: `shared/types/commands.ts`, `CommandExecutor`. Used by `action`, `submit`, and (optionally) `search` nodes.
+
+Most executors return `void` (run a side effect, close the palette). An executor may instead return a `CommandResult` (`{ value: string }`) so a data-producing command can hand its value back to a non-palette caller — the native bridge returns it to the desktop app, while the palette path still writes it to the clipboard. Copy-family commands use the `deliverClipboard(tabId, value, toast)` helper (`background/commands/clipboardDelivery.ts`): in palette execution it writes the clipboard via `monocle-clipboard-write`; in bridge execution (`delivery: "return"`) it skips the write and the returned `{ value }` is the channel. Pair this with the per-command `external: { result: "value" }` annotation (see the `external` field above).
 
 The executor's `values` are **always strings**, even though UI form state stores some fields as arrays. `executeResolvedCommand` calls `normalizeFormValues` (`background/commands/execution.ts`) before invoking `execute`:
 

@@ -5,8 +5,8 @@ Inline **calculations** parse the live palette query and render a result row
 `time in Auckland` → the current time there. The result stays in the palette's
 keyboard-navigation path (arrow to it, **Enter copies** its value, arrow past it
 to the command results below). Calculations are the first place Monocle renders
-custom, non-list-row content inside the palette, and they do so through a shared
-declarative content schema and renderer that richer Surfaces will reuse.
+custom, non-list-row content inside the palette, through a shared declarative
+content schema and renderer that richer Surfaces will reuse.
 
 This doc describes verified behavior.
 
@@ -24,8 +24,8 @@ new-tab/options DOM. It is built on the shared component boundary
 
 The constraint is the same one Surfaces lives under: content is a **closed,
 validated schema rendered by Monocle components — never author-supplied markup**.
-A calculation cannot emit HTML; it emits blocks. In v1 the `markdown` block is
-rendered as escaped plain text (no markdown parser dependency yet); blocks are
+A calculation cannot emit HTML; it emits blocks. In v1 the `markdown` block
+renders as escaped plain text (no markdown parser dependency yet); blocks are
 display-only and never capture focus, so a block stack hosted in a cmdk row
 stays a single selectable unit.
 
@@ -106,10 +106,10 @@ row is focused.
 
 On select, `selectCommand` (`shared/hooks/useCommandNavigation.tsx`) branches on
 `type === "calculation"`: it copies `copyValue` via `useCopyToClipboard`
-(`navigator.clipboard.writeText`, a permitted action under the Enter user
-gesture) and toasts success via `useToast` — **copy-and-stay**, so the palette
-stays open for the user to refine the query. No command executor runs and no
-executable function crosses the boundary.
+(`navigator.clipboard.writeText`, permitted under the Enter user gesture) and
+toasts success via `useToast` — **copy-and-stay**, so the palette stays open for
+the user to refine the query. No command executor runs and no executable
+function crosses the boundary.
 
 ## Lockstep
 

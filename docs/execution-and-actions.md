@@ -1,6 +1,6 @@
 # Command Execution and Actions
 
-This document describes what happens when a user acts on a command in the Monocle palette: how the UI builds an `monocle-command-execute` request, how the background resolves and runs the command, how plain Enter differs from modifier-Enter, how the action menu and its generated actions work, and how side effects (clipboard, new tab, toasts) flow back to the page. Execution is always background-owned: the UI sends typed messages with a command id, context, modifier, and form values; the background resolves a `CommandNode`, checks permissions, runs the executor, and records usage. The UI never holds executable functions.
+What happens when a user acts on a command in the Monocle palette: how the UI builds a `monocle-command-execute` request, how the background resolves and runs the command, plain Enter vs modifier-Enter, the action menu and its generated actions, and how side effects (clipboard, new tab, toasts) flow back to the page. Execution is always background-owned: the UI sends typed messages with a command id, context, modifier, and form values; the background resolves a `CommandNode`, checks permissions, runs the executor, and records usage. The UI never holds executable functions.
 
 ## End-to-end monocle-command-execute flow
 
@@ -35,7 +35,7 @@ This document describes what happens when a user acts on a command in the Monocl
 
 ## Plain Enter vs modifier-Enter
 
-Modifier *execution* (running a command with `context.modifierKey` set, e.g. "open in new tab on Cmd") is delivered through generated modifier actions selected from the action menu — see below. It is distinct from the **Cmd/Ctrl+Enter "execute and close" shortcut**, which `CommandContent` (in `shared/components/Command/CommandPalette.tsx`) intercepts directly: when a focused `action`/`submit` row is Cmd/Ctrl+Entered (and the action menu is closed), it `selectCommand(id, { forceClose: true })`, which forces `shouldNavigateBack` true in `buildCommandExecutionRequest` so the command runs and the palette closes even if it declares `remainOpenOnSelect`. It runs the base command and does **not** set `modifierKey`. The handler `stopPropagation`s so cmdk's own Enter does not also fire. The generated-modifier-action mechanism below has three parts.
+Modifier *execution* (running a command with `context.modifierKey` set, e.g. "open in new tab on Cmd") is delivered through generated modifier actions selected from the action menu — see below. It is distinct from the **Cmd/Ctrl+Enter "execute and close" shortcut**, which `CommandContent` (in `shared/components/Command/CommandPalette.tsx`) intercepts directly: when a focused `action`/`submit` row is Cmd/Ctrl+Entered (and the action menu is closed), it `selectCommand(id, { forceClose: true })`, forcing `shouldNavigateBack` true in `buildCommandExecutionRequest` so the command runs and the palette closes even if it declares `remainOpenOnSelect`. It runs the base command and does **not** set `modifierKey`. The handler `stopPropagation`s so cmdk's own Enter does not also fire. The generated-modifier-action mechanism below has three parts.
 
 ### Modifier tracking and the footer label
 
@@ -49,7 +49,7 @@ Modifier *execution* (running a command with `context.modifierKey` set, e.g. "op
 
 ### How the modifier reaches the executor
 
-A focused row's label changing does **not** by itself change what plain Enter does — pressing Enter calls `selectCommand` for the base command id with no `modifierKey` set. Modifier execution is performed by selecting a **generated modifier action** from the action menu. For every modifier that has a `modifierActionLabel` entry, `commandsToSuggestions` (in `background/commands/suggestions.ts`) emits an action with id `<commandId>-<modifier>-enter-action`, a display keybinding of `<cmd-enter>` / `<shift-enter>` / etc., and `executionContext: { type: "modifier", targetCommandId, modifierKey }`. When that action id is executed, `executeGeneratedAction` re-runs the target command with `{ ...context, modifierKey }`, so the executor sees `context.modifierKey === "cmd"` (etc.).
+A focused row's label changing does **not** by itself change what plain Enter does — pressing Enter calls `selectCommand` for the base command id with no `modifierKey` set. Modifier execution is performed by selecting a **generated modifier action** from the action menu. For every modifier that has a `modifierActionLabel` entry, `commandsToSuggestions` (in `background/commands/suggestions.ts`) emits an action with id `<commandId>-<modifier>-enter-action`, a display keybinding of `<cmd-enter>` / `<shift-enter>` / etc., and `executionContext: { type: "modifier", targetCommandId, modifierKey }`. When that action id is executed, `executeGeneratedAction` re-runs the target command with `{ ...context, modifierKey }`, so the executor sees `context.modifierKey === "cmd"`.
 
 Example — history items open in the current tab on Enter, in a new tab on Cmd (`background/commands/browser/history.ts`):
 
@@ -76,7 +76,7 @@ Some commands instead split behavior into separate child actions keyed by litera
 
 ## The action menu
 
-The action menu is the secondary "Actions" surface (footer button labelled `Actions` + `Alt`, or the `open-actions` keyboard command). It lists a command's actions including generated ones.
+The action menu is the secondary "Actions" surface (footer button labelled `Actions` + `Alt`, or the `open-actions` keyboard command). It lists a command's actions, including generated ones.
 
 ### Eligibility and contents
 
@@ -124,7 +124,7 @@ Generated actions are synthetic `Suggestion`s whose ids encode a target command 
 | `resetKeybinding` | `reset-keybinding-<id>` | when a custom keybinding setting exists | `clearCommandKeybindingAndRefresh(targetId)` |
 | `hideDomain` | `hide-from-domain-<id>` | when a real page URL exists | Adds a deny-URL rule for the current domain via `appendCommandDenyUrlRuleAndInvalidate` (see [url-filtering.md](url-filtering.md)) |
 
-`generatedActionIds` / `parseGeneratedCommandAction` live in `shared/utils/generated-actions.ts`; `background/commands/generatedActions.ts` re-exports them for command-system imports. The same prefix/suffix constants reserve Site SDK command ids, so generated action encoding, execution parsing, and SDK validation share one protocol helper. The parser matches the prefix table first, then the `-(cmd\|shift\|alt\|ctrl)-enter-action` modifier regex, then the bare `-enter-action` suffix. The `modifier`/`primary` regex ordering matters: a modifier suffix is checked before the generic `-enter-action` suffix.
+`generatedActionIds` / `parseGeneratedCommandAction` live in `shared/utils/generated-actions.ts`; `background/commands/generatedActions.ts` re-exports them for command-system imports. The same prefix/suffix constants reserve Site SDK command ids, so generated action encoding, execution parsing, and SDK validation share one protocol helper. The parser matches the prefix table first, then the `-(cmd\|shift\|alt\|ctrl)-enter-action` modifier regex, then the bare `-enter-action` suffix — the modifier suffix is checked before the generic `-enter-action` suffix.
 
 ## confirmAction (two-step confirmation)
 
@@ -146,7 +146,7 @@ Generated favorite/set-keybinding/hide-domain/hide-command actions set `remainOp
 
 ## executionPayload and SuggestionExecutionPayload
 
-`SuggestionExecutionPayload` is `Record<string, string | string[]>` (`shared/types/ui.ts`). A command node may declare `executionPayload` as an `AsyncValue`; it is resolved during suggestion conversion and merged into `formValues` at selection time (`{ ...page.formValues, ...suggestion.executionPayload }`). This carries per-suggestion data (for example a `dynamicUrl` on a search result) into the executor without an inline form. The background `normalizeFormValues` then flattens it to strings before calling `execute`.
+`SuggestionExecutionPayload` is `Record<string, string | string[]>` (`shared/types/ui.ts`). A command node may declare `executionPayload` as an `AsyncValue`; it is resolved during suggestion conversion and merged into `formValues` at selection time (`{ ...page.formValues, ...suggestion.executionPayload }`). This carries per-suggestion data (e.g. a `dynamicUrl` on a search result) into the executor without an inline form. The background `normalizeFormValues` then flattens it to strings before calling `execute`.
 
 ## Side-effect events (clipboard, new tab)
 
@@ -161,12 +161,15 @@ Executors run in the background service worker and cannot touch the page DOM or 
 
 Both listeners are mounted in the palette (`CopyToClipboardListener` and `NewTabListener` are rendered inside `CommandPalette`). They respond to `chrome.runtime.onMessage` and reply `{ received: true }`. `useCopyToClipboard` warns and returns `false` when `navigator.clipboard` is unavailable or the write fails.
 
-Typical executor pattern (`copyCurrentTabUrl`):
+Typical copy-command executor pattern (e.g. `copyUuidV4`, or the action children of the `copy-current-tab-url` group):
 
 ```ts
-await sendTabMessage(activeTab.id, { type: "monocle-clipboard-write", message: activeTab.url })
-await sendTabMessage(activeTab.id, { type: "monocle-toast", level: "success", message: "URL copied to clipboard" })
+// background/commands/clipboardDelivery.ts
+await deliverClipboard(activeTab.id, value, "URL copied to clipboard")
+return { value }
 ```
+
+`deliverClipboard(tabId, value, toastMessage)` emits the `monocle-clipboard-write` + success `monocle-toast` events in normal palette/keybinding execution, but in native-bridge execution (`delivery: "return"`) it suppresses the write so the returned `{ value }` `CommandResult` is forwarded to the desktop app instead. Authors do not branch on the caller — the delivery mode is ambient module state set by `executeResolvedCommand`. See [command-schema.md](./command-schema.md) and [native-messaging/execution.md](./native-messaging/execution.md).
 
 ## Toast feedback paths
 
@@ -187,7 +190,7 @@ There are two background message entry points for toasts, plus the missing-permi
 - `submit` commands: recorded unless `doNotAddToRecents === true`.
 - All other types: never recorded.
 
-Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram, an EMA metadata score, and (when provided) `parentNames` / `parentIds`, persisting to `monocle-commandUsage` in `chrome.storage.local`. Data older than 90 days is pruned opportunistically. The resulting live scores feed search ranking, while parent ids let nested usage lift the root parent in the empty Suggestions list — see [search-and-ranking.md](search-and-ranking.md). `doNotAddToRecents` therefore only affects `submit` commands; `action` commands are always counted.
+Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram, an EMA metadata score, and (when provided) `parentNames` / `parentIds`, persisting to `monocle-commandUsage` in `chrome.storage.local`. Data older than 90 days is pruned opportunistically. The resulting live scores feed search ranking, while parent ids let nested usage lift the root parent in the empty Suggestions list — see [search-and-ranking.md](search-and-ranking.md). `doNotAddToRecents` only affects `submit` commands; `action` commands are always counted.
 
 ## Known issues and review notes
 
@@ -208,7 +211,7 @@ Recording updates `totalUsage`, `lastUsed`, the 24-slot `hourlyUsage` histogram,
 ## Related docs
 
 - [architecture.md](architecture.md) — runtime modes and core data flows
-- [messaging.md](messaging.md) — `monocle-command-execute`, `monocle-toast-show`, `monocle-toast-show` envelopes
+- [messaging.md](messaging.md) — `monocle-command-execute`, `monocle-toast-show`, `monocle-toast` envelopes
 - [command-schema.md](command-schema.md) and [command-types.md](command-types.md) — `CommandNode` fields including `actionLabel`, `modifierActionLabel`, `confirmAction`, `remainOpenOnSelect`, `executionPayload`
 - [search-and-ranking.md](search-and-ranking.md) — usage recording and ranking
 - [keybindings.md](keybindings.md) — custom keybinding capture/reset actions

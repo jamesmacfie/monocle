@@ -15,9 +15,8 @@
 > (Windows/Linux, signing/notarization, profile-level instance selection). This PRD
 > specifies the **bridge app** — the downloadable native component that sits
 > between the Monocle browser extension and an external caller (e.g. Raycast).
-> It operationalizes the "host distribution & signing" open question in
-> [roadmap.md](./roadmap.md) and refines the single-binary host in
-> [native-host.md](./native-host.md).
+> It operationalizes host distribution & signing and refines the single-binary
+> host in [native-host.md](./native-host.md).
 
 ---
 
@@ -26,17 +25,15 @@
 The three-part bridge is **extension → bridge → caller**
 ([architecture.md](./architecture.md)). The extension half is built
 (`apps/extension/background/features/nativeMessaging/`) and the macOS M0+M1
-bridge app now lives at `apps/bridge`. A browser extension still fundamentally
-cannot ship this native component itself (MV3 can't open a socket; the relay
-must be a native binary outside the browser), so the bridge remains a separate
-downloadable app.
+bridge app now lives at `apps/bridge`. A browser extension cannot ship this
+native component itself (MV3 can't open a socket; the relay must be a native
+binary outside the browser), so the bridge remains a separate downloadable app.
 
-This PRD proposes shipping that relay as a **minimal cross-platform tray /
-menu-bar app built with Tauri**, so distribution is a normal "download and run"
-rather than hand-run scripts. The app is a **dumb relay with a tray icon** — it
-holds no Monocle logic, exactly as [native-host.md](./native-host.md) requires.
-All real decisions (active tab, suggestions, pairing, tokens) stay in the
-extension.
+This PRD ships that relay as a **minimal cross-platform tray / menu-bar app built
+with Tauri**, so distribution is a normal "download and run" rather than hand-run
+scripts. The app is a **dumb relay with a tray icon** — it holds no Monocle
+logic, exactly as [native-host.md](./native-host.md) requires. All real decisions
+(active tab, suggestions, pairing, tokens) stay in the extension.
 
 Target platforms: **macOS, Windows, Linux** — the extension runs on all three,
 so the bridge must too.
@@ -62,19 +59,22 @@ so the bridge must too.
   those live in the extension).
 - No app window / preferences beyond the tray menu.
 - No auto-update (fast-follow; see §11).
-- No multi-browser *selection* UI (the app may relay one connected browser in
-  v1; caller-side selection is a protocol concern — see
-  [multi-instance.md](./multi-instance.md)).
+- No **profile-level** instance selection — the daemon routes by browser *type*
+  only (profiles/channels collapse, last relay wins). Multi-browser routing
+  itself **is** implemented (the daemon multiplexes all connected relays, lists
+  them at `GET /instances`, and the caller targets one via the
+  `X-Monocle-Target` header); only profile-level granularity is deferred — see
+  [multi-instance.md](./multi-instance.md).
 
 ---
 
 ## 3. The architecture decision (read this first)
 
-A tray app is **persistent** (it runs until quit, survives browser restarts). A
+A tray app is **persistent** (runs until quit, survives browser restarts). A
 native-messaging host is **transient** — the browser spawns a *fresh child
 process per `connectNative`* from the manifest's `path` and kills it when the
 port closes. `connectNative` can **never** attach to an already-running process.
-These two models must be reconciled. There are two viable designs.
+These two models must be reconciled. Two viable designs.
 
 ### Recommended: persistent daemon + a thin connectNative relay (one binary, two modes)
 
@@ -106,7 +106,7 @@ relay** the browser spawns — both are the *same binary* in different modes:
 Why this is the right call:
 
 - **Keeps the cryptographic origin binding.** Native messaging's
-  `allowed_origins` / `allowed_extensions` still proves the peer is *Monocle's
+  `allowed_origins` / `allowed_extensions` proves the peer is *Monocle's
   extension*. For a loopback port any local process can reach, that guarantee is
   worth the extra moving part.
 - **Zero changes to the built extension** — it still calls
@@ -121,7 +121,7 @@ Why this is the right call:
   browser is connected (returns a "no connected browser" status).
 
 Cost: a per-OS manifest registration step (the app automates it) and the
-relay/IPC plumbing. Both are bounded and one-time.
+relay/IPC plumbing — both bounded and one-time.
 
 ### Alternative: WebSocket daemon (extension connects out, no native messaging)
 
@@ -145,11 +145,10 @@ fallback if manifest registration proves too brittle in the field.
   (`.dmg`/`.app`, `.msi`/`.exe`, `.deb`/`.AppImage`/`.rpm`).
 - **First-class tray support** (Tauri v2 `TrayIconBuilder` + `menu`), and can run
   **window-less** (macOS `ActivationPolicy::Accessory` → no Dock icon).
-- **Maintained plugins for exactly our needs**: `tauri-plugin-autostart`
-  (open-at-login, all three OSes) and `tauri-plugin-single-instance` (ensure one
-  daemon).
-- **Small footprint** vs Electron (uses the OS webview; for a tray-only app we
-  barely use a webview at all — the relay/daemon core is plain Rust + tokio).
+- **Maintained plugins for our needs**: `tauri-plugin-autostart` (open-at-login,
+  all three OSes) and `tauri-plugin-single-instance` (ensure one daemon).
+- **Small footprint** vs Electron (uses the OS webview; a tray-only app barely
+  uses a webview — the relay/daemon core is plain Rust + tokio).
 - Native-messaging stdio framing (native-endian u32 length prefix + UTF-8 JSON) and
   UDS/named-pipe IPC are straightforward in Rust/tokio.
 
@@ -178,8 +177,8 @@ exits — so a browser-spawned relay never boots a GUI.
    servers, optionally leave manifests in place).
 
 It does **not** build suggestions, decide pairing, mint/store tokens, or render
-the pairing code — all of that is the extension's job and travels through the
-relay as opaque JSON.
+the pairing code — all the extension's job, traveling through the relay as opaque
+JSON.
 
 ---
 
@@ -190,7 +189,8 @@ A single tray menu. No window unless a future setting needs one.
 ```
 Monocle Bridge
 ────────────────────────
-● Connected: Chrome · Default        (status line, disabled)
+● Connected: Chrome                  (one status line per connected browser, disabled)
+● Connected: Firefox                 (the menu is rebuilt on connect/disconnect)
   Listening on 127.0.0.1:8765        (status line, disabled)
 ────────────────────────
 ☑ Open at login
@@ -200,7 +200,9 @@ Monocle Bridge
   Quit Monocle Bridge
 ```
 
-- **Status lines**: live connection state; "No browser connected" when idle.
+- **Status lines**: one per connected browser (the daemon tracks all connected
+  relays by browser type and rebuilds the menu on connect/disconnect); "No
+  browser connected" when idle.
 - **Open at login**: `tauri-plugin-autostart`.
 - **Re-register browsers**: re-runs §8 (for a browser installed after the app).
 - **Copy diagnostics**: OS, version, registered manifests, connected browsers,
@@ -333,4 +335,3 @@ registration.
 - [protocol.md](./protocol.md) — the wire protocol the app carries verbatim.
 - [multi-instance.md](./multi-instance.md) — the registry/selection this app's
   daemon brings forward.
-- [roadmap.md](./roadmap.md) — where host distribution sits in the phasing.

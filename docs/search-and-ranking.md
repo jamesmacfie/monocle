@@ -1,6 +1,6 @@
 # Search and Ranking
 
-This document describes how commands are *found* in Monocle: how the background-owned search index and scorer answer palette queries, how usage-based ranking and favorites are computed, how deep search flattens nested commands into root search results, how `search`-type command nodes resolve typed queries server-side, and how per-page search state is preserved during navigation.
+How commands are *found* in Monocle: the background-owned search index and scorer, usage-based ranking and favorites, deep search flattening nested commands into root results, `search`-type nodes resolving typed queries server-side, and per-page search state preserved during navigation.
 
 ## Background-owned search model
 
@@ -9,7 +9,7 @@ Palette search is owned entirely by the background service worker. CMDK on the U
 The split of responsibilities:
 
 1. **Empty query** — `monocle-commands-get` returns the root empty state: `favorites` and usage-ranked `suggestions` (`background/messages/getCommands.ts` → `getCommandCollections`). Root suggestions are root command nodes only, so nested command usage is aggregated onto the nested command's root parent for this empty-state ordering. The UI renders these instantly with no search round-trip.
-2. **Non-empty query** — the UI debounces ~200 ms and sends `monocle-commands-search` (`background/messages/searchCommands.ts`). The background scores entries from its in-memory search index (root pages) or from the page's children (child pages), sorts, slices the top N (default 40), converts only those to `Suggestion`s, and returns them. The UI renders them as a single flat "Results" group.
+2. **Non-empty query** — the UI debounces ~200 ms and sends `monocle-commands-search` (`background/messages/searchCommands.ts`). The background scores entries from its in-memory search index (root pages) or the page's children (child pages), sorts, slices the top N (default 40), converts only those to `Suggestion`s, and returns them. The UI renders them as a single flat "Results" group.
 
 All pages search through the background — root and child group pages alike. The exceptions:
 
@@ -32,10 +32,7 @@ All pages search through the background — root and child group pages alike. Th
 
 Suggestions are **not** built at index time — `commandsToSuggestions` (with its eager action menus) runs only against the top-N entries returned per query.
 
-Site SDK commands are included only when the request sender has a scoped
-registration. The SDK scope/revision is part of the cache key, and SDK entries
-are built with the real page URL/title so page-owned labels and URL rules stay
-document-specific.
+Site SDK commands are included only when the request sender has a scoped registration. The SDK scope/revision is part of the cache key; SDK entries are built with the real page URL/title so page-owned labels and URL rules stay document-specific.
 
 ### Cache key, TTL, and URL filtering
 
@@ -58,9 +55,7 @@ Consequence of the URL-free build: command sources whose `children()` depend on 
 - `permissions.onAdded/onRemoved`
 - `storage.onChanged` for the `monocle-settings` and `monocle-favoriteCommandIds` keys (this covers settings and favorites mutations without import cycles — both write `chrome.storage.local`, and `storage.onChanged` fires for same-context writes)
 
-Hidden and URL-rule writes also invalidate the index directly from their message
-handlers; the storage listener remains the backstop for external or same-key
-updates.
+Hidden and URL-rule writes also invalidate the index directly from their message handlers; the storage listener is the backstop for external or same-key updates.
 
 A `monocle-commandUsage` write does **not** rebuild the index; it only clears the lighter usage-rank cache (below), since usage affects ranking, not membership. `invalidateSearchIndex()` also drops the memoized URL-filtered view. Every listener is existence-guarded (`api.x?.onY?.addListener`) for Firefox.
 
@@ -82,7 +77,7 @@ final   = textual * sourceWeight * usageBoost
 - `sourceWeight` is `1.0` for root commands and favorites, or the deep-search weight (below).
 - Site SDK root commands and SDK deep-search descendants use the native
   `1.0` source weight by default.
-- `usageBoost = 1 + 0.15 * (1 - rank/rankedCount)` for commands present in `getRankedCommandIds()`, else `1`. Usage is a tie-breaker, not a dominator — it cannot lift a substring match above a prefix match.
+- `usageBoost = 1 + 0.15 * (1 - rank/rankedCount)` for commands in `getRankedCommandIds()`, else `1`. Usage is a tie-breaker, not a dominator — it cannot lift a substring match above a prefix match.
 
 Ties break: favorites first → lower usage rank → shorter name → id. Zero-score entries are dropped; the scorer is never called with an empty query.
 
@@ -97,7 +92,7 @@ Ties break: favorites first → lower usage rank → shorter name → id. Zero-s
 
 ### Incremental narrowing (root)
 
-Every scoring tier is monotonic under appending — if a query scores zero for an entry, any extension of that query also scores zero. So the match set for `prev + chars` is always a subset of the match set for `prev`. The handler keeps module-scoped state (`lastRootSearch`) holding the prior query and **all** of its matched entries (not the sliced top-N). When the next query extends the prior one against the same visible base (identity check), it re-scores only those candidates instead of the full index; otherwise (backspace, paste, a different prefix, a rebuilt index, or a URL change) it falls back to a full scan. The state is shared across tabs — a mismatch only costs a full scan, never a wrong result. This is what makes character-by-character typing collapse to a tiny candidate set after the first keystroke.
+Every scoring tier is monotonic under appending — if a query scores zero for an entry, any extension also scores zero, so the match set for `prev + chars` is always a subset of the match set for `prev`. The handler keeps module-scoped state (`lastRootSearch`) holding the prior query and **all** of its matched entries (not the sliced top-N). When the next query extends the prior one against the same visible base (identity check), it re-scores only those candidates instead of the full index; otherwise (backspace, paste, a different prefix, a rebuilt index, or a URL change) it falls back to a full scan. The state is shared across tabs — a mismatch only costs a full scan, never a wrong result. This makes character-by-character typing collapse to a tiny candidate set after the first keystroke.
 
 ## Usage-based ranking
 
@@ -131,13 +126,13 @@ Each recording updates the command's `CommandUsageStats`:
 - **Recency** — `Math.exp(-RECENCY_DECAY_RATE * daysSinceLastUse)` with `RECENCY_DECAY_RATE = 0.099` (a 7-day half-life: `ln(2)/7`).
 - **Time-of-day boost** — `calculateTimeBoost(hourlyUsage, currentHour)` returns `1 + timeScore * 0.5`, where `timeScore` sums the share of historical usage in a ±2-hour window around the current hour with linear distance decay (`1 - |i|*0.2`). Commands habitually used at this time of day get up to a 1.5× boost; no history yields a neutral `1`.
 
-The persisted `emaScore` is still updated on write for catalog/analytics display, but it is not used for ranking. Ranking must be live: using a persisted EMA as the score gives old commands a stale floor and prevents recency/time-of-day from moving them down.
+The persisted `emaScore` is updated on write for catalog/analytics display but is not used for ranking. Ranking must be live: a persisted EMA gives old commands a stale floor and prevents recency/time-of-day from moving them down.
 
 `getRankedCommandIds()` recomputes scores for every command with `totalUsage > 0` at the *current* hour and returns leaf ids sorted by descending score. This drives search-time `usageBoost`, so typed search can boost the actual command the user executed.
 
 `getRankedRootCommandIds()` uses the same live score but maps nested command stats to `parentIds[parentIds.length - 1]` before sorting. This drives the root empty-state ordering (`sortSuggestionsByUsage` in `query.ts`), where only root command nodes can be rendered. Example: repeatedly executing a saved snippet records usage on `snippet-<id>` for search ranking and also lifts the root `insert-snippet` group in the empty Suggestions list.
 
-For the search path, `searchIndex.ts` wraps this in `getUsageRankMap()` — a module-cached `commandId → rank` map behind the same ~30 s TTL, cleared on `monocle-commandUsage` writes. Both root and child queries read the cached map, so ranking no longer pays a storage read (and full re-rank) on every keystroke.
+For the search path, `searchIndex.ts` wraps this in `getUsageRankMap()` — a module-cached `commandId → rank` map behind the same ~30 s TTL, cleared on `monocle-commandUsage` writes. Both root and child queries read the cached map, so ranking pays no storage read (or full re-rank) per keystroke.
 
 ### Cleanup
 
@@ -147,7 +142,7 @@ After a recording, if `≥ CLEANUP_INTERVAL_DAYS` (90) have passed since `lastCl
 
 Favorites are persisted separately in `background/commands/favorites.ts` under `chrome.storage.local` key `monocle-favoriteCommandIds` — a flat `string[]` of command ids.
 
-- A command becomes a favorite via `toggleFavoriteCommandId(id)` (or `addToFavoriteCommandIds` / `removeFromFavoriteCommandIds`). The user-facing entry point is the generated **Toggle Favorite** action (`toggleFavoriteCommand`, exported here), surfaced in every command's action menu; see [execution-and-actions.md](./execution-and-actions.md). `clearFavoritesCommand` removes the entire key.
+- A command becomes a favorite via `toggleFavoriteCommandId(id)` (or `addToFavoriteCommandIds` / `removeFromFavoriteCommandIds`). The user-facing entry point is the generated **Toggle Favorite** action (`toggleFavoriteCommand`, exported here), in every command's action menu; see [execution-and-actions.md](./execution-and-actions.md). `clearFavoritesCommand` removes the entire key.
 - Each suggestion also carries `isFavorite` (set in `commandsToSuggestions`, `background/commands/suggestions.ts`, from `favoriteCommandIds.includes(node.id)`) so the UI can show a star and label the toggle correctly.
 
 ### How favorites are surfaced
@@ -164,14 +159,13 @@ Child pages do not inherit favorites — `navigateToCommand` sets `favorites: []
 
 ## Deep search
 
-Deep search lets descendants of opted-in groups appear in **root** search results without the user navigating into the group. The flatten lives in the index build (`background/commands/searchIndex.ts`).
+Deep search lets descendants of opted-in groups appear in **root** search results without navigating into the group. The flatten lives in the index build (`background/commands/searchIndex.ts`).
 
 ### Opting in
 
 A `group` node opts in with `enableDeepSearch: true`. Children groups inherit the flag: `shouldDeepSearch = enableFlag === true || (inheritedDeepSearch && enableFlag !== false)`. So a nested group is flattened automatically once an ancestor enabled deep search, unless it explicitly sets `enableDeepSearch: false`.
 
-SDK groups invert the default at conversion time: grouped site commands are
-deep-searchable unless the public command sets `enableDeepSearch: false`.
+SDK groups invert the default at conversion time: grouped site commands are deep-searchable unless the public command sets `enableDeepSearch: false`.
 
 ### Which descendants are flattened
 
@@ -196,14 +190,14 @@ Deep-search entries carry a source multiplier in `DEEP_SEARCH_RANK_WEIGHTS` (`se
 | `history` | 0.7 |
 | (any other) | 1.0 (`DEFAULT_DEEP_SEARCH_WEIGHT`) |
 
-The scorer multiplies the weight into the final score, so root commands outrank equally-relevant history/bookmark hits. The ordering also decides same-URL dedupe winners (Pass B below): `bookmarks` sits above `open-tabs` so a bookmarked page that is also open surfaces under its user-given bookmark name rather than the transient tab title — opening it still focuses the existing tab.
+The scorer multiplies the weight into the final score, so root commands outrank equally-relevant history/bookmark hits. The ordering also decides same-URL dedupe winners (Pass B below): `bookmarks` sits above `open-tabs`, so a bookmarked page that is also open surfaces under its user-given bookmark name rather than the transient tab title — opening it still focuses the existing tab.
 
 ### Deduplication and `dedupeKey`
 
 `dedupeEntries` runs two passes at index-build time:
 
 - **Pass A — by entry id.** Collapses identical ids (e.g. a `chrome.history` item that appears in several time-period groups), keeping the highest-weight entry and merging the favorite flag.
-- **Pass B — by `dedupeKey`.** For entries that set a `dedupeKey` (typically a URL normalized via `normalizeUrlForDedupe`), only entries from the **highest-weight source** for that key survive. Entries with no `dedupeKey` pass through untouched, and two entries from the *same* source (same weight) with the same key are both kept. This is how the same URL open in tabs vs. present in history collapses to a single row. The survivor **absorbs the dropped entries' name and keywords into its own keywords** (re-tokenized), so the destination stays findable by *every* source's name — e.g. a row kept for a bookmark's name is still matched by the open tab's title, and vice versa. Without this, the losing source's name would become unsearchable. Authors of website/history-style commands should set `dedupeKey` to a normalized URL to participate.
+- **Pass B — by `dedupeKey`.** For entries that set a `dedupeKey` (typically a URL normalized via `normalizeUrlForDedupe`), only entries from the **highest-weight source** for that key survive. Entries with no `dedupeKey` pass through untouched, and two entries from the *same* source (same weight) with the same key are both kept. This is how the same URL open in tabs vs. present in history collapses to a single row. The survivor **absorbs the dropped entries' name and keywords into its own keywords** (re-tokenized), so the destination stays findable by *every* source's name — a row kept for a bookmark's name is still matched by the open tab's title, and vice versa. Without this, the losing source's name would become unsearchable. Authors of website/history-style commands should set `dedupeKey` to a normalized URL to participate.
 
 ### How deep-search items render
 
@@ -211,7 +205,7 @@ Deep-search matches arrive inline in `monocle-commands-search` results, interlea
 
 ## Search command nodes
 
-A `search`-type node (`SearchCommandNode`) is a page whose results are produced server-side from the typed query through its own resolver. This is the right model when result generation requires a live query (remote search, large/dynamic result sets).
+A `search`-type node (`SearchCommandNode`) is a page whose results are produced server-side from the typed query through its own resolver — the right model when result generation requires a live query (remote search, large/dynamic result sets).
 
 Flow:
 
@@ -229,7 +223,7 @@ Each navigation page (`Page` in `navigation.slice.ts`) stores its own `searchVal
 - **Debounced search dispatch** — a `useEffect` in `useCommandNavigation.tsx` keyed on the Redux `searchValue` dispatches `searchCurrentPage` after ~200 ms for non-empty queries on non-dynamic, non-form pages. A `useRef` seq counter tags each request.
 - **Staleness guards** — `searchCurrentPage.fulfilled` applies results only when the page id matches, the echoed `seq` is not older than the last applied one, and the echoed `query` still equals the page's current `searchValue` (mirrors the `refreshRequest` guard used by dynamic pages).
 - **Navigating into a child** always starts with `searchValue: ""` (in `navigateToCommand`) so all children show.
-- **Navigating back** restores the previous page's `searchValue`. This is done imperatively in `useCommandNavigation.tsx`: it writes `inputElement.value` directly on the `input[cmdk-input]` DOM node and dispatches a synthetic input event, guarded by an `ignoreSearchUpdate` ref so the restore does not get re-saved as a user edit. Because the search dispatch is keyed on the *Redux* value, the DOM poke alone cannot trigger a spurious search — but this DOM sync remains **fragile**: any change to Escape/Backspace/back-navigation/search-restoration must be manually regression-tested in both palette modes.
+- **Navigating back** restores the previous page's `searchValue`, done imperatively in `useCommandNavigation.tsx`: it writes `inputElement.value` directly on the `input[cmdk-input]` DOM node and dispatches a synthetic input event, guarded by an `ignoreSearchUpdate` ref so the restore is not re-saved as a user edit. Because the search dispatch is keyed on the *Redux* value, the DOM poke alone cannot trigger a spurious search — but this DOM sync remains **fragile**: any change to Escape/Backspace/back-navigation/search-restoration must be manually regression-tested in both palette modes.
 
 ## Authoring guidance
 

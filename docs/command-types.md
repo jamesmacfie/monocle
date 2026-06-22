@@ -5,7 +5,7 @@ Monocle commands are a discriminated union of six node families defined in
 `search`, `input`, and `display`. The `type` field selects the variant and
 determines what extra fields a node carries, how the background converts it into
 a UI-facing `Suggestion`, how the shared palette renders it, and what selecting
-the row does. This doc covers each family in depth. For the full field-by-field
+the row does. For the full field-by-field
 schema (including `FormField` variants used by `input`) see
 [command-schema.md](./command-schema.md); for how rows are searched and ranked
 see [search-and-ranking.md](./search-and-ranking.md); for execution mechanics
@@ -42,9 +42,9 @@ two-press confirmation flow for `confirmAction` nodes.
 
 ## `action`
 
-Purpose: a single executable command. This is the most common node and the only
-one that always carries an `execute` function plus the full set of
-execution-related metadata.
+Purpose: a single executable command. The most common node and the only one that
+always carries an `execute` function plus the full set of execution-related
+metadata.
 
 Type: `ActionCommandNode` extends `CommandNodeBase` and `ActionLabel`.
 

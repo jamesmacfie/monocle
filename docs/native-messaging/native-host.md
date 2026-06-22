@@ -15,7 +15,7 @@ exchanges JSON with the extension over stdio. This document covers the host
 manifest, per-OS registration, stdio framing, and the loopback server's
 transport rules.
 
-The host holds **no Monocle logic** — it is a relay with a transport gate. All
+The host holds **no Monocle logic** — a relay with a transport gate. All
 authentication and suggestion-building happen in the extension background.
 
 ---
@@ -130,11 +130,11 @@ model and the signed-request upgrade path.
 
 The host ships as the **Monocle Bridge** Tauri app (`apps/bridge`): a menu-bar
 daemon that, on launch, registers the manifest(s) for every installed supported
-browser (so there is no manual manifest editing) and is also the binary the
-browser re-spawns as the relay. On macOS today it builds to a `.app`/`.dmg`; the
-binary still needs code-signing/notarization to run without Gatekeeper friction,
-and auto-update + the signing pipeline remain a v2 concern — see
-[bridge-app-prd.md](./bridge-app-prd.md) and [roadmap.md](./roadmap.md).
+browser (no manual manifest editing) and is also the binary the browser
+re-spawns as the relay. On macOS today it builds to a `.app`/`.dmg`; the binary
+still needs code-signing/notarization to run without Gatekeeper friction, and
+auto-update + the signing pipeline remain a v2 concern — see
+[bridge-app-prd.md](./bridge-app-prd.md).
 
 ---
 

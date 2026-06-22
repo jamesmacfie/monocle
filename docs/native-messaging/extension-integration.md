@@ -6,9 +6,8 @@
 
 This document specifies how the bridge plugs into Monocle: the feature module
 that owns it, the exact reuse points, the manifest posture, and the implemented
-file map. The guiding principle is that the bridge is an **adapter** — it
-reuses the existing command-query, surfaces, settings, and validation machinery
-rather than duplicating any of it.
+file map. The bridge is an **adapter** — it reuses the existing command-query,
+surfaces, settings, and validation machinery rather than duplicating any of it.
 
 ---
 
@@ -43,8 +42,8 @@ Module responsibilities:
 
 `port.onMessage` validates and dispatches the protocol methods. It mirrors the
 in-extension router (`background/messages/index.ts`, `handleMessage` + `ts-pattern`
-+ schema validation) but is a **separate entry point** fed by the port rather
-than the runtime listener. For each request:
++ schema validation) but is a **separate entry point** fed by the port, not the
+runtime listener. For each request:
 
 1. Validate the envelope against `BridgeRequestSchema` from
    `packages/native-bridge-protocol/src/validation.ts` (re-exported through
@@ -90,7 +89,7 @@ than the runtime listener. For each request:
 A single named module (e.g. `background/features/nativeMessaging/externalSuggestion.ts`)
 owns the projection defined in [protocol.md](./protocol.md). It is the **one
 place** internal `Suggestion` shape meets the public wire contract, so internal
-palette changes are absorbed here rather than breaking the app. Keep it pure and
+palette changes are absorbed here rather than breaking the app. It is pure and
 unit-tested (input `Suggestion`, output `ExternalSuggestion`).
 
 ---

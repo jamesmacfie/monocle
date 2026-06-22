@@ -1,12 +1,12 @@
 # Feature Commands
 
-Feature commands are palette commands contributed by **feature modules** rather than by a static category file. Unlike `browser`/`tools`/`ui`/`new-tab`, there is no `background/commands/features/index.ts`; the rows in this category are projected from the feature registry at command-load time. `background/commands/source.ts` (`loadCommandEntries`) calls `getFeatureCommands(context)` from `background/features/index.ts` and maps the result into the `features` category. Each registered `FeatureModule` returns its palette commands from `feature.commands(context)`; the registry simply flattens them.
+Feature commands are palette commands contributed by **feature modules** rather than by a static category file. Unlike `browser`/`tools`/`ui`/`new-tab`, there is no `background/commands/features/index.ts`; the rows in this category are projected from the feature registry at command-load time. `background/commands/source.ts` (`loadCommandEntries`) calls `getFeatureCommands(context)` from `background/features/index.ts` and maps the result into the `features` category. Each registered `FeatureModule` returns its palette commands from `feature.commands(context)`; the registry flattens them.
 
-Today the registry holds three features: **Focus Mode** (`background/features/focus/`), which contributes one state-aware group; **Tab Groups** (`background/features/tabGroups/`), which contributes cross-browser saved-collection commands plus a Chrome-only native-group command layer; and **Element Hider** (`background/features/elementHider/`), which contributes a picker-launching action plus a manage action. For the registry mechanics (config/state stores, the options Features page, lifecycle) see [../features.md](../features.md); for Focus Mode's session model see [../focus-mode.md](../focus-mode.md); for Element Hider see [../element-hider.md](../element-hider.md).
+The registry holds five features: **Focus Mode** (`background/features/focus/`), one state-aware group; **Tab Groups** (`background/features/tabGroups/`), cross-browser saved-collection commands plus a Chrome-only native-group command layer; **Element Hider** (`background/features/elementHider/`), a picker-launching action plus a manage action; **Native Bridge** (`background/features/nativeMessaging/`), enable/disable toggle commands; and **Extension Integrations** (`background/features/extensionRegistry/`), enable/disable toggle commands. The last two are `hiddenFromFeaturesPage` and managed on the bespoke **Integrations** options page rather than the generic Features pages, but their palette commands still flow through the same `getFeatureCommands` projection. See [../features.md](../features.md) for registry mechanics (config/state stores, options Features page, lifecycle), [../focus-mode.md](../focus-mode.md) for Focus Mode's session model, [../element-hider.md](../element-hider.md) for Element Hider, [../native-messaging/README.md](../native-messaging/README.md) for the Native Bridge, and [../extension-extension/README.md](../extension-extension/README.md) for Extension Integrations.
 
 ## How these commands are loaded
 
-- `background/features/index.ts` holds the static registry (`const features = [focusFeature, tabGroupsFeature, elementHiderFeature]`). `getFeatureCommands(context)` is `features.flatMap((f) => f.commands(context))`.
+- `background/features/index.ts` holds the static registry (`const features = [focusFeature, tabGroupsFeature, elementHiderFeature, nativeMessagingFeature, extensionRegistryFeature]`). `getFeatureCommands(context)` is `features.flatMap((f) => f.commands(context))`.
 - `background/commands/source.ts` maps those commands into the `features` category (`{ id: "features", label: "Features" }`) alongside the other sources. They are part of the always-on command set (not gated like new-tab commands), then run through the standard `supportsPlatform` filter.
 - The loader is synchronous, so a feature's `commands()` must be synchronous. Runtime state (e.g. whether a focus session is active) shows through **async node labels** and through which children a group resolves at navigation time, not through changing the command list.
 
@@ -32,6 +32,10 @@ Today the registry holds three features: **Focus Mode** (`background/features/fo
 | Ungroup Current Tab | `tab-groups-native-ungroup` | `action` | Remove the current tab from its group | Chrome only |
 | Hide element on this page | `element-hider-pick` | `action` | Enter element pick-mode to hide an element on this site | All contexts |
 | Manage hidden elements | `element-hider-manage` | `action` | Open the Element Hider settings page | All contexts |
+| Enable native bridge | `native-messaging-enable` | `action` | Turn on the native bridge (requests `nativeMessaging`/`tabs`) and connect the host | All contexts |
+| Disable native bridge | `native-messaging-disable` | `action` | Turn off the native bridge and disconnect the host | All contexts |
+| Enable extension integrations | `external-extensions-enable` | `action` | Let approved browser extensions add commands to Monocle | All contexts |
+| Disable extension integrations | `external-extensions-disable` | `action` | Stop other extensions from adding commands | All contexts |
 
 ---
 
@@ -44,7 +48,7 @@ The group's `children()` is **state-aware**: it reads the current session (`getS
 - **No active session** → `Start Focus`, `Start for 30 Minutes`, `Start for 60 Minutes`, `Start Pomodoro`, then `Configure Focus Mode`.
 - **Active session** → `Stop Focus`, then `Configure Focus Mode`.
 
-All start/stop actions set `remainOpenOnSelect: true`, so selecting one keeps the palette open and the group re-resolves in place (the same pattern as the new-tab clock toggle) — start it and the children flip to the Stop row without closing.
+All start/stop actions set `remainOpenOnSelect: true`, so selecting one keeps the palette open and the group re-resolves in place (the same pattern as the new-tab clock toggle): start it and the children flip to the Stop row without closing.
 
 ### Start actions
 
@@ -61,7 +65,7 @@ All start/stop actions set `remainOpenOnSelect: true`, so selecting one keeps th
 
 ### `feature-focus-mode-configure` ("Configure Focus Mode")
 
-Built by the shared helper `createConfigureFeatureCommand(FOCUS_FEATURE_ID, "Focus Mode")` (`background/features/configureCommand.ts`). It is an `action` with icon `Settings` and keywords `settings`, `configure`, `options`, `focus mode`; on execute it calls `openOptionsPage("/features/focus-mode")` to deep-link straight to the feature's settings page. This is the same generic "Configure <name>" affordance every feature exposes (kept as an explicit helper in `commands()` rather than registry magic). The general Open Settings command lives in [ui.md](./ui.md).
+Built by the shared helper `createConfigureFeatureCommand(FOCUS_FEATURE_ID, "Focus Mode")` (`background/features/configureCommand.ts`). It is an `action` with icon `Settings` and keywords `settings`, `configure`, `options`, `focus mode`; on execute it calls `openOptionsPage("/features/focus-mode")` to deep-link to the feature's settings page. This is the generic "Configure <name>" affordance every feature exposes (kept as an explicit helper in `commands()` rather than registry magic). The general Open Settings command lives in [ui.md](./ui.md).
 
 Sessions, the blocklist, the timed/Pomodoro end alarm, and the blocking overlay + new-tab badge (rendered through the Surfaces primitive, not focus-specific UI) are all documented in [../focus-mode.md](../focus-mode.md).
 
@@ -86,13 +90,31 @@ The settings page manages saved groups through the generic `record-list` field (
 Source: `background/features/elementHider/commands.ts`, exported as `elementHiderCommands` (a function returning the two `ActionCommandNode`s). The feature id is `element-hider` (`ELEMENT_HIDER_FEATURE_ID` in `background/features/elementHider/types.ts`). Both commands are top-level actions (not a group), color purple.
 
 - **Hide element on this page** (`element-hider-pick`, icon `EyeOff`, keywords `hide`/`element`/`block`/`declutter`/`remove`/`picker`). On a real `http(s)` page it `upsertSurface`s a tab-targeted `picker` surface owned by the feature id and URL-gated to the current page; on a non-web page it warns via toast and returns. It does not hide anything itself — content reports the picked element and the feature's `handleAction("element-picked")` saves a per-domain rule and hides it. See [../element-hider.md](../element-hider.md).
-- **Manage hidden elements** (`element-hider-manage`, icon `Eye`, keywords `hidden`/`elements`/`manage`/`unhide`/`settings`). Calls `openOptionsPage("/features/element-hider")` to deep-link to the feature's settings page. Note this feature uses its own named manage action rather than the shared `createConfigureFeatureCommand` helper / `feature-<id>-configure` id that Focus Mode and Tab Groups use.
+- **Manage hidden elements** (`element-hider-manage`, icon `Eye`, keywords `hidden`/`elements`/`manage`/`unhide`/`settings`). Calls `openOptionsPage("/features/element-hider")`. This feature uses its own named manage action rather than the shared `createConfigureFeatureCommand` helper / `feature-<id>-configure` id that Focus Mode and Tab Groups use.
 
 The per-domain rules, the picker round-trip, and the projected `elementAppears` automations are documented in [../element-hider.md](../element-hider.md).
 
+## Native Bridge
+
+Source: `background/features/nativeMessaging/commands.ts`, exported as `nativeMessagingCommands`. Two always-present top-level `action`s that flip the feature's `enabled` config flag:
+
+- **Enable native bridge** (`native-messaging-enable`, icon `Link`, `permissions: ["nativeMessaging", "tabs"]`) — sets `enabled: true` and opens the `connectNative` port (via a lazy `./port` import that keeps the port→pump chain out of the registry's static graph).
+- **Disable native bridge** (`native-messaging-disable`, icon `Link`) — sets `enabled: false` and disconnects the port.
+
+The feature is `hiddenFromFeaturesPage`; pairing, tokens, and the Allow-execution toggle are managed on the bespoke **Integrations** options page. See [../native-messaging/README.md](../native-messaging/README.md).
+
+## Extension Integrations
+
+Source: `background/features/extensionRegistry/commands.ts`, exported as `extensionRegistryCommands`. Two always-present top-level `action`s that flip the feature's `enabled` config flag:
+
+- **Enable extension integrations** (`external-extensions-enable`, icon `Puzzle`) — sets `enabled: true`, allowing approved peer extensions to contribute commands.
+- **Disable extension integrations** (`external-extensions-disable`, icon `Puzzle`) — sets `enabled: false`.
+
+The feature is `hiddenFromFeaturesPage`; peer approval/revocation lives on the **Integrations** options page. See [../extension-extension/README.md](../extension-extension/README.md).
+
 ## Adding a feature's commands
 
-A new feature contributes palette commands by returning them from its `FeatureModule.commands(context)` and registering the module in `background/features/index.ts`. There is no per-feature edit to `background/commands/source.ts` — the `getFeatureCommands` projection picks them up automatically under the `features` category. Keep `commands()` synchronous and express runtime state through async labels / state-aware `children()`. See [../features.md](../features.md) for the full module contract (config schema, settings page, actions, lifecycle).
+A new feature contributes palette commands by returning them from its `FeatureModule.commands(context)` and registering the module in `background/features/index.ts`. There is no per-feature edit to `background/commands/source.ts` — the `getFeatureCommands` projection picks them up under the `features` category. Keep `commands()` synchronous and express runtime state through async labels / state-aware `children()`. See [../features.md](../features.md) for the full module contract (config schema, settings page, actions, lifecycle).
 
 ## Related docs
 

@@ -2,14 +2,15 @@
 
 > **Status: Phase 1 plus management pages implemented.** Monocle now has a WXT
 > options page with General, New Tab, Commands, Favorites, Keyboard, Snippets,
-> Automations, Features, URL Rules, and About sections. Later sections in this
-> document remain future design unless explicitly described as implemented.
+> Automations, Features, Integrations, URL Rules, and About sections. Later
+> sections in this document remain future design unless explicitly described as
+> implemented.
 
 Monocle's configuration is split between **palette-native quick actions** and a
-dedicated **settings page**. The palette remains the fastest way to toggle or
-run something in context; the options page is the overview and management
-surface for broader command settings such as global hiding, favorites,
-keybindings, and URL rules.
+dedicated **settings page**. The palette is the fastest way to toggle or run
+something in context; the options page is the overview and management surface for
+broader command settings such as global hiding, favorites, keybindings, and URL
+rules.
 
 Locked decisions (agreed before writing this doc):
 
@@ -31,7 +32,7 @@ Wouter hash routes, Tailwind, and local shadcn-style primitives.
 
 | Concern | How it's configured today | Source |
 | --- | --- | --- |
-| Options page | General, New Tab, Commands, Favorites, Keyboard, Snippets, Automations, Features, URL Rules, and About pages | `entrypoints/options/`, `options/` |
+| Options page | General, New Tab, Commands, Favorites, Keyboard, Snippets, Automations, Features, Integrations, URL Rules, and About pages | `entrypoints/options/`, `options/` |
 | Open settings | `open-settings` command opens `options.html#/` | `background/commands/ui/openSettings.ts` |
 | Theme (`light`/`dark`/`system`) | General page selector; `toggle-theme` command still exists | `options/pages/GeneralPage.tsx`, `background/commands/ui/theme.ts` |
 | New-tab clock visibility | New Tab page switch; `toggle-clock-visibility` still exists under `new-tab-clock` | `options/pages/NewTabPage.tsx`, `background/commands/newTab/` |
@@ -108,14 +109,14 @@ The palette is optimised for *doing one thing fast*. Configuration has different
 needs the palette serves poorly:
 
 - **Overview.** "Which commands have I hidden / rebound / favorited?" has no
-  answer today short of walking every command's action menu.
+  answer short of walking every command's action menu.
 - **Bulk operations.** Hiding twenty commands one action-menu-at-a-time is
   painful; a list with checkboxes is not.
 - **No global hide.** You can hide a command *per domain* via deny rules, but
   there is no "I never want to see this, anywhere" — the headline gap this design
   closes.
 - **Room to grow.** Per-command schema-driven settings, automations, workflow
-  management, and import/export have no sensible palette home. They need pages.
+  management, and import/export have no sensible palette home.
 
 A dedicated page does **not** replace the palette flows — quick toggles
 (favorite, hide-from-domain, set-keybinding) stay in the action menu. The page is
@@ -138,11 +139,11 @@ A left sidebar with these sections (Wouter hash routes in parentheses):
 | **Snippets** | `#/snippets` | Manage saved text snippets (create/edit/delete; bodies support insert-time placeholders). |
 | **Automations** | `#/automations` | Build, test, import/export, and arm automations (implemented — see [automations.md](./automations.md)). |
 | **Features** | `#/features` | Feature-module settings pages (implemented — see [features.md](./features.md)). |
-| **Integrations** | `#/integrations` | Approve/revoke desktop apps and (future) extensions that connect to Monocle. Lists pending requests (Accept/Reject, code-gated for loopback apps), connected integrations (Revoke), and the bridge enable/allow-execution toggles. Nav + toolbar badge counts pending requests. See [native-messaging/authentication-and-security.md](./native-messaging/authentication-and-security.md). |
+| **Integrations** | `#/integrations` | Approve/revoke desktop apps and peer extensions that connect to Monocle. Lists pending requests (Accept/Reject, code-gated for loopback apps, plain Approve for extensions), connected integrations (Revoke), and the bridge enable/allow-execution toggles. Nav + toolbar badge counts pending requests. See [native-messaging/authentication-and-security.md](./native-messaging/authentication-and-security.md). |
 | **URL Rules** | `#/url-rules` | Per-command allow/deny rule overview and bulk clearing. |
-| **Permissions** | `#/permissions` | Grant/revoke optional permissions. |
-| **Data & Privacy** | `#/data` | Export/import settings, granular reset, usage analytics, clear-data shortcuts. |
 | **About** | `#/about` | Version, links, credits. |
+| **Permissions** _(future — not implemented)_ | `#/permissions` | Grant/revoke optional permissions. Today this is handled inline on permission-gated rows + the new-tab grant panel, not a dedicated page. |
+| **Data & Privacy** _(future — not implemented)_ | `#/data` | Export/import settings, granular reset, usage analytics, clear-data shortcuts. |
 
 Deep-linkability matters: `chrome.runtime.openOptionsPage()` plus a hash lets a
 palette command or an action-menu item jump straight to a section (e.g. "Open
@@ -159,8 +160,8 @@ messages — no executable functions, per the background-ownership contract).
 
 ### 4.1 Hide commands globally (headline feature)
 
-Mark a command as **hidden** so it is disabled everywhere outside settings:
-root empty-state, search results, child pages, deep-search descendants, direct
+Mark a command **hidden** so it is disabled everywhere outside settings: root
+empty-state, search results, child pages, deep-search descendants, direct
 execution, keybinding registry snapshots, and keybinding conflict checks.
 
 **Data model (additive).**
@@ -218,8 +219,8 @@ happens from the Commands page.
 > config with runtime state and duplicate the feature mechanism).
 
 Some commands want their own typed configuration (e.g. a "default download
-folder", a "screenshot format", a default search engine). Today there
-is no mechanism. Proposed:
+folder", a "screenshot format", a default search engine). There is no mechanism
+today. Proposed:
 
 **Declarative schema on the command.**
 
@@ -268,8 +269,8 @@ should render a clean "no configurable settings" state for commands without a
 
 The implemented Commands and Favorites pages expose favorite management over the
 **existing** `monocle-favoriteCommandIds` key through the `monocle-command-favorite-set`
-message. This is intentionally separate from generated palette actions so
-settings can update favorites even when a command is hidden.
+message — separate from generated palette actions so settings can update
+favorites even when a command is hidden.
 
 The Favorites page builds on the same key through `favorites.ts`
 (`getFavoriteCommandIds`, `removeFromFavoriteCommandIds`,
@@ -450,7 +451,7 @@ The Commands page must list **every** command. But `allCommands` is **context-fr
 and misses context-only sources** — new-tab commands (gated on `isNewTab`),
 website commands, and session site-SDK commands (per [CLAUDE.md] known risks).
 The page uses the background message **`monocle-settings-catalog-get`**, which unions
-normal and new-tab sources and returns, per command:
+normal and new-tab sources and returns per command:
 
 - identity + category + icon + `supportedBrowsers`
 - effective settings (`hidden`, `keybinding`, `urlRules`)
@@ -460,11 +461,10 @@ normal and new-tab sources and returns, per command:
 
 Critically, this endpoint **bypasses the query-time `hidden`/`urlRules` filter** so
 hidden commands remain manageable. The catalog includes stable dynamic browser
-rows that are durable enough to configure, such as bookmarks and Firefox
-container actions, while volatile rows such as open tabs, history, downloads,
-and recently closed sessions remain omitted. Session site-SDK commands are also
-omitted because they are in-memory, document-scoped, and not persistently
-configurable.
+rows durable enough to configure (bookmarks, Firefox container actions), while
+volatile rows (open tabs, history, downloads, recently closed sessions) are
+omitted. Session site-SDK commands are also omitted because they are in-memory,
+document-scoped, and not persistently configurable.
 
 ### State
 

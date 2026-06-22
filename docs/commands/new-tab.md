@@ -1,6 +1,6 @@
 # New-Tab Commands
 
-New-tab commands are palette commands that only make sense on Monocle's new-tab page replacement, so they are shown only when the palette runs in new-tab mode. They live in `background/commands/newTab/` and are aggregated by `background/commands/newTab/index.ts` into `newTabCommands`. Today this category contains a single command: a Clock settings group with a visibility toggle.
+New-tab commands only make sense on Monocle's new-tab page replacement, so they are shown only when the palette runs in new-tab mode. They live in `background/commands/newTab/` and are aggregated by `background/commands/newTab/index.ts` into `newTabCommands`. This category contains a single command today: a Clock settings group with a visibility toggle.
 
 ## Summary
 
@@ -26,9 +26,9 @@ if (context?.isNewTab) {
 }
 ```
 
-The new-tab palette supplies that flag when it asks the background for commands: `newtab/components/NewTabCommandPalette.tsx` fetches with `{ isNewTab: true }`. The content overlay does not set the flag, so new-tab commands never appear in the in-page overlay.
+`newtab/components/NewTabCommandPalette.tsx` fetches with `{ isNewTab: true }`. The content overlay does not set the flag, so new-tab commands never appear in the in-page overlay.
 
-Two consequences worth noting:
+Two consequences:
 
 - `allCommands`, the module-level export in `source.ts`, is `loadAllCommands()` with no context, so it is context-free and **excludes** new-tab commands. Any global surface that reads `allCommands` will not see them.
 - `loadUserConfigurableCommands()` (`background/commands/userConfigurableCommands.ts`) **does** include `...newTabCommands` unconditionally, so the Clock group appears as a configurable command in the Manage Allow/Deny List surfaces even though it is only executable in new-tab mode.
@@ -39,7 +39,7 @@ Two consequences worth noting:
 
 Source: `background/commands/newTab/clock.ts`, exported as `clockCommand` (`type: "group"`). Id `new-tab-clock`, name `"Clock"`, icon `Clock`, `supportedBrowsers: ["chrome", "firefox"]`, keywords `clock`, `time`, `new tab`.
 
-A `group` whose `children()` returns a single child, the visibility toggle. It exists as a group to leave room for future clock settings.
+A `group` whose `children()` returns a single child, the visibility toggle. It is a group to leave room for future clock settings.
 
 ### Toggle Clock Visibility
 
@@ -58,7 +58,7 @@ const isCurrentlyVisible = currentSettings.show ?? true
 await updateNewTabClockSettings({ show: !isCurrentlyVisible })
 ```
 
-This command only persists the `show` flag. How the clock is actually rendered (and other new-tab features such as the background image and the theme picker, all of which are configured through the new-tab settings UI rather than dedicated palette commands) is documented in [../new-tab-and-theme.md](../new-tab-and-theme.md). The settings storage shape and Redux mirror are in [../settings.md](../settings.md).
+This command only persists the `show` flag. How the clock is rendered (and other new-tab features such as the background image and theme picker, configured through the new-tab settings UI rather than dedicated palette commands) is documented in [../new-tab-and-theme.md](../new-tab-and-theme.md). The settings storage shape and Redux mirror are in [../settings.md](../settings.md).
 
 ---
 

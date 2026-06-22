@@ -25,8 +25,8 @@ a baseline policy and a per-command opt-out.
 The core problem: a command's `execute()` is a side-effecting function that today
 returns nothing and assumes it runs because a human is looking at the browser.
 The bridge breaks both assumptions — the human is looking at Raycast, and for
-"copy"-style commands the *result* is what the user wants, not a side-effect on
-the browser. So execution needs three things: an opt-out, a focus model, and a
+"copy"-style commands the *result* is what the user wants, not a browser
+side-effect. So execution needs three things: an opt-out, a focus model, and a
 result channel.
 
 ---
@@ -43,16 +43,16 @@ export type CommandExecutor = (
 
 `monocle-command-execute` → `executeCommand` → `executeResolvedCommand`
 (`background/commands/execution.ts`) resolves the node, checks permissions, and
-calls `command.execute(context, values)`. It **returns void** — there is no way
-for a command to hand a value back to the caller.
+calls `command.execute(context, values)`. It **returns void** — a command cannot
+hand a value back to the caller.
 
 Commands find their target tab via `getActiveTab()` /
 `queryTabs({ active: true, currentWindow: true })`
 (`background/utils/browserTabs.ts`) or via `context.url`. A bridge request has
 **no sender tab**, but `getActiveTab()` returns the browser's active tab
 regardless of which OS app is focused, so existing commands still resolve a
-target. `context.url`/`title` are filled from that active tab (the v1 design
-already does this). Incognito windows are excluded.
+target. `context.url`/`title` are filled from that active tab. Incognito windows
+are excluded.
 
 ---
 
@@ -94,20 +94,19 @@ external?: {
 }
 ```
 
-The user-facing ask was "an opt-out boolean on commands". `external.allowed` is
-that boolean: commands are reachable by default (subject to the policy below), and
-an author sets `allowed: false` to withhold one. A **user-facing** per-command
-opt-out — mirroring how `hidden` and `urlRules` are stored per command in
-`monocle-settings` — is a planned fast-follow (see [roadmap.md](./roadmap.md)),
-not part of this design.
+`external.allowed` is the user-facing opt-out boolean: commands are reachable by
+default (subject to the policy below), and an author sets `allowed: false` to
+withhold one. A **user-facing** per-command opt-out — mirroring how `hidden` and
+`urlRules` are stored per command in `monocle-settings` — is a planned
+fast-follow, not part of this design.
 
 ---
 
 ## The bridge execution policy
 
-Reuses the model of `background/automations/runCommandPolicy.ts`, which already
-bounds programmatic (non-human) command invocation. That module denies, for every
-run: `confirmAction` commands, `automation-*` (recursion), `debug-workflow`, and
+Reuses the model of `background/automations/runCommandPolicy.ts`, which bounds
+programmatic (non-human) command invocation. That module denies, for every run:
+`confirmAction` commands, `automation-*` (recursion), `debug-workflow`, and
 non-existent targets; and restricts non-manual (trigger) runs to a curated
 `NON_MANUAL_RUN_COMMAND_ALLOWLIST`. Its verdict shape is
 `{ allowed: true } | { allowed: false; reason: string }`.
@@ -166,11 +165,11 @@ execute → sendTabMessage(tabId, { type: "monocle-clipboard-write", message })
 
 `navigator.clipboard.writeText` needs a **focused document**, so this is
 unreliable when the browser is backgrounded behind Raycast — and even on success
-it writes the *browser's* clipboard, not the app's. That is the wrong outcome for
-a bridge call: the user wants the markdown **in Raycast**.
+it writes the *browser's* clipboard, not the app's. The user wants the markdown
+**in Raycast**.
 
-So data commands should **produce and return** their value, with clipboard
-*delivery* as a separate concern:
+So data commands **produce and return** their value, with clipboard *delivery* as
+a separate concern:
 
 - The command's `execute` returns `{ value }`.
 - The **palette/keybinding path** still performs the active-tab clipboard write
@@ -182,7 +181,7 @@ No command body learns it is being called by the bridge — the branch lives in 
 execution path, keyed off the caller, not in `execute`. This is a build-pass
 refactor of the `copy*` family (e.g.
 `background/commands/browser/urlNavigationAndCopy.ts`,
-`background/commands/tools/copyUuidV4.ts`) — see [roadmap.md](./roadmap.md).
+`background/commands/tools/copyUuidV4.ts`).
 
 ---
 
@@ -212,8 +211,7 @@ approximate; the build pass annotates each command.)
 - **`confirmAction` commands stay denied.** There is no way to surface and resolve
   the confirmation from Raycast in v2. A future option is to route the
   confirmation through a **surface modal** in the browser (the user confirms in
-  the browser before the command runs) — deferred; noted in
-  [roadmap.md](./roadmap.md).
+  the browser before the command runs) — deferred.
 - **Incognito / private windows are excluded**, consistent with v1.
 
 ---

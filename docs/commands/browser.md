@@ -2,7 +2,7 @@
 
 The browser command category is the largest command surface in Monocle. It wraps the privileged `chrome`/`browser` extension APIs (tabs, windows, bookmarks, history, downloads, sessions, browsing data, navigation, plus Firefox contextual identities and reader mode) as `CommandNode` values. Every command lives in `background/commands/browser/`, is exported from `background/commands/browser/index.ts` as `browserCommands`, and is loaded for all UI contexts by `background/commands/source.ts`. Firefox-only additions live in `background/commands/browser/firefox/`, are exported as `firefoxCommands`, and are appended only when the runtime is Firefox. All privileged calls go through the helper barrel `background/utils/browser.ts` (re-exporting feature-specific helpers such as `background/utils/browserTabs.ts`).
 
-This doc is a catalog. For the schema behind each field see [../command-schema.md](../command-schema.md); for node-type semantics see [../command-types.md](../command-types.md); for how children/permissions/actions resolve at runtime see [../execution-and-actions.md](../execution-and-actions.md), [../permissions.md](../permissions.md), and [../search-and-ranking.md](../search-and-ranking.md).
+This doc is a catalog. For the schema behind each field see [../command-schema.md](../command-schema.md); for node-type semantics see [../command-types.md](../command-types.md); for runtime resolution of children/permissions/actions see [../execution-and-actions.md](../execution-and-actions.md), [../permissions.md](../permissions.md), and [../search-and-ranking.md](../search-and-ranking.md).
 
 ## How these commands are loaded
 
@@ -14,7 +14,7 @@ This doc is a catalog. For the schema behind each field see [../command-schema.m
 
 ## High-risk keybinding policy
 
-Commands with `confirmAction: true` are never registered in the global keybinding registry and never offered a custom keybinding. `allowsKeybinding` in `background/utils/commands.ts` returns `false` when `command.confirmAction === true` (and also when `allowCustomKeybinding === false`). Note that `close-current-tab` (`<cmd-w>`) and `close-current-window` (`<cmd-shift-w>`) declare both a default `keybinding` and `confirmAction: true` — the declared default is effectively inert because `allowsKeybinding` short-circuits on `confirmAction`, so these will not fire from the registry. Many dynamic rows (`goto-tab`, history, downloads, sessions) also set `allowCustomKeybinding: false` because their ids change over time. Note this is not uniform: `open-tabs` and `copy-tab-url` rows have dynamic ids but do **not** set `allowCustomKeybinding: false`.
+Commands with `confirmAction: true` are never registered in the global keybinding registry and never offered a custom keybinding. `allowsKeybinding` in `background/utils/commands.ts` returns `false` when `command.confirmAction === true` (and also when `allowCustomKeybinding === false`). `close-current-tab` (`<cmd-w>`) and `close-current-window` (`<cmd-shift-w>`) declare both a default `keybinding` and `confirmAction: true` — the declared default is inert because `allowsKeybinding` short-circuits on `confirmAction`, so these will not fire from the registry. Many dynamic rows (`goto-tab`, history, downloads, sessions) also set `allowCustomKeybinding: false` because their ids change over time. This is not uniform: `open-tabs` and `copy-tab-url` rows have dynamic ids but do **not** set `allowCustomKeybinding: false`.
 
 ## Summary table
 
@@ -118,7 +118,7 @@ Duplicates the active tab. Prefers the native `tabs.duplicate` API (preserves hi
 Closes the active tab in the current window (`queryTabs({active, currentWindow}) → removeTab`). `confirmAction: true`. Declares `<cmd-w>` but the keybinding is suppressed by the high-risk policy.
 
 ### `close-duplicate-tabs` (action)
-Closes tabs that share a URL with another tab, keeping exactly one tab per unique URL. Looks across **all** windows (`queryTabs({})`), since a duplicate is a duplicate regardless of window. To choose which tab in each URL group to keep, it sorts candidates by a keeper score — pinned (highest), then active, then in the user's current window (so it doesn't favour a background window just because its per-window `index` is lower) — and keeps the first one seen. Pinned tabs are never closed, even when they duplicate another tab. Requires `tabs`. `confirmAction: true`. Toasts the count closed.
+Closes tabs that share a URL with another tab, keeping exactly one per unique URL. Looks across **all** windows (`queryTabs({})`), since a duplicate is a duplicate regardless of window. To choose which tab in each URL group to keep, it sorts candidates by a keeper score — pinned (highest), then active, then in the user's current window (so it doesn't favour a background window just because its per-window `index` is lower) — and keeps the first one seen. Pinned tabs are never closed, even when they duplicate another tab. Requires `tabs`. `confirmAction: true`. Toasts the count closed.
 
 ### `close-other-tabs` (action)
 Closes every tab in the current window except the active tab. It does **not** spare pinned tabs — it only checks `tab.id !== activeTab.id`. Requires `tabs`. `confirmAction: true`. Toasts the count closed.
@@ -130,10 +130,10 @@ Close tabs whose `index` is `< activeTab.index` (left) or `> activeTab.index` (r
 Move the active tab one position via `tabs.move`. Wrap-around: moving left from index 0 jumps to the last index ("Tab moved to end"); moving right from the last index jumps to 0 ("Tab moved to beginning"). No permission declared.
 
 ### `toggle-pin-current-tab` (action)
-A single state-aware command (modelled on `toggle-theme` / `toggle-clock-visibility`). Reads the active tab's `pinned` flag to render the label ("Pin current tab" vs "Unpin current tab") and icon (`Pin` vs `PinOff`), then flips `pinned` via `updateTab`. Success toast reflects the resulting state.
+A state-aware command (modelled on `toggle-theme` / `toggle-clock-visibility`). Reads the active tab's `pinned` flag to render the label ("Pin current tab" vs "Unpin current tab") and icon (`Pin` vs `PinOff`), then flips `pinned` via `updateTab`. Success toast reflects the resulting state.
 
 ### `toggle-mute-current-tab` (action)
-A single state-aware command. Mute state is **read** from `mutedInfo.muted` (the browser-API shape) but **set** via `updateTab({ muted })`. Renders "Mute current tab"/"Unmute current tab" with `VolumeX`/`Volume2` icons accordingly. Success toast reflects the resulting state.
+A state-aware command. Mute state is **read** from `mutedInfo.muted` (the browser-API shape) but **set** via `updateTab({ muted })`. Renders "Mute current tab"/"Unmute current tab" with `VolumeX`/`Volume2` icons accordingly. Success toast reflects the resulting state.
 
 ### `reload-current-tab` (action)
 On plain Enter, `callBrowserAPI("tabs", "reload")` with no tab id (reloads the active tab). Keybinding `<cmd-r>`. Declares `modifierActionLabel.cmd = "Hard reload (bypass cache)"`; the Cmd modifier action resolves the active tab and calls `callBrowserAPI("tabs", "reload", tabId, { bypassCache: true })` (tab id passed explicitly so the reloadProperties object is correct in both Chrome and Firefox).
@@ -162,7 +162,7 @@ the required `scripting.executeScript` permission. It is not a page-side message
 so it can run while the page is still loading.
 
 ### `capture-screenshot` (action)
-Captures the visible area of the active tab. The background first sends a `monocle-ui-hide` message and awaits its acknowledgement so the palette overlay is painted out **before** the capture (otherwise `captureVisibleTab` would include the palette); the content `useCommandPaletteStateRedux` handler hides the palette and acks after two `requestAnimationFrame`s. The send is best-effort — surfaces without that handler (e.g. the new tab page) simply don't respond. It then resolves the active tab and calls `captureVisibleTab(windowId)` (`callBrowserAPI("tabs", "captureVisibleTab", windowId, { format: "png" })`), which relies on the `activeTab` permission (always granted when the palette is invoked) — no `downloads` permission is required. Finally it sends a `monocle-screenshot` event to the active tab; the page-side `ScreenshotListener` converts the PNG data URL to a Blob (without `fetch`, so a page CSP can't block it) and either writes it to the clipboard via `navigator.clipboard.write([new ClipboardItem(...)])` or triggers a blob-URL `<a download>`, then a success toast confirms the result. `ScreenshotListener` is mounted alongside `ToastContainer` (always mounted, outside the palette-visibility gate) so it still receives the event after the palette hides. Declares `actionLabel = "Copy to clipboard"` and `modifierActionLabel.cmd = "Download"`: plain Enter copies to the clipboard; Cmd downloads to the browser's downloads folder with filename `screenshot-<host>-<timestamp>.png`. The clipboard path requires a secure context (https) and document focus.
+Captures the visible area of the active tab. The background first sends a `monocle-ui-hide` message and awaits its acknowledgement so the palette overlay is painted out **before** the capture (otherwise `captureVisibleTab` would include the palette); the content `useCommandPaletteStateRedux` handler hides the palette and acks after two `requestAnimationFrame`s. The send is best-effort — surfaces without that handler (e.g. the new tab page) simply don't respond. It then resolves the active tab and calls `captureVisibleTab(windowId)` (`callBrowserAPI("tabs", "captureVisibleTab", windowId, { format: "png" })`), which relies on the `activeTab` permission (always granted when the palette is invoked) — no `downloads` permission is required. Finally it sends a `monocle-screenshot` event to the active tab; the page-side `ScreenshotListener` converts the PNG data URL to a Blob (without `fetch`, so a page CSP can't block it) and either writes it to the clipboard via `navigator.clipboard.write([new ClipboardItem(...)])` or triggers a blob-URL `<a download>`, then a success toast confirms the result. `ScreenshotListener` is mounted alongside `ToastContainer` (always mounted, outside the palette-visibility gate) so it still receives the event after the palette hides. Declares `actionLabel = "Copy to clipboard"` and `modifierActionLabel.cmd = "Download"`: plain Enter copies to the clipboard; Cmd downloads with filename `screenshot-<host>-<timestamp>.png`. The clipboard path requires a secure context (https) and document focus.
 
 ### `goto-tab` (group, `tabs`)
 Lists one child action per tab in the **current window** (`queryTabs({currentWindow})`, filtered to tabs with a title). Each child's name resolves to the tab title and its icon resolves via `getFaviconIcon`. Executing a child activates the tab (`updateTab({active:true})`) and focuses its window. Children set `allowCustomKeybinding: false`. No explicit empty-state row (an empty window simply yields no children).
@@ -208,7 +208,7 @@ unless the URL is already a view-source URL.
 ## Data library groups
 
 ### `bookmarks` (group, `bookmarks`)
-Reads the full tree via `getBookmarkTree` and recursively flattens it (`processBookmarkNode`). `enableDeepSearch: true`. Behavior:
+Reads the full tree via `getBookmarkTree` and recursively flattens it (`processBookmarkNode`). `enableDeepSearch: true`.
 
 - Folders become nested `group` nodes (`bookmark-folder-<id>`, Folder icon, amber) whose children are produced lazily.
 - Bookmarks with a valid HTTP/HTTPS URL (`isValidUrl`) become `action` nodes (`bookmark-<id>`) with a favicon icon and `dedupeKey` from the normalized URL.
@@ -223,7 +223,7 @@ The first child of the group is always the `add-bookmark` form (pinned above the
 ### `add-bookmark` (group/form, `bookmarks`)
 Registered both as a **top-level** command (in `browserCommands`) and as the pinned first child of the `bookmarks` group, so it is reachable by searching "Add Bookmark" and by browsing into Bookmarks. The group sets **`enableDeepSearch: false`** so its `input` rows and `submit` are never flattened into root search — only the group itself appears as a search result, opening the form on selection.
 
-A form `group` (children built per-context, like `tools/snippets`) for bookmarking the current page. Its `children(context)` returns three `input` rows plus a `submit`:
+A form `group` (children built per-context, like `tools/snippets`) for bookmarking the current page. `children(context)` returns three `input` rows plus a `submit`:
 
 - **Title** (`text`) — `defaultValue` from `context.title`.
 - **URL** (`text`) — `defaultValue` from `context.url`.
@@ -248,7 +248,7 @@ Selecting a period calls `getHistoryItems({ text:"", startTime, endTime, maxResu
 Executing either calls `restoreSession(sessionId)` and alerts success/failure. Children set `allowCustomKeybinding: false`. Empty → `no-recently-closed` NoOp; error → `sessions-error` NoOp. Sorting is alphabetical (the code comments acknowledge it cannot sort by timestamp here).
 
 ### `reopen-last-closed-tab` (action, `sessions`)
-Convenience action that reads `getRecentlyClosed()`, finds the first session with a `.tab`, and restores it. Shows an info alert when there are no closed tabs (or only closed windows). Action label "Reopen".
+Reads `getRecentlyClosed()`, finds the first session with a `.tab`, and restores it. Shows an info alert when there are no closed tabs (or only closed windows). Action label "Reopen".
 
 ## Clipboard / URL utilities
 
@@ -294,7 +294,7 @@ Lists one `copy-tab-url-<id>` action per tab in the current window (filtered to 
 ## Clear browser data
 
 ### `clear-browser-data` (group, `browsingData` + `history` + `cookies` + `sessions`)
-Destructive group. The top group lists a site-scoped cookie action followed by 11 data types; each data type is itself a group listing five time spans; each time span is an `action` that calls the matching clear helper.
+Destructive group. The top group lists a site-scoped cookie action followed by 11 data types; each data type is a group listing five time spans; each time span is an `action` that calls the matching clear helper.
 
 `clear-cookies-this-site` ("This Site's Cookies") is the first child: a single `confirmAction` action that clears every cookie for the active tab's host only. It uses the cookies API (`clearCookiesForUrl` in `background/utils/browserCookies.ts`) rather than `browsingData.remove`, because per-site cookie scoping is not uniform across engines (Chrome `origins` vs Firefox `hostnames`). It reads the active tab via `getActiveTab`, derives the hostname, removes each matching cookie, and toasts the count (e.g. "Cleared 2 cookies for example.com"). Inherits the group's `cookies` permission.
 

@@ -7,7 +7,7 @@
 > (no focus-specific UI or messages).
 
 Focus Mode helps the user stay off distracting sites. While a focus session is
-active, navigating to any site that matches the **blocklist** is met with a
+active, navigating to any site that matches the **blocklist** shows a
 full-page, hard-block overlay; a countdown shows on both the overlay and the
 new-tab page when the session is timed.
 
@@ -108,10 +108,9 @@ active session + config into
 `session.ts` calls `setOwnerSurfaces("focus-mode", …)` on start and
 `clearOwnerSurfaces("focus-mode")` on stop/expiry; `onConfigChange` re-projects
 so blocklist edits take effect live; `init()` reconciles after a SW restart. The
-generic `SurfaceHost` (mounted in the closed content shadow root and on the new
-tab) renders these — the hard block's containment, the live countdown, the
-URL gating, and the cross-tab refresh are all generic surface behavior. See
-[surfaces.md](./surfaces.md).
+generic `SurfaceHost` renders these — the hard block's containment, the live
+countdown, the URL gating, and the cross-tab refresh are all generic surface
+behavior. See [surfaces.md](./surfaces.md).
 
 "Hard block" is intentional: there is no per-page dismiss/snooze. The only way
 out is ending the focus session (or waiting out a timed one).

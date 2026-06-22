@@ -1,6 +1,6 @@
 # Keybindings
 
-Monocle lets commands declare keyboard shortcuts and lets users assign custom ones. Every keybinding — whether typed by a command author, captured from the user, or read off a live keyboard event — is funnelled through a single canonical normalizer so that storage, matching, conflict detection, and display all agree on one string form such as `<cmd-shift-k>`. The UIs (content overlay and new-tab) capture keydown events globally, suppress the ones the background says it handles, and forward the rest to the background as `monocle-keybinding-execute` messages. The background owns a context-aware registry that resolves exact matches and multi-stroke sequence prefixes, then either executes the matched command through the normal command execution path or tells the UI to open the palette at a command page.
+Monocle lets commands declare keyboard shortcuts and lets users assign custom ones. Every keybinding — typed by a command author, captured from the user, or read off a live keyboard event — is funnelled through a single canonical normalizer so storage, matching, conflict detection, and display all agree on one string form such as `<cmd-shift-k>`. The UIs (content overlay and new-tab) capture keydown events globally, suppress the ones the background says it handles, and forward the rest as `monocle-keybinding-execute` messages. The background owns a context-aware registry that resolves exact matches and multi-stroke sequence prefixes, then either executes the matched command through the normal execution path or tells the UI to open the palette at a command page.
 
 This doc covers the canonical format, normalization rules, event filtering, capture, the background registry, custom user bindings, conflict detection, the high-risk command policy, display, and known coverage gaps.
 
@@ -29,11 +29,11 @@ Many aliases collapse to those four (`MODIFIER_ALIASES`):
 | `alt` | `alt`, `option`, `opt`, `a` |
 | `shift` | `shift`, `s` |
 
-Note `mod`/`m`/`meta` all map to `cmd` — there is **no platform-aware "mod" remapping** during normalization. `<mod-k>` always becomes `<cmd-k>` regardless of OS.
+`mod`/`m`/`meta` all map to `cmd` — there is **no platform-aware "mod" remapping** during normalization. `<mod-k>` always becomes `<cmd-k>` regardless of OS.
 
 ### Platform handling
 
-`platform` is detected from the user agent (`"Mac"`, `"Linux"`, `"Windows"`, or `"Unknown"`). It is **not** consulted by `normalizeKeybinding`, `getKeyString`, or registry matching — canonicalization is platform-independent. The only platform-aware helper is the exported `platformNormalize`, which on Mac rewrites `ctrl` modifiers to `cmd`. As of this writing `platformNormalize` is exported but not used in the capture/registry/execution paths documented here; the live system uses `normalizeKeybinding`/`getKeyString` directly.
+`platform` is detected from the user agent (`"Mac"`, `"Linux"`, `"Windows"`, or `"Unknown"`). It is **not** consulted by `normalizeKeybinding`, `getKeyString`, or registry matching — canonicalization is platform-independent. The only platform-aware helper is the exported `platformNormalize`, which on Mac rewrites `ctrl` modifiers to `cmd`; it is exported but not used in the capture/registry/execution paths documented here — the live system uses `normalizeKeybinding`/`getKeyString` directly.
 
 ### Key aliasing
 
@@ -59,7 +59,7 @@ Primary keys are lowercased and aliased so that visually different inputs conver
 
 ### Reading live keyboard events
 
-`getKeyString(event)` is the event-to-canonical converter used by both capture paths. It returns `""` for modifier-only keydowns (`MODIFIER_KEYS`). It prefers `event.code` (`getPrimaryFromCode`) so the physical key wins over OS-composed `event.key` — e.g. `Cmd+Alt+R` on Mac reports `event.key === "®"` but `code === "KeyR"`, yielding `<cmd-alt-r>`. Modifier booleans (`metaKey`/`ctrlKey`/`altKey`/`shiftKey`) are appended and sorted. The test `shared/utils/key-normalizer.test.ts` pins these equivalences (event form and string form produce identical canonical output).
+`getKeyString(event)` is the event-to-canonical converter used by both capture paths. It returns `""` for modifier-only keydowns (`MODIFIER_KEYS`). It prefers `event.code` (`getPrimaryFromCode`) so the physical key wins over OS-composed `event.key` — `Cmd+Alt+R` on Mac reports `event.key === "®"` but `code === "KeyR"`, yielding `<cmd-alt-r>`. Modifier booleans (`metaKey`/`ctrlKey`/`altKey`/`shiftKey`) are appended and sorted. `shared/utils/key-normalizer.test.ts` pins these equivalences (event form and string form produce identical canonical output).
 
 ## Quick Reference
 
@@ -126,7 +126,7 @@ type KeybindingRegistrySnapshot = {
 ```
 
 - `getKeybindingRegistrySnapshot(context, options)` is the **context-aware** entry point. It builds a fresh map from `loadKeybindingCommandEntries` and derives sequence prefixes (`createSequencePrefixes` adds every `strokes.slice(0, n)` for `n < length`).
-- `registerBinding` normalizes the keybinding and **first registration wins** — a later command with the same normalized binding is dropped with a `console.warn` naming both commands, which is the de-facto conflict resolution at registry-build time (save-time conflict checks should prevent it from ever firing).
+- `registerBinding` normalizes the keybinding and **first registration wins** — a later command with the same normalized binding is dropped with a `console.warn` naming both commands, the de-facto conflict resolution at registry-build time (save-time conflict checks should prevent it from ever firing).
 - A module-level singleton map (`keybindingRegistry`) backs the legacy synchronous helpers `getCommandIdForKeybinding`, `hasKeybindingStartingWith`, `registerSingleCommand`, `registerDynamicCommands`, `getAllKeybindings`. `initializeKeybindingRegistry` / `refreshKeybindingRegistry` rebuild it. These are used in tests and by `resetKeybinding` execution; the live message handlers prefer per-request snapshots.
 
 ### Which commands contribute bindings
@@ -139,7 +139,7 @@ type KeybindingRegistrySnapshot = {
 
 `background/keybindings/targets.ts` owns keybinding target metadata: whether a command is assignable, its behavior, default/effective binding, and requirements. Custom settings override the command default. `seenEntries` dedupes on `${id}:${keybinding}`.
 
-`loadKeybindingCommandEntries` is cached at module scope (same service-worker lifetime pattern as `background/commands/searchIndex.ts`): entries are keyed by `isNewTab|url|platform` plus the site-SDK `scopeKey:revision` when present, with a ~30s TTL, an ~8-context cap, and inflight-build dedupe. Because entries are URL-filtered at build time the key includes the URL — one rebuild per navigation, while every keystroke funnelling through `monocle-keybinding-execute`/`monocle-keybinding-state-get` on the same page is a Map lookup instead of a full command-tree traversal. Invalidation: `invalidateKeybindingEntriesCache()` is called synchronously from `refreshKeybindingRegistry()` (all settings write paths) and URL-rule mutation helpers, and `initializeKeybindingEntriesInvalidation()` (wired in `background/index.ts`) listens to `monocle-settings` storage changes and permission grant/revoke events. Tab/history/bookmark events are deliberately not wired (they fire constantly and dynamic children almost never carry default keybindings); the TTL covers that drift.
+`loadKeybindingCommandEntries` is cached at module scope (same service-worker lifetime pattern as `background/commands/searchIndex.ts`): entries are keyed by `isNewTab|url|platform` plus the site-SDK `scopeKey:revision` when present, with a ~30s TTL, an ~8-context cap, and inflight-build dedupe. Because entries are URL-filtered at build time, the key includes the URL — one rebuild per navigation, while every keystroke funnelling through `monocle-keybinding-execute`/`monocle-keybinding-state-get` on the same page is a Map lookup instead of a full command-tree traversal. Invalidation: `invalidateKeybindingEntriesCache()` is called synchronously from `refreshKeybindingRegistry()` (all settings write paths) and URL-rule mutation helpers, and `initializeKeybindingEntriesInvalidation()` (wired in `background/index.ts`) listens to `monocle-settings` storage changes and permission grant/revoke events. Tab/history/bookmark events are deliberately not wired (they fire constantly and dynamic children almost never carry default keybindings); the TTL covers that drift.
 
 Because the snapshot depends on context and visibility settings, the same physical key can be bound in one context and absent in another — the registry test confirms `toggle-clock-visibility` (`<cmd-alt-c>`) resolves only in new-tab context, `github-toggle-star` (`<cmd-alt-g>`) only on a GitHub URL, and hidden commands are omitted even when they have custom bindings.
 
@@ -210,7 +210,7 @@ The keybinding Redux slice (`shared/store/slices/keybinding.slice.ts`) is intent
 
 Executable nodes (action/submit) can declare constraints on which custom keybindings they accept via `keybindingRequirements` (`shared/types/commands.ts`):
 
-- `requireNonShiftModifier: true` — every stroke in the binding (including each stroke of a sequence) must include `cmd`, `ctrl`, or `alt`. Shift alone does not count, and plain keys are rejected. This is required for commands whose shortcuts must fire **while an editable element is focused**: the content event filter (`shared/utils/event-filter.ts`, `hasNonShiftModifier`) only forwards editable-element keystrokes that carry a non-shift modifier, so a plain-key or shift-only binding would simply never reach the handler while typing. Snippet commands (`snippet-<uuid>`) opt in because insert-at-cursor is their whole purpose.
+- `requireNonShiftModifier: true` — every stroke in the binding (including each stroke of a sequence) must include `cmd`, `ctrl`, or `alt`. Shift alone does not count, and plain keys are rejected. Required for commands whose shortcuts must fire **while an editable element is focused**: the content event filter (`shared/utils/event-filter.ts`, `hasNonShiftModifier`) only forwards editable-element keystrokes that carry a non-shift modifier, so a plain-key or shift-only binding would never reach the handler while typing. Snippet commands (`snippet-<uuid>`) opt in because insert-at-cursor is their whole purpose.
 
 The shared validator is `validateKeybindingRequirements` / `describeKeybindingRequirements` (`shared/utils/keybinding-requirements.ts`); the type is extensible — new rule fields are added to `KeybindingRequirements` as commands need them. Enforcement points:
 
@@ -234,7 +234,7 @@ Prefix overlaps between two execute-behavior bindings are **not** blocking: they
 - It is **visibility-scoped**: hidden commands are omitted from conflict checks, matching registry snapshot behavior.
 - The candidate command itself is excluded via `excludeCommandId`.
 
-The capture UI calls this per stroke and disables save while a conflict exists. Note the registry's own first-wins behaviour means an unchecked duplicate would simply not register, but conflict detection surfaces the collision in the UI before saving.
+The capture UI calls this per stroke and disables save while a conflict exists. The registry's own first-wins behaviour means an unchecked duplicate would simply not register, but conflict detection surfaces the collision in the UI before saving.
 
 ## High-Risk Command Policy
 

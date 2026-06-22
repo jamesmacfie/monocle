@@ -1,6 +1,6 @@
 # Website (Contextual) Commands
 
-Website commands are built-in contextual commands scoped to a particular site via `urlRules`. They live in `background/commands/websites/` and are aggregated by `background/commands/websites/index.ts` into `websiteCommands`, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set like any other category. Today there is exactly one built-in website command: a GitHub prototype that surfaces contextual repo/PR/issue actions only on GitHub pages.
+Website commands are built-in contextual commands scoped to a particular site via `urlRules`. They live in `background/commands/websites/` and are aggregated by `background/commands/websites/index.ts` into `websiteCommands`, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set like any other category. There is exactly one built-in website command today: a GitHub prototype that surfaces contextual repo/PR/issue actions only on GitHub pages.
 
 This is a prototype, not a plugin system. Website commands are ordinary command arrays with `urlRules`, loaded through the normal command source; there is no plugin registry, lifecycle, enablement policy, or plugin-owned hooks. This is also distinct from the page-owned `window.Monocle` site SDK, which lets the current page register non-privileged session commands at runtime. See [../site-sdk.md](../site-sdk.md).
 
@@ -36,7 +36,7 @@ const GITHUB_DOMAIN_ALLOW_LIST = ["*://github.com/*", "*://*.github.com/*"]
 urlRules: { allowUrls: GITHUB_DOMAIN_ALLOW_LIST }
 ```
 
-Because root and child command lists are filtered against the current page URL by the shared background query path (`background/commands/query.ts`, `filterCommandsByUrl`), `github-actions` only appears when the active tab's URL matches one of these patterns. On any non-GitHub page it is hidden. For the matching mechanics, see [../url-filtering.md](../url-filtering.md).
+Because root and child command lists are filtered against the current page URL by the shared background query path (`background/commands/query.ts`, `filterCommandsByUrl`), `github-actions` only appears when the active tab's URL matches one of these patterns; on any non-GitHub page it is hidden. For the matching mechanics, see [../url-filtering.md](../url-filtering.md).
 
 ### Dynamic name
 
@@ -90,13 +90,13 @@ Each sub-group is built from the parsed `GithubPageDetails` (the owner/repo are 
 
 `createToggleStarCommand` builds an `action` (id `github-toggle-star`, icon `Star`, color `yellow`, `actionLabel: "Toggle"`). On execute it runs `toggleStarWorkflow` - a one-step `click` workflow targeting the CSS selector `.starring-container button` (`strategy: "css"`, `index: 0`, with `scrollIntoView`/`ensureVisible`). Execution goes through the shared workflow path: `resolveWorkflowTargetTabId`, a `monocle-ui-toggle` message to close the overlay, a 200 ms delay, then `executeWorkflowOnTargetTab`; success/failure are reported as targeted `monocle-toast` messages.
 
-This is best-effort DOM automation, not a GitHub API integration. The `.starring-container button` selector is brittle and can break if GitHub changes its markup. See [../workflow-automation.md](../workflow-automation.md) for the full content-step vocabulary the executor supports (`toggleStarWorkflow` itself uses only a single `click` step).
+This is best-effort DOM automation, not a GitHub API integration. The `.starring-container button` selector is brittle and can break if GitHub changes its markup. See [../workflow-automation.md](../workflow-automation.md) for the full content-step vocabulary the executor supports.
 
 Toggle Star is only offered on repo-level pages (`details.type === "repo"`), not on pull-request or issue detail pages, because the repo overview header that hosts the star button is not rendered there. This scoping is done by conditional inclusion in `children()` using the already-parsed page type, not via `urlRules` - glob patterns cannot express "the repo root but not its subpages" (the `*` wildcard matches across `/`).
 
 #### Sub-groups (URL navigation)
 
-All four sub-groups appear on any valid repo page. Their leaf commands are built by `createGithubLinkCommand`, which produces an `action` that calls `focusOrGoToUrl(url)` (focus an existing matching tab or navigate the active tab) and reports a toast.
+All four sub-groups appear on any valid repo page. Their leaf commands are built by `createGithubLinkCommand`, producing an `action` that calls `focusOrGoToUrl(url)` (focus an existing matching tab or navigate the active tab) and reports a toast.
 
 - **Go to** (`github-goto`, `navigation.ts`): repo-tab links built from `repoUrl(details)` - Code, Issues (`/issues`), Pull Requests (`/pulls`), Actions (`/actions`), Releases (`/releases`), Branches (`/branches`), Commits (`/commits`), Wiki (`/wiki`), Discussions (`/discussions`), Insights (`/pulse`), Security (`/security`), Settings (`/settings`), and Find a file (`/find/HEAD`). Leaf ids are `github-goto-<tab>`.
 - **Search** (`github-search`, `search.ts`): `search`-type nodes whose `getResults(_, query)` return a single navigation result for a non-empty (trimmed) query and `[]` for blank input. The result's dynamic id (`<id>-result`) sets `allowCustomKeybinding: false`. Queries are `encodeURIComponent`-encoded. Targets: code in repo (`/search?q=<query> repo:owner/repo&type=code`), issues in repo (`/owner/repo/issues?q=`), pull requests in repo (`/owner/repo/pulls?q=`), and all-GitHub code search (`/search?q=&type=code`).
@@ -120,13 +120,13 @@ Catalog sections not yet built (file/blob actions, open-in-github.dev/vscode.dev
 
 ## Prototype status and open design question
 
-`websiteCommands` is loaded by the normal command source and the GitHub group is in the right conceptual place, but it remains a single command array with `urlRules` rather than a first-class plugin registry. Before broadening website commands, the project must decide whether they are simply URL-filtered command arrays or a registry with plugin metadata, activation/enablement policy, settings scope, and plugin-owned hooks. Relevant constraints today:
+`websiteCommands` is loaded by the normal command source and the GitHub group is in the right conceptual place, but it remains a single command array with `urlRules` rather than a first-class plugin registry. Before broadening website commands, the project must decide whether they are URL-filtered command arrays or a registry with plugin metadata, activation/enablement policy, settings scope, and plugin-owned hooks. Constraints today:
 
 - User URL rules are keyed per command id. Website plugins that generate many dynamic command ids could fragment settings. The GitHub group itself uses stable ids, and `loadUserConfigurableCommands()` includes `...websiteCommands`, so the GitHub group is configurable in the Manage Allow/Deny List surfaces.
 - The star workflow depends on GitHub DOM selectors and should be treated as best-effort.
 - GitHub URL parsing relies on a hand-maintained reserved-slug list; GitHub routing changes can require updates.
 
-`urlRules` is the current command-visibility layer and a reasonable foundation for contextual commands, but it is not the plugin model. The site SDK is now the first runtime page-owned command source, but it is session-only and non-privileged rather than a packaged plugin registry. Treat all three concepts as distinct: built-in website commands, page-owned SDK registrations, and any future installable plugin system.
+`urlRules` is the current command-visibility layer and a reasonable foundation for contextual commands, but it is not the plugin model. The site SDK is the first runtime page-owned command source, but it is session-only and non-privileged rather than a packaged plugin registry. Treat all three concepts as distinct: built-in website commands, page-owned SDK registrations, and any future installable plugin system.
 
 ---
 

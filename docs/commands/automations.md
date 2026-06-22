@@ -3,7 +3,7 @@
 The Automations category (`background/automations/commands.ts`, registered in
 `background/commands/source.ts` under category id `automations`) exposes user
 scripts in the palette. Full feature behavior lives in
-[automations.md](../automations.md); this catalog covers just the rows.
+[automations.md](../automations.md); this catalog covers the rows.
 
 | Command | Id | Type | Behavior |
 | --- | --- | --- | --- |

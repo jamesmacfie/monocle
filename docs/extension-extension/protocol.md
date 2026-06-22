@@ -2,34 +2,35 @@
 
 > **Status: implemented (v1) — `announce`/`register`/`dispose` + the invoke RPC.** No `ping`/`pong`, no separate `update`, and `execute` is fire-and-forget in v1. See [README.md](./README.md).
 
-This is the contract between a peer extension and Monocle, carried over native
+The contract between a peer extension and Monocle, carried over native
 cross-extension messaging. It is deliberately close to the site SDK's
 `SiteSdkInvokeRequest`/`SiteSdkInvokeResponse` shapes (`shared/types/siteSdk.ts`)
-and the native bridge's envelope conventions
-(`shared/types/nativeMessaging.ts`), so reviewers familiar with either will
-recognise it.
+and the native bridge's envelope conventions (`shared/types/nativeMessaging.ts`).
 
 ## Transport
 
 - **Fire-and-forget + request/response messages** go over
   `chrome.runtime.sendMessage(monocleId, msg)` → Monocle's
-  `chrome.runtime.onMessageExternal`. Used for `announce`, `register`,
-  `update`, `dispose`, `ping`.
+  `chrome.runtime.onMessageExternal`. Used for `announce`, `register`, and
+  `dispose`.
 - **The invoke RPC** (Monocle → peer, to resolve children/search/execute) goes
   over a **port**: Monocle calls `chrome.runtime.connect(extId, {name:"monocle-ext"})`,
   which **wakes the peer's MV3 worker**; the peer answers on
-  `chrome.runtime.onConnectExternal`. A port (not one-shot `sendMessage`) is used
-  for the RPC because it keeps the peer worker alive across a multi-message
-  exchange and lets Monocle correlate replies by `id`.
+  `chrome.runtime.onConnectExternal`. A port (not one-shot `sendMessage`) keeps
+  the peer worker alive across a multi-message exchange and lets Monocle correlate
+  replies by `id`.
 
 Direction summary:
 
 | Message | Direction | Channel |
 | --- | --- | --- |
 | `announce` | peer → Monocle | `sendMessage` |
-| `register` / `update` / `dispose` | peer → Monocle | `sendMessage` |
-| `ping` / `pong` | either | `sendMessage` |
+| `register` / `dispose` | peer → Monocle | `sendMessage` |
 | `invoke` (children/search/execute) | **Monocle → peer** | port (`connect`) |
+
+`ExtRequestSchema` (`shared/types/extensionProtocol.ts`) is a discriminated union
+of exactly those three peer→Monocle kinds. There is no `update` and no
+`ping`/`pong` in v1 (see [README.md](./README.md)).
 
 ## Envelope
 
@@ -90,17 +91,21 @@ sync). Allowed only if `sender.id` is approved, else `unauthorized`.
 Reply: `{ ok:true, result: { accepted: <count>, revision: <n> } }` or
 `{ ok:false, error:{ code:"bad_request", message:"<validation detail>" } }`.
 
-### `update` / `dispose`
+### `dispose`
 
-`update` is sugar for re-`register` (replace-whole). `dispose` clears the peer's
-registrations (commands disappear from the palette) but **keeps the approval** —
-the peer can `register` again without re-approval. (Revoking approval is a
-user action on the settings page, not a peer message — see
-[registration-and-trust.md](./registration-and-trust.md).)
+`dispose` clears the peer's registrations (commands disappear from the palette)
+but **keeps the approval** — the peer can `register` again without re-approval.
+(Revoking approval is a user action on the settings page, not a peer message —
+see [registration-and-trust.md](./registration-and-trust.md).)
 
-### `ping` / `pong`
+A peer that needs to change its tree just re-sends `register` (replace-whole);
+there is no separate `update` method in v1.
 
-Liveness/version check. `pong` returns `{ v, monocleVersion, approved:boolean }`.
+### Not implemented in v1: `ping` / `pong`
+
+A liveness/version check (`pong` returning `{ v, monocleVersion, approved }`) is
+**not** part of v1 — `ExtRequestSchema` does not accept a `ping` kind. It is
+reserved as a possible future addition; nothing in Monocle answers it today.
 
 ## The invoke RPC (Monocle → peer)
 
@@ -138,13 +143,12 @@ Peer reply (over the port), identical to `SiteSdkInvokeResponse`:
 
 ## Result channel for data-producing commands
 
-A peer command may opt into returning a value (e.g. "compute X and give it back
-to Monocle"). This reuses the `CommandResult` return type already on
-`CommandExecutor` (`shared/types/commands.ts`, added for the native bridge). The
-default is fire-and-forget; returning a value is opt-in per command via the
-command's `external.result` field (mirrors the bridge's `external` opt-in on
-`CommandNodeBase`). What Monocle does with a returned value (e.g. copy to
-clipboard, show in a modal) is the same delivery seam the bridge uses.
+A peer command may opt into returning a value. This reuses the `CommandResult`
+return type already on `CommandExecutor` (`shared/types/commands.ts`, added for
+the native bridge). The default is fire-and-forget; returning a value is opt-in
+per command via the command's `external.result` field (mirrors the bridge's
+`external` opt-in on `CommandNodeBase`). What Monocle does with a returned value
+(copy to clipboard, show in a modal) is the same delivery seam the bridge uses.
 
 ## Error codes
 
@@ -162,9 +166,9 @@ A small enum, mirroring `BridgeErrorCode`:
 ## Versioning
 
 `v` is bumped only on breaking envelope changes. Additive command-schema fields
-do not bump `v` — older peers simply omit them. Monocle advertises its supported
-version in `pong.monocleVersion`, so a peer can feature-detect before relying on
-newer fields.
+do not bump `v` — older peers simply omit them. (A `pong`-style version handshake
+for feature-detection is a future addition — see the `ping`/`pong` note above —
+not part of v1.)
 
 ## What is deliberately *not* in the protocol
 
@@ -172,7 +176,7 @@ newer fields.
   privileged op. The shared schema omits these fields (see
   [command-schema.md](./command-schema.md)).
 - No per-request token in v1 — `sender.id` is the identity. A token field is a
-  forward-compatible addition (`auth?: {token}`) reserved for the roadmap.
-- No streaming/push from peer to Monocle beyond `register`/`update` — Monocle
-  pulls via invoke; the peer cannot spontaneously open the palette.
+  forward-compatible addition (`auth?: {token}`) reserved for a future version.
+- No streaming/push from peer to Monocle beyond `register` — Monocle pulls via
+  invoke; the peer cannot spontaneously open the palette.
 </content>

@@ -50,34 +50,30 @@ Four responsibilities:
 
 ## Why cross-extension messaging, not the native bridge
 
-Both peers are browser extensions, so the browser gives us a first-class,
-authenticated channel between them — there is no reason to route through a native
-host:
+Both peers are browser extensions, so the browser gives a first-class,
+authenticated channel between them; no native host is needed:
 
 - **Chrome**: the peer declares Monocle's id in its `externally_connectable`, or
   Monocle declares the peer's id; either side calls
   `chrome.runtime.connect(monocleId)` / `chrome.runtime.sendMessage(monocleId, …)`,
   and Monocle receives it on `chrome.runtime.onConnectExternal` /
-  `onMessageExternal`. The sender's `sender.id` is **browser-verified** — this is
-  the whole basis of the trust model.
+  `onMessageExternal`. The sender's `sender.id` is **browser-verified** — the
+  whole basis of the trust model.
 - **Firefox**: supports `onConnectExternal` / `onMessageExternal` but **not** the
-  `externally_connectable` manifest key. The id allowlist therefore moves into
-  the handler (reject any `sender.id` not on the approved list). This is the one
-  cross-browser asymmetry; see
-  [registration-and-trust.md](./registration-and-trust.md).
+  `externally_connectable` manifest key, so the id allowlist moves into the
+  handler. See [registration-and-trust.md](./registration-and-trust.md).
 
 Routing through the native bridge would be strictly worse: it would relay two
 in-browser extensions through stdio→UDS→HTTP across a separate desktop process,
-and the bridge has no concept of *registering* commands today — it only knows
+and the bridge has no concept of *registering* commands — it only knows
 `suggestions/*` and `commands/execute`. The bridge stays a desktop-app seam; this
 feature is an extension-to-extension seam.
 
 ## MV3 lifecycle: why durable registration + edge RPC
 
 A peer's MV3 service worker is **evicted when idle**. If Monocle held nothing and
-asked the peer to list its commands every time the palette opened, the palette's
-root list would block on another extension's cold start. That is unacceptable on
-the hot path.
+asked the peer to list its commands every time the palette opened, the root list
+would block on another extension's cold start — unacceptable on the hot path.
 
 The design splits along the worker-liveness boundary:
 
@@ -112,12 +108,11 @@ extension:<extId>:<registrationId>:<publicPath>
   encodes `site:<originHash>:<registrationId>:<path>` today
   (`toInternalCommandId` in `background/commands/siteSdk/commands.ts`).
 
-Because the id is a stable string, **all per-command settings work unchanged**:
+Because the id is a stable string, **all per-command settings work unchanged** —
 keybindings, `urlRules`, and hidden state are keyed by command id in
-`background/commands/settings.ts`, so an external command id flows through the
-keyboard page, URL-rules page, and hide-on-site exactly like a built-in command.
-The `isExtensionCommandId(id)` helper (analogous to `isSiteSdkCommandId`) lets
-ordering/keybinding logic recognise these without importing the registry.
+`background/commands/settings.ts`. The `isExtensionCommandId(id)` helper
+(analogous to `isSiteSdkCommandId`) lets ordering/keybinding logic recognise
+these without importing the registry.
 
 ## Data flows
 
@@ -137,8 +132,8 @@ extensionSdk stores sender.id on the durable allowlist  ──▶ peer may now r
 ```
 
 The announce is **unauthenticated and trust-free**: it only adds a pending row.
-Nothing the peer says is trusted until the user approves. The self-declared
-`name`/`icon` are display-only and clearly labelled "as claimed by `<extId>`".
+The self-declared `name`/`icon` are display-only and labelled "as claimed by
+`<extId>`".
 
 ### B. Register → render (peer awake; palette later renders while asleep)
 
@@ -174,8 +169,8 @@ peer replies with a declarative command list  ──▶  RE-VALIDATED  ──▶
 ```
 
 This is identical to the site SDK's `invokeSiteSdk` round-trip, except the
-transport is `chrome.runtime.connect(extId)` instead of `sendTabMessage(tabId)`,
-and the returned list is re-validated with the same caps/placement rules.
+transport is `chrome.runtime.connect(extId)` instead of `sendTabMessage(tabId)`;
+the returned list is re-validated with the same caps/placement rules.
 
 ### D. Execute (wakes the peer; no privilege escalation)
 
@@ -191,11 +186,10 @@ peer worker runs ITS code in ITS sandbox (its own permissions); optionally retur
 ```
 
 "Execute" is an outbound notification. Monocle grants the peer nothing — the peer
-acts with the permissions *it already has*. A data-returning command (e.g. a
-search-style command that produces a value) can return a value through the reply,
-reusing the `CommandResult` return channel the native bridge already added to
-`CommandExecutor` (`shared/types/commands.ts`). The default delivery for
-extension commands is "tell the peer and forget"; returning a value is opt-in.
+acts with the permissions *it already has*. A data-returning command can return a
+value through the reply, reusing the `CommandResult` return channel the native
+bridge added to `CommandExecutor` (`shared/types/commands.ts`). The default
+delivery for extension commands is fire-and-forget; returning a value is opt-in.
 
 ## Where this plugs into the existing command system
 

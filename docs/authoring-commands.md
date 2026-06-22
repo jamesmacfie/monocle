@@ -1,6 +1,6 @@
 # Authoring Commands
 
-This is a practical, end-to-end guide to adding a new command to Monocle. A command is a typed `CommandNode` defined in the background, registered in a category index, loaded by `background/commands/source.ts`, converted to a UI-facing `Suggestion` by `commandsToSuggestions` in `background/commands/suggestions.ts`, and executed by `executeCommand` (`background/commands/execution.ts`). UI code never sees your `execute` function; it only renders the suggestion and sends a message. This guide assumes you have read the schema and type references and focuses on the workflow, conventions, and pitfalls.
+End-to-end guide to adding a new command to Monocle. A command is a typed `CommandNode` defined in the background, registered in a category index, loaded by `background/commands/source.ts`, converted to a UI-facing `Suggestion` by `commandsToSuggestions` in `background/commands/suggestions.ts`, and executed by `executeCommand` (`background/commands/execution.ts`). UI code never sees your `execute` function; it only renders the suggestion and sends a message. This guide assumes you have read the schema and type references and focuses on workflow, conventions, and pitfalls.
 
 For the underlying contracts see [command-schema.md](./command-schema.md) (every `CommandNode`/`FormField` field), [command-types.md](./command-types.md) (the six node types in depth), [execution-and-actions.md](./execution-and-actions.md), [search-and-ranking.md](./search-and-ranking.md), [keybindings.md](./keybindings.md), [url-filtering.md](./url-filtering.md), and [permissions.md](./permissions.md).
 
@@ -16,7 +16,7 @@ For the underlying contracts see [command-schema.md](./command-schema.md) (every
 
 ## Step 1: Choose a category
 
-`source.ts` assembles a `LoadedCommandEntry[]` (each entry pairs a `CommandNode` with its `CommandSourceCategory`) across nine categories. Most are static folders under `background/commands/`; two (automations, features) are contributed by other subsystems. Pick the one that matches the command's nature, not just where it is convenient.
+`source.ts` assembles a `LoadedCommandEntry[]` (each entry pairs a `CommandNode` with its `CommandSourceCategory`) across nine categories. Most are static folders under `background/commands/`; two (automations, features) are contributed by other subsystems. Pick the one that matches the command's nature.
 
 | Category | Source | Index export | When to use | Loaded for |
 | --- | --- | --- | --- | --- |
@@ -45,7 +45,8 @@ A minimal action command (adapted from `background/commands/tools/copyUuidV4.ts`
 ```ts
 import { v4 as uuidv4 } from "uuid"
 import type { ActionCommandNode } from "../../../shared/types"
-import { getActiveTab, sendTabMessage } from "../../utils/browser"
+import { getActiveTab } from "../../utils/browser"
+import { deliverClipboard } from "../clipboardDelivery"
 
 export const copyUuidV4: ActionCommandNode = {
   id: "uuidv4",
@@ -53,20 +54,21 @@ export const copyUuidV4: ActionCommandNode = {
   name: "Copy UUID v4",
   icon: { type: "lucide", name: "Copy" },
   color: "teal",
+  external: { result: "value" },
   execute: async () => {
     const uuid = uuidv4()
     const activeTab = await getActiveTab()
     if (activeTab?.id) {
-      await sendTabMessage(activeTab.id, {
-        type: "monocle-clipboard-write",
-        message: uuid,
-      })
+      await deliverClipboard(activeTab.id, uuid, "UUID copied to clipboard")
     }
+    return { value: uuid }
   },
 }
 ```
 
 Privileged browser work must go through helpers in `background/utils/browser.ts` (`queryTabs`, `createTab`, `callBrowserAPI`, `sendTabMessage`, the toast helpers, etc.) rather than reaching into `chrome`/`browser` directly from the command body where a helper exists.
+
+For **copy / data-producing** commands, prefer the `deliverClipboard(tabId, value, toastMessage)` helper (`background/commands/clipboardDelivery.ts`) over a raw `monocle-clipboard-write` — in normal palette/keybinding execution it writes the clipboard and shows the toast, but under native-bridge execution (`delivery: "return"`) it suppresses the write so the value can be returned to the desktop app instead. Pair it with `external: { result: "value" }` and `return { value }` (a `CommandResult`) so the bridge has the value to hand back. See [command-schema.md](./command-schema.md) and [native-messaging/execution.md](./native-messaging/execution.md).
 
 ## Step 3: Register in the category index
 

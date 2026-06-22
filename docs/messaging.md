@@ -1,6 +1,6 @@
 # Messaging Protocol
 
-Monocle's UI surfaces (content overlay and new-tab page) never call privileged browser APIs directly. Instead they send typed messages to the background service worker, which owns command definitions, browser API access, settings, permissions, keybindings, and workflow forwarding. This document is the complete reference for that message protocol: every message the background accepts, the request/response shapes, the handler files, the send-side utilities, the validation/security layer, and how the background pushes messages back to a specific tab. All message type strings, payloads, and responses below are verified against source; where a response shape is implicit (a handler returning a plain object), it is described from the handler return value.
+Monocle's UI surfaces (content overlay and new-tab page) never call privileged browser APIs directly; they send typed messages to the background service worker, which owns command definitions, browser API access, settings, permissions, keybindings, and workflow forwarding. This is the complete reference for that protocol: every message the background accepts, the request/response shapes, handler files, send-side utilities, the validation/security layer, and how the background pushes messages back to a specific tab. Where a response shape is implicit (a handler returning a plain object), it is described from the handler return value.
 
 ## Transport And Wiring
 
@@ -21,7 +21,7 @@ The reverse direction has its own schema boundary. Background-to-tab payloads ar
 
 ## Naming Conventions
 
-Every message type string follows one scheme so the protocol reads consistently:
+Every message type string follows one scheme:
 
 - **`monocle-` prefix on every type string**, both UI -> bg and bg -> tab. The prefix namespaces Monocle's messages against other extensions and page scripts sharing the `runtime`/`tabs` channels.
 - **kebab-case type strings** (`monocle-command-execute`), never camelCase. The earlier camelCase content events (`monocle-copyToClipboard`, `monocle-newTab`, `monocle-insertText`) were renamed to `monocle-clipboard-write`, `monocle-tab-open`, `monocle-text-insert`.
@@ -87,8 +87,8 @@ Background -> tab messages (not part of `handleMessage`; sent via `tabs.sendMess
 | `monocle-scroll` | bg -> tab | `{ direction: "top" \| "bottom" }` | `background/commands/browser/scrollToTop.ts`, `scrollToBottom.ts` | `shared/components/Listeners/ScrollListener.tsx` (`window.scrollTo` with smooth behavior) |
 | `monocle-screenshot` | bg -> tab | `{ mode: "clipboard" \| "download", dataUrl, filename? }` | `background/commands/browser/captureScreenshot.ts` | `shared/components/Listeners/ScreenshotListener.tsx` (Blob → clipboard `ClipboardItem` or blob-URL `<a download>`) |
 | `monocle-text-insert` | bg -> tab | `{ text }` | `background/commands/tools/snippets.ts`, `insertSnippet` children | `shared/components/Listeners/InsertTextListener.tsx` (inserts at the caret of the page's last-focused editable element; responds `{ inserted: boolean }` so the executor can fall back to `monocle-clipboard-write` + toast) |
-| `monocle-site-sdk-sync-request` | bg -> content bridge | `{}` | `{ registrations }` | `background/commands/siteSdk/index.ts`, `prepareSiteSdkCommandLoadOptions` | Ask the isolated content bridge to replay current page SDK registrations after service-worker restart. |
-| `monocle-site-sdk-invoke` | bg -> content bridge | `{ request }` | `{ success: true, commands? }` or `{ success: false, error }` | `background/commands/siteSdk/commands.ts`, SDK wrappers | Invoke a page-world SDK callback for execute, dynamic group children, or dynamic search results. |
+| `monocle-site-sdk-sync-request` | bg -> content bridge | `{}` | `background/commands/siteSdk/index.ts`, `prepareSiteSdkCommandLoadOptions` | the isolated content SDK bridge — replays current page SDK registrations after a service-worker restart (responds `{ registrations }`) |
+| `monocle-site-sdk-invoke` | bg -> content bridge | `{ request }` | `background/commands/siteSdk/commands.ts`, SDK wrappers | the content SDK bridge — invokes a page-world SDK callback for execute / dynamic group children / dynamic search (responds `{ success: true, commands? }` or `{ success: false, error }`) |
 
 > **Deep-search items are delivered through `monocle-commands-search`.** They are flattened into the background search index (`background/commands/searchIndex.ts`) and arrive inline in `results` with a `rankWeight` stamp. `monocle-commands-get` no longer returns a `deepSearchItems` field.
 
@@ -107,7 +107,7 @@ export namespace Browser {
 }
 ```
 
-The Zod `BrowserContextSchema` (`shared/types/validation.ts`) requires a non-empty `url`, a string `title`, a nullable enum `modifierKey`, and optional boolean `isNewTab`. Because validation requires `url` to be non-empty, messages that carry context cannot be sent from a context without a URL.
+The Zod `BrowserContextSchema` (`shared/types/validation.ts`) requires a non-empty `url`, a string `title`, a nullable enum `modifierKey`, and optional boolean `isNewTab`. Because `url` must be non-empty, messages carrying context cannot be sent from a context without a URL.
 
 `CommandExecutionScope` is attached to `monocle-command-execute` to pin execution to a specific palette page:
 

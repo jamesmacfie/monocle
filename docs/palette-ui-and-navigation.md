@@ -5,17 +5,16 @@ content-script overlay injected into webpages (inside a closed shadow DOM) and a
 new-tab page replacement. Both surfaces mount the **same** shared React
 components under `shared/components/Command/`, drive navigation through the
 **same** Redux `navigation` slice, and execute commands through the same typed
-background messages. They differ almost entirely in two dimensions: visibility
-(the overlay toggles open/closed; the new-tab palette is always mounted) and
-context (`{ isNewTab: true }` is attached to new-tab command fetches and
-executions). This document covers the component tree, the navigation model, the
+background messages. They differ in two dimensions: visibility (the overlay
+toggles open/closed; the new-tab palette is always mounted) and context
+(`{ isNewTab: true }` is attached to new-tab command fetches and executions).
+This document covers the component tree, the navigation model, the
 inline-input/form system, palette keyboard semantics, the fragile CMDK↔Redux
 search synchronization, surface-specific wiring, and error/toast rendering.
 
 ## Component Tree
 
-The palette is composed from these components (all under
-`shared/components/Command/` unless noted):
+Components (all under `shared/components/Command/` unless noted):
 
 | Component | File | Responsibility |
 | --- | --- | --- |
@@ -32,7 +31,7 @@ The palette is composed from these components (all under
 
 ### CommandItem variant selection
 
-`CommandItem` is the single dispatch point. It selects a variant with a
+`CommandItem` is the single dispatch point, selecting a variant with a
 `ts-pattern` `match(suggestion.type)`:
 
 | `suggestion.type` | `inputField.type` | Rendered variant | Notes |
@@ -71,7 +70,7 @@ renders the missing-permission list inline. See [permissions.md](./permissions.m
 ## Navigation Model
 
 State lives in `shared/store/slices/navigation.slice.ts`. The palette is a stack
-of **pages**, and the current page is always the last element.
+of **pages**; the current page is always the last element.
 
 ### Page shape
 
@@ -133,8 +132,8 @@ Async thunks:
 `refreshCurrentPage.pending` stamps `state.refreshRequest` with the thunk's
 `requestId`, the page id, and the search value. The `fulfilled` reducer ignores
 any response whose `requestId` no longer matches the latest pending request, or
-whose page id / search value has changed since dispatch. This prevents a slow
-response for an older query from overwriting newer results — verified by tests in
+whose page id / search value has changed since dispatch — preventing a slow
+response for an older query from overwriting newer results. Verified by tests in
 `navigation.slice.test.ts`.
 
 ### useCommandNavigation (imperative wrapper)
@@ -174,10 +173,10 @@ The hook also runs two debounced effects keyed on the Redux `searchValue`:
 
 ## CMDK ↔ Redux Search Synchronization (fragile)
 
-CMDK keeps its own internal search string. Monocle keeps the authoritative value
-in Redux per page. Keeping the two aligned requires **direct DOM manipulation**
-of the `input[cmdk-input]` element, gated behind an `ignoreSearchUpdate` ref so
-the programmatic writes don't get persisted back as user edits.
+CMDK keeps its own internal search string; Monocle keeps the authoritative value
+in Redux per page. Aligning the two requires **direct DOM manipulation** of the
+`input[cmdk-input]` element, gated behind an `ignoreSearchUpdate` ref so the
+programmatic writes don't get persisted back as user edits.
 
 Two effects/handlers in `useCommandNavigation` do this:
 
@@ -222,10 +221,10 @@ With `shouldFilter={false}`, `CommandList` decides explicitly what to render:
 ## Inline Inputs and Forms
 
 Input nodes render as ordinary list rows but contain a focusable form control.
-Typed values are stored in the current page's `formValues` map keyed by the
-field id, written through `setFormValue`. Most fields store **strings**; `multi`
-and `text-list` store **string arrays**. The background normalizes these for
-older executors (see [command-schema.md](./command-schema.md)).
+Typed values are stored in the current page's `formValues` map keyed by field id,
+written through `setFormValue`. Most fields store **strings**; `multi` and
+`text-list` store **string arrays**. The background normalizes these for older
+executors (see [command-schema.md](./command-schema.md)).
 
 ### Focus management
 
@@ -259,8 +258,8 @@ position (`CommandItemTextarea`).
 `CommandItemSubmit` and `CommandList.handleInputSubmit` both validate before
 submitting: they collect input fields via `collectInputFieldsFromSuggestions`,
 run `validateFormValues` against the page `formValues`, toast
-"Form is invalid. Check inputs." on failure, and otherwise call `onSelect` for
-the first `submit` suggestion on the page. Per-field validity is shown live by a
+"Form is invalid. Check inputs." on failure, else call `onSelect` for the first
+`submit` suggestion on the page. Per-field validity is shown live by a
 `validation-dot` driven by `validateWithJsonSchema`.
 
 ## Palette Keyboard Semantics
@@ -281,10 +280,10 @@ returns one of `open-actions | navigate-back | close | none`:
 `CommandContent.handleKeyDown` reads the live input value from
 `input[cmdk-input]`, calls this function, and maps the result to
 `onOpenActions` / `navigateBack` / `close`. Decisions are covered by
-`paletteKeyboard.test.ts`. Note the key distinction: **Backspace only pops when
-the search box is empty** — otherwise it falls through to normal text deletion.
-Arrow navigation itself is handled by CMDK; inline inputs forward arrows back to
-CMDK as described above.
+`paletteKeyboard.test.ts`. The key distinction: **Backspace only pops when the
+search box is empty** — otherwise it falls through to normal text deletion. Arrow
+navigation is handled by CMDK; inline inputs forward arrows back to CMDK as
+described above.
 
 The action menu does not close on every focus change blindly: `CommandContent`
 closes it when the focused value changes away from the row it was opened for (or
@@ -315,7 +314,7 @@ on `isOpen` (it is always mounted).
 
 Mounting chain: `entrypoints/content.tsx` defines the WXT content script
 (`matches: ["<all_urls>"]`, `cssInjectionMode: "ui"`) and creates a **closed**
-shadow-root UI (`mode: "closed"`) anchored to `body`, with host id
+shadow-root UI (`mode: "closed"`) anchored to `body`, host id
 `extension-root`. `content/scripts.tsx` `renderContentCommandPalette` mounts
 `ContentCommandPaletteWithState` into the shadow container, wrapping content in a
 `content_script raycast` div.
@@ -342,8 +341,8 @@ shadow-root UI (`mode: "closed"`) anchored to `body`, with host id
 gate). It fetches commands with `useGetCommands({ isNewTab: true })` and executes
 with `sendMessage(message, { isNewTab: true })`, so new-tab-only commands and
 context appear. `autoFocus` is supported (`CommandPalette` focuses the input
-after a 100 ms delay when set, to let the new-tab DOM settle). Execution only
-calls `onClose` when one is supplied — by default the new-tab palette stays
+after a 100 ms delay when set, to let the new-tab DOM settle). Execution calls
+`onClose` only when one is supplied — by default the new-tab palette stays
 mounted after a command runs (unlike the overlay, which closes). After certain
 executions (`id.includes("clock")`/`"settings"`) it reloads settings into Redux.
 

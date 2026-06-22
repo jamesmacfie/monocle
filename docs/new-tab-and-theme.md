@@ -4,11 +4,11 @@ Monocle replaces the browser's new-tab page with a dedicated React app that
 renders the shared command palette on top of a clock and a full-bleed
 background image, then layers a theme system (light / dark / system) that also
 governs the content-script overlay. This doc covers the new-tab boot sequence,
-the `isNewTab` context flag and how it shapes command loading, the clock,
-background images (Unsplash fetch + cache + fallback), the permission-grant
-panel, and the theme application mechanics shared across both runtime modes.
-The theme *command* surface (labels, cycle order) is documented in
-[commands/ui.md](commands/ui.md); the mechanics live here.
+the `isNewTab` context flag, the clock, background images (Unsplash fetch +
+cache + fallback), the permission-grant panel, and the theme application
+mechanics shared across both runtime modes. The theme *command* surface
+(labels, cycle order) is documented in [commands/ui.md](commands/ui.md); the
+mechanics live here.
 
 ## How the new-tab page is wired
 
@@ -32,8 +32,8 @@ unless you intend to override WXT's inference.
 
 ### Boot sequence (`newtab/NewTabApp.tsx`)
 
-`NewTabApp` (the default export) does the store/messaging wiring; the inner
-`NewTabAppContent` does the rendering and effects.
+`NewTabApp` (default export) does store/messaging wiring; the inner
+`NewTabAppContent` does rendering and effects.
 
 1. `createPaletteSendMessage({ isNewTab: true })` produces a messaging function
    that stamps every palette message with the new-tab context. It is memoized
@@ -68,15 +68,15 @@ unless you intend to override WXT's inference.
 | Listener components | `shared/components/Listeners/` | `CopyToClipboardListener`, `InsertTextListener`, `NewTabListener`, `ScrollListener`, `ScreenshotListener` — always mounted so background → tab messages (clipboard copy, snippet insert fallback, etc.) work on the new-tab page; see [messaging.md](./messaging.md). |
 | `<ToastContainer />` | `shared/components/ToastContainer` | Shared toast host. |
 
-The product scope here is intentionally a lightweight launcher surface
-(palette + clock + background), not a dashboard.
+The scope is intentionally a lightweight launcher surface (palette + clock +
+background), not a dashboard.
 
 ## The `isNewTab` context flag
 
 Both the palette messaging (`NewTabApp`) and the command fetch
 (`NewTabCommandPalette` via `useGetCommands({ isNewTab: true })`) attach
-`isNewTab: true` to the browser context. This single flag drives several
-behaviors in the background:
+`isNewTab: true` to the browser context. This flag drives several background
+behaviors:
 
 - **New-tab-only commands are appended.** `background/commands/source.ts`
   pushes `newTabCommands` (from `background/commands/newTab/index.ts`) into the
@@ -93,12 +93,12 @@ behaviors in the background:
   custom keybinding only matches when the incoming context includes `isNewTab`.
   See [keybindings.md](keybindings.md).
 
-`NewTabCommandPalette.executeCommand` also has a small client-side
-post-execution hook: after any command whose id `includes("clock")` or
-`includes("settings")`, it dynamically imports and dispatches `loadSettings()`
-to refresh the Redux mirror immediately (in addition to the storage-change
-listener). It also re-runs `fetchCommands()` after every successful execution so
-dynamic labels (for example the clock toggle's "Show/Hide Clock") update.
+`NewTabCommandPalette.executeCommand` also has a client-side post-execution
+hook: after any command whose id `includes("clock")` or `includes("settings")`,
+it dynamically imports and dispatches `loadSettings()` to refresh the Redux
+mirror immediately (in addition to the storage-change listener). It also re-runs
+`fetchCommands()` after every successful execution so dynamic labels (e.g. the
+clock toggle's "Show/Hide Clock") update.
 
 ## Clock
 
@@ -138,8 +138,8 @@ const toggleClockVisibility: CommandNode = {
 Persistence flows through `background/commands/settings.ts`:
 `updateNewTabClockSettings` → `updateNewTabSettings({ clock })`, which
 **deep-merges** (`merge(existingNewTab, partialSettings)`) into
-`settings.newTab` before saving. The deep merge matters: writing `clock` must
-not clobber sibling `newTab` fields such as `greeting` or `backgroundCategories`.
+`settings.newTab` before saving. The deep merge prevents writing `clock` from
+clobbering sibling `newTab` fields such as `greeting` or `backgroundCategories`.
 
 The Redux mirror reads it through `selectClockVisibility`, which returns
 `state.settings.newTab.clock?.show ?? true` — clock is visible by default.
@@ -147,7 +147,7 @@ The Redux mirror reads it through `selectClockVisibility`, which returns
 ### Clock component
 
 `newtab/components/Clock.tsx` is purely presentational. It holds a `Date` in
-state and updates it every second via `setInterval`. There is currently **no
+state and updates it every second via `setInterval`. There is **no
 format/timezone setting wired through** — the format is hard-coded:
 
 - Time: `toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12:
@@ -162,10 +162,10 @@ and stops the interval cleanly.
 
 ## Background image
 
-The background uses an Unsplash random landscape photo, fetched through the
+The background is a random Unsplash landscape photo, fetched through the
 background service worker, with a `localStorage` cache and a deterministic
-gradient fallback. There are three pieces: the component, the local
-state-machine model, and the background message handler.
+gradient fallback. Three pieces: the component, the local state-machine model,
+and the background message handler.
 
 ### `BackgroundImage` component
 
@@ -219,9 +219,8 @@ exports: `BACKGROUND_IMAGE_CACHE_KEY` (`"monocle-unsplash-background"`),
 6. On a thrown error (network/`lastError`): log, and call `onFallback` with the
    error message only if no cached image was shown.
 
-The net effect: a cached image always wins for first paint and is *never*
-replaced by a same-session fetch failure — the page degrades gracefully and
-keeps the last-known-good image.
+Net effect: a cached image always wins first paint and is *never* replaced by a
+same-session fetch failure — the page keeps the last-known-good image.
 
 ### Unsplash fetch (`background/messages/getUnsplashBackground.ts`)
 
@@ -274,9 +273,9 @@ value yields `null` and the panel is not shown.
 Why it exists: some browsers (notably Firefox in certain flows) refuse optional
 permission prompts triggered from a content-script/overlay or non-user-gesture
 context. The new-tab page is a trusted extension page where a button click is a
-clean user gesture, so a command that needs a permission can deep-link the user
-to `chrome-extension://…/newtab.html?grantPermission=tabs` and present an
-explicit "Grant Tabs" button.
+clean user gesture, so a command needing a permission can deep-link the user to
+`chrome-extension://…/newtab.html?grantPermission=tabs` and present an explicit
+"Grant Tabs" button.
 
 On click, `handleGrant`:
 
@@ -345,10 +344,10 @@ To add a theme, add a block of the same variables keyed on its own root class.
 
 ### Applying the theme: two DOM targets
 
-The crucial design point is that the **theme class is applied to a different
-element in each mode**, because the content overlay lives in a closed shadow
-DOM while the new-tab page is ordinary DOM. CSS variables/theme classes are
-scoped per-tree, so the class must land on the right root.
+The **theme class is applied to a different element in each mode**, because the
+content overlay lives in a closed shadow DOM while the new-tab page is ordinary
+DOM. CSS variables/theme classes are scoped per-tree, so the class must land on
+the right root.
 
 | Mode | Target element | Entry point |
 | --- | --- | --- |

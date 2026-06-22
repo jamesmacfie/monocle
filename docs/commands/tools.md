@@ -1,6 +1,6 @@
 # Tool Commands
 
-Tool commands are general-purpose utilities that are not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are six tool commands today: a UUID generator, a workflow debug command, the snippet pair (create + insert), the QR-code command, and the font inspector.
+Tool commands are general-purpose utilities not tied to a browser API surface. They live in `background/commands/tools/` and are aggregated by `background/commands/tools/index.ts` into the exported `toolCommands` array, which `background/commands/source.ts` (`loadAllCommands`) merges into the global command set for both palette modes. There are six tool commands today: a UUID generator, a workflow debug command, the snippet pair (create + insert), the QR-code command, and the font inspector.
 
 > Arithmetic used to be a `calculator` group command here. It has been replaced by inline **calculations** — type `1 + 89` at the palette root and the answer appears under the search input; Enter copies it. See [../calculations.md](../calculations.md).
 
@@ -34,7 +34,7 @@ export const toolCommands = [
 
 Source: `background/commands/tools/copyUuidV4.ts`, exported as `copyUuidV4` (`ActionCommandNode`).
 
-A single-shot `action`. On execute it generates a UUID with `uuidv4()` from the `uuid` package, then, if an active tab exists, sends a `monocle-clipboard-write` message with the UUID followed by a success `monocle-toast` reading `"UUID copied to clipboard"`. If there is no active tab the command silently does nothing (clipboard writes go through the content script). No permissions, no form, no modifier behavior.
+A single-shot `action`. On execute it generates a UUID with `uuidv4()` from the `uuid` package, then, if an active tab exists, sends a `monocle-clipboard-write` message with the UUID followed by a success `monocle-toast` reading `"UUID copied to clipboard"`. With no active tab it silently does nothing (clipboard writes go through the content script). No permissions, no form, no modifier behavior.
 
 ```ts
 export const copyUuidV4: ActionCommandNode = {
@@ -60,7 +60,7 @@ export const copyUuidV4: ActionCommandNode = {
 
 Source: `background/commands/tools/debugWorkflow.ts`, exported as `debugWorkflow` (`ActionCommandNode`). Id `debug-workflow`, name `"Debug Workflow - Click Submit Button"`, `actionLabel: "Run Debug Test"`.
 
-This command exists to exercise the end-to-end workflow execution path against a real page. On execute it:
+This command exercises the end-to-end workflow execution path against a real page. On execute it:
 
 1. Resolves the target tab with `resolveWorkflowTargetTabId({ context })` (from `background/workflows/execution.ts`).
 2. Sends `monocle-ui-toggle` to that tab to close the palette overlay, then waits 200 ms.
@@ -78,7 +78,7 @@ Test coverage: `background/commands/tools/debugWorkflow.test.ts` stubs Chrome ta
 
 Source: `background/commands/tools/urlAsQrCode.ts`, exported as `urlAsQrCode` (`ActionCommandNode`). Id `url-as-qr-code`, icon `QrCode`.
 
-This is the **first command that triggers a [Surface](../surfaces.md)** — the pattern for rendering command output as page UI instead of executing-and-closing. On execute it:
+The **first command that triggers a [Surface](../surfaces.md)** — the pattern for rendering command output as page UI instead of executing-and-closing. On execute it:
 
 1. Reads `context.url`; if it is not an `http(s)` page (new tab, `chrome://`, `about:`), it sends a `"No page URL to encode"` warning toast and returns.
 2. Generates the QR as an **SVG data URL** synchronously via `background/utils/qr.ts` (`qrCodeSvgDataUrl`, built on the zero-dependency `qrcode-generator` library). SVG is required because the MV3 service worker has no DOM/canvas; the library is imported only here, so it stays in the background bundle.
@@ -95,7 +95,7 @@ Test coverage: QR generation in `background/utils/qr.test.ts` (svg+xml data URL,
 
 Source: `background/commands/tools/inspectElementFonts.ts`, exported as `inspectElementFonts` (`ActionCommandNode`). Id `inspect-element-fonts`, icon `TextSearch`. A "what font is this" command (the WhatFont pattern), and the **first command to consume the `picker` surface** and **command-owner `monocle-surface-action` routing**.
 
-The flow spans the two surface mechanisms it introduced (see [../surfaces.md](../surfaces.md)):
+The flow spans both surface mechanisms it introduced (see [../surfaces.md](../surfaces.md)):
 
 1. On execute it reads `context.url`; non-`http(s)` pages get a `"Font inspection only works on web pages"` warning toast and it returns (pick-mode needs a content script + `SurfaceHost`).
 2. Otherwise it `upsertSurface`s a `picker` surface under owner `command:inspect-element-fonts`, URL-gated to the page and `targetTabId`-scoped to the active tab. Its `content.css` lists the `font-*` properties to capture (`font-family`, `font-size`, `font-weight`, `font-style`, `line-height`, `color`).

@@ -10,7 +10,7 @@ Bluetooth-style, **Direction B**: the confirmation code travels
 **extension → app → human → browser**. Raycast **displays** the code; the user
 reads it and types it on the browser's **Integrations** settings page, then
 clicks **Accept**. The browser mints the token; Raycast collects it by polling.
-This proves the person driving Raycast can also see the browser, and keeps all
+This proves the person driving Raycast can also see the browser, and keeps
 accept/reject on one settings page.
 
 ```
@@ -54,11 +54,16 @@ Key facts (from `pairing.ts`):
   Integrations settings page (a normal extension page), so there is no longer a `chrome://*` /
   no-content-host blind spot.
 
-## The `instanceId`
+## The `instanceId` and per-browser tokens
 
-A stable per-installation id. Generate it once and persist it in `LocalStorage`; reuse it forever so
-re-pairing replaces the same client record (rather than piling up duplicates in the extension's
-paired-clients list).
+The `instanceId` is a stable per-installation id. Generate it once, persist it in
+`LocalStorage`, and reuse it forever so re-pairing replaces the same client record
+instead of piling up duplicates in the extension's paired-clients list.
+
+**Tokens are per-browser.** A token is minted by one browser's extension and is
+only accepted there, so `auth.ts` keys tokens by browser id
+(`monocle.token.<browserId>`, where `browserId` is the routing target, e.g.
+`"chrome"`). The `instanceId` is shared across browsers (one installation).
 
 ```ts
 // src/lib/auth.ts
@@ -66,7 +71,8 @@ import { LocalStorage } from "@raycast/api";
 import { randomUUID } from "node:crypto";
 
 const INSTANCE_KEY = "monocle.instanceId";
-const TOKEN_KEY = "monocle.token";
+const LEGACY_TOKEN_KEY = "monocle.token"; // pre-multi-browser single token
+const tokenKey = (browserId: string) => `monocle.token.${browserId}`;
 
 export async function getInstanceId(): Promise<string> {
   let id = await LocalStorage.getItem<string>(INSTANCE_KEY);
@@ -77,10 +83,16 @@ export async function getInstanceId(): Promise<string> {
   return id;
 }
 
-export const getToken = () => LocalStorage.getItem<string>(TOKEN_KEY);
-export const setToken = (t: string) => LocalStorage.setItem(TOKEN_KEY, t);
-export const clearToken = () => LocalStorage.removeItem(TOKEN_KEY);
+export const getToken = (browserId: string) => LocalStorage.getItem<string>(tokenKey(browserId));
+export const setToken = (browserId: string, t: string) => LocalStorage.setItem(tokenKey(browserId), t);
+// Clear the token but KEEP instanceId, so re-pairing dedupes cleanly.
+export const clearToken = (browserId: string) => LocalStorage.removeItem(tokenKey(browserId));
 ```
+
+**Legacy migration.** `migrateLegacyToken(browserId)` is called only when exactly
+one browser is connected: it claims the pre-multi-browser `monocle.token` for that
+browser's keyed slot and deletes the legacy key, so existing users don't have to
+re-pair.
 
 ## The `Pair Monocle` command
 
@@ -152,11 +164,15 @@ export function PairForm({ browserId }: { browserId: string }) {
 
 ## Re-pair triggers
 
-The `Search Monocle` command should route to pairing whenever it sees:
+`Search Monocle` (via `BrowserCommands`/`CommandList`) routes to pairing for the
+selected browser whenever it sees:
 
-- No token in `LocalStorage` (never paired) → show a `List.EmptyView` with a "Pair Monocle" action.
-- An `unauthorized` / `forbidden_scope` from any authed call (token revoked in the extension, or the
-  extension reinstalled) → `clearToken()` and prompt to pair again.
+- No token in `LocalStorage` for that browser id (never paired) → a
+  `List.EmptyView` with a "Pair Monocle" action (which pushes `PairForm` for that
+  `browserId`).
+- An `unauthorized` / `forbidden_scope` from any authed call (token revoked in the
+  extension, or the extension reinstalled) → `clearToken(target)` and prompt to
+  pair again.
 
 ## Revocation
 
@@ -165,10 +181,39 @@ Revoke). Raycast cannot revoke remotely; it discovers a revoked token by getting
 then prompts the user to re-pair. Because re-pairing dedupes by `instanceId`, the user ends up with a
 single fresh client record.
 
-## Why the token lives in `LocalStorage`, not preferences
+## Settings vs storage: what lives where
 
-Raycast documents password preferences and `LocalStorage` as stored in its local encrypted database.
-The bridge token is minted internally during pairing, so it should not be a visible/user-editable
-preference value. Store it in `LocalStorage`; keep preferences for user-tunable non-secrets such as
-`port`/`host`. The `instanceId` is derived state, also not something a user should hand-edit. See
-[settings-and-storage.md](./settings-and-storage.md).
+Tokens and the `instanceId` are minted/derived during pairing, so neither belongs
+in user-editable preferences. They go in `LocalStorage` (per-extension, stored in
+Raycast's local encrypted database, scoped to this extension, never logged).
+Preferences hold user-tunable non-secrets — `port`/`host` (see
+[setup.md](./setup.md)).
+
+> Rule of thumb: **preferences for user-tunable non-secrets, `LocalStorage` for
+> secrets and derived state.** Raycast has password preferences for user-entered
+> secrets, but the Monocle token is minted by pairing and should not be shown or
+> edited in the preferences UI.
+
+### Storage keys
+
+| Key | Type | Set when | Cleared when |
+|-----|------|----------|--------------|
+| `monocle.instanceId` | string (uuid) | First run (lazy) | Never (stable across re-pairs) |
+| `monocle.token.<browserId>` | string (64-hex) | After `pair/poll-status` returns `approved` | On `unauthorized`/`forbidden_scope`, or a "Forget Pairing" action |
+| `monocle.token` (legacy) | string (64-hex) | Pre-multi-browser only | Migrated to `monocle.token.<id>` and removed by `migrateLegacyToken` when one browser is connected |
+
+`LocalStorage` values are `string | number | boolean`.
+
+### Pointing the user at preferences
+
+When the daemon is unreachable or the port looks wrong, open the prefs pane
+directly with `openExtensionPreferences()` — offer it as a secondary `Action`
+whenever you show a connection error
+([testing-and-troubleshooting.md](./testing-and-troubleshooting.md)).
+
+### A "Forget Pairing" action
+
+`BrowserCommands` provides a secondary action that clears the selected browser's
+token (`clearToken(target)`, keeping `instanceId`) so the user can re-pair. Keep
+`instanceId` — re-pairing with the same id replaces the old client record in the
+extension rather than accumulating stale ones.

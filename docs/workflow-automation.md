@@ -2,7 +2,7 @@
 
 Monocle's workflow system is the typed DOM-automation vocabulary executed by the content script, plus the background-to-content execution path and the public message schema. It is the substrate automations lower onto (see [automations.md](./automations.md)): a workflow is always a flat list of **content-executable** steps — privileged operations (navigate, open URL, clipboard, run command) are automation engine operations, never workflow steps.
 
-The system's hardest invariant is **lockstep**: the public `monocle-workflow-execute` schema accepts exactly the operations the executor implements, and a new op lands as one unit — type, schema entry, executor case, and tests. Unsupported ops fail loudly (`Unsupported step operation: <op>`), never silently.
+The hardest invariant is **lockstep**: the public `monocle-workflow-execute` schema accepts exactly the operations the executor implements, and a new op lands as one unit — type, schema entry, executor case, and tests. Unsupported ops fail loudly (`Unsupported step operation: <op>`), never silently.
 
 ## Status at a glance
 
@@ -37,7 +37,7 @@ Entry surfaces in the background:
 
 - **The public message handler** `background/messages/executeWorkflow.ts` handles the `monocle-workflow-execute` message. Messages reach it only after passing the schema (see [Validation](#validation-public-schema)).
 - **The automation engine** (`background/automations/engine.ts`) lowers each contiguous content segment of a script to a `Workflow` and calls `executeWorkflowOnTargetTab` directly. It also uses one-step probe workflows (`wait`, `getText`) to answer branch/loop conditions.
-- **Direct background callers** such as the debug tool (`background/commands/tools/debugWorkflow.ts`) and the GitHub website prototype call `executeWorkflowOnTargetTab` with in-code workflows. These bypass the message schema because the workflow never crosses the untrusted UI boundary, but the executor independently rejects unsupported ops.
+- **Direct background callers** such as the debug tool (`background/commands/tools/debugWorkflow.ts`) and the GitHub website prototype call `executeWorkflowOnTargetTab` with in-code workflows. These bypass the message schema (the workflow never crosses the untrusted UI boundary), but the executor independently rejects unsupported ops.
 
 ### Target tab resolution
 
@@ -53,7 +53,7 @@ Entry surfaces in the background:
 
 ### Content listener
 
-The content script injects the real content runner from `content/components/ContentCommandPalette.tsx`; the shared listener lives in `shared/hooks/useCommandPaletteStateRedux.tsx` so new-tab/content palette state stays shared without importing `content/` from `shared/`. The listener validates `monocle-workflow-content-execute` with `ContentMessageSchema`, keeps the listener synchronous, and responds via `sendResponse` (returning a Promise from the listener is treated as the response by some runtimes). It logs only the workflow name and step count, never the full spec.
+The content script injects the real content runner from `content/components/ContentCommandPalette.tsx`; the shared listener lives in `shared/hooks/useCommandPaletteStateRedux.tsx` so new-tab/content palette state stays shared without importing `content/` from `shared/`. The listener validates `monocle-workflow-content-execute` with `ContentMessageSchema`, stays synchronous, and responds via `sendResponse` (some runtimes treat a returned Promise as the response). It logs only the workflow name and step count, never the full spec.
 
 ## The executor module (`content/workflow/`)
 

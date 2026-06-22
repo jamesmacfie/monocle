@@ -4,10 +4,10 @@
 > (macOS M0+M1).** This document is the design/contract; the canonical build
 > status lives in [README.md](./README.md) and the project `CLAUDE.md`.
 
-The bridge exposes a loopback port that **any local process can reach**. That is
-the central threat. Defense is layered: the feature is off until the user opts
-in, a human must approve each new client via a bluetooth-style code confirmation,
-and every data request carries a scoped bearer token. This document specifies the
+The bridge exposes a loopback port that **any local process can reach** — the
+central threat. Defense is layered: the feature is off until the user opts in, a
+human must approve each new client via a bluetooth-style code confirmation, and
+every data request carries a scoped bearer token. This document specifies the
 opt-in, the pairing flow and its primitives, token handling, and the loopback
 threat model.
 
@@ -34,9 +34,9 @@ persist), but makes the bridge unreachable until re-enabled.
 The confirmation code travels **extension → app → human → browser**. The app
 **displays** the code; the human reads it from the app and **types it on the
 browser's Integrations settings page**, where they Accept. This proves a human
-who can see both the app and the browser approved the specific app — the same
-possession proof as before, but the code is entered in the browser (so all
-accept/reject lives on one page) rather than typed back into the app.
+who can see both the app and the browser approved the specific app. The code is
+entered in the browser (so all accept/reject lives on one page) rather than typed
+back into the app.
 
 1. App calls `pair/request` with a human-readable `client.name` and a stable
    `client.instanceId`.
@@ -78,8 +78,7 @@ where the old modal-based flow showed it only in the browser. This is a
 deliberate, accepted trade: completing pairing still requires a **human** to
 carry the code from the app into Monocle's Integrations page, so a local impostor
 that grabs a code cannot finish pairing without the user typing it into the
-browser for it. The possession proof is preserved; only the surface where the
-code is entered moved.
+browser. The possession proof is preserved; only the entry surface moved.
 
 ---
 
@@ -129,7 +128,7 @@ malware that can read another process's memory or the app's token store. If that
 is in scope, the upgrade path is **signed requests**: the app generates a key
 pair at pairing, registers its public key, and signs each request; the extension
 verifies the signature. This removes the bearer secret from the wire entirely.
-Deferred to v2 — see [roadmap.md](./roadmap.md).
+Deferred to v2.
 
 ---
 

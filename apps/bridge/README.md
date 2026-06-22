@@ -8,8 +8,10 @@ protocol verbatim, and routes by request `id` only. All real decisions (active
 tab, suggestions, pairing, tokens) live in the extension.
 
 Design: [`docs/native-messaging/bridge-app-prd.md`](../../docs/native-messaging/bridge-app-prd.md).
-Scope today: **macOS, milestones M0 + M1** (Windows/Linux, signing, multi-browser
-are deferred — see the PRD).
+Scope today: **macOS, milestones M0 + M1**, including multi-browser routing (the
+daemon multiplexes all connected relays, lists them at `GET /instances`, and routes
+by the `X-Monocle-Target` header). Deferred: Windows/Linux, signing, and
+profile-level instance selection — see the PRD.
 
 ## One binary, two modes
 
@@ -71,5 +73,5 @@ Without it, Chrome registration is skipped (Firefox still works).
 Run the daemon, enable the bridge in the browser extension, then drive the
 loopback server as the external caller (Raycast) would — `POST`ing protocol
 envelopes to `127.0.0.1:8765`. See [`docs/native-messaging/protocol.md`](../../docs/native-messaging/protocol.md)
-for the methods: `meta/info`, `pair/request` → `pair/submit-code`,
+for the methods: `meta/info`, `pair/request` → `pair/poll-status`,
 `suggestions/get-for-active-tab`, `suggestions/get-children`, `commands/execute`.

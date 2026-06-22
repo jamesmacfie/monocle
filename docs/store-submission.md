@@ -8,9 +8,9 @@ before first submission.
 Unlike the other docs in this folder, this one describes **external review
 policy as researched in June 2026**, not code behavior. Store policies change;
 re-verify the hard rules (especially Chrome single-purpose enforcement and
-Mozilla's data-collection manifest requirements) before actually submitting.
-Code citations below follow the usual doc conventions and describe verified
-current behavior.
+Mozilla's data-collection manifest requirements) before submitting. Code
+citations follow the usual doc conventions and describe verified current
+behavior.
 
 ## Summary risk read
 
@@ -56,14 +56,14 @@ These must be fixed before either store will accept a submission:
    default environment is Ubuntu 24.04 / Node 24 / npm — the README must spell
    out the corepack + pnpm v11 requirement and the exact commands
    (`pnpm install`, `pnpm run build:firefox`). The build must reproduce the
-   submitted package on the reviewer's machine. All dependencies must come
-   from official package registries during the build.
+   submitted package on the reviewer's machine, with all dependencies from
+   official package registries.
 4. **Privacy policy.** Under Chrome's definition, reading page content
    (`content/workflow/`) and capturing keystrokes for keybindings
    (`shared/hooks/useGlobalKeybindings.tsx`) count as "handling user data" —
-   even when local-only. A privacy policy URL
-   and accurate data-disclosure checkboxes in the dashboard are required;
-   a missing policy is a hard rejection on Chrome.
+   even when local-only. A privacy policy URL and accurate data-disclosure
+   checkboxes in the dashboard are required; a missing policy is a hard
+   rejection on Chrome.
 5. **Gecko ID.** `browser_specific_settings.gecko.id` is currently
    `ff@monocle.com` (`wxt.config.ts`), a domain not owned by this project. The
    ID is permanent once published — it is the update identity and can never
@@ -95,15 +95,15 @@ These must be fixed before either store will accept a submission:
 Chrome's single-purpose policy accepts either "one narrow focus area" or "one
 browser function." Monocle spans a new-tab page replacement, an all-pages
 overlay, and a command set covering tabs, history, bookmarks, downloads,
-calculator, site commands, and workflow automation. The policy
-docs do not directly address an NTP-override + content-overlay combination —
-it is a genuine grey area decided by the reviewer you draw.
+calculator, site commands, and workflow automation. The policy docs do not
+directly address an NTP-override + content-overlay combination — it is a
+genuine grey area decided by the reviewer you draw.
 
 The defense: **one browser function — command launching — rendered in two
-contexts.** "Raycast for the browser," not a productivity suite. For this to
-hold, the store listing, the single-purpose dashboard field, and the
-screenshots must all tell the same one-sentence story. Avoid "suite,"
-"all-in-one," or feature-list framing anywhere in the listing.
+contexts.** "Raycast for the browser," not a productivity suite. The store
+listing, the single-purpose dashboard field, and the screenshots must all tell
+the same one-sentence story. Avoid "suite," "all-in-one," or feature-list
+framing anywhere in the listing.
 
 Sub-risks inside this:
 
@@ -164,8 +164,8 @@ of this line, verified against the code:
 The residual risk is **reviewer comprehension, not policy**. A MAIN-world
 content script plus a postMessage command channel pattern-matches on known
 abuse vectors (the Urban VPN postMessage-command-injection incident is the
-canonical example reviewers know). Pre-empt this in reviewer notes — see
-[Reviewer notes](#reviewer-notes-both-stores).
+canonical example reviewers know). Pre-empt this in [reviewer
+notes](#reviewer-notes-both-stores).
 
 ### Other Chrome rules to respect
 

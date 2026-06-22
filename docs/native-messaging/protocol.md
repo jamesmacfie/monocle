@@ -6,9 +6,9 @@
 
 This document defines the JSON protocol between the external app and the
 extension (carried verbatim by the native host). It is a **stable public
-contract** — the external app codes against it — so it deliberately does **not**
-expose Monocle's internal types. Suggestions cross the wire as the
-`ExternalSuggestion` DTO, not the internal `Suggestion`.
+contract** — the external app codes against it — so it does **not** expose
+Monocle's internal types. Suggestions cross the wire as the `ExternalSuggestion`
+DTO, not the internal `Suggestion`.
 
 The public TypeScript contract for this protocol lives in
 `packages/native-bridge-protocol` (`src/wire.ts` for dependency-free DTOs and
@@ -66,9 +66,9 @@ Bumping `v` is reserved for breaking changes; additive fields do not bump it.
 | `commands/execute` | `commands:execute` | **v2.** Run a command by id; optionally returns a value. See [execution.md](./execution.md). |
 
 Unauthenticated methods are limited to discovery and pairing. Everything that
-reads Monocle data requires a token with the matching scope. Execution is a
-**v2** capability behind a distinct, higher-blast-radius scope (`commands:execute`)
-and the global Allow-execution opt-in.
+reads Monocle data requires a token with the matching scope. Execution is behind
+a distinct, higher-blast-radius scope (`commands:execute`) and the global
+Allow-execution opt-in.
 
 ### `meta/info`
 
@@ -101,10 +101,9 @@ and the global Allow-execution opt-in.
 ### `pair/request` → `pair/poll-status`
 
 Direction B: the app displays the code; the human types it on the browser's
-**Integrations** settings page; the browser mints the token on Accept and the
-app collects it by polling. See
-[authentication-and-security.md](./authentication-and-security.md) for the full
-flow and security parameters.
+**Integrations** page; the browser mints the token on Accept and the app collects
+it by polling. See [authentication-and-security.md](./authentication-and-security.md)
+for the full flow and security parameters.
 
 ```jsonc
 // pair/request params
@@ -147,9 +146,8 @@ host→browser **1 MB** native-messaging cap (see [native-host.md](./native-host
 Group and search suggestions are navigational containers, not executable
 (`commands/execute` denies them — see [execution.md](./execution.md)). This method
 returns a container's children, mirroring how the palette nests command pages.
-Navigation is a **read**, so it is scoped to `suggestions:read`, not
-`commands:execute` — browsing the command tree works even when command execution
-is disabled.
+Navigation is a **read**, scoped to `suggestions:read`, not `commands:execute` —
+browsing the command tree works even when command execution is disabled.
 
 `path` is the breadcrumb of command ids from root to the node being entered. The
 caller nests by appending the id of any returned `group`/`search` child:
@@ -201,10 +199,9 @@ permission / submit-by-default / generated-action id), `not_found`,
 
 ## The `ExternalSuggestion` DTO
 
-A stable, intentionally narrow projection of the internal `Suggestion`
-(`shared/types/ui.ts`). Internal palette changes must not break the wire, and
-UI-only fields (synthesized `actions`, internal weights, modifier labels) must
-not leak.
+A stable, narrow projection of the internal `Suggestion` (`shared/types/ui.ts`).
+Internal palette changes must not break the wire, and UI-only fields (synthesized
+`actions`, internal weights, modifier labels) must not leak.
 
 ```jsonc
 {

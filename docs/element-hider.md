@@ -55,8 +55,9 @@ Validated by `elementHiderConfigSchema` (`urlPattern` via the shared
 
 **Page-load re-hide.** `automations(config)` (`automations.ts`) projects one
 read-only `Automation` per saved rule — an `elementAppears` trigger scoped by
-the rule's `urlRules`, followed by a single `hideElement` step. Isolating rules
-matters because workflows abort on first failure; a stale selector must not
+the rule's `urlPattern` (projected into the automation's `urlRules.allowUrls`),
+followed by a single `hideElement` step. Rules are
+isolated because workflows abort on first failure; a stale selector must not
 block unrelated hides on the same site. These flow through the merged automation
 registry (`background/automations/registry.ts`), so the trigger engine arms them
 on matching pages and the engine runs them, reusing the existing `hideElement`

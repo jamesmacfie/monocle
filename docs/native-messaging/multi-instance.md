@@ -35,8 +35,8 @@ browser over the one loopback server:
   the unauthenticated `meta/info` down it, reads `browser.{name,channel,
   extensionVersion}`, and registers the relay's write-half under its browser id
   (`"chrome"`/`"firefox"`, lowercased `name`). A reconnecting browser replaces
-  its own entry (last relay wins for that id). Identity learning needs **no
-  extension change** — `meta/info` already reports the browser.
+  its own entry (last relay wins). Identity learning needs **no extension
+  change** — `meta/info` already reports the browser.
 - **Per-connection nonce.** Each relay gets a unique nonce; on disconnect the
   read loop evicts only its own entry, so a newer same-id relay that replaced it
   is not removed.
@@ -55,9 +55,9 @@ browser over the one loopback server:
   the daemon and never reaches the extension.
 
 Pairing and tokens are **per browser** — a token minted by Chrome's extension is
-only accepted by Chrome's. Raycast stores a token per browser id and pairs with
-each browser on demand (the pairing request is itself targeted). The daemon
-injects whichever bearer token the caller sent; it holds no tokens.
+only accepted by Chrome's. Raycast stores a token per browser id and pairs each
+on demand (the pairing request is itself targeted). The daemon injects whichever
+bearer token the caller sent; it holds no tokens.
 
 ### Identity granularity
 
@@ -111,4 +111,3 @@ Pairing/tokens remain per entry, exactly as the per-browser model already works.
 
 - [native-host.md](./native-host.md) — port binding and the host binary.
 - [protocol.md](./protocol.md) — the `status` method.
-- [roadmap.md](./roadmap.md) — where v2 selection sits in the phasing.

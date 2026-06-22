@@ -1,16 +1,11 @@
 # Monocle Documentation
 
-This folder is the reference documentation for Monocle: how the extension is
-built, how every subsystem behaves, the full command schema, and catalogs of
-every shipped command. Unless a file lives under `docs/proposals/`, the docs
-describe **verified, current behavior** — each doc was written against the
-source it cites, and anywhere the type model is broader than the implementation
-(workflow automation especially), the doc says explicitly what is and is not
-implemented.
-
-Proposal docs under `docs/proposals/` are different: they describe future design
-direction and must not be treated as shipped behavior until the relevant feature
-has been implemented and the verified docs below have been updated.
+Reference documentation for Monocle: how the extension is built, how every
+subsystem behaves, the full command schema, and catalogs of every shipped
+command. Every doc describes **verified, current behavior** — each was written
+against the source it cites, and where the type model is broader than the
+implementation (workflow automation especially), the doc says explicitly what is
+and is not implemented.
 
 Read [architecture.md](./architecture.md) first if you are new to the codebase.
 If you are adding a command, the fast path is
@@ -87,6 +82,9 @@ If you are adding a command, the fast path is
 - [focus-mode.md](./focus-mode.md) — Focus Mode, the first feature: blocklist,
   timed/Pomodoro sessions, the hard-block content overlay, and the new-tab
   status widget.
+- [tab-groups.md](./tab-groups.md) — Tab Groups, the second feature:
+  cross-browser saved collections (per-tab pinned / Firefox container / mute),
+  the `record-list` settings page, and the Chrome-only native tab-group commands.
 - [element-hider.md](./element-hider.md) — Element Hider, the third feature:
   the interactive `picker` surface, generic `monocle-surface-action` owner routing, and
   feature-owned (projected) automations that re-hide elements on page load.
@@ -94,6 +92,10 @@ If you are adding a command, the fast path is
   `ContentBlock` schema + `ContentBlocks` renderer, the background calculation
   provider registry (Math/Units via mathjs, Time via `Intl`), how results are
   prepended to root search, and the `calculation` suggestion's copy-on-select.
+- [snippets.md](./snippets.md) — Snippets: `monocle-snippets` storage, the
+  create/insert palette commands, the options Snippets page, caret insertion via
+  `monocle-text-insert`, `keybindingRequirements` gating, and the insert-time
+  placeholder vocabulary (`{date:FORMAT}`, `{i}`, `{url}`, …).
 - [new-tab-and-theme.md](./new-tab-and-theme.md) — New-tab boot, `isNewTab`
   context, clock, Unsplash background, permission-grant panel, and the
   light/dark/system theme system.
@@ -118,37 +120,30 @@ If you are adding a command, the fast path is
   ships as the **Monocle Bridge** Tauri app (`apps/bridge`, macOS M0+M1). Folder
   covers the architecture, native host, wire protocol + `ExternalSuggestion` DTO,
   bluetooth-style pairing/auth, the multiple-host problem, extension wiring, v2
-  execution, the bridge-app PRD, and roadmap. The public TypeScript wire
-  contract lives in `packages/native-bridge-protocol` and is re-exported by the
-  extension for compatibility.
-- [extension-extension/README.md](./extension-extension/README.md) —
-  **Design-only (not built)** spec for letting other browser extensions
-  contribute commands to Monocle. Peer announces over native cross-extension
-  messaging (`onConnectExternal`/`onMessageExternal`, no native bridge), the user
-  approves it on an Extensions settings page (the browser-verified extension id is
-  the identity — approval-only, no pairing code), and its declarative command tree
-  is hosted in the palette. Folder covers the architecture, the **shared
-  external-command provider** refactored out of the site SDK, the wire protocol,
-  the declarable command schema, registration/trust + threat model (incl. the
-  Firefox `externally_connectable` gap), Monocle wiring, a peer author guide, and
-  the roadmap.
+  execution, and the bridge-app PRD. The public TypeScript wire contract lives in
+  `packages/native-bridge-protocol` and is re-exported by the extension for
+  compatibility.
+- [extension-extension/README.md](./extension-extension/README.md) — letting
+  other browser extensions contribute commands to Monocle (implemented, v1). A
+  peer announces over native cross-extension messaging (`onMessageExternal`; the
+  invoke RPC goes over a `chrome.runtime.connect` port), the user approves it on
+  the **Integrations** settings page (the browser-verified extension id is the
+  identity — approval-only, no pairing code), and its durable declarative command
+  tree is hosted in the palette. Folder covers the architecture, the **shared
+  external-command provider** refactored out of the site SDK, the
+  `announce`/`register`/`dispose` wire protocol, the declarable command schema,
+  registration/trust + threat model (incl. the Firefox `externally_connectable`
+  gap), Monocle wiring, and a peer author guide.
 - [raycast/README.md](./raycast/README.md) — The in-repo Raycast extension
   client (`apps/raycast`) that drives Monocle through the native bridge: the
-  client view of the protocol (HTTP client, pairing flow,
-  `ExternalSuggestion` → `List.Item` mapping, nested-group navigation via
-  `suggestions/get-children`, `commands/execute` result handling), monorepo
-  isolation (excluded from the pnpm workspace), and a `curl`-based test
-  checklist.
-
-## Future proposals
-
-- [proposals/README.md](./proposals/README.md) — Future-design proposals. These
-  are intentionally not current behavior; promote details into the verified docs
-  only after implementation.
-- [shortkeys.md](./shortkeys.md) — Research: gap analysis against the
-  Shortkeys extension's action catalog — which of its actions Monocle
-  already ships, which are easy wins under the current architecture, and
-  which to skip. Research, not behavior documentation.
+  client view of the protocol (HTTP client incl. `X-Monocle-Target` routing and
+  `GET /instances`, the multi-browser picker with per-browser tokens, Direction-B
+  pairing via `pair/request` → `pair/poll-status`, `ExternalSuggestion` →
+  `List.Item` mapping with nested-group navigation via `suggestions/get-children`,
+  and `commands/execute` result handling), monorepo isolation (excluded from the
+  pnpm workspace), and a `curl`-based test checklist. Eight docs: `README`,
+  `architecture`, `setup`, `protocol-client`, `pairing`, `suggestions-and-navigation`,
+  `execution`, `testing-and-troubleshooting`.
 
 ## Publishing
 
@@ -157,10 +152,6 @@ If you are adding a command, the fast path is
   (single-purpose, site SDK, permissions), hard pre-submission blockers, and
   reviewer-notes guidance. Describes external policy as researched in
   June 2026, not code behavior.
-- [marketing-site.md](./marketing-site.md) — Build spec for the one-page
-  marketing site: design direction, visual tokens, full HTML structure, copy
-  deck, and screenshot capture list. Describes a site to be built, not
-  current extension behavior.
 
 ## Command catalogs
 

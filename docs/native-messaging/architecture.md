@@ -4,11 +4,11 @@
 > (macOS M0+M1).** This document is the design/contract; the canonical build
 > status lives in [README.md](./README.md) and the project `CLAUDE.md`.
 
-This document describes the four runtime components of the bridge, why native
-messaging is still part of the transport, the service-worker lifecycle
-constraints, and the end-to-end flow of a single suggestions request —
-terminating in the existing command-query code so the bridge stays a thin
-adapter rather than a parallel implementation.
+This document describes the bridge's four runtime components, why native
+messaging is part of the transport, the service-worker lifecycle constraints,
+and the end-to-end flow of a single suggestions request — terminating in the
+existing command-query code so the bridge stays a thin adapter, not a parallel
+implementation.
 
 ---
 
@@ -22,10 +22,10 @@ adapter rather than a parallel implementation.
 | **Extension background** | Monocle's MV3 service worker | Calls `connectNative`, authenticates requests, resolves the active tab, builds suggestions by reusing `getCommands` / the search index / child page resolver, maps them to the public DTO, executes allowed commands, and drives the pairing modal. |
 
 The split matters: the daemon and relay are deliberately ignorant. They cannot
-read tabs, build suggestions, mint tokens, or decide pairing — they only move
-bytes and reject obviously illegitimate callers. Every decision that touches
-Monocle data lives in the background worker, behind the same validation the
-in-extension message router already applies.
+read tabs, build suggestions, mint tokens, or decide pairing — they move bytes
+and reject obviously illegitimate callers. Every decision that touches Monocle
+data lives in the background worker, behind the same validation the in-extension
+message router already applies.
 
 ---
 
@@ -46,9 +46,9 @@ connections. Three options exist for reaching it from outside the browser:
 The built bridge combines native messaging with a persistent daemon: the
 browser-spawned relay preserves native messaging's `allowed_origins` /
 `allowed_extensions` binding to *this* extension, while the daemon gives the
-caller a stable loopback endpoint and useful "browser not connected" diagnostics.
-The remaining weakness — caller-side browser/profile selection — is the subject
-of [multi-instance.md](./multi-instance.md).
+caller a stable loopback endpoint and "browser not connected" diagnostics. The
+remaining weakness — caller-side browser/profile selection — is the subject of
+[multi-instance.md](./multi-instance.md).
 
 See [native-host.md](./native-host.md) for the host manifest, registration, and
 framing details.
@@ -60,10 +60,10 @@ framing details.
 MV3 service workers are terminated when idle. Two facts shape the design:
 
 - Calling `runtime.connectNative()` and holding the returned `Port` **keeps the
-  worker alive** for as long as the port is open, and inbound port messages
-  reset the idle timer. The bridge relies on this: the persistent host port is
-  what keeps the background responsive to app requests. (Chrome documents this
-  in the service-worker lifecycle guide.)
+  worker alive** while the port is open, and inbound port messages reset the idle
+  timer. The bridge relies on this: the persistent host port keeps the background
+  responsive to app requests. (Chrome documents this in the service-worker
+  lifecycle guide.)
 - The host can die or be killed independently. The extension must listen for
   `port.onDisconnect` and **reconnect** (with backoff) whenever the bridge is
   still enabled. A dropped port must never silently leave the bridge dead.
@@ -118,11 +118,11 @@ the page's `window.Monocle` registrations. A native-host request has **no
 content-script sender**, so page-owned SDK commands cannot be resolved and are
 absent from bridge results.
 
-Current bridge behavior accepts this and documents it: bridge suggestions are the
-privileged, background-owned command set for the active URL, **minus** site-SDK
-commands. A future version may reconstruct a top-frame tab scope (look up the
-active tab's top frame and ask it for its SDK registrations) to close the gap.
-Until then, do not claim bridge results are byte-identical to the palette.
+Bridge suggestions are therefore the privileged, background-owned command set for
+the active URL, **minus** site-SDK commands. A future version may reconstruct a
+top-frame tab scope (look up the active tab's top frame and ask it for its SDK
+registrations) to close the gap. Until then, do not claim bridge results are
+byte-identical to the palette.
 
 ---
 

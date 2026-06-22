@@ -134,11 +134,10 @@ Monocle renders svg icons exclusively as a static `<img>` data URI — the
 markup is never injected inline into the DOM, so even content that slipped
 past validation cannot execute scripts, fire event handlers, or fetch
 external resources. The validation list above is defense-in-depth, not the
-security boundary. One caveat: a host page with a strict `img-src` CSP that
+security boundary. Caveat: a host page with a strict `img-src` CSP that
 excludes `data:` can block the icon from rendering in the content overlay
-(remote `{ type: "url" }` icons have the same class of limitation under
-strict `img-src` policies). When image rendering fails, Monocle falls back to a
-generic icon.
+(remote `{ type: "url" }` icons have the same limitation under strict `img-src`
+policies). When image rendering fails, Monocle falls back to a generic icon.
 
 Supported node families:
 

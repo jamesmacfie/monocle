@@ -17,6 +17,7 @@ so there is no arbitrary HTML/JS — the same store-safe-harbor posture as the
 rest of the codebase (see [store-submission.md](./store-submission.md) and the
 "no arbitrary-DOM op" decision in [workflow-automation.md](./workflow-automation.md)).
 
+
 ---
 
 ## The model
@@ -57,20 +58,20 @@ type Surface = {
   a `container` prop threaded to the Radix Portal; `SurfaceHost` passes an
   element inside the closed content shadow root so the dialog stays themed (by
   the `:host` `--color-*` tokens) and contained — Radix's default portal to
-  `document.body` would escape the shadow root.
+  `document.body` escapes the shadow root.
 - **picker** — the one *interactive* kind. While a picker surface is present
   the content host enters element pick-mode (`content/picker/PickerSurface.tsx`):
   it highlights the element under the cursor and, on click, resolves a stable CSS
   selector (`content/picker/selector.ts`) and posts a `monocle-surface-action`
   (`actionId: "element-picked"`) carrying a rich `PickedElement`
   (`shared/types/picker.ts`: selector + tag/id/classes/innerText/href/role,
-  plus an optional `css` map — see next). An owner may also set an optional
+  plus an optional `css` map). An owner may also set an optional
   `content.css` (a list of CSS property
   names); content reads `window.getComputedStyle` for those at click time and
   returns them in `selection.css` (property → value) — the only place this can
   happen, since content holds the live element. The font inspector
   (`command:inspect-element-fonts`) requests the `font-*` properties this way.
-  Escape posts `dismiss`. Crucially it **never mutates the page** — it captures
+  Escape posts `dismiss`. It **never mutates the page** — it captures
   the gesture and reports it; the owner decides what the selection means
   (Element Hider hides it; the font inspector copies its computed fonts).
   Content-only: the new tab never renders pickers. See
@@ -142,12 +143,12 @@ and renders icons through the shared icon registry.
   back. The host captures the gesture; the background decides what it means.
   - `actionId: "dismiss"` is universal: any surface can be closed → `removeSurface`.
   - Any **other** action is routed to the surface's **owner**:
-    - **Feature** owners (a bare feature id) are dispatched to the feature's
+    - **Feature** owners (a bare feature id) dispatch to the feature's
       `handleAction` — the same entry point that backs `monocle-feature-action-execute`
       — with the picker `selection` and the sender tab in the
-      `FeatureActionContext`. So a feature reacts to a surface gesture exactly
+      `FeatureActionContext`, so a feature reacts to a surface gesture exactly
       as to a settings-page button.
-    - **Command** owners (`command:<id>`) are dispatched to a handler the command
+    - **Command** owners (`command:<id>`) dispatch to a handler the command
       registered via `background/commands/surfaceActionHandlers.ts`
       (`registerCommandSurfaceActionHandler`) at module load — the command-side
       equivalent of `handleAction`, receiving the same `{ selection, tab }`

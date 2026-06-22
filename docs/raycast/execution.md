@@ -8,14 +8,14 @@
 ## The call
 
 ```jsonc
-// request
-{ "v":1, "id":"…", "method":"commands/execute", "params": { "id":"copy-title-and-url-as-markdown" } }
+// request (confirmed only required for confirmAction commands)
+{ "v":1, "id":"…", "method":"commands/execute", "params": { "id":"copy-title-and-url-as-markdown", "confirmed": false } }
 // success
 { "ran": true, "focused": true, "value": "[Example](https://example.com/)", "contentType": "text/markdown" }
 ```
 
 `commands/execute` resolves the command by `id` against the **active tab** (no `path`, no form
-values in v1). The result is:
+values in v1) and is routed to the chosen browser via `X-Monocle-Target`. The result is:
 
 ```ts
 type ExecuteResult = {
@@ -26,7 +26,7 @@ type ExecuteResult = {
 }
 ```
 
-## Two gates before Run is even offered
+## Two gates before Run is offered
 
 Execution is opt-in on the extension side. Probe `meta/info` before enabling Run actions:
 
@@ -42,12 +42,12 @@ Execution is opt-in on the extension side. Probe `meta/info` before enabling Run
 
 When `executionEnabled` is false, still render rows, but make the Run action a no-op that toasts
 "Enable *Allow command execution* in Monocle's settings to run commands from Raycast" (and/or hide
-it). See [bridge-and-extension-prerequisites.md](./bridge-and-extension-prerequisites.md).
+it). See [setup.md](./setup.md).
 
 ## Result handling by shape
 
-The extension annotates commands with `external.focusBrowser` / `external.result`. The same call
-covers three shapes; branch on the response:
+The extension annotates commands with `external.focusBrowser` / `external.result`. One call covers
+three shapes; branch on the response:
 
 | Response | Command shape | Raycast handling |
 |----------|---------------|------------------|
@@ -56,10 +56,14 @@ covers three shapes; branch on the response:
 | `ran:true` only | **silent side-effect** (close tab, toggle mute, reload) | `showToast(Success, "Done")`; stay in Raycast. |
 
 ```tsx
-async function runCommand(id: string) {
-  const token = await getToken();
-  const res = await bridgeRequest<ExecuteResult>("commands/execute", { id }, token!);
-  if (!res.ok) return showToast({ style: Toast.Style.Failure, title: executeErrorTitle(res.error.code) });
+// src/lib/execute.ts (shape) — target is the chosen browser id; confirmed comes from CommandRow
+async function runCommand(id: string, target: string, confirmed?: boolean) {
+  const token = await getToken(target);
+  const res = await bridgeRequest<ExecuteResult>("commands/execute", { id, confirmed }, token!, target);
+  if (!res.ok) {
+    if (res.error.code === "unauthorized" || res.error.code === "forbidden_scope") await clearToken(target);
+    return showToast({ style: Toast.Style.Failure, title: executeErrorTitle(res.error.code) });
+  }
 
   const r = res.result;
   if (r.value) {
@@ -74,10 +78,32 @@ async function runCommand(id: string) {
 ```
 
 > **Clipboard nuance.** For copy-family commands the *value* is what the user wants. The extension's
-> bridge path returns the value instead of writing the browser's clipboard (which is unreliable when
-> the browser is backgrounded). So Raycast must do the `Clipboard.copy(value)` itself. The browser
-> palette path still writes the clipboard as before — that branch lives in the extension, invisible
-> to you.
+> bridge path returns the value instead of writing the browser's clipboard (unreliable when
+> the browser is backgrounded), so Raycast must do the `Clipboard.copy(value)` itself. The browser
+> palette path still writes the clipboard — that branch lives in the extension, invisible to you.
+
+## Confirming destructive commands
+
+A suggestion carrying `confirmAction: true` (e.g. clear browsing data) is
+destructive: the bridge **refuses** it unless the request carries `confirmed:
+true`. `CommandRow` honors this before calling `runCommand` — it shows a Raycast
+`confirmAlert` (destructive style) and only proceeds, passing
+`confirmed: s.confirmAction`, if the user accepts:
+
+```tsx
+if (s.confirmAction) {
+  const ok = await confirmAlert({
+    title: s.title,
+    message: "This action may be destructive. Continue?",
+    primaryAction: { title: "Run", style: Alert.ActionStyle.Destructive },
+  });
+  if (!ok) return;
+}
+await runCommand(s.id, target, s.confirmAction);
+```
+
+This carries the same confirm contract as the palette across the bridge — there
+is no in-browser confirmation step.
 
 ## Error codes (execute-specific)
 
@@ -86,7 +112,7 @@ All branch on `error.code`:
 | `code` | Cause | Handling |
 |--------|-------|----------|
 | `execution_disabled` | Global opt-in off | Toast: enable *Allow command execution* in Monocle |
-| `forbidden` | Command opted out (`external.allowed:false`), is `confirmAction`, a `submit` without opt-in, wrong platform, missing permission, generated-action id, or denied by the bridge policy | Toast: "Not available from Raycast"; consider hiding the Run action |
+| `forbidden` | Command opted out (`external.allowed:false`), a `submit` without opt-in, wrong platform, missing permission, generated-action id, a `confirmAction` command run **without** `confirmed:true`, or denied by the bridge policy | Toast: "Not available from Raycast"; consider hiding the Run action |
 | `not_found` | Id doesn't resolve on the active tab | Refresh the list (stale id) |
 | `no_active_tab` | No active tab / incognito | Toast: switch to a normal tab |
 | `forbidden_scope` | Token lacks `commands:execute` | Re-pair |
@@ -96,13 +122,16 @@ All branch on `error.code`:
 ## What is NOT executable (v1)
 
 - **`group` / `search` containers** — these are navigation, not execution. Selecting them drills in
-  ([nested-navigation.md](./nested-navigation.md)). A `search` node *with* an executable action can
+  ([suggestions-and-navigation.md](./suggestions-and-navigation.md)). A `search` node *with* an executable action can
   run, but treat the type as the routing signal and let `forbidden` cover edge cases.
 - **`submit` (form) commands** — denied unless the command explicitly opted in, because the wire
   carries no form values in v1. Surface `forbidden` gracefully.
-- **`confirmAction` commands** (e.g. clear browsing data) — denied; there's no in-browser
-  confirmation path from Raycast yet.
 - **`display` rows** — informational; no action.
 
-These are policy decisions enforced in `execute.ts`; the client's job is to route by `type` and turn
+**`confirmAction` commands** (e.g. clear browsing data) *are* runnable, but only
+when the client confirms with the user and sends `confirmed: true` (see
+[Confirming destructive commands](#confirming-destructive-commands)). Running one
+without `confirmed` returns `forbidden`.
+
+These are policy decisions enforced in `execute.ts`; the client routes by `type` and turns
 a `forbidden` into a calm "not available here" rather than an error.

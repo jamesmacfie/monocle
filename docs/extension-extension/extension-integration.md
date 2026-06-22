@@ -2,10 +2,10 @@
 
 > **Status: implemented (v1).** See [README.md](./README.md) for status + the two v1 divergences (schema reuse, trimmed protocol).
 
-This is the concrete wiring inside the Monocle extension: the new folders, the
-feature module + settings page, the external-message handler, manifest changes,
-and the files to touch. It assumes the [provider refactor](./provider-refactor.md)
-has already landed.
+The concrete wiring inside the Monocle extension: the new folders, the feature
+module + settings page, the external-message handler, manifest changes, and the
+files to touch. It assumes the [provider refactor](./provider-refactor.md) has
+landed.
 
 ## New folders and files
 
@@ -16,12 +16,12 @@ background/commands/extensionSdk/
   registry.ts     # DURABLE registry: cached trees keyed by extId + revision
   adapter.ts      # ExternalProviderAdapter: idPrefix "extension:", invoke transport
   transport.ts    # invokeExtension(extId, request) over chrome.runtime.connect
-  allowlist.ts    # read the approved set from the feature config
 background/features/extensionRegistry/
   index.ts        # FeatureModule: settings page, handleAction, init
+  handler.ts      # initExtensionMessaging / handleExternalMessage (onMessageExternal + onConnectExternal)
+  store.ts        # durable approved allowlist + transient pending state
   types.ts        # ExternalExtensionsConfig, ApprovedPeer, Zod schema + defaults
   commands.ts     # enable/disable palette commands
-background/messages/externalMessage.ts  # onMessageExternal / onConnectExternal handler
 shared/types/externalCommands.ts        # shared declarative schema (from the refactor)
 ```
 
@@ -33,12 +33,12 @@ and must stay. The new feature adds a **separate, deliberately external** handle
 registered on the external events:
 
 ```ts
-// background/messages/externalMessage.ts  (sketch)
+// background/features/extensionRegistry/handler.ts  (sketch — initExtensionMessaging)
 getBrowserAPI().runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
   // 1. validate envelope (ExtRequestSchema)
   // 2. announce  → record pending (any sender.id)         [unauthenticated]
   // 3. everything else → require sender.id ∈ approved allowlist, else `unauthorized`
-  // 4. dispatch: register / update / dispose / ping
+  // 4. dispatch: register / dispose   (v1 trims ping/pong and a separate update)
 })
 
 getBrowserAPI().runtime.onConnectExternal.addListener((port) => {
@@ -71,7 +71,7 @@ port.postMessage({ v: 1, id, kind: "invoke", request })
 ```
 
 This is the `adapter.invoke` the shared `externalProvider` engine calls — the
-exact analogue of the site SDK's `invokeSiteSdk` (`sendTabMessage`), just over a
+analogue of the site SDK's `invokeSiteSdk` (`sendTabMessage`), over a
 cross-extension port instead of a tab message. Returned command lists are
 re-validated by the engine before conversion.
 
@@ -126,9 +126,9 @@ Features page and `/features/external-extensions` route then render it
 automatically via the existing `SchemaForm` (`options/components/SchemaForm.tsx`)
 and `FeatureSettingsPage.tsx` — no new options-page code.
 
-The `pending`/`approved` `record-list` fields reuse the exact mechanism the
-native bridge uses for its paired-client list (per-row actions dispatched with a
-scalar `payload.itemId` to `handleAction`).
+The `pending`/`approved` `record-list` fields reuse the mechanism the native
+bridge uses for its paired-client list (per-row actions dispatched with a scalar
+`payload.itemId` to `handleAction`).
 
 ### Approval modal (optional)
 
@@ -155,15 +155,12 @@ exactly as `monocle-site-sdk-sync` does.
 ## Settings reuse (no new per-command storage)
 
 External command ids (`extension:<extId>:…`) are plain strings, so the existing
-per-command settings in `background/commands/settings.ts` work unchanged:
-
-- **Keybindings** — the user can assign one on the Keyboard page; stored under the
-  external id. (`allowCustomKeybinding` is forced false at *registration* so the
-  peer can't claim one, but the user assigning one later is fine.)
-- **URL rules** — Manage Allow/Deny List and Hide-from-Domain work per id.
-- **Hidden** — hide-on-site / global-hide work per id.
-
-On revoke/GC, prune these orphaned entries using the existing settings prune path.
+per-command settings in `background/commands/settings.ts` work unchanged —
+keybindings (Keyboard page), URL rules (Manage Allow/Deny List, Hide-from-Domain),
+and hidden state (hide-on-site / global-hide), all keyed by id.
+(`allowCustomKeybinding` is forced false at *registration* so the peer can't claim
+one; the user assigning one later is fine.) On revoke/GC, prune these orphaned
+entries using the existing settings prune path.
 
 ## Manifest changes (`wxt.config.ts`)
 
@@ -189,18 +186,19 @@ On revoke/GC, prune these orphaned entries using the existing settings prune pat
 | `background/commands/siteSdk/*` | Edited — delegate to engine via a site adapter (refactor) |
 | `background/commands/extensionSdk/*` | New — durable registry, adapter, transport |
 | `background/commands/source.ts` | Edited — load the extensionSdk source |
-| `background/features/extensionRegistry/*` | New — feature module + settings + commands |
+| `background/features/extensionRegistry/*` | New — feature module + settings + commands + `handler.ts` (onMessageExternal/onConnectExternal) + `store.ts` (allowlist + pending) |
 | `background/features/index.ts` | Edited — register the feature |
-| `background/messages/externalMessage.ts` | New — onMessageExternal/onConnectExternal handler |
-| `background/index.ts` | Edited — register the external handler at startup |
+| `background/index.ts` | Edited — `initExtensionMessaging()` at startup |
 | `wxt.config.ts` | Edited — `externally_connectable` (Chrome), optional `management` |
 | `shared/types/index.ts` | Edited — barrel exports for the new types |
 
-No options-page React changes are required — the feature renders through the
-existing `SchemaForm`/`FeatureSettingsPage`. No new message types in the
-*internal* protocol (`shared/types/messaging.ts`) — the external protocol is its
-own envelope; the only internal surface is the feature config update path
-(`monocle-feature-config-update`, unchanged).
+The feature is `hiddenFromFeaturesPage`; rather than the generic Features page it
+surfaces on the bespoke **Integrations** options page (`options/pages/IntegrationsPage.tsx`)
+as a second `INTEGRATION_PROVIDERS` entry (`options/integrations/providers.ts`,
+`id: "external-extensions"`, `requestsNeedCode: false` → a plain Approve, no code),
+beside the native bridge. It reuses the existing `monocle-feature-config-update` /
+`monocle-feature-action-execute` paths. No new message types in the *internal*
+protocol (`shared/types/messaging.ts`) — the external protocol is its own envelope.
 
 ## Related docs
 

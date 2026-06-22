@@ -75,9 +75,8 @@ invoke's `values`.
 
 `static` children render with **no round-trip to the peer** — they live in
 Monocle's cached tree, so they work while the peer is asleep. `callback` children
-are resolved lazily via a `children` invoke when the user drills in (wakes the
-peer). Prefer `static` for stable menus; use `callback` only for genuinely
-dynamic lists.
+resolve lazily via a `children` invoke when the user drills in (wakes the peer).
+Prefer `static` for stable menus; use `callback` only for genuinely dynamic lists.
 
 ### `search`
 
@@ -138,31 +137,24 @@ Public ids a peer chooses must match the safe-id pattern
 generated-action prefixes/suffixes (the reserved-id check,
 `GENERATED_ACTION_PREFIXES` / `GENERATED_ACTION_SUFFIXES`).
 
-Internally Monocle rewrites every public id to:
-
-```text
-extension:<extId>:<registrationId>:<publicPath>
-```
-
-- `<extId>` — the browser-verified peer id.
-- `<publicPath>` — dotted path through nested groups (same as the site SDK's
-  `toInternalCommandId`).
-
-Because this is a stable string, the user's keybindings, URL rules, hidden state,
-and favorites all scope per-command and per-peer automatically through
-`background/commands/settings.ts` — no new settings storage is required.
+Internally Monocle rewrites every public id to
+`extension:<extId>:<registrationId>:<publicPath>` (`<publicPath>` is the dotted
+path through nested groups, same as the site SDK's `toInternalCommandId`); see
+[architecture.md](./architecture.md). Because this is a stable string, the user's
+keybindings, URL rules, hidden state, and favorites all scope per-command and
+per-peer automatically through `background/commands/settings.ts` — no new
+settings storage is required.
 
 ## Root placement
 
 The site SDK lets a command set `placement: "root"` to appear at the palette root
-rather than under the per-owner group. For v1 of the extension feature, the
-simplest, safest default is **no root placement**: every peer command lives under
-a generated per-peer group (`createOwnerGroupCommand`, the generalised
-`createSiteGroupCommand`), clearly labelled with the peer's name/icon. This keeps
-the root list uncluttered and makes provenance obvious. Root placement for peers
-is a roadmap item gated on anti-clutter/anti-spoofing UX (see
-[registration-and-trust.md](./registration-and-trust.md) and
-[roadmap.md](./roadmap.md)).
+rather than under the per-owner group. For v1 the default is **no root
+placement**: every peer command lives under a generated per-peer group
+(`createOwnerGroupCommand`, the generalised `createSiteGroupCommand`), labelled
+with the peer's name/icon. This keeps the root list uncluttered and makes
+provenance obvious. Root placement for peers is a future item gated on
+anti-clutter/anti-spoofing UX (see
+[registration-and-trust.md](./registration-and-trust.md)).
 
 ## Validation summary
 

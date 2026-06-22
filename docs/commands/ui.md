@@ -41,7 +41,7 @@ const commands: CommandNode[] = [
 
 Source: `background/commands/ui/openSettings.ts`, exported as `openSettings` (`ActionCommandNode`). Id `open-settings`, name "Monocle Settings", icon `Settings`, `actionLabel: "Open"`. Keywords: `settings`, `preferences`, `options`, `configure`.
 
-A single `action` that opens the extension's options page via `openOptionsPage()` (`shared/utils/extension-api.ts`) with no arguments (the catalog root). Note feature modules expose their own "Configure <name>" actions that deep-link to a specific options route (e.g. `/features/<id>`); see [features.md](./features.md). The options-page structure itself is documented in [../settings-page.md](../settings-page.md).
+A single `action` that opens the extension's options page via `openOptionsPage()` (`shared/utils/extension-api.ts`) with no arguments (the catalog root). Feature modules expose their own "Configure <name>" actions that deep-link to a specific options route (e.g. `/features/<id>`); see [features.md](./features.md). The options-page structure is documented in [../settings-page.md](../settings-page.md).
 
 ---
 
@@ -59,7 +59,7 @@ A single `action` that cycles the persisted theme mode. Its `name`, `description
 
 On execute it computes the next mode (`system -> light -> dark -> system`) and persists it with `updateThemeSettings({ mode: nextMode })`. Keywords: `theme`, `dark`, `light`, `system`, `appearance`, `mode`.
 
-This command only writes the `mode` setting. The actual theme application (how the mode resolves against the OS preference and is applied to the overlay shadow DOM and the new-tab DOM, plus the picker structure used in the new-tab settings UI) is documented in [../new-tab-and-theme.md](../new-tab-and-theme.md). Settings persistence shape lives in [../settings.md](../settings.md).
+This command only writes the `mode` setting. Theme application (how the mode resolves against the OS preference and is applied to the overlay shadow DOM and the new-tab DOM, plus the picker structure used in the new-tab settings UI) is documented in [../new-tab-and-theme.md](../new-tab-and-theme.md). Settings persistence shape lives in [../settings.md](../settings.md).
 
 ---
 
@@ -79,7 +79,7 @@ Whereas Toggle Theme cycles the trio, this command exposes every theme directly.
 
 ## Manage Command Allow List / Manage Command Deny List
 
-Sources: `background/commands/ui/manageAllowList.ts` (`manageAllowList`) and `background/commands/ui/manageDenyList.ts` (`manageDenyList`). Both are `GroupCommandNode`s and are structurally identical apart from allow-vs-deny wording, icons (`Shield` vs `ShieldX`), keywords, the setting field they read/write, and the `updateCommandUrlRules` key they update. They provide the manual editing surface for per-command `urlRules`. For matching semantics (wildcards, domain extraction, allow/deny precedence), see [../url-filtering.md](../url-filtering.md).
+Sources: `background/commands/ui/manageAllowList.ts` (`manageAllowList`) and `background/commands/ui/manageDenyList.ts` (`manageDenyList`). Both are `GroupCommandNode`s, structurally identical apart from allow-vs-deny wording, icons (`Shield` vs `ShieldX`), keywords, the setting field they read/write, and the `updateCommandUrlRules` key they update. They provide the manual editing surface for per-command `urlRules`. For matching semantics (wildcards, domain extraction, allow/deny precedence), see [../url-filtering.md](../url-filtering.md).
 
 ### UX flow
 
@@ -108,13 +108,13 @@ const patterns = raw
   .filter((pattern) => pattern.length > 0)
 ```
 
-Each pattern is validated with `validateUrlPattern` (from `background/utils/urlFilter.ts`); any invalid pattern throws `Invalid pattern "<pattern>": <reason>` and aborts the save. Valid patterns are persisted via `updateCommandUrlRules(command.id, { allowUrls: patterns.length > 0 ? patterns : undefined })` (deny list uses `{ denyUrls: ... }`). Passing `undefined` when the list is empty clears that rule set. A success toast ("Allow list updated" / "Deny list updated") is shown. Because the submit sets `remainOpenOnSelect: true`, the palette stays open and the UI refreshes the command list so visibility changes take effect immediately.
+Each pattern is validated with `validateUrlPattern` (from `background/utils/urlFilter.ts`); any invalid pattern throws `Invalid pattern "<pattern>": <reason>` and aborts the save. Valid patterns are persisted via `updateCommandUrlRules(command.id, { allowUrls: patterns.length > 0 ? patterns : undefined })` (deny list uses `{ denyUrls: ... }`). Passing `undefined` when the list is empty clears that rule set. A success toast ("Allow list updated" / "Deny list updated") is shown. Because the submit sets `remainOpenOnSelect: true`, the palette stays open and refreshes the command list so visibility changes take effect immediately.
 
 `updateCommandUrlRules` is the dedicated helper that shallow-merges into the command's `urlRules`; per the project settings contract it preserves the sibling rule set (e.g. saving an allow list does not wipe a previously stored deny list). See [../settings.md](../settings.md) and [../url-filtering.md](../url-filtering.md).
 
 ### Relationship to the generated "Hide from Domain" action
 
-The deny list is also written by the generated "Hide from Domain" action that the suggestion-conversion layer attaches to commands when a current URL exists; that path stores a deny pattern for the current domain. The Manage Command Deny List command is the way to view and remove patterns added that way. The generated action itself is documented in [../url-filtering.md](../url-filtering.md) and [../execution-and-actions.md](../execution-and-actions.md).
+The deny list is also written by the generated "Hide from Domain" action that the suggestion-conversion layer attaches to commands when a current URL exists; that path stores a deny pattern for the current domain. The Manage Command Deny List command is how you view and remove patterns added that way. The generated action is documented in [../url-filtering.md](../url-filtering.md) and [../execution-and-actions.md](../execution-and-actions.md).
 
 ### Known issues and test coverage
 
@@ -128,7 +128,7 @@ The deny list is also written by the generated "Hide from Domain" action that th
 
 Source: `background/commands/favorites.ts`, exported as `clearFavoritesCommand` (`ActionCommandNode`). Id `clear-favorites`, name "Clear favorites", icon `Trash2`. Unlike the other commands in this catalog it is not part of `uiCommands`; `loadAllCommands` (`background/commands/source.ts`) appends it directly to the global command set.
 
-On execute it removes the `monocle-favoriteCommandIds` key from `chrome.storage.local` — the storage that backs the favorites feature (how commands become favorites and how favorites are surfaced is documented in [../search-and-ranking.md](../search-and-ranking.md)).
+On execute it removes the `monocle-favoriteCommandIds` key from `chrome.storage.local` — the storage backing the favorites feature (how commands become favorites and how favorites are surfaced is documented in [../search-and-ranking.md](../search-and-ranking.md)).
 
 After clearing (or on failure) it surfaces feedback via `sendSuccessToastToActiveTab` / `sendErrorToastToActiveTab` (`background/utils/browserTabs.ts`), which send a `monocle-toast` event rendered by `ToastContainer`.
 

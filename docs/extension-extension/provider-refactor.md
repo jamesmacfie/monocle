@@ -30,38 +30,40 @@ And `shared/types/siteSdk.ts` contains the declarative schema
 depth/count/duplicate/reserved).
 
 Of all that, **only `invokeSiteSdk` and the scope/origin specifics are
-site-specific.** The extension feature needs the exact same conversion, the exact
-same schema, the exact same caps, and the exact same callback re-validation — it
-just round-trips to a peer extension instead of a page. Copying it would create
-two near-identical codebases to keep in sync (this is the "directional-twin
-dedup" already flagged as deferred tech debt). So we extract.
+site-specific.** The extension feature needs the same conversion, schema, caps,
+and callback re-validation — it just round-trips to a peer extension instead of a
+page. Copying it would create two near-identical codebases to keep in sync (the
+"directional-twin dedup" already flagged as deferred tech debt). So we extract.
 
 ## Target shape
 
-### 1. `shared/types/externalCommands.ts` (extracted schema)
+### 1. `shared/types/externalCommands.ts` (transport-neutral schema names)
 
-Move the declarative command model out of `siteSdk.ts`:
+As built, the declarative command model **stays in `siteSdk.ts`** (where it
+shipped first and has its own tests); `shared/types/externalCommands.ts`
+**re-exports** it under transport-neutral `External*` names rather than physically
+moving it. The dedup that mattered was the engine, not the schema file — a future
+physical move would be a pure rename. The re-exported surface is:
 
-- `ExternalCommand` union (action/submit/group/search/input/display) — today's
-  `SiteSdkCommand` with the site-specific `placement` field pulled out as an
-  adapter-supplied extension (see below).
-- `ExternalCommandBase`, the `FormField` subset (`ExternalCommandFormField`), the
-  icon/color/url/keyword/execution-payload schemas, and `CallbackRefSchema`.
-- `validateExternalCommandList(input, options)` and the tree-walker
-  `visitCommands` (depth/count/duplicate/reserved id checks) — verbatim, with the
-  caps (`MAX_COMMANDS`, `MAX_DEPTH`) as parameters so each adapter can keep its
-  own limits.
-- The reserved-id check stays shared (it guards against colliding with Monocle's
-  generated-action prefixes/suffixes — `GENERATED_ACTION_PREFIXES/SUFFIXES`).
+- `ExternalCommand` (= `SiteSdkCommand`), the action/submit/group/search/input/
+  display union — the site-specific `placement` field is handled by the adapter's
+  `partitionRoot` rather than the shared engine (see below).
+- `ExternalCommandBase`, the `FormField` subset, the icon/color/url/keyword/
+  execution-payload schemas, and the callback-ref type (re-exported as
+  `ExternalCallbackRef`).
+- `validateExternalCommandList` / `validateExternalRegistrations` (= the
+  `validateSiteSdk*` functions) plus `EXTERNAL_MAX_COMMANDS` / `EXTERNAL_MAX_DEPTH`
+  (= the `SITE_SDK_MAX_*` caps). The depth/count/duplicate/reserved-id checks stay
+  shared (the reserved-id check guards against colliding with Monocle's
+  generated-action prefixes/suffixes).
 
-`placement` ("root" vs grouped) is a site-SDK concept. Keep it adapter-specific:
-the shared schema accepts an optional, adapter-declared extra-fields object, or
-the site adapter extends the base with `placement` in its own thin schema. Either
-way the shared core does not hard-code `placement`.
+`placement` ("root" vs grouped) is a site-SDK concept, kept adapter-specific via
+the adapter's optional `partitionRoot`; the shared engine does not hard-code it.
 
-`shared/types/siteSdk.ts` then **re-exports** the shared types under its existing
-`SiteSdk*` names (or is updated to import them) so nothing else in the codebase
-breaks. The site SDK's public surface (`window.Monocle` types) is unchanged.
+Because nothing physically moved, `shared/types/siteSdk.ts` is unchanged and the
+site SDK's public surface (`window.Monocle` types) is untouched; the `External*`
+aliases simply let the shared engine and the `extensionSdk` adapter read cleanly
+without depending on "site" naming.
 
 ### 2. `background/commands/externalProvider/` (extracted engine)
 
@@ -158,8 +160,9 @@ Plus its **durable** registry and the settings feature module — see
 This refactor touches working, shipped code, so it lands as **one self-contained
 change that preserves site-SDK behavior**, before any extension feature work:
 
-1. Extract `shared/types/externalCommands.ts`; make `siteSdk.ts` re-export from
-   it. Run the existing `siteSdk.test.ts` — it must pass unchanged.
+1. Add `shared/types/externalCommands.ts` re-exporting the schema from
+   `siteSdk.ts` under `External*` names (the schema itself stays in `siteSdk.ts`).
+   Run the existing `siteSdk.test.ts` — it must pass unchanged.
 2. Extract `background/commands/externalProvider/`; rewrite `siteSdk/commands.ts`
    to build a `siteAdapter` and delegate. `siteSdk.test.ts` passes unchanged.
 3. Add provider-level tests in `externalProvider/` (a fake adapter exercising
@@ -174,13 +177,14 @@ moves. This matches Monocle's lockstep invariant for shared-vocabulary changes
 
 ## Files touched by the refactor
 
-- New: `shared/types/externalCommands.ts`,
+- New: `shared/types/externalCommands.ts` (re-exports the schema from `siteSdk.ts`
+  under `External*` names — no physical move),
   `background/commands/externalProvider/{index,convert,ids,types}.ts` (+ tests).
-- Edited: `shared/types/siteSdk.ts` (re-export/import the shared schema),
-  `background/commands/siteSdk/commands.ts` (delegate to the engine via an
+- Edited: `background/commands/siteSdk/commands.ts` (delegate to the engine via an
   adapter), `shared/types/index.ts` (barrel exports).
-- Unchanged behavior: `background/commands/siteSdk/{scope,registry,index}.ts`,
-  the content bridge, and `entrypoints/site-sdk.content.ts`.
+- Unchanged: `shared/types/siteSdk.ts` (the schema still lives here),
+  `background/commands/siteSdk/{scope,registry,index}.ts`, the content bridge, and
+  `entrypoints/site-sdk.content.ts`.
 
 ## Risk: don't over-abstract
 

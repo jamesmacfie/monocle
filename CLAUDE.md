@@ -1,624 +1,303 @@
 # CLAUDE.md
 
-This is the canonical agent guide for the Monocle browser extension.
-`AGENTS.md` is intentionally a symlink to this file so Claude Code and Codex
-read the same project instructions.
+Canonical agent guide for the Monocle browser extension. `AGENTS.md` is a
+symlink to this file so Claude Code and Codex read the same instructions.
 
-Keep this file as a stable architecture map and working contract. The detailed
-feature documentation lives in `docs/`. When behavior or verification changes,
-update the relevant feature doc first, then adjust this file only if the root
-guidance changes. Feature status and validation state are owned by this file
-(the docs describe behavior, not status).
+This file is the stable architecture map, working contract, and feature-status
+owner. Detailed behavior lives in `docs/` — treat those as source of truth and
+read the relevant one before editing a feature. When behavior changes, update
+the doc first; update this file only when the root guidance or status changes.
 
 ## Project Overview
 
-Monocle is a browser extension built with WXT, TypeScript, React, and Redux. It
-provides a VS Code-style command palette for browser operations.
+Monocle is a WXT + TypeScript + React + Redux browser extension providing a
+VS Code-style command palette. It runs in two modes:
 
-It runs in two primary modes:
-
-- Content overlay mode: injected into webpages, isolated in a shadow DOM, and
+- **Content overlay**: injected into pages, isolated in a closed shadow DOM,
   opened with the global palette shortcut.
-- New-tab mode: replaces the browser new-tab page with a persistent Monocle
-  palette experience.
+- **New-tab**: replaces the browser new-tab page with a persistent palette.
 
 The background service worker owns command definitions, browser API access,
-settings persistence, permissions, keybinding execution, and workflow message
-forwarding. Content and new-tab UIs fetch UI-safe command suggestions from the
-background and execute commands through message handlers. The options UI fetches
-durable command catalog rows from the background and sends settings/favorite
-messages; it does not receive executable command functions.
-
-## Documentation Map
-
-Use the feature docs as the source of truth before editing related code:
-
-- `docs/README.md`: documentation index, reading order, and doc conventions.
-- `docs/architecture.md`: runtime modes, entrypoints, ownership boundaries,
-  Redux store layout, WXT build system, and core data-flow walkthroughs.
-- `docs/messaging.md`: complete message protocol reference: every
-  UI-to-background and background-to-tab message, payloads, and handlers.
-- `docs/command-schema.md`: field-by-field `CommandNode` reference,
-  `AsyncValue` semantics, action/modifier labels, all `FormField` variants,
-  and node-to-`Suggestion` conversion.
-- `docs/command-types.md`: the six command node types (action, submit, group,
-  search, input, display) with rendering and selection behavior.
-- `docs/authoring-commands.md`: how to add and register a command: category
-  folders, loaders, conventions, form/search patterns, and pitfalls.
-- `docs/site-sdk.md`: page-world `window.Monocle` SDK for non-privileged,
-  session-only site commands.
-- `docs/site-sdk-security.md`: site SDK threat model — attacker model,
-  containment guarantees, page-reachable risks, and defense-in-depth gaps.
-- `docs/search-and-ranking.md`: palette search, keywords, usage ranking,
-  favorites, and deep search.
-- `docs/execution-and-actions.md`: execution flow, enter vs modifier-enter,
-  action labels, the action menu, and generated actions.
-- `docs/palette-ui-and-navigation.md`: shared palette UI, content overlay,
-  new-tab palette, Redux navigation stack, and inline inputs.
-- `docs/keybindings.md`: canonical key format, global capture, multi-stroke
-  sequences, registry matching, custom capture, and conflict checks.
-- `docs/url-filtering.md`: command URL visibility rules, allow/deny matching
-  and precedence semantics, and rule management.
-- `docs/permissions.md`: required vs optional permissions, grant flows,
-  inheritance, and execution-time checks.
-- `docs/settings.md`: settings storage shape, command settings, merge/prune
-  semantics, and the Redux mirror.
-- `docs/settings-page.md`: options-page MVP, command catalog, global hidden
-  commands, and future settings-page direction.
-- `docs/workflow-automation.md`: the implemented workflow step vocabulary
-  (the content executor in `content/workflow/`), background-to-content
-  execution path, public validation, and the lockstep invariant.
-- `docs/automations.md`: automations ("Automations") — document schema and
-  caps, triggers, the engine (interpolation/segments/lowering/control flow),
-  runCommand policy, options builder, import safety, and store posture.
-- `docs/automation_context.md`: standalone LLM-authoring context for automations
-  — the full self-contained document schema (every step/trigger/condition with
-  caps, the complete icon list, interpolation rules, the runCommand allowlist),
-  worked example envelopes, and a "what fails validation" checklist. Paste into
-  an LLM to generate/extend an automation JSON blob (the paste-import/copy-export
-  sharing flow on the Automations page); references no source files and the
-  examples are kept import-valid.
-- `docs/surfaces.md`: the Surfaces primitive — a background-owned,
-  owner-namespaced store of declarative overlays/badges rendered by one generic
-  `SurfaceHost`; `monocle-surfaces-get` + the `monocle-surfaces-changed` broadcast. The
-  reusable basis for feature and automation page UI.
-- `docs/features.md`: the Feature-module registry — how a feature contributes
-  commands, a typed config + settings page, runtime state, and page UI (via
-  surfaces); the `monocle-feature-config` / `monocle-feature-state` stores.
-- `docs/focus-mode.md`: Focus Mode, the first feature — blocklist, timed/
-  Pomodoro sessions, and a hard-block overlay + new-tab badge expressed entirely
-  as declarative surfaces (no focus-specific UI or messages).
-- `docs/element-hider.md`: Element Hider, the third feature — the first consumer
-  of three generic extensions: the interactive `picker` surface (element
-  selection reported back via `monocle-surface-action`), generic `monocle-surface-action` owner
-  routing to a feature's `handleAction`, and feature-owned (projected)
-  automations that re-hide on page load via the existing `hideElement` op.
-- `docs/calculations.md`: inline calculations — the shared `ContentBlock`
-  schema + `ContentBlocks` renderer (the seed of the shared `ui/` layer), the
-  background calculation provider registry (Math/Units via mathjs, Time via
-  `Intl`), prepending results to root search, and the `calculation` suggestion's
-  copy-on-select. First custom-UI-in-palette case and stepping stone to v_next
-  Surfaces.
-- `docs/new-tab-and-theme.md`: new-tab override, new-tab-only commands,
-  background image behavior, clock settings, and theme application.
-- `docs/store-submission.md`: Chrome Web Store / Firefox AMO submission
-  processes, Monocle-specific rejection risks, hard pre-submission blockers,
-  and reviewer-notes guidance (external policy research, June 2026).
-- `docs/native-messaging/`: **proposed (not built)** design for a native-messaging
-  bridge letting an external desktop app (first target: Raycast) request the
-  active tab's command suggestions. Folder covers architecture, the native host
-  (manifests/registration/framing/loopback server), the wire protocol +
-  `ExternalSuggestion` DTO, bluetooth-style pairing/auth + loopback threat model,
-  the one-host-per-browser/profile problem, and extension wiring (a
-  `native-messaging` feature module reusing `getCommands`/`commandsToSuggestions`
-  + the search index, the pairing modal surface, and `nativeMessaging`/`tabs`/
-  Chrome-`key` manifest changes). `execution.md` is the v2 design for **running**
-  commands through the bridge: a per-command `external` opt-out flag on
-  `CommandNodeBase`, the focus model (`focusBrowser` raises the window), a bridge
-  policy reusing `runCommandPolicy`, and a result channel (widened
-  `CommandExecutor` return + copy-family clipboard reconciliation) so
-  data-producing commands return their value to the app.
-- `docs/extension-extension/`: **proposed (not built)** design for letting other
-  browser extensions contribute commands to Monocle. A peer announces over native
-  cross-extension messaging (`onConnectExternal`/`onMessageExternal` — not the
-  native bridge), the user approves it on an Extensions settings page (the
-  browser-verified extension id is the identity; approval-only, no pairing
-  code/token), and Monocle hosts the peer's durable declarative command tree in
-  the palette (rendered while the peer's MV3 worker is asleep; the peer is woken
-  only to resolve `search`/`group` children and to `execute`). Centerpiece is a
-  **shared external-command provider** refactored out of the site SDK
-  (`background/commands/siteSdk/commands.ts` + `shared/types/siteSdk.ts` →
-  `background/commands/externalProvider/` + `shared/types/externalCommands.ts`),
-  with `siteSdk` and the new `extensionSdk` becoming thin adapters supplying only
-  transport + identity + durability. Folder covers architecture, the provider
-  refactor (lockstep, behavior-preserving), the wire protocol, the declarable
-  command schema (`extension:<extId>:…` ids, reusing per-command settings),
-  registration/trust + threat model (incl. the Firefox `externally_connectable`
-  gap), Monocle wiring (an `external-extensions` feature module + settings page),
-  a peer author guide, and the roadmap.
-- `docs/commands/`: per-category command catalogs: `browser.md`, `tools.md`,
-  `ui.md`, `new-tab.md`, `automations.md` (automation rows),
-  `features.md` (feature-module commands, including Focus Mode), and
-  `websites.md` (the GitHub prototype and the in-progress website command
-  direction).
-
-## Current Baseline
-
-Current feature status:
-
-| Feature | Status | Notes |
-| --- | --- | --- |
-| Command system | Working with review notes | Core `CommandNode` to `Suggestion` pipeline is buildable, context-aware, and shared by both palette modes. |
-| Palette UI and navigation | Working with review notes | Content overlay and new-tab mode share command palette components and Redux navigation. |
-| Browser commands | Working with review notes | Permission inheritance and high-risk keybinding policy have focused tests; manual Chrome/Firefox validation is still needed. |
-| Keybindings | Working with review notes | Canonicalization, context-aware registry coverage, custom conflicts, and scoped sequence state have focused tests; manual browser smoke is still needed. |
-| Permissions and settings | Working with review notes | Optional permission requests, command-setting compatibility, global hidden command behavior, settings catalog, update validation, and URL-rule management have focused tests; manual Chrome/Firefox permission prompts and options-page smoke still need checks. |
-| URL filtering, website commands, and site SDK | Partial | `urlRules` works; the GitHub/contextual command prototype is loaded but not a full plugin system. `window.Monocle` supports non-privileged session-only site commands. |
-| Workflow automation | Working with review notes | The full step vocabulary (click/wait/fill/type/key/select/check/uncheck/submit/focus/blur/scroll/hover/getText/removeElement/hideElement/injectCss) is implemented in `content/workflow/`, schema-accepted, and covered by linkedom tests; privileged ops are automation engine ops. Manual fixture-page smoke is still needed. |
-| Automations (Automations) | Working with review notes | Declarative automation documents: schema + caps validation, `monocle-automations` storage, background engine (interpolation, segmentation, lowering, branch/forEach/while, runCommand policy), manual/urlMatch/elementAppears/interval/schedule/onStartup triggers, generated palette commands, and the options builder with validated import/export. Storage, validation, lowering, conditions, policy, command generation, engine, and trigger-engine behavior have focused tests; manual browser smoke (triggers, schedules, builder) is still needed. |
-| New tab and theme | Working with review notes | New-tab command context, theme targets, settings persistence, and background fallback behavior have focused tests; visual/manual coverage is still needed. |
-| Snippets | Working with review notes | Create/insert palette commands, `monocle-snippets` storage, options Snippets page, caret insertion via `monocle-text-insert`, custom shortcuts gated by `keybindingRequirements` (modifier required so bindings fire inside inputs), and insert-time placeholders (`{date:FORMAT}` via date-fns, `{i}` persisted counter, `{url}`/`{title}`/`{domain}`/`{path}`/`{uuid}`/`{timestamp}`); storage CRUD, message validation, requirement enforcement, catalog rows, delete-cleanup, and placeholder interpolation have focused tests; manual insertion/shortcut smoke is still needed. |
-| Surfaces | Working with review notes | Generic declarative-UI primitive: background-owned, owner-namespaced store (`monocle-surfaces`) of overlays/badges/modals (`{kind, urlMatch, targetTabId?, blocking, content:{icon,title,text,countdownTo,blocks}}`), rendered by one `SurfaceHost` mounted in the closed content shadow root (`overlay`+`modal`) and on the new tab (`badge`). `modal` is a centered, dismissible card built on the shared shadcn Dialog (`shared/components/ui/dialog.tsx`, portal-container-aware so it stays inside the closed shadow root) that renders structured `ContentBlock`s (the shared calculation/`ContentBlocks` vocabulary) and is the first kind triggered by a **command** — `execute()` runs in background and calls the store directly (owner `command:<id>`, per-session like `automation:*`, both cleared on startup). `monocle-surfaces-get {url}` filters by URL and optional sender-tab target (stamps `ownerId`) + `monocle-surfaces-changed` broadcast; `monocle-surface-action {ownerId,surfaceId,actionId,value?,selection?}` reports interactions: `dismiss` → `removeSurface` (universal); any other action **routes to the owner**: feature owners to the feature's `handleAction` (the same path as `monocle-feature-action-execute`, with the picker `selection` + sender tab in context), and **command owners (`command:<id>`) to a handler the command registered via `background/commands/surfaceActionHandlers.ts`** (the command-side equivalent of `handleAction`); automation owner routing still deferred. A fourth, interactive kind `picker` (content-only, mounted alongside `overlay`+`modal`) puts the page into element pick-mode: `content/picker/` highlights on hover, suppresses page pointer gestures while active, and on click resolves a stable CSS selector and reports a rich `PickedElement` (`shared/types/picker.ts`) via `monocle-surface-action element-picked` — it never mutates the page. An owner can also set the picker's optional `content.css` (a list of CSS property names) to have content capture `getComputedStyle` values into `selection.css` (used by the `inspect-element-fonts` command). URL gating reuses `matchesUrlPattern`; picker surfaces also use `targetTabId` to avoid duplicate same-URL tabs entering pick-mode. Store get/set/clear/upsert/remove + URL/tab gating + `ownerId` stamping + `command:`/`automation:` cleanup, modal render + dismiss (dual-DOM), `monocle-surface-action` validation + feature/command owner routing, picker selector generation + computed-css capture, and picker gesture suppression have focused tests; manual overlay/badge/modal/picker smoke is still needed. |
-| Feature modules | Working with review notes | Background-owned `FeatureModule` registry (`background/features/`) contributing palette commands, a declarative settings page (FormField schema + Zod config validation + action buttons), runtime state, and lifecycle. Three stores: command settings (unchanged), `monocle-feature-config` (durable), `monocle-feature-state` (runtime). Generic `monocle-features-get`/`monocle-feature-config-update`/`monocle-feature-action-execute` messages; options Features pages with `SchemaForm`. Page UI is rendered through the generic Surfaces primitive, not per-feature components. The schema also supports a `record-list` FormField (per-row + per-child action buttons, rows projected via `settings.lists`, actions dispatched with a scalar `payload`) for features that manage a list of records. A feature may also contribute read-only **projected automations** via the optional `automations(config)` hook — merged into the automation engine/trigger system by `background/automations/registry.ts` (`getAllAutomations`/`getAutomationById`), never stored, tagged `owner:{kind:"feature"}`, and shown read-only on the Automations page. Config/state stores, registry projection (incl. lists), command contribution, automation merge, and message validation (incl. payload) have focused tests; manual options + cross-tab smoke is still needed. |
-| Focus Mode | Working with review notes | First feature: URL blocklist, timestamp-based session (indefinite/timed/Pomodoro) in `monocle-feature-state` with a single `chrome.alarms` end alarm. UI is built entirely on the Surfaces primitive — `projectFocusSurfaces` emits a blocking overlay (scoped to the blocklist) + a new-tab badge; no focus-specific UI/messages. `isUrlBlocked`, session timing, config schema, and surface projection have focused tests; manual overlay/countdown smoke is still needed. |
-| Calculations | Working with review notes | Inline calculations (`background/calculations/`, a sibling registry to features). Providers are data + one pure synchronous `parse` (Math/Units via **mathjs**, Time via `Intl.DateTimeFormat`); `runCalculationProviders` is called from `handleSearchCommands` and **prepends** ephemeral `calculation` suggestions to root search (no new message, excluded from favorites/usage/index). Results render structured `ContentBlock`s (`shared/types/content.ts` + Zod `contentValidation.ts`) via the shared `ContentBlocks` renderer (`shared/components/ContentBlocks/`, built on the new `shared/components/ui/` boundary — the shadcn-consolidation seed). The `calculation` suggestion copies `copyValue` on select (copy-and-stay) via `useCopyToClipboard`/`useToast`. mathjs is hardened (injection functions disabled) and lives in the background bundle only. Replaced the old `calculator` group command. The Units provider splits on the last `in`/`to` keyword and normalizes the source for natural weight/height notation (alias pre-pass incl. `pounds`/`st`, foot-inch symbols `5'10"`, and `+`-summed multi-unit phrases like `6 stone 4 lb`). Provider parsing (incl. weight/height notation), content-block validation, and dual-DOM ContentBlocks rendering have focused tests; manual palette smoke (both modes) still needed. |
-| Tab Groups | Working with review notes | Second feature (`background/features/tabGroups/`). Cross-browser **saved collections** (named tab lists with per-tab `pinned`, Firefox container `cookieStoreId`, and `muted` audio state, stored in `monocle-feature-config`): Save Tabs as Group, Restore Tab Group, managed on the settings page via the `record-list` field (Restore/Rename/Delete per group, Pin/Unpin per tab). Restore reapplies `muted` cross-browser and reopens tabs in their saved container on Firefox only (Chrome ignores `cookieStoreId`). Chrome-only **native-group** commands (`chrome.tabs.group`/`chrome.tabGroups.*`, wrapped in `background/utils/browserTabGroups.ts`, gated `supportedBrowsers:["chrome"]` + optional `tabGroups` permission): add tab to group, group window, rename/recolor/collapse/ungroup. Capture/restore (pinned + container + mute), storage CRUD + pin toggle, handleAction routing, lists projection, and native `supportedBrowsers` have focused tests; manual Chrome/Firefox smoke still needed. |
-| Element Hider | Working with review notes | Third feature (`background/features/elementHider/`) and first consumer of the picker/owner-routing/feature-automation extensions. Config (`monocle-feature-config`) is per-domain `{id,urlPattern,selector,label}` rules. "Hide element on this page" pushes a tab-targeted `picker` surface; on click the feature `handleAction("element-picked")` saves a domain rule (`*://host/*`, preserving non-default ports), removes the picker, and hides immediately via a one-shot `hideElement` workflow. `automations(config)` projects one read-only `elementAppears` automation per rule (one `hideElement` step) so stale selectors cannot block unrelated hides. Settings page manages rules via `record-list` (Delete per row). Projection (per-rule + every doc valid against `AutomationSchema` + deterministic ids), `handleAction` (picked/delete), selector round-trip, picker gesture suppression, and the merged registry have focused tests; manual pick/hide/reload smoke still needed. |
-| Native Bridge | Partial (extension side) | Fourth feature (`background/features/nativeMessaging/`) — the extension half of the native-messaging bridge (`docs/native-messaging/`). Off by default; `nativeMessaging`+`tabs` optional permissions requested via the enable command's existing grant flow. `init()`/`onConfigChange` open a `connectNative("com.monocle.bridge")` port (kept alive while enabled, reconnect-with-backoff on disconnect; port/pump loaded via dynamic import to avoid a registry import cycle). The request pump (`pump.ts`) validates the public Zod envelope from `packages/native-bridge-protocol` (re-exported at `shared/types/nativeMessaging.ts`), then dispatches `meta/info`/`status`/`pair/request`/`pair/poll-status`/`suggestions/get-for-active-tab`/`suggestions/search-active-tab`/`suggestions/get-children`. Suggestions REUSE `getCommands`+`commandsToSuggestions` (root), the `monocle-commands-search` path (query), and `getCommandPageCommands` (group/search drill-down) against the active tab (incognito excluded; site-SDK absent — no content sender), projected to the public `ExternalSuggestion` DTO by the pure `externalSuggestion.ts` mapper. `suggestions/get-children` is path-based navigation (`{path:string[],query?,limit?}` → children, themselves possibly groups for infinite nesting), scoped to `suggestions:read` (browsing the tree is a read, distinct from `commands:execute`). Bluetooth-style pairing (`pairing.ts`), **Direction B**: `pair/request` generates a CSPRNG 6-digit code and stores it (hashed) as a **pending request** in `monocle-feature-state` (a list, expiry + 5-attempt cap), returning `{pairingId, code, expiresInSeconds}` — the app **displays** the code; the human types it on the browser's **Integrations** settings page and clicks **Accept**. `acceptPairing` constant-time-compares, mints an opaque token (stored HASHED in `monocle-feature-config` as a per-client record; scopes `suggestions:read` + `commands:execute`, execution still requires `allowExecution`), and stashes the plaintext on the pending record; the app collects it once via `pair/poll-status` (`pending`→`approved{token}`/`expired`/`rejected`). No pairing modal. The feature sets `hiddenFromFeaturesPage:true`; its UI (enable + allow-execution toggles, pending requests with code entry, connected apps with Revoke) lives on the bespoke options **Integrations** page (`options/pages/IntegrationsPage.tsx` + `options/integrations/providers.ts`), reusing `monocle-feature-config-update`/`monocle-feature-action-execute`. A pending-count badge shows on the Integrations nav item and the toolbar icon (`background/integrations-badge.ts`, recomputed on `monocle-feature-state` change). Mapper, crypto (constant-time/code/token), pairing (begin/accept/poll-once/wrong-code+attempt-cap/reject/expiry/revoke), auth gating, and pump dispatch (incl. `pair/request` code + `pair/poll-status` pending→approved) have focused tests. **v2 command execution is now implemented (extension side):** a `commands/execute` method + `commands:execute` scope gated by a global `allowExecution` opt-in (off by default, settings toggle); commands carry an optional `external` field (`{allowed?,focusBrowser?,result?}` on `CommandNodeBase`); `CommandExecutor` may return a `CommandResult`; the bridge orchestration (`background/features/nativeMessaging/execute.ts`) preflights via `checkRunCommandPolicy` (new `executionMode:"manual"|"automation"|"bridge"` — bridge bypasses the non-manual allowlist, keeps the universal confirmAction/automation/debug denies, adds the `external.allowed` override) + permission + platform + incognito + generated-action checks, runs through the shared `executeResolvedCommand` with a new `delivery:"clipboard"|"return"` mode, and raises the window for `focusBrowser` commands; the copy family returns its value via the `clipboardDelivery` seam (palette still writes the clipboard, bridge returns the value). Bridge execute preflight/focus, the policy's bridge mode, the delivery seam, and the execute pump dispatch (scope + opt-in gate) have focused tests. **The native host now lives in-repo at `apps/bridge`** (Tauri, macOS M0+M1 — `docs/native-messaging/bridge-app-prd.md`): one binary, two modes (a persistent tray **daemon** owning the `127.0.0.1:8765` loopback HTTP server + a `~/.monocle/bridge.sock` UDS listener, and a browser-spawned **relay** that pumps stdio⇄UDS); the daemon injects the bearer token, frames the envelope to the browser, and routes the reply by `id`. **Multi-browser is implemented:** the daemon tracks a map of ALL connected relays keyed by browser id, learns each relay's identity at connect via the unauthenticated `meta/info` handshake (no extension change), lists live browsers at the daemon-local `GET /instances`, and routes a `POST /` to one via the `X-Monocle-Target` header (`select_relay`: absent + one browser → that one; absent + ≥2 → `bad_request`; unknown/closed target → `not_enabled`); a per-connection nonce ensures a disconnecting relay evicts only its own entry. Identity is browser-type-only (profiles/channels collapse, last relay wins — profile-level deferred, see `multi-instance.md`). Raycast renders a browser picker when ≥2 are connected and goes straight to the sole browser otherwise; tokens are per-browser (Raycast keys tokens by browser id and pairs each on demand, the pairing request itself targeted). Manifest registration (Firefox stable id; Chrome via `MONOCLE_CHROME_EXTENSION_ID`/config override since the `key` is still unpinned), discovery file, and the tray (lists connected browsers/open-at-login/re-register/quit; menu rebuilt on connect/disconnect) are built. The port is overridable via `MONOCLE_BRIDGE_PORT` (default 8765); `MONOCLE_BRIDGE_HEADLESS=1` runs the servers without the tray. The **menu-bar icon only appears from the bundled `.app`** (`open apps/bridge/src-tauri/target/release/bundle/macos/Monocle Bridge.app`), not the bare `tauri dev` binary — a `cargo run` process has no bundle/`Info.plist` for an `NSStatusItem`; the daemon/relay logic still runs fine under `tauri dev`. Framing (native-endian length prefix) + id-routing + `select_relay` target selection have Rust unit tests (`cargo test` in `apps/bridge/src-tauri`); the daemon's HTTP path (status, Origin→403, bad-json→400, no-browser envelope, full UDS relay round-trip with token injection) and a headless **two-relay** round-trip (`meta/info` handshake identity, `GET /instances` listing both, `X-Monocle-Target` routing, ambiguity/unknown-target errors, disconnect cleanup) are verified headless (`MONOCLE_BRIDGE_HEADLESS=1`). **Still open: real browser→relay→daemon round-trip (needs the extension loaded — manual checklist), the Chrome `key` pin, and M2–M4 (Windows/Linux, signing/notarization, profile-level instance selection). Other v2 items (site-SDK/signed-requests) remain design-only.** |
-| Extension-to-Extension Commands | Working with review notes | Lets other browser extensions contribute commands to Monocle (`docs/extension-extension/`). A peer announces over native cross-extension messaging (`onMessageExternal`; the invoke RPC goes the other way over a `chrome.runtime.connect(extId)` port — **not** the native bridge), the user approves it on the **Integrations** settings page (the browser-verified `sender.id` is the identity — approval-only, no pairing code/token), and Monocle hosts the peer's **durable** declarative command tree in the palette (rendered from a cached tree while the peer's MV3 worker is asleep; the port wakes the peer only to resolve `search`/`group` children and to `execute`). **Provider refactor (landed):** the conversion **engine** was extracted to `background/commands/externalProvider/` (`{types,ids,convert,index}.ts`), parameterised by a five-member `ExternalProviderAdapter` (idPrefix, scopeId, invoke, fallbackContext, ownerGroup/partitionRoot); `siteSdk/commands.ts` now delegates through a `siteAdapter` (behavior-preserving — `siteSdk.test.ts` unchanged), and `extensionSdk` (`background/commands/extensionSdk/`) is the second adapter (`extension:` prefix, extId scope, cross-extension transport, neutral fallback context, per-peer `__ext-group`). DIVERGENCE: the declarative schema was **not** physically moved — `shared/types/externalCommands.ts` re-exports the still-in-`siteSdk.ts` schema under `External*` names (the dedup that mattered was the engine, not the schema file). Durable peer trees live in `monocle-extension-registrations` (warmed into an in-memory cache at startup for the sync loader; loaded by `source.ts` context-free). The `external-extensions` feature module (`background/features/extensionRegistry/`) owns the durable approved-allowlist config + transient pending state, projects pending/approved lists, and runs approve/dismiss/revoke; it's `hiddenFromFeaturesPage` and surfaces on the Integrations page (a second `INTEGRATION_PROVIDERS` entry, `requestsNeedCode:false` → a plain Approve, no code). Manifest `externally_connectable: {ids:["*"]}` (Chrome only; Firefox lacks the key but still delivers `onMessageExternal`, so the handler allowlist is the cross-browser gate). External command ids `extension:<extId>:…` reuse the existing per-command settings (keybindings/urlRules/hidden). **v1 scope (deliberate):** protocol is `announce`/`register`/`dispose` only (no `ping`/`pong`, no separate `update`); `execute` is fire-and-forget (no `CommandResult` value channel yet); dead-owner GC is manual Revoke (no `management.onUninstalled`). Engine conversion (all six node types, id encoding, callback children, partitionRoot), store (approve/dismiss/revoke/pending dedup), and handler dispatch (disabled→`not_enabled`, bad envelope→`bad_request`, missing sender→`unauthorized`, announce→pending/approved, register unapproved→`unauthorized`/approved→accepted+render, dispose→clear) have focused tests. Manual cross-extension smoke (a real peer extension announcing/registering/being invoked) is still needed. |
-
-Last verified validation:
-
-- `pnpm run tsc` passes.
-- `pnpm run fmt:check` passes.
-- `pnpm test` passes cleanly (exit 0, 703 tests) with focused command-system,
-  palette-search (index/scoring/monocle-commands-search/slice staleness),
-  browser-command, keybinding, URL-filtering, settings-management,
-  snippet-storage, workflow-executor (full op vocabulary), automation
-  (storage/validation/lowering/conditions/policy/commands/engine/trigger-engine/
-  scheduled-alarm sync), template-interpolation, new-tab/theme/background,
-  feature-registry (config/state stores, projection incl. record-list lists,
-  command contribution),
-  feature-owned-automation merge (`getAllAutomations`/`getAutomationById`),
-  element-hider (config-to-automation projection + every doc valid against
-  `AutomationSchema`, handleAction picked/delete) and picker selector generation,
-  monocle-surface-action owner routing,
-  focus-mode (URL blocking, session timing, config schema, surface projection),
-  tab-groups (capture/restore with pinned + Firefox container + mute,
-  saved-group storage CRUD + pin toggle, handleAction routing, lists
-  projection, native supportedBrowsers),
-  calculations (Math/Units/Time providers, runCalculationProviders, content-block
-  validation, dual-DOM ContentBlocks rendering),
-  surfaces-store (owner set/clear/upsert/remove, URL gating, session-owner
-  cleanup incl. `command:`, `ownerId` stamping, change broadcast), modal surface
-  render + dismiss (dual-DOM SurfaceHost), QR generation (background SVG data
-  URL), feature/surfaces/monocle-surface-action-message validation, GitHub
-  parsing coverage, and native-bridge (ExternalSuggestion mapper, crypto
-  constant-time/code/token, Direction-B pairing
-  (begin-returns-code/accept-mints/poll-once/wrong-code+attempt-cap/reject/expiry/revoke),
-  auth gating, request-pump dispatch incl. `pair/request`+`pair/poll-status` and
-  `suggestions/get-children` group navigation, v2 command execution: runCommand-policy
-  bridge mode, clipboard delivery-mode seam, bridge execute preflight/focus, and
-  commands/execute scope + opt-in gating), external-command provider (shared
-  engine: all six node types, `extension:`/`site:` id encoding, callback group
-  children, partitionRoot root/grouped split, action execute → adapter.invoke),
-  and extension-to-extension (registry approve/dismiss/revoke + pending dedup,
-  `onMessageExternal` handler dispatch incl. disabled/bad-envelope/unauthorized
-  gating, announce→pending/approved, register→render, dispose→clear). (Note: a fire-and-forget toast that rejects when the
-  background is unreachable used to surface as an unhandled rejection and make
-  the run exit non-zero despite all tests passing — `useToast` now swallows that
-  rejection, and the DOM-test harness registers a `fakeBrowser` message
-  listener.)
-- `pnpm run build` passes for the Chrome MV3 target.
-- `pnpm run build:firefox` passes for the Firefox MV3 target.
-- `apps/bridge`: `cargo test` passes (4 tests — framing round-trip + id-routing);
-  `pnpm run build:bridge` produces the macOS `.app`/`.dmg`; daemon HTTP + UDS relay
-  round-trip verified headless. (Bridge cargo tests/build are not part of
-  `pnpm test`/`pnpm build` — the bridge has isolated `dev:bridge`/`build:bridge`
-  tasks.)
-
-Always use `pnpm`, not `npm` or `yarn`.
-
-## Repository Shape
-
-This is a pnpm + Turborepo monorepo. Workspace packages are `apps/extension`
-(the WXT extension), `apps/bridge` (the Tauri native-messaging host app —
-`docs/native-messaging/`), and `packages/native-bridge-protocol` (the shared
-public TypeScript wire contract for bridge clients). `apps/raycast` is an
-in-repo Raycast extension but is intentionally excluded from the pnpm workspace;
-root convenience scripts run it with `pnpm --dir apps/raycast ...` without
-enrolling it in Turbo's default extension checks. Root scripts (`pnpm run build`,
-`test`, `tsc`, `dev:*`) delegate to the extension through Turbo; the bridge has
-its own isolated tasks (`pnpm run dev:bridge` / `build:bridge`) so its cargo
-builds stay out of the default extension pipeline. `fmt`/`fmt:check` run biome
-via `pnpm --filter`. `apps/marketing/` is hand-authored static HTML with no
-build step and no `package.json`, so pnpm skips it as a workspace package.
-
-```text
-monocle/
-├── package.json         # Workspace root: Turbo orchestrator scripts
-├── turbo.json           # Task pipeline (build/test/tsc/dev, .output caching)
-├── pnpm-workspace.yaml   # packages: apps/* + packages/*
-├── apps/
-│   ├── extension/       # The WXT extension (its own package.json + configs:
-│   │   │                #   wxt.config.ts, tsconfig.json, biome.json, vitest)
-│   │   ├── entrypoints/ # WXT background, content, and new-tab entrypoints
-│   │   ├── background/  # Service worker, commands, messages, keybindings,
-│   │   │                #   automations (storage/engine/triggers/alarms),
-│   │   │                #   features (registry/config/state, focus/, tabGroups/, elementHider/, nativeMessaging/), surfaces,
-│   │   │                #   calculations (inline-calculation provider registry)
-│   │   ├── content/     # Content-script overlay, workflow executor
-│   │   │                #   (content/workflow/), automation trigger service
-│   │   ├── newtab/      # Browser new-tab replacement
-│   │   ├── options/     # Browser options/settings page
-│   │   ├── shared/      # Shared React components, hooks, store, types, utils
-│   │   └── test-inputs.html  # Manual workflow/input fixture page
-│   ├── bridge/          # Tauri native-messaging host (macOS M0+M1): its own
-│   │   │                #   package.json (@tauri-apps/cli) + src-tauri/ (Rust)
-│   │   ├── ui/          # Bare static frontend (tray-only; window never shown)
-│   │   └── src-tauri/   # One binary, two modes: daemon (tray + loopback HTTP +
-│   │                    #   relay UDS) and relay (browser-spawned stdio⇄UDS pump)
-│   ├── raycast/         # Raycast extension client, isolated from pnpm workspace
-│   └── marketing/       # Static marketing/docs HTML site (no build, no package.json)
-├── packages/
-│   └── native-bridge-protocol/ # Public bridge DTOs, method maps, and Zod schemas
-└── docs/                # Feature and subsystem reference docs
-```
-
-All paths in the feature docs and below are relative to `apps/extension/`.
-
-The important boundaries are:
-
-- Background code may call privileged browser APIs.
-- UI code should use typed background messages instead of directly reaching
-  into browser-only behavior.
-- Shared UI components must work in both content shadow DOM and new-tab DOM.
-- Command definitions must stay background-owned; UI receives `Suggestion`
-  values, not executable functions.
-- Settings persistence should go through `background/commands/settings.ts` and
-  the established message/update paths.
-
-## Core Data Flows
-
-Command loading, search, and execution:
-
-1. Content or new-tab UI sends `monocle-commands-get` with current browser context.
-2. `background/commands/index.ts` loads command nodes, applies browser/context
-   compatibility, applies URL filtering, ranks suggestions, and computes
-   favorites — the root empty state.
-3. Commands are converted into UI-facing `Suggestion` values.
-4. The shared palette renders suggestions with CMDK as a list renderer only
-   (`shouldFilter={false}`).
-5. Typing debounces ~200ms and sends `monocle-commands-search`; the background scores
-   entries from an in-memory search index
-   (`background/commands/searchIndex.ts`, event/TTL-invalidated, URL rules
-   applied at query time) and returns top-N suggestions with deep-search
-   matches inline. Child group pages search via `parentPath`; form pages
-   bypass search; `search`-type pages keep `monocle-command-children-get`.
-6. UI sends `monocle-command-execute` with command id, context, modifier, and form
-   values.
-7. Background resolves the command, checks permissions, runs the executor, and
-   records usage.
-
-Nested command navigation:
-
-1. Selecting a group or search command asks the background for child commands.
-2. `getChildrenCommands` resolves dynamic children, applies filtering, and
-   converts them to suggestions.
-3. `shared/store/slices/navigation.slice.ts` pushes a new page with child
-   suggestions, search state, and inline form defaults.
-4. Actions or submits execute with the current page form values.
-
-Settings and permissions:
-
-1. Settings are stored under `monocle-settings` in `chrome.storage.local`.
-2. Redux mirrors settings and permission state for responsive UI.
-3. Browser permission APIs remain authoritative.
-4. Chrome permission requests route through the background. Firefox can request
-   directly where supported.
-
-Keybindings:
-
-1. UI capture normalizes key events into canonical strings such as
-   `<cmd-shift-k>`.
-2. UI sends `monocle-keybinding-execute`.
-3. The background registry resolves exact matches or sequence prefixes.
-4. Matching commands execute through the same command execution path.
-
-Workflow automation:
-
-1. A command (or the automation engine, per content segment) sends a workflow.
-2. Background forwards it to the resolved target tab as
-   `monocle-workflow-content-execute`.
-3. The content script runs the executor in `content/workflow/`.
-4. Results (including `getText` var extractions) return through the chain.
-
-The full content step vocabulary is implemented and schema-accepted; privileged
-operations (navigate/openUrl/clipboard/runCommand) are automation engine ops,
-never workflow steps.
-
-Automations (Automations):
-
-1. A stored document runs from its generated palette command
-   (`automation-<uuid>`), an armed page trigger (content reports
-   `monocle-automation-trigger-fired`; the background re-validates), or a
-   `chrome.alarms` schedule.
-2. `background/automations/engine.ts` re-reads the document by id,
-   interpolates background-side, lowers contiguous content steps onto
-   workflows, runs privileged ops between segments, and enforces the runtime
-   limits (concurrency, cooldowns, loop caps, runCommand policy).
-
-Feature modules (`docs/features.md`):
-
-1. The `background/features/` registry holds `FeatureModule`s. Each contributes
-   palette commands (added to `source.ts` under the `features` category), an
-   optional settings page (FormField schema + Zod `configSchema` + actions),
-   and an optional `init()` lifecycle hook (called from `background/index.ts`).
-2. Durable feature config lives in `monocle-feature-config` (replace-whole,
-   validated); transient runtime state lives in `monocle-feature-state` —
-   both keyed by feature id, both distinct from `monocle-settings`.
-3. The options Features pages render descriptors via `monocle-features-get` and persist
-   through `monocle-feature-config-update` / run actions via `monocle-feature-action-execute`.
-4. Feature page UI is rendered through the generic Surfaces primitive (below),
-   not per-feature components — a feature pushes surfaces from its lifecycle.
-
-Surfaces (`docs/surfaces.md`):
-
-1. `background/surfaces.ts` is an owner-namespaced store (`monocle-surfaces`) of
-   declarative overlays/badges/modals. Owners are features (e.g. `focus-mode`),
-   automations (`automation:<id>`), or commands (`command:<id>`); every mutation
-   broadcasts `monocle-surfaces-changed`. `command:`/`automation:` owners are
-   per-session (cleared on startup).
-2. The one generic `SurfaceHost` (mounted in the closed content shadow root with
-   `overlay`+`modal`+`picker`, and on the new tab with `badge`) queries
-   `monocle-surfaces-get {url}` on mount/navigation/broadcast and renders the surfaces of
-   the kinds it owns. URL gating reuses `matchesUrlPattern`; the closed shadow
-   root makes a `blocking` overlay a true hard block. A `modal` renders
-   structured `ContentBlock`s; the interactive `picker` kind enters element
-   pick-mode and reports the clicked element via `monocle-surface-action`.
-3. `monocle-surface-action` handling: `dismiss` removes the surface (universal); any
-   other action routes to the owner — a feature's `handleAction` (same path as
-   `monocle-feature-action-execute`) or a command's registered handler
-   (`background/commands/surfaceActionHandlers.ts`), each carrying the picker
-   `selection` + sender tab.
-4. Focus Mode projects its overlay+badge here (`projectFocusSurfaces`);
-   automations push surfaces via the `showSurface`/`hideSurface` engine ops; a
-   command pushes from its `execute()` (e.g. the QR-code modal in
-   `tools/urlAsQrCode.ts`, Element Hider's `picker`, or the
-   `inspect-element-fonts` font picker).
-
-## Command System Contract
-
-Commands are typed `CommandNode` values in `shared/types/commands.ts`. UI rows
-are typed `Suggestion` values in `shared/types/ui.ts`.
-
-Supported command node families include:
-
-- `action`: executable command.
-- `submit`: form-style executable command.
-- `group`: dynamic container with child commands.
-- `search`: dynamic search-backed command page.
-- `input`: inline field rendered as a command item.
-- `display`: static non-executable row.
-
-Command authors should:
-
-- Use the discriminated `type` field.
-- Use kebab-case ids.
-- Declare optional permissions through `permissions`.
-- Declare browser support through `supportedBrowsers` when relevant.
-- Declare URL visibility through `urlRules` when a command is contextual.
-- Use canonical keybinding strings, for example `<cmd-shift-k>`.
-- Use dynamic ids sparingly and usually disable custom keybindings for data
-  that changes over time.
-- Prefer NoOp/display rows for empty/error child states over alerts.
-- Add commands to the appropriate category index, then make sure the relevant
-  orchestration path actually loads that category.
-
-Deep search currently flattens action and submit descendants from groups that
-opt into `enableDeepSearch`. Do not assume input or display rows flatten into
-root search.
-
-Inline form values live in navigation state. Text/select/radio/color-style
-fields store strings; multi-value fields can store arrays in UI state and are
-normalized by background execution paths for compatibility with older command
-executors.
-
-## Palette UI Contract
-
-Both content overlay and new-tab mode use the shared components under
-`shared/components/Command/`.
-
-Important files:
-
-- `entrypoints/content.tsx`: defines the WXT content script and injects the
-  content overlay host.
-- `content/scripts.tsx`: renders the content palette into the WXT shadow host.
-- `content/components/ContentCommandPalette.tsx`: controls overlay visibility,
-  settings, permissions, command fetching, and global keybindings.
-- `newtab/NewTabApp.tsx`: loads new-tab settings and renders the new-tab app.
-- `newtab/components/NewTabCommandPalette.tsx`: fetches commands with
-  `{ isNewTab: true }`.
-- `shared/components/Command/CommandPalette.tsx`: shared palette shell.
-- `shared/hooks/useCommandNavigation.tsx`: imperative wrapper over the
-  navigation slice.
-- `shared/store/slices/navigation.slice.ts`: page stack, search values,
-  dynamic child pages, loading/errors, and form values.
-
-When changing shared palette behavior, check both:
-
-- Content mode in a closed shadow DOM.
-- New-tab mode in normal DOM.
-
-CMDK search state is synchronized with Redux in a few direct/fragile places.
-Any navigation, Escape, Backspace, or search restoration change needs manual
-regression checks.
-
-## Permissions And Settings Contract
-
-Required generated manifest permissions are declared in `wxt.config.ts`.
-Optional permissions are requested on demand for browser command groups.
-
-Permission and setting changes should respect these invariants:
-
-- Commands declare required permissions; UI surfaces grant actions when missing.
-- Execution still checks permissions in the background before protected work.
-- Browser permission truth must override stale Redux state.
-- Command settings are keyed by command id.
-- `updateCommandSettings` shallow-merges command settings. Preserve nested
-  state explicitly when updating nested structures such as `urlRules`.
-- URL rule validation is custom; matching, update validation, and nested-merge
-  behavior have focused tests (`urlFilter.test.ts`, `validation.test.ts`,
-  `settings.test.ts`).
-
-## URL Filtering And Website Commands
-
-`urlRules` is the current command visibility layer. It is not yet a full plugin
-system.
-
-Implemented:
-
-- Command-defined allow/deny URL rules.
-- User-persisted allow/deny rules per command.
-- Hide from Domain generated action.
-- Manage Command Allow List / Deny List commands.
-- Root and child command filtering by current page URL.
-
-In progress:
-
-- `background/commands/websites/` contains a GitHub contextual command
-  prototype.
-- `websiteCommands` is loaded by `background/commands/source.ts`, but website
-  commands are still command arrays with URL rules rather than a first-class
-  plugin registry.
-- `background/commands/siteSdk/` stores page-owned SDK registrations per
-  tab/document/origin and converts validated declarations into background-owned
-  `CommandNode` wrappers.
-
-Before broadening website commands, decide whether they are just command arrays
-with `urlRules` or a first-class registry with metadata, activation policy, and
-plugin-owned hooks.
-
-## Keybinding Contract
-
-Canonical keybindings use angle-bracket format:
-
-- Single stroke: `<cmd-k>`, `<ctrl-d>`, `<alt-shift-f>`.
-- Plain keys: `g`, `escape`, `space`, `enter`.
-- Sequences: `<cmd-k>, <cmd-s>` or `g, g`.
-
-Executable nodes can declare `keybindingRequirements` (e.g.
-`requireNonShiftModifier` for commands whose shortcuts must fire while an
-editable element is focused — snippets and typing automations opt in). Requirements are enforced at
-assignment time in both capture UIs and on persist
-(`shared/utils/keybinding-requirements.ts`); see `docs/keybindings.md`.
-
-Important files:
-
-- `shared/utils/key-normalizer.ts`
-- `shared/utils/event-filter.ts`
-- `shared/utils/robust-key-capture.ts`
-- `shared/hooks/useGlobalKeybindings.tsx`
-- `background/keybindings/registry.ts`
-- `background/messages/executeKeybinding.ts`
-- `shared/components/KeybindingDisplay.tsx`
-- `shared/components/Command/CommandActionsList.tsx`
-
-Known risk: registry and conflict coverage is not uniform across every command
-source. Browser, tool, Firefox, and deep-search commands are covered more
-explicitly than UI, new-tab, and website commands.
-
-## Workflow And Automation Contract
-
-The workflow vocabulary (`shared/types/workflow.ts`) contains ONLY
-content-executable operations, and every member is implemented in
-`content/workflow/` and accepted by the public schema
-(`shared/types/workflowValidation.ts`). The lockstep invariant is binding: a
-new op lands as one unit — type, schema entry, executor case, tests — and
-unsupported ops fail loudly, never silently.
-
-Automations (`docs/automations.md`) layer on top:
-
-- Documents are data, never code: validated by the shared Zod schema
-  (`shared/types/automationValidation.ts`) at save, import, the message
-  boundary, and re-checked structurally by the engine at run time.
-- Content steps reuse the workflow vocabulary verbatim and lower 1:1
-  (`background/automations/lowering.ts` is the single mapping site, tested
-  against the public schema). Privileged ops (navigate, openUrl,
-  clipboardWrite, runCommand, insertSnippet, toast, showSurface/hideSurface)
-  and control flow run in the engine between content segments.
-- Interpolation is background-side (`{{var}}` templates + snippet
-  placeholders); the content executor never learns templating, and selector
-  values are never interpolatable.
-- `runCommand` is policy-gated (`background/automations/runCommandPolicy.ts`):
-  no confirm-gated commands, no recursion, no debug tools; non-manual runs are
-  restricted to a static allowlist.
-- Imported documents arrive with non-manual triggers disarmed and are saved
-  only after the user reviews the generated summary.
-- There is deliberately no arbitrary-JS step; do not add one (store policy —
-  see `docs/automations.md`).
-
-## Known Architectural Risks
-
-These are the easy traps to avoid:
-
-- `background/commands/index.ts` is now a thin barrel over focused modules
-  (`source.ts`, `query.ts`, `execution.ts`, `suggestions.ts`, ...). Keep it
-  logic-free; add new responsibilities to the right module (or a new one),
-  never back to the root.
-- `allCommands` is context-free, so global management surfaces can miss
-  context-only command sources such as new-tab commands.
-- Permission-protected dynamic groups should preserve clear permission UI paths
-  when permissions are missing or revoked.
-- Keybinding sequence state lives in the background service worker, scoped per
-  sender tab/document (`getSequenceScopeKey` in
-  `background/messages/executeKeybinding.ts`). Senders without tab data fall
-  back to a context key and can still collide across tabs.
-- Automated tests are narrow. Use the manual checklists in `docs/` for browser
-  integration behavior in the feature area you touch.
+settings, permissions, keybindings, and workflow forwarding. UIs fetch UI-safe
+`Suggestion` values and execute via typed messages — they never receive
+executable command functions.
 
 ## Development Commands
 
-Run these from the repo root; Turbo delegates to `apps/extension` (or run them
-inside `apps/extension/` directly):
+Run from repo root (Turbo delegates to `apps/extension`) or inside the package:
 
 ```bash
-pnpm run dev
-pnpm run dev:chrome
-pnpm run dev:firefox
+pnpm run dev            # + dev:chrome / dev:firefox
 pnpm run tsc
-pnpm run fmt:check
-pnpm run build
-pnpm run build:firefox
+pnpm run fmt            # fmt:check to verify only (biome)
+pnpm run build          # + build:firefox
+pnpm test               # focused Vitest suite — manual browser checks still required
 ```
 
-`build:zip` / `build:firefox:zip` exist on the extension package (run via
-`pnpm --filter @monocle/extension run build:zip` or from inside the package).
-`pnpm run fmt` writes formatting changes (biome, via `pnpm --filter`).
-`pnpm test` runs the focused Vitest suite, but manual browser checks are still
-required for extension API behavior.
+- Always use `pnpm`, never `npm`/`yarn`.
+- `build:zip` / `build:firefox:zip` live on the extension package.
+- Bridge has isolated tasks: `pnpm run dev:bridge` / `build:bridge`, and
+  `cargo test` in `apps/bridge/src-tauri` (not part of `pnpm test`/`build`).
 
-## Working Rules For Future Changes
+## Repository Shape
 
-- Read the relevant doc in `docs/` before changing a feature.
-- Trace data from source to sink before editing. For Monocle, this usually
-  means UI event -> background message -> command/settings/browser API boundary
-  -> Redux/UI response.
-- Keep privileged browser API usage in background utilities or background
-  commands unless an extension API explicitly requires a content-side flow.
-- Keep UI components executable-function-free. They render suggestions and send
-  messages.
-- Match existing command, settings, Redux, and message patterns before adding a
-  new abstraction.
-- If you touch shared palette behavior, manually check both content overlay and
-  new-tab mode.
-- If you touch permissions, test grant, denial, and already-granted states.
-- If you touch keybindings, test editable passthrough, capture, display,
-  conflict detection, and execution.
-- If you touch URL rules, test allow, deny, wildcard, domain-generated patterns,
-  root filtering, and child filtering.
-- If you touch workflow automation or automations, keep the lockstep
-  invariant (schema + executor + tests land together), add or use
-  fixture-page checks, and never treat unsupported steps as successful.
-- Do not remove or overwrite unrelated untracked work. The untracked `.codex/`
-  and `background/commands/websites/` paths are intentional in-progress work.
+pnpm + Turborepo monorepo. Workspace packages: `apps/extension` (the WXT
+extension), `apps/bridge` (Tauri native-messaging host), and
+`packages/native-bridge-protocol` (shared bridge wire contract). `apps/raycast`
+and `apps/marketing` are intentionally outside the workspace (no Turbo enrolment;
+marketing is static HTML with no build).
+
+```text
+monocle/
+├── package.json / turbo.json / pnpm-workspace.yaml   # root orchestration
+├── apps/
+│   ├── extension/          # WXT extension (own package.json, wxt.config.ts, vitest)
+│   │   ├── entrypoints/     # WXT background / content / new-tab entrypoints
+│   │   ├── background/      # service worker, commands, messages, keybindings,
+│   │   │                    #   automations, features/, surfaces, calculations
+│   │   ├── content/         # overlay, workflow executor, automation triggers
+│   │   ├── newtab/          # new-tab replacement
+│   │   ├── options/         # settings page
+│   │   └── shared/          # shared React components, hooks, store, types, utils
+│   ├── bridge/             # Tauri native host (one binary: daemon + relay modes)
+│   ├── raycast/            # Raycast client (isolated from workspace)
+│   └── marketing/          # static HTML (no build)
+├── packages/native-bridge-protocol/   # public bridge DTOs + Zod schemas
+└── docs/                  # feature and subsystem reference docs
+```
+
+All paths in this file and the docs are relative to `apps/extension/`.
+
+**Boundaries:**
+
+- Background code may call privileged browser APIs.
+- UI code uses typed background messages, never browser-only behavior directly.
+- Shared UI components must work in both content shadow DOM and new-tab DOM.
+- Command definitions stay background-owned; UI gets `Suggestion`s, not functions.
+- Settings persistence goes through `background/commands/settings.ts`.
+
+## Documentation Map
+
+Read the relevant doc before editing related code.
+
+- `docs/README.md` — documentation index, reading order, conventions.
+- `docs/architecture.md` — runtime modes, entrypoints, ownership, store layout, data flows.
+- `docs/messaging.md` — full message protocol: every message, payload, handler.
+- `docs/command-schema.md` — `CommandNode` reference, `AsyncValue`, `FormField`, node→`Suggestion`.
+- `docs/command-types.md` — the six node types and their rendering/selection behavior.
+- `docs/authoring-commands.md` — adding/registering a command: folders, loaders, patterns, pitfalls.
+- `docs/site-sdk.md` / `docs/site-sdk-security.md` — page-world `window.Monocle` SDK and its threat model.
+- `docs/search-and-ranking.md` — palette search, keywords, usage ranking, favorites, deep search.
+- `docs/execution-and-actions.md` — execution flow, enter vs modifier-enter, action menu, generated actions.
+- `docs/palette-ui-and-navigation.md` — shared palette UI, overlay, new-tab, navigation stack, inline inputs.
+- `docs/keybindings.md` — canonical format, global capture, sequences, registry matching, conflicts.
+- `docs/url-filtering.md` — command URL visibility, allow/deny precedence, rule management.
+- `docs/permissions.md` — required vs optional permissions, grant flows, inheritance, runtime checks.
+- `docs/settings.md` / `docs/settings-page.md` — settings storage shape and the options page.
+- `docs/workflow-automation.md` — content-executable workflow vocabulary and the lockstep invariant.
+- `docs/automations.md` — declarative automation documents: schema, triggers, engine, runCommand policy.
+- `docs/automation_context.md` — standalone LLM-authoring context for generating automation JSON blobs.
+- `docs/surfaces.md` — declarative overlays/badges/modals/picker rendered by one `SurfaceHost`.
+- `docs/features.md` — the `FeatureModule` registry: commands, settings page, state, page UI.
+- `docs/focus-mode.md` / `docs/tab-groups.md` / `docs/element-hider.md` — the first three features.
+- `docs/calculations.md` — inline calculations and the shared `ContentBlock` renderer.
+- `docs/snippets.md` — snippet storage, insert commands, placeholders, keybinding gating.
+- `docs/new-tab-and-theme.md` — new-tab override, new-tab-only commands, theme application.
+- `docs/store-submission.md` — Chrome/Firefox submission risks and pre-submission blockers.
+- `docs/native-messaging/` — the native-messaging bridge (extension + `apps/bridge` host).
+- `docs/extension-extension/` — letting other extensions contribute commands to Monocle.
+- `docs/commands/` — per-category command catalogs (browser, tools, ui, new-tab, automations, features, websites).
+
+## Current Baseline
+
+Most features are **working with review notes**: focused tests exist, but manual
+Chrome/Firefox browser smoke is still needed. See the linked doc for behavior
+detail and per-feature manual checklists.
+
+| Feature | Status | Doc |
+| --- | --- | --- |
+| Command system | Working (review notes) | command-schema, command-types |
+| Palette UI and navigation | Working (review notes) | palette-ui-and-navigation |
+| Browser commands | Working (review notes) | commands/browser |
+| Keybindings | Working (review notes) | keybindings |
+| Permissions and settings | Working (review notes) | permissions, settings |
+| URL filtering / website commands / site SDK | Partial | url-filtering, site-sdk — `urlRules` works; website commands are still command arrays, not a plugin registry |
+| Workflow automation | Working (review notes) | workflow-automation |
+| Automations | Working (review notes) | automations |
+| New tab and theme | Working (review notes) | new-tab-and-theme |
+| Snippets | Working (review notes) | snippets |
+| Surfaces | Working (review notes) | surfaces |
+| Feature modules | Working (review notes) | features |
+| Focus Mode / Tab Groups / Element Hider | Working (review notes) | focus-mode, tab-groups, element-hider |
+| Calculations | Working (review notes) | calculations |
+| Native Bridge | Partial (extension done; bridge host macOS M0/M1) | native-messaging — open: real browser round-trip, Chrome `key` pin, M2–M4 |
+| Extension-to-Extension Commands | Working (review notes) | extension-extension — manual cross-extension smoke still needed |
+
+**Last verified validation:** `pnpm run tsc`, `pnpm run fmt:check`, `pnpm test`
+(703 tests, exit 0), `pnpm run build` (Chrome), and `pnpm run build:firefox` all
+pass. `apps/bridge`: `cargo test` (4 tests) and `pnpm run build:bridge` pass;
+daemon HTTP + UDS relay round-trip verified headless (`MONOCLE_BRIDGE_HEADLESS=1`).
+
+## Core Data Flows
+
+**Command loading, search, execution:**
+
+1. UI sends `monocle-commands-get` with browser context.
+2. `background/commands/index.ts` (a thin barrel) loads nodes, applies
+   browser/context compatibility + URL filtering, ranks, computes favorites.
+3. Nodes convert to UI-facing `Suggestion`s.
+4. The shared palette renders with CMDK as a list renderer only (`shouldFilter={false}`).
+5. Typing debounces ~200ms → `monocle-commands-search`; background scores an
+   in-memory index (`searchIndex.ts`, event/TTL-invalidated) and returns top-N
+   with deep-search matches inline. Group pages search via `parentPath`; form
+   pages bypass search; `search`-type pages use `monocle-command-children-get`.
+6. UI sends `monocle-command-execute` (id, context, modifier, form values).
+7. Background resolves, checks permissions, runs the executor, records usage.
+
+**Nested navigation:** selecting a group/search command → `getChildrenCommands`
+resolves dynamic children + filtering + suggestions → `navigation.slice.ts`
+pushes a page with children, search state, and inline form defaults.
+
+**Settings/permissions:** stored under `monocle-settings` in
+`chrome.storage.local`; Redux mirrors for UI but browser permission APIs are
+authoritative. Chrome permission requests route through background; Firefox can
+request directly where supported.
+
+**Keybindings:** UI normalizes events to canonical strings →
+`monocle-keybinding-execute` → background registry resolves exact match or
+sequence prefix → executes through the command path.
+
+**Workflow automation:** a command/automation sends a workflow → background
+forwards to the target tab as `monocle-workflow-content-execute` → content
+executor (`content/workflow/`) runs it → results (incl. `getText` vars) return.
+Privileged ops (navigate/openUrl/clipboard/runCommand) are automation engine
+ops, never content workflow steps.
+
+**Automations:** run from a generated palette command (`automation-<uuid>`), an
+armed page trigger, or a `chrome.alarms` schedule. `engine.ts` re-reads the
+document by id, interpolates background-side, lowers contiguous content steps
+onto workflows, runs privileged ops between segments, enforces runtime limits.
+
+**Feature modules** (`docs/features.md`): `background/features/` registry holds
+`FeatureModule`s — each contributes palette commands, an optional settings page
+(FormField schema + Zod config + actions), and an optional `init()`. Durable
+config → `monocle-feature-config`; runtime state → `monocle-feature-state` (both
+keyed by feature id, both distinct from `monocle-settings`). Page UI is rendered
+through Surfaces, not per-feature components.
+
+**Surfaces** (`docs/surfaces.md`): `background/surfaces.ts` is an
+owner-namespaced store (`monocle-surfaces`) of overlays/badges/modals/pickers.
+Owners are features, automations (`automation:<id>`), or commands
+(`command:<id>`; per-session, cleared on startup). The one generic `SurfaceHost`
+queries `monocle-surfaces-get {url}` and renders. `monocle-surface-action`:
+`dismiss` removes (universal); any other action routes to the owner's
+`handleAction` (feature) or registered handler (command).
+
+## Contracts
+
+### Command system
+
+Commands are `CommandNode` values (`shared/types/commands.ts`); UI rows are
+`Suggestion` values (`shared/types/ui.ts`). Node families: `action`, `submit`,
+`group`, `search`, `input`, `display`.
+
+Authors should: use the discriminated `type`; kebab-case ids; declare optional
+`permissions`, `supportedBrowsers`, and `urlRules` when relevant; use canonical
+keybinding strings; use dynamic ids sparingly (usually disable custom keybindings
+for changing data); prefer NoOp/display rows over alerts for empty states; add
+the command to its category index AND confirm the orchestration path loads that
+category.
+
+Deep search only flattens `action`/`submit` descendants of groups with
+`enableDeepSearch` — not `input`/`display`. Inline form values live in navigation
+state; multi-value fields may be arrays in UI state, normalized at execution.
+
+### Palette UI
+
+Both modes use `shared/components/Command/`. Key files: `entrypoints/content.tsx`,
+`content/scripts.tsx`, `content/components/ContentCommandPalette.tsx`,
+`newtab/NewTabApp.tsx` + `NewTabCommandPalette.tsx`, `CommandPalette.tsx`,
+`shared/hooks/useCommandNavigation.tsx`, `navigation.slice.ts`.
+
+CMDK search state syncs with Redux in a few fragile places. Any navigation,
+Escape, Backspace, or search-restoration change needs manual regression checks
+in **both** content (closed shadow DOM) and new-tab (normal DOM) modes.
+
+### Permissions and settings
+
+Required manifest permissions are in `wxt.config.ts`; optional ones are requested
+on demand. Invariants:
+
+- Commands declare required permissions; UI surfaces grant actions when missing;
+  execution re-checks in background before protected work.
+- Browser permission truth overrides stale Redux state.
+- Command settings are keyed by command id. `updateCommandSettings`
+  shallow-merges — preserve nested state (e.g. `urlRules`) explicitly.
+
+### URL filtering and website commands
+
+`urlRules` is the visibility layer (not yet a plugin system). Implemented:
+command-defined + user allow/deny rules, Hide-from-Domain action, Manage
+Allow/Deny List commands, root + child filtering. In progress:
+`background/commands/websites/` (GitHub prototype) and `siteSdk/`. Before
+broadening: decide whether website commands stay command arrays with `urlRules`
+or become a first-class registry.
+
+### Keybindings
+
+Angle-bracket format: `<cmd-k>`, `<alt-shift-f>`, plain `g`/`escape`, sequences
+`<cmd-k>, <cmd-s>`. Nodes can declare `keybindingRequirements` (e.g.
+`requireNonShiftModifier` so bindings fire inside editable elements — snippets
+and typing automations opt in), enforced at assignment and persist
+(`shared/utils/keybinding-requirements.ts`). Key files: `key-normalizer.ts`,
+`event-filter.ts`, `robust-key-capture.ts`, `useGlobalKeybindings.tsx`,
+`keybindings/registry.ts`, `messages/executeKeybinding.ts`. Risk: registry/
+conflict coverage is uneven (UI, new-tab, website commands less covered).
+
+### Workflow and automation
+
+The workflow vocabulary (`shared/types/workflow.ts`) is content-executable ops
+ONLY, each implemented in `content/workflow/` and accepted by
+`workflowValidation.ts`. **Lockstep invariant:** a new op lands as one unit —
+type + schema + executor case + tests; unsupported ops fail loudly.
+
+Automations layer on top: documents are data, validated by
+`automationValidation.ts` at save/import/message boundary and re-checked by the
+engine. Content steps lower 1:1 (`automations/lowering.ts`). Interpolation is
+background-side; selectors are never interpolatable. `runCommand` is policy-gated
+(`runCommandPolicy.ts`: no confirm-gated/recursive/debug; non-manual restricted
+to an allowlist). Imported docs arrive with non-manual triggers disarmed.
+**There is deliberately no arbitrary-JS step — do not add one.**
+
+## Known Architectural Risks
+
+- `background/commands/index.ts` is a thin barrel over focused modules
+  (`source.ts`, `query.ts`, `execution.ts`, `suggestions.ts`, …). Keep it
+  logic-free; add responsibilities to the right module.
+- `allCommands` is context-free, so global management surfaces can miss
+  context-only sources (e.g. new-tab commands).
+- Permission-protected dynamic groups must preserve clear permission UI when
+  permissions are missing/revoked.
+- Keybinding sequence state lives in the background worker, scoped per sender
+  tab/document (`getSequenceScopeKey`); senders without tab data fall back to a
+  context key and can collide across tabs.
+- Automated tests are narrow — use the manual checklists in `docs/`.
+
+## Working Rules
+
+- Read the relevant `docs/` file before changing a feature.
+- Trace data source→sink first: UI event → background message → command/settings/
+  browser API → Redux/UI response.
+- Keep privileged browser APIs in background; keep UI components
+  executable-function-free.
+- Match existing command/settings/Redux/message patterns before adding an
+  abstraction.
+- Touch shared palette behavior → check both content and new-tab modes.
+- Touch permissions → test grant, denial, already-granted.
+- Touch keybindings → test editable passthrough, capture, display, conflicts,
+  execution.
+- Touch URL rules → test allow, deny, wildcard, domain patterns, root + child filtering.
+- Touch workflows/automations → keep the lockstep invariant; never treat
+  unsupported steps as successful.
+- Do not remove or overwrite unrelated untracked work (`.codex/` and
+  `background/commands/websites/` are intentional in-progress paths).

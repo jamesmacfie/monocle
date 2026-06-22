@@ -2,8 +2,7 @@
 
 You are generating or editing a **Monocle automation**: a declarative JSON document that runs
 browser steps (click, fill, wait, read text, navigate, …) from the command palette or on a
-trigger. This file is the complete contract. Produce JSON that passes validation on the first
-try.
+trigger. This file is the complete contract. Produce JSON that passes validation on the first try.
 
 **Output rule:** when asked to create or extend an automation, reply with **only the JSON
 envelope** below (no prose, no markdown fences unless asked). When extending an automation the
@@ -314,7 +313,7 @@ numbers and **fail the run loudly** on non-numeric input.
 ## 10. `runCommand` policy
 
 `runCommand` invokes another Monocle command. **Always denied:** commands that require
-confirmation, other automations (any `userscript-*` id), and `debug-workflow`.
+confirmation, other automations (any `automation-*` id, e.g. `automation-<uuid>`), and `debug-workflow`.
 
 For **automatic** (non-manual) triggers, `commandId` must be one of this allowlist:
 

@@ -4,18 +4,20 @@
 > `monocle-feature-config` / `monocle-feature-state` stores, the generic
 > `monocle-features-get` / `monocle-feature-config-update` / `monocle-feature-action-execute` messages,
 > the options Features pages, and page UI via the generic
-> [Surfaces primitive](./surfaces.md) are all live. Focus Mode is the first and
-> currently only consumer ([focus-mode.md](./focus-mode.md)).
+> [Surfaces primitive](./surfaces.md) are all live. Focus Mode is the first
+> consumer ([focus-mode.md](./focus-mode.md)); the registry now also hosts Tab
+> Groups, Element Hider, the Native Bridge (native-messaging), and the Extension
+> Registry.
 
 Monocle's command model is built for one-shot palette actions: a `CommandNode`
 is background-owned, the UI receives `Suggestion`s, and per-command persistence
-is limited to `CommandSettings` (`keybinding` / `hidden` / `urlRules`). Some
-capabilities need more than that — a **feature** contributes several palette
-commands, owns a **typed config + settings page**, keeps **runtime state**, and
-renders **its own content/new-tab UI**. The Feature-module registry is the
-composition layer for exactly those capabilities.
+is limited to `CommandSettings` (`keybinding` / `hidden` / `urlRules`). A
+**feature** contributes several palette commands, owns a **typed config +
+settings page**, keeps **runtime state**, and renders **its own
+content/new-tab UI**. The Feature-module registry is the composition layer for
+those capabilities.
 
-The rule of thumb: **a command that needs a rich settings page or persistent
+Rule of thumb: **a command that needs a rich settings page or persistent
 runtime state is a feature, not a command.** Authoring a one-shot action stays
 in [authoring-commands.md](./authoring-commands.md).
 
@@ -91,10 +93,10 @@ messages. The module still registers commands/config/lifecycle normally; only th
 generic Features page skips it. See
 [settings-page.md](./settings-page.md) and [native-messaging/](./native-messaging/).
 
-`FeatureSettingsSchema` deliberately **reuses the existing `FormField` union**
+`FeatureSettingsSchema` **reuses the existing `FormField` union**
 (`shared/types/ui.ts`) — `text-list`, `switch`, `number`, `text`, `select`, …
 — rather than inventing a second field vocabulary. A blocklist is a `text-list`
-field with URL `validation`. (Note: the palette's `CommandItem/*` renderers are
+field with URL `validation`. (The palette's `CommandItem/*` renderers are
 CMDK list items and are *not* reusable on the options form, so the options page
 ships its own `SchemaForm` renderer — see below.)
 
@@ -102,7 +104,7 @@ ships its own `SchemaForm` renderer — see below.)
 
 For features that manage a growing list of records (Tab Groups' saved
 collections), the `record-list` `FormField` variant renders that list with
-**per-row action buttons** — something the flat fields + global `actions` can't
+**per-row action buttons** — something flat fields + global `actions` can't
 express. It is the one field type whose data is *not* draft-edited:
 
 - Rows come from `descriptor.lists[field.id]` (projected by `settings.lists`),
@@ -176,8 +178,8 @@ Both stores use `withStorageLock` (`background/utils/storageMutex.ts`).
 
 ## The multi-runtime split (be honest about it)
 
-A feature spans runtimes, and the registry is honest about which runtime owns
-what rather than pretending one object renders everywhere:
+A feature spans runtimes, and the registry is explicit about which runtime owns
+what:
 
 - **Background** is the source of truth: `background/features/` holds the
   registry, the two stores, command contribution, config validation, runtime
@@ -188,7 +190,7 @@ what rather than pretending one object renders everywhere:
   [surfaces](./surfaces.md) (overlays/badges) into the background-owned surfaces
   store; the one generic `SurfaceHost` (mounted in the closed content shadow
   root and on the new tab) renders them. A feature does not ship its own content
-  React components — Focus Mode, for instance, has zero content/new-tab code.
+  React components — Focus Mode has zero content/new-tab code.
 
 This keeps the background-ownership contract intact: features produce data
 (commands, config, surfaces); shared hosts render it.
@@ -248,9 +250,9 @@ a reload.
 
 A feature that needs page UI pushes [surfaces](./surfaces.md) into the surfaces
 store rather than defining its own messages — the generic `monocle-surfaces-get` query
-and `monocle-surfaces-changed` broadcast cover rendering. A feature only adds a
-bespoke message when it has genuinely feature-specific runtime state to expose;
-such messages live with the feature, not in the registry contract.
+and `monocle-surfaces-changed` broadcast cover rendering. A feature adds a
+bespoke message only when it has genuinely feature-specific runtime state to
+expose; such messages live with the feature, not in the registry contract.
 
 ---
 

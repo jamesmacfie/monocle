@@ -2,12 +2,11 @@
 
 Monocle splits browser permissions into a small set of **required** manifest
 permissions (granted at install time) and a larger set of **optional**
-permissions that are requested on demand the first time a user reaches a command
-that needs them. Commands declare the permissions they require; the UI surfaces
-grant actions when they are missing; and the background re-checks permissions
-against the live browser API before running any protected work. The browser
-permission API is always the source of truth — Redux mirrors it only for UI
-responsiveness.
+permissions requested on demand the first time a user reaches a command that
+needs them. Commands declare the permissions they require; the UI surfaces grant
+actions when they are missing; the background re-checks permissions against the
+live browser API before running any protected work. The browser permission API
+is always the source of truth — Redux mirrors it only for UI responsiveness.
 
 ## Required vs optional permissions
 
@@ -106,8 +105,8 @@ These declarations live on the command nodes themselves (`permissions: [...]`).
 | `tabs` + `contextualIdentities` + `cookies` | `browser/firefox/openCurrentTabInContainer.tsx` |
 
 For full per-command detail see [commands/browser.md](commands/browser.md). The
-list above is the authoritative summary of permission-bearing commands at the
-time of writing; grep `permissions:` under `background/commands/` to refresh it.
+list above is the authoritative summary of permission-bearing commands; grep
+`permissions:` under `background/commands/` to refresh it.
 
 ## Permission inheritance for groups and children
 
@@ -154,7 +153,7 @@ call the protected child resolver. Instead it returns a single synthetic
 
 Because this row still carries `permissions`, the palette renders the same
 grant affordances on it (see below), giving the user a path to grant the missing
-permission without ever invoking the protected resolver. This is the
+permission without invoking the protected resolver. This is the
 "permission-protected dynamic group preserves a grant path" invariant.
 
 ## How missing permissions surface in the palette UI
@@ -206,7 +205,7 @@ based on the resulting `granted` boolean.
 request's own return value as truth. On a thrown browser error it returns
 `{ granted: false, error }` with a descriptive message. `requestPermission.test.ts`
 covers four states: already-granted, request-then-grant, request-then-deny, and a
-structured browser error.
+browser error.
 
 ### Firefox: the dedicated grant page
 
@@ -254,7 +253,7 @@ if (permissions.length > 0) {
 }
 ```
 
-If any permission is missing the executor returns early, shows an error toast
+If any permission is missing, the executor returns early, shows an error toast
 ("Missing permissions: ..."), and the command's `execute` is never called.
 Generated actions resolve their target command the same way and inherit the same
 permission record before executing.

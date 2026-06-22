@@ -2,7 +2,7 @@
 
 Automations are **user-defined commands**: stored, declarative documents describing ordered sequences of steps — fill this field (with a snippet's value), click that button, check an element exists first, remove or restyle elements, open a URL, run another Monocle command — scoped to sites with `urlRules`, runnable from the palette or a custom keybinding, and optionally fired by page events or schedules.
 
-A script is **always data, never code**. Documents are persisted locally, validated against a strict shared schema at every boundary, and interpreted entirely by bundled extension logic. There is no `eval`, no `new Function`, no remote step definitions, and no arbitrary-JS step (deliberately — see [Store posture](#store-posture)). User-facing copy calls the feature **Automations**; code and ids use the automations/`automation-` naming.
+A script is **always data, never code**: persisted locally, validated against a strict shared schema at every boundary, and interpreted entirely by bundled extension logic. There is no `eval`, no `new Function`, no remote step definitions, and no arbitrary-JS step (deliberately — see [Store posture](#store-posture)). User-facing copy calls the feature **Automations**; code and ids use the automations/`automation-` naming.
 
 ## Status at a glance
 
@@ -88,7 +88,7 @@ Navigation steps (`navigate`, `openUrl` with `currentTab`) are rejected inside b
 | `schedule` | Daily at HH:MM local (`chrome.alarms`, self re-arming) | |
 | `onStartup` | Browser start | |
 
-Rules for every trigger: non-manual triggers never fire on `urlRules`-denied pages, non-http(s) pages, or the new-tab page; **imported scripts arrive with non-manual triggers disarmed** until the user reviews and arms them; a disabled script arms nothing. Page triggers and scheduled triggers share the same eligibility helper (`background/automations/eligibility.ts`), so script `urlRules`, user command URL-rule overrides, and hidden command settings are interpreted identically across both paths. Non-manual triggers also never request new host access: content/page steps run only when the browser already has the needed optional host grant, otherwise the run fails/skips with an access-needed error.
+Rules for every trigger: non-manual triggers never fire on `urlRules`-denied pages, non-http(s) pages, or the new-tab page; **imported scripts arrive with non-manual triggers disarmed** until the user reviews and arms them; a disabled script arms nothing. Page and scheduled triggers share the same eligibility helper (`background/automations/eligibility.ts`), so script `urlRules`, user command URL-rule overrides, and hidden command settings are interpreted identically across both paths. Non-manual triggers also never request new host access: content/page steps run only when the browser already has the needed optional host grant, else the run fails/skips with an access-needed error.
 
 Page-trigger flow is **pull-based** (no extra permissions): the content service (`content/automationTriggers.ts`) reports its URL via `monocle-automation-triggers-get`, receives the armed specs for that URL, and reports fires via `monocle-automation-trigger-fired`. The background **re-validates everything** on fire — script existence, enablement, armed state, and URL eligibility against the *sender's actual URL* (a page cannot claim a different URL) — before the engine runs. Content never receives steps and executes nothing on its own.
 
@@ -131,7 +131,7 @@ The engine starts watching the pinned tab before sending the segment, races the 
 
 Manual runs may request optional host access for the active tab before the first content segment. Known same-tab `navigate` and `openUrl { disposition:"currentTab" }` destinations are preflighted before the tab leaves the current page. After an `expectNavigation` action, prompts are disabled for the continuation: same-origin/matching-granted-origin pages continue normally, but a destination without an existing host grant fails clearly instead of attempting unauthorized injection.
 
-The next content segment is delivered through the normal workflow path, but `executeWorkflowOnTargetTab` retries only missing-content-script errors (`Receiving end does not exist` / `Could not establish connection`). It does not retry closed-port/lost-response errors because the previous content script may already have performed side effects. The host-access helper also injects `content-scripts/content.js` into already-loaded granted tabs when needed. This keeps the same-tab multipage case reliable without adding `webNavigation`, durable paused resumes, cross-tab continuation, or a standalone early content listener.
+The next content segment is delivered through the normal workflow path, but `executeWorkflowOnTargetTab` retries only missing-content-script errors (`Receiving end does not exist` / `Could not establish connection`), not closed-port/lost-response errors (the previous content script may already have performed side effects). The host-access helper also injects `content-scripts/content.js` into already-loaded granted tabs when needed. This keeps the same-tab multipage case reliable without adding `webNavigation`, durable paused resumes, cross-tab continuation, or a standalone early content listener.
 
 ### Conditions
 
@@ -162,7 +162,7 @@ One ordered pipeline, applied per interpolatable field (`fill.text`, `setVariabl
 2. **Snippet resolution** (background): `vars` of kind `snippet` and inline refs re-read the snippet at run time, bump the persisted `{i}` counter only when the body uses it (one counter sequence shared with palette insertion), and interpolate the body.
 3. **Snippet placeholder expansion**: `interpolateSnippetBody` with the run's page context, so `{date:...}`, `{url}`, `{domain}`, etc. work in any interpolatable field.
 
-Interpolation runs **in the background engine before steps are sent to content** — snippet resolution and counters are background-owned, secrets round-trip once, and the executor never learns templating. Segments split after `getText` so extracted runtime vars are visible to later steps' templates.
+Interpolation runs **in the background engine before steps are sent to content** — snippet resolution and counters are background-owned, secrets round-trip once, the executor never learns templating. Segments split after `getText` so extracted runtime vars are visible to later steps' templates.
 
 ## Engine: segments and execution
 
@@ -188,7 +188,7 @@ Execution from the palette records usage through the normal command dispatch pat
   - Enabled event-only scripts → `display` rows ("Runs automatically — manage it in Options"); disabled scripts get no row.
 - **Create Automation** / **Manage Automations** actions open the options builder (`#/automations`).
 
-Because rows are durable commands, keybindings (assigned on the keyboard settings page or via row actions), favorites, hide, and per-command URL-rule overrides all work through existing machinery — none of it is reimplemented.
+Because rows are durable commands, keybindings (assigned on the keyboard settings page or via row actions), favorites, hide, and per-command URL-rule overrides all work through existing machinery, none reimplemented.
 
 ## Storage and messages
 

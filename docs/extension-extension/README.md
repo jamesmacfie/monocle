@@ -28,7 +28,7 @@ peer does the work inside its own sandbox.
 
 ## Intent — and how it differs from the native bridge
 
-This looks mechanically similar to the [native-messaging bridge](../native-messaging/README.md)
+It looks mechanically similar to the [native-messaging bridge](../native-messaging/README.md)
 (both involve an external party and an approval handshake) but the **direction of
 data flow is reversed**, and that difference drives every design decision:
 
@@ -43,18 +43,18 @@ data flow is reversed**, and that difference drives every design decision:
 
 The native bridge had to invent a transport and a token because a desktop app has
 no browser-verified identity and MV3 can't accept inbound connections. Neither
-constraint applies here: two extensions can talk directly through a
-browser-native channel, and the browser already authenticates the sender's
-extension id for us. So this feature is **simpler** than the bridge on the
-transport and auth axes, and **richer** on the command-modeling axis.
+constraint applies here: two extensions talk directly through a browser-native
+channel, and the browser already authenticates the sender's extension id. So this
+feature is **simpler** than the bridge on the transport and auth axes, and
+**richer** on the command-modeling axis.
 
 ## This is the site SDK, promoted
 
 The hard part — turning an untrusted, externally-owned declarative command tree
 into background-owned `CommandNode`s, and round-tripping `execute` / `children` /
 `search` back to the owner — **already exists** as the site SDK
-(`background/commands/siteSdk/`, see [../site-sdk.md](../site-sdk.md)). The site
-SDK does this for page-world `window.Monocle` declarations.
+(`background/commands/siteSdk/`, see [../site-sdk.md](../site-sdk.md)), which does
+this for page-world `window.Monocle` declarations.
 
 A peer extension is the same shape with three differences:
 
@@ -64,9 +64,8 @@ A peer extension is the same shape with three differences:
 3. **Trust** — an explicit approval gate, instead of "any page may register
    session-only commands."
 
-Because the conversion engine and the declarative schema are
-transport-agnostic, the plan is to **extract them into a shared layer** that both
-the site SDK and this feature build on, rather than copy them. See
+Because the conversion engine and the declarative schema are transport-agnostic,
+the shared layer both build on is **extracted**, not copied. See
 [provider-refactor.md](./provider-refactor.md).
 
 ## Scope
@@ -85,7 +84,7 @@ In scope for v1:
 - Approval-only trust: the browser-verified extension id is the identity; the
   user approves it on an Extensions settings page.
 
-Out of scope for v1 (see [roadmap.md](./roadmap.md)):
+Out of scope for v1:
 
 - Per-request tokens or signed requests (id-trust is enough for v1).
 - Peers contributing features or automations.
@@ -111,7 +110,6 @@ Out of scope for v1 (see [roadmap.md](./roadmap.md)):
    changes, the `onConnectExternal` handler, and the files to touch.
 7. [author-guide.md](./author-guide.md) — how a third-party developer builds a
    peer extension, with a worked example.
-8. [roadmap.md](./roadmap.md) — phasing and open questions.
 
 ## Related docs
 
