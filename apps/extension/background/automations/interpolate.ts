@@ -27,6 +27,64 @@ export type AutomationPageContext = {
 }
 
 /**
+ * Derives the {{trigger.*}} URL-part accessors from the run's source URL, so
+ * automations can rebuild a destination from pieces of where they fired:
+ * {{trigger.host}}, {{trigger.origin}}, {{trigger.path}}, {{trigger.hash}},
+ * {{trigger.pathSegments.N}} (0-indexed, non-empty segments), and
+ * {{trigger.query.NAME}} (one decoded key per present param). Paired with the
+ * `navigate` op this gives redirects (e.g. urlMatch on a host -> navigate to a
+ * rebuilt URL). Frozen at run start (the source URL) — unlike the stage-3
+ * {url}/{domain}/{path} placeholders, which track the page after navigation.
+ *
+ * ponytail: land-then-bounce — urlMatch fires after the page reports its URL,
+ * so the source page loads briefly before navigate replaces it. The no-flash
+ * upgrade path is declarativeNetRequest (Chrome) or a
+ * webNavigation.onBeforeNavigate listener (cross-browser), both deferred.
+ *
+ * Defensive: a non-absolute / empty url yields no accessors (they expand to "",
+ * matching the forgiving template posture).
+ */
+export const deriveTriggerUrlAccessors = (
+  url: string,
+): Record<string, string> => {
+  if (!url) {
+    return {}
+  }
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return {}
+  }
+
+  const accessors: Record<string, string> = {
+    "trigger.host": parsed.hostname,
+    "trigger.origin": parsed.origin,
+    "trigger.path": parsed.pathname,
+    "trigger.hash": parsed.hash.replace(/^#/, ""),
+  }
+
+  parsed.pathname
+    .split("/")
+    .filter((segment) => segment !== "")
+    .forEach((segment, index) => {
+      let decoded = segment
+      try {
+        decoded = decodeURIComponent(segment)
+      } catch {
+        // malformed %-escape: keep the raw segment rather than fail the run
+      }
+      accessors[`trigger.pathSegments.${index}`] = decoded
+    })
+
+  for (const [key, value] of parsed.searchParams.entries()) {
+    accessors[`trigger.query.${key}`] = value
+  }
+
+  return accessors
+}
+
+/**
  * The mutable value bag for one run: declared vars, trigger/param
  * namespaces, resolved snippet refs, and runtime values written by
  * getText/setVariable as the run progresses.
@@ -110,6 +168,7 @@ export const buildInitialValueBag = async (
 
   values["trigger.type"] = input.trigger.type
   values["trigger.url"] = input.trigger.url ?? input.pageContext.url ?? ""
+  Object.assign(values, deriveTriggerUrlAccessors(values["trigger.url"]))
   if (input.trigger.matchedText !== undefined) {
     values["trigger.matchedText"] = input.trigger.matchedText.slice(0, 500)
   }
