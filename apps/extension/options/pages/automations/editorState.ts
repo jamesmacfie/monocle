@@ -57,8 +57,10 @@ export type EditorDraftState = {
   icon: IconName | ""
   color: ColorName | ""
   enabled: boolean
-  allowText: string
-  denyText: string
+  // One URL pattern per row (allow scopes both the palette row and automatic
+  // triggers; deny hides). Empty rows are trimmed out at assembly.
+  allowRows: string[]
+  denyRows: string[]
   triggers: TriggerRowState[]
   vars: VarRowState[]
   steps: StepRowState[]
@@ -344,8 +346,8 @@ export const createEmptyEditorState = (): EditorDraftState => ({
   icon: "Workflow",
   color: "",
   enabled: true,
-  allowText: "",
-  denyText: "",
+  allowRows: [],
+  denyRows: [],
   triggers: [triggerRowFromTrigger({ type: "manual" })],
   vars: [],
   steps: [createDefaultStepRow("toast")],
@@ -359,8 +361,8 @@ export const editorStateFromScript = (
   icon: script.icon ?? "",
   color: script.color ?? "",
   enabled: script.enabled,
-  allowText: (script.urlRules?.allowUrls ?? []).join("\n"),
-  denyText: (script.urlRules?.denyUrls ?? []).join("\n"),
+  allowRows: [...(script.urlRules?.allowUrls ?? [])],
+  denyRows: [...(script.urlRules?.denyUrls ?? [])],
   triggers: script.triggers.map(triggerRowFromTrigger),
   vars: Object.entries(script.vars ?? {}).map(([name, def]) => ({
     name,
@@ -374,11 +376,8 @@ export const editorStateFromScript = (
 // ---------------------------------------------------------------------------
 // Assembly back into a draft document
 
-const parsePatterns = (text: string): string[] =>
-  text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
+const cleanPatterns = (rows: string[]): string[] =>
+  rows.map((row) => row.trim()).filter((row) => row.length > 0)
 
 export type AssembledDraft = {
   // Null when a JSON step row has never parsed (nothing sensible to
@@ -427,8 +426,8 @@ export const assembleDraft = (state: EditorDraftState): AssembledDraft => {
     return { draft: null, issues }
   }
 
-  const allowUrls = parsePatterns(state.allowText)
-  const denyUrls = parsePatterns(state.denyText)
+  const allowUrls = cleanPatterns(state.allowRows)
+  const denyUrls = cleanPatterns(state.denyRows)
 
   const draft = {
     schemaVersion: 1 as const,

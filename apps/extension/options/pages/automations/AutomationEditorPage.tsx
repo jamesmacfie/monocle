@@ -38,6 +38,7 @@ import {
   Select,
   Textarea,
 } from "../../components/ui"
+import { ScopeRuleList } from "./components/ScopeRuleList"
 import {
   AUTOMATION_COLOR_OPTIONS,
   AUTOMATION_ICON_OPTIONS,
@@ -424,36 +425,31 @@ export function AutomationEditorPage() {
       </Section>
 
       <Section
-        description="One URL pattern per line, e.g. https://*.example.com/*. An empty allow list means every page. Scope applies to both the palette row and automatic triggers."
+        description="One URL pattern per row, e.g. https://github.com/*. An empty allow list means every page. Scope applies to both the palette row and automatic triggers — and automatic triggers only fire once you grant Monocle access to the host."
         title="Scope"
       >
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="grid gap-1 text-sm">
+        <div className="grid items-start gap-4 md:grid-cols-2">
+          <div className="grid gap-1 text-sm">
             <span className="text-xs font-medium text-[var(--color-fg-muted)]">
               Allow patterns
             </span>
-            <Textarea
-              placeholder={"https://*.example.com/*"}
-              rows={3}
-              value={state.allowText}
-              onChange={(event) =>
-                setState({ ...state, allowText: event.target.value })
-              }
+            <ScopeRuleList
+              placeholder="https://github.com/*"
+              rows={state.allowRows}
+              withPermissions
+              onChange={(allowRows) => setState({ ...state, allowRows })}
             />
-          </label>
-          <label className="grid gap-1 text-sm">
+          </div>
+          <div className="grid gap-1 text-sm">
             <span className="text-xs font-medium text-[var(--color-fg-muted)]">
               Deny patterns
             </span>
-            <Textarea
-              placeholder={"https://example.com/admin/*"}
-              rows={3}
-              value={state.denyText}
-              onChange={(event) =>
-                setState({ ...state, denyText: event.target.value })
-              }
+            <ScopeRuleList
+              placeholder="https://example.com/admin/*"
+              rows={state.denyRows}
+              onChange={(denyRows) => setState({ ...state, denyRows })}
             />
-          </label>
+          </div>
         </div>
       </Section>
 

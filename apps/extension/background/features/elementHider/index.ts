@@ -47,7 +47,11 @@ const projectRules = (config: ElementHiderConfig): RecordListItem[] =>
 
 // Hide a selector immediately on the picked tab via a one-shot hideElement
 // workflow, so the user sees the effect without reloading.
-const hideNow = async (tabId: number, selector: string): Promise<void> => {
+const hideNow = async (
+  tabId: number,
+  url: string,
+  selector: string,
+): Promise<void> => {
   const steps: Step[] = [
     {
       op: "hideElement",
@@ -57,7 +61,7 @@ const hideNow = async (tabId: number, selector: string): Promise<void> => {
   ]
   const response = await executeWorkflowOnTargetTab({
     workflow: { version: "1.0", name: "Element Hider", steps },
-    context: { url: "", title: "", modifierKey: null },
+    context: { url, title: "", modifierKey: null },
     tabId,
   })
   if (!response.result.success) {
@@ -118,7 +122,7 @@ const handleElementPicked = async (
   })
 
   try {
-    await hideNow(tab.id, selector)
+    await hideNow(tab.id, tab.url, selector)
   } catch (error) {
     await showToast({
       type: "monocle-toast-show",

@@ -192,6 +192,14 @@ export const runAutomation = async (
 
   runningRuns.add(runKey)
   try {
+    // Close the command palette before the automation touches the page — its
+    // overlay would otherwise sit on top of whatever the run does. Tabs without
+    // a content overlay (chrome://, new-tab) reject this; ignore those.
+    try {
+      await sendTabMessage(tabId, { type: "monocle-ui-hide" })
+    } catch {
+      // ponytail: no overlay listening on this tab, nothing to close.
+    }
     return await executeRun(script, tabId, input)
   } finally {
     runningRuns.delete(runKey)
