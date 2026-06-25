@@ -98,6 +98,21 @@ Scheduled triggers re-register on `runtime.onInstalled`/`onStartup` and on every
 
 The `{{trigger.*}}` namespace delivers fire context into interpolation: `{{trigger.type}}`, `{{trigger.url}}`, and (elementAppears only) `{{trigger.matchedText}}` capped at 500 chars.
 
+The full source URL is also decomposed into accessors (derived once at run start by `deriveTriggerUrlAccessors` in `background/automations/interpolate.ts`), so a destination can be rebuilt from pieces of where the automation fired:
+
+| Accessor | Value for `https://site.example.com/query/here?q=foo#frag` |
+| --- | --- |
+| `{{trigger.host}}` | `site.example.com` |
+| `{{trigger.origin}}` | `https://site.example.com` |
+| `{{trigger.path}}` | `/query/here` |
+| `{{trigger.hash}}` | `frag` |
+| `{{trigger.pathSegments.N}}` | `.0` → `query`, `.1` → `here` (0-indexed, non-empty segments; decoded) |
+| `{{trigger.query.NAME}}` | `{{trigger.query.q}}` → `foo` (decoded; one key per present param) |
+
+These freeze at run start (they describe the **source** URL). The stage-3 placeholders `{url}`/`{domain}`/`{path}` instead track the **current** page and refresh after `navigate`/`openUrl currentTab`. A malformed or empty trigger URL yields only `{{trigger.url}}`; the rest expand to `""`.
+
+**Redirects** fall out of this with no new vocabulary: a `urlMatch` trigger scoped to the source host plus a `navigate` step whose `url` rebuilds the destination from these accessors — e.g. trigger on `*://site.example.com/*`, navigate to `https://{{trigger.query.q}}.mysite.com/{{trigger.pathSegments.1}}` (compose with `| encodeUriComponent` when injecting a value into a query). This is **land-then-bounce**: `urlMatch` fires after the page reports its URL, so the source page loads briefly before `navigate` replaces it. A true no-flash redirect would need `declarativeNetRequest` (Chrome) or a `webNavigation.onBeforeNavigate` listener (cross-browser) — both new permissions and a subsystem outside the engine, deliberately not built.
+
 ## Steps
 
 Two tiers, one rule: **content steps lower onto workflow steps** (the full implemented vocabulary in [workflow-automation.md](./workflow-automation.md)); **engine steps** run in the background between content segments. Automations add one engine-only content-step hint: `click` and `submit` may set `expectNavigation: true` when the action should trigger a same-tab page load. The hint is accepted by automation validation, ends the current segment, and is stripped before the step is sent to the workflow executor.

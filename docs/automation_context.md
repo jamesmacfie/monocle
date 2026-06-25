@@ -244,6 +244,14 @@ names: declared vars; `{{trigger.type}}`, `{{trigger.url}}`, `{{trigger.matchedT
 `forEach`); `{{snippet:<id>}}` (inline snippet body). **Unknown names expand to `""`.** Escape
 a literal with `\{{`.
 
+The source URL is also decomposed (frozen at run start): `{{trigger.host}}`, `{{trigger.origin}}`,
+`{{trigger.path}}`, `{{trigger.hash}}`, `{{trigger.pathSegments.N}}` (0-indexed non-empty path
+segments), `{{trigger.query.NAME}}` (per query param). Use these to author **redirects**: a
+`urlMatch` trigger plus a `navigate` step that rebuilds the destination, e.g.
+`"url": "https://{{trigger.query.q}}.mysite.com/{{trigger.pathSegments.1}}"`. (`{{trigger.*}}` is
+the source URL; the `{url}`/`{domain}`/`{path}` placeholders below track the current page after
+navigation.)
+
 Pipe transforms (left→right), a fixed set — nothing else is allowed:
 `trim`, `upper`, `lower`, `slice:start:end`, `replace:from:to` (first match, literal),
 `encodeUriComponent`, `length`. Example: `{{params.query | trim | encodeUriComponent}}`.

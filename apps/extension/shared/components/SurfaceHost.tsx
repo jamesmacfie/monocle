@@ -103,7 +103,16 @@ const OverlaySurface = ({ surface }: { surface: Surface }) => (
         "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
     }}
   >
-    <div style={{ maxWidth: 420, padding: 32, textAlign: "center" }}>
+    <div
+      style={{
+        maxWidth: 420,
+        padding: 32,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+      }}
+    >
       <div style={{ color: "#8b5cf6" }}>
         <SurfaceIcon name={surface.content.icon} size={48} />
       </div>
