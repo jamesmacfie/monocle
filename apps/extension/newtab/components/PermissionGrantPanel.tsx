@@ -123,7 +123,10 @@ export function PermissionGrantPanel({
   )
 }
 
-export type HostPermissionGrantReason = "automation" | "elementHider"
+export type HostPermissionGrantReason =
+  | "automation"
+  | "outboundAutomation"
+  | "elementHider"
 
 export const normalizeGrantHostPattern = (
   value: string | null,
@@ -141,11 +144,14 @@ export const normalizeGrantHostPattern = (
 
 export const normalizeGrantHostReason = (
   value: string | null,
-): HostPermissionGrantReason =>
-  value === "elementHider" ? "elementHider" : "automation"
+): HostPermissionGrantReason => {
+  if (value === "elementHider" || value === "outboundAutomation") return value
+  return "automation"
+}
 
 const hostGrantDisplayName: Record<HostPermissionGrantReason, string> = {
   automation: "Automation",
+  outboundAutomation: "Outbound Automation endpoint",
   elementHider: "Element Hider",
 }
 

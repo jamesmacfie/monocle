@@ -1,32 +1,32 @@
 # Outbound Automation Integrations
 
-> **Status: proposed; not implemented.** This investigation and handoff package
-> was written on 2026-07-10 against commit `b43f2ac`. The source code still has
-> the current behavior described in [current-state.md](./current-state.md).
+> **Status: implemented in source on 2026-07-11; manual Chrome/Firefox acceptance
+> and store-listing/privacy-policy updates remain release gates.** This folder
+> began as an investigation against `b43f2ac`; [current-state.md](./current-state.md)
+> is retained as historical baseline, while canonical docs describe current behavior.
 
 This folder answers two related product questions:
 
 1. Can an Automation add UI to a page and react when the user clicks it?
 2. How should that action send data from Monocle to a third-party application?
 
-The short answer is **partly, but not enough yet**. Automations can already run
-`showSurface` and `hideSurface`, but automation surfaces are passive overlays or
-badges. They cannot be inserted beside a CSS-selected page element, they have no
-button vocabulary, and `automation:<id>` surface actions are not routed back to
-the automation engine.
+The answer is now **yes**. Automations can insert fixed Monocle-rendered buttons
+beside a CSS-selected page element, route a verified click back to a fresh
+nested Automation run, and send bounded JSON to a granted loopback or HTTPS
+endpoint. Executable action steps stay background-owned.
 
-The recommended direction is:
+The implementation:
 
-- extend the existing Surfaces subsystem with a declarative `inline` kind;
-- allow that surface to expose fixed, Monocle-rendered click buttons whose
+- extends the existing Surfaces subsystem with a declarative `inline` kind;
+- allows that surface to expose fixed, Monocle-rendered click buttons whose
   action definitions remain in the Automation document;
-- add a background-owned `httpRequest` Automation step as the first outbound
+- adds a background-owned `httpRequest` Automation step as the first outbound
   transport;
-- allow plaintext HTTP only for exact loopback hosts and require HTTPS
+- allows plaintext HTTP only for exact loopback hosts and requires HTTPS
   everywhere else;
-- keep Chrome and Firefox behavior aligned, including Firefox data-collection
+- keeps Chrome and Firefox behavior aligned, including Firefox data-collection
   consent; and
-- add native-bridge event delivery later, after the inline action and HTTP
+- defers native-bridge event delivery until the inline action and HTTP
   contracts have shipped and stabilized.
 
 No design in this folder permits arbitrary HTML, arbitrary JavaScript, remote
@@ -37,8 +37,8 @@ step definitions, page-supplied request URLs, or executable response payloads.
 | Document | Purpose |
 | --- | --- |
 | [current-state.md](./current-state.md) | Verified source-to-sink analysis and the exact gaps at `b43f2ac`. |
-| [inline-automation-ui.md](./inline-automation-ui.md) | Proposed selector placement, renderer, action routing, and action-run semantics. |
-| [http-request-step.md](./http-request-step.md) | Proposed HTTP schema, execution policy, permissions, response mapping, and editor behavior. |
+| [inline-automation-ui.md](./inline-automation-ui.md) | Shipped selector placement, renderer, action routing, and action-run semantics. |
+| [http-request-step.md](./http-request-step.md) | Shipped HTTP schema, execution policy, permissions, response mapping, and editor behavior. |
 | [security-and-store-review.md](./security-and-store-review.md) | Threat model and Chrome/Firefox submission implications. |
 | [github-to-ide-example.md](./github-to-ide-example.md) | Complete target Automation and local IDE endpoint contract. |
 | [implementation-plan.md](./implementation-plan.md) | Executor-ready phases, verification gates, STOP conditions, and status table. |
@@ -84,17 +84,15 @@ stabilized action/payload model and are not a prerequisite for the HTTP release.
 
 | Phase | Deliverable | Depends on | Status |
 | --- | --- | --- | --- |
-| 1 | Inline Automation surfaces and safe action entry points | — | TODO |
-| 2 | Outbound HTTP step, grants, consent, and response mappings | Phase 1 | TODO |
-| 3 | Integrated editor, example, canonical docs, and browser QA | Phases 1–2 | TODO |
+| 1 | Inline Automation surfaces and safe action entry points | — | IMPLEMENTED; manual browser smoke pending |
+| 2 | Outbound HTTP step, grants, consent, and response mappings | Phase 1 | IMPLEMENTED; live endpoint smoke pending |
+| 3 | Integrated editor, example, canonical docs, and browser QA | Phases 1–2 | SOURCE/DOCS COMPLETE; manual QA and external disclosures pending |
 | 4 | Native-bridge event subscriptions and `sendBridgeEvent` | Phases 1–3 | DEFERRED |
 
-Phase 2 can technically execute an HTTP step from a normal Automation before
-Phase 1 lands, but the end-to-end feature depends on an inline button invoking
-that step. Keeping the execution order above gives each phase a user-visible
-acceptance path.
+`httpRequest` can execute from a normal Automation independently of inline UI;
+the GitHub-to-IDE acceptance path combines both contracts.
 
-## Working-tree note
+## Historical working-tree note
 
 The repository was dirty when this package was written. In particular,
 user-owned changes were present in the Automation editor and
@@ -106,7 +104,8 @@ and preserve them rather than reapplying or overwriting them.
 
 ## Definition of success
 
-The feature is complete when a user can import or author the example in
+The source implementation is complete and automated/build gates pass. Release
+completion still requires a user to import or author the example in
 [github-to-ide-example.md](./github-to-ide-example.md), grant only the IDE
 endpoint's browser-managed scheme+host pattern, open matching GitHub pages in
 multiple Chrome and Firefox tabs, see an isolated button beside the configured

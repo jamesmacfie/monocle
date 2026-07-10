@@ -94,6 +94,37 @@ describe("automation introspection", () => {
     ])
   })
 
+  it("walks inline action bodies and finds HTTP interpolation", () => {
+    const steps: AutomationStep[] = [
+      {
+        op: "showSurface",
+        surfaceId: "s",
+        kind: "inline",
+        placement: { selector: "#x", position: "after" },
+        content: {},
+        actions: [
+          {
+            id: "send",
+            label: "Send",
+            steps: [
+              {
+                op: "httpRequest",
+                method: "POST",
+                url: "https://api.example.com",
+                headers: { Authorization: "{{snippet:token}}" },
+                body: { nested: ["{{trigger.url}}"] },
+              },
+            ],
+          },
+        ],
+      },
+    ]
+    const visited: string[] = []
+    walkAutomationSteps(steps, (step) => visited.push(step.op))
+    expect(visited).toEqual(["showSurface", "httpRequest"])
+    expect(collectInlineSnippetReferences(steps)).toEqual(["token"])
+  })
+
   it("collects inline snippet references from every interpolatable field", () => {
     expect(
       collectInlineSnippetReferences([

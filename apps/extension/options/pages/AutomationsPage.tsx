@@ -489,6 +489,44 @@ export function AutomationsPage() {
                     </ul>
                   </div>
                 )}
+                {importState.summary.inlineActions.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-[var(--color-fg-muted)]">
+                      Inline page actions
+                    </div>
+                    <ul className="list-inside list-disc">
+                      {importState.summary.inlineActions.map((action) => (
+                        <li key={`${action.surfaceId}:${action.actionId}`}>
+                          {action.label} ({action.surfaceId}/{action.actionId})
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {importState.summary.outboundRequests.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-[var(--color-fg-muted)]">
+                      Sends data to
+                    </div>
+                    <ul className="list-inside list-disc break-all">
+                      {importState.summary.outboundRequests.map(
+                        (request, index) => (
+                          <li key={`${request.method}:${request.url}:${index}`}>
+                            {request.method} {request.url}
+                            {request.headerNames.length > 0
+                              ? ` · headers: ${request.headerNames.join(", ")}`
+                              : ""}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                    <p className="mt-1 text-xs text-[var(--color-fg-muted)]">
+                      Request and response values are not shown. Imported
+                      automatic triggers stay disarmed, and endpoint access must
+                      be granted separately.
+                    </p>
+                  </div>
+                )}
                 {importState.summary.usesClipboard && (
                   <div className="text-xs text-[var(--color-fg-muted)]">
                     Writes to the clipboard.

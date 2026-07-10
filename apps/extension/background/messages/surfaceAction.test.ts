@@ -4,15 +4,23 @@
 // registry and surfaces store are mocked so the routing logic is isolated.
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { removeSurface, getFeatureById, getCommandSurfaceActionHandler } =
-  vi.hoisted(() => ({
-    removeSurface: vi.fn(async () => {}),
-    getFeatureById: vi.fn(),
-    getCommandSurfaceActionHandler: vi.fn(),
-  }))
+const {
+  removeSurface,
+  getSurfacesForUrl,
+  getFeatureById,
+  getCommandSurfaceActionHandler,
+  runAutomationSurfaceAction,
+} = vi.hoisted(() => ({
+  removeSurface: vi.fn(async () => {}),
+  getSurfacesForUrl: vi.fn(),
+  getFeatureById: vi.fn(),
+  getCommandSurfaceActionHandler: vi.fn(),
+  runAutomationSurfaceAction: vi.fn(),
+}))
 
-vi.mock("../surfaces", () => ({ removeSurface }))
+vi.mock("../surfaces", () => ({ removeSurface, getSurfacesForUrl }))
 vi.mock("../features", () => ({ getFeatureById }))
+vi.mock("../automations/engine", () => ({ runAutomationSurfaceAction }))
 vi.mock("../commands/surfaceActionHandlers", () => ({
   getCommandSurfaceActionHandler,
 }))
@@ -23,6 +31,8 @@ beforeEach(() => {
   removeSurface.mockClear()
   getFeatureById.mockReset()
   getCommandSurfaceActionHandler.mockReset()
+  getSurfacesForUrl.mockReset()
+  runAutomationSurfaceAction.mockReset()
 })
 
 describe("surfaceAction", () => {
@@ -118,5 +128,69 @@ describe("surfaceAction", () => {
     })
     expect(result).toEqual({ success: false })
     expect(getFeatureById).toHaveBeenCalledWith("missing-feature")
+  })
+
+  it("verifies and runs an active automation-owned inline action", async () => {
+    getSurfacesForUrl.mockResolvedValue([
+      {
+        id: "open-ide",
+        ownerId: "automation:a1",
+        kind: "inline",
+        placement: { selector: "#header", position: "after" },
+        actions: [{ id: "open", label: "Open" }],
+        content: {},
+      },
+    ])
+    runAutomationSurfaceAction.mockResolvedValue({
+      success: true,
+      completedSteps: 2,
+    })
+
+    const result = await surfaceAction(
+      {
+        type: "monocle-surface-action",
+        ownerId: "automation:a1",
+        surfaceId: "open-ide",
+        actionId: "open",
+      },
+      { frameId: 0, tab: { id: 7, url: "https://github.com/a/b", title: "b" } },
+    )
+
+    expect(getSurfacesForUrl).toHaveBeenCalledWith("https://github.com/a/b", 7)
+    expect(runAutomationSurfaceAction).toHaveBeenCalledWith("a1", {
+      surfaceId: "open-ide",
+      actionId: "open",
+      tabId: 7,
+      context: {
+        url: "https://github.com/a/b",
+        title: "b",
+        modifierKey: null,
+      },
+    })
+    expect(result).toMatchObject({ success: true })
+  })
+
+  it("rejects missing sender context, child frames, and forged stale actions", async () => {
+    getSurfacesForUrl.mockResolvedValue([])
+    const message = {
+      type: "monocle-surface-action" as const,
+      ownerId: "automation:a1",
+      surfaceId: "open-ide",
+      actionId: "forged",
+    }
+    expect(await surfaceAction(message)).toMatchObject({ success: false })
+    expect(
+      await surfaceAction(message, {
+        frameId: 3,
+        tab: { id: 7, url: "https://github.com/a/b" },
+      }),
+    ).toMatchObject({ success: false })
+    expect(
+      await surfaceAction(message, {
+        frameId: 0,
+        tab: { id: 7, url: "https://github.com/a/b" },
+      }),
+    ).toMatchObject({ success: false })
+    expect(runAutomationSurfaceAction).not.toHaveBeenCalled()
   })
 })

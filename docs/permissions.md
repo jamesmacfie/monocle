@@ -183,6 +183,27 @@ Three shared components react to permission state:
 
 ## Grant flows
 
+### Outbound Automation endpoint grants
+
+`httpRequest` uses the broad optional host declaration only as a ceiling. The
+Automation editor requests one concrete scheme+host pattern for each static
+endpoint (for example, `http://127.0.0.1/*` for a configured
+`http://127.0.0.1:43121/monocle/events`). Browser match patterns cannot share a
+port/path restriction across Chrome and Firefox, so the editor shows both the
+configured URL and the broader browser-managed grant; runtime validation keeps
+the actual request pinned to the configured port/path.
+
+Every execution rechecks the grant before interpolation and fetch. Remote
+destinations require HTTPS; plaintext is limited to exact `localhost`,
+`127.0.0.1`, or `::1`. Surface-action and automatic runs never prompt. Missing
+or revoked access fails with an Automations-settings direction.
+
+Firefox 140+ separately gates outbound transmission with optional built-in data
+consent. The manifest declares `authenticationInfo`, `browsingActivity`,
+`personallyIdentifyingInfo`, `searchTerms`, `websiteActivity`, and
+`websiteContent`; the editor requests these from a direct user gesture and the
+engine rechecks `permissions.getAll().data_collection` on every run.
+
 Grant requests are issued from `shared/components/Command/PermissionActions.tsx`.
 The flow branches by browser and by whether the permissions API is callable from
 the current (content-script or new-tab) context.

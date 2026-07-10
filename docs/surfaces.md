@@ -1,7 +1,7 @@
 # Surfaces (declarative UI primitive)
 
 > **Status: implemented.** A background-owned, owner-namespaced store of
-> declarative UI surfaces (overlays, badges, modals, and pickers) that content
+> declarative UI surfaces (overlays, badges, modals, pickers, and inline controls) that content
 > and the new tab render through one generic host. Focus Mode and automations
 > are the first consumers.
 
@@ -24,7 +24,7 @@ rest of the codebase (see [store-submission.md](./store-submission.md) and the
 
 ```ts
 // shared/types/surface.ts
-type SurfaceKind = "overlay" | "badge" | "modal" | "picker"
+type SurfaceKind = "overlay" | "badge" | "modal" | "picker" | "inline"
 
 type SurfaceContent = {
   icon?: IconName        // a Lucide name; rendered by the icon registry
@@ -41,6 +41,8 @@ type Surface = {
   urlMatch?: { allowUrls?: string[]; denyUrls?: string[] }  // reuses matchesUrlPattern
   targetTabId?: number             // optional tab gate for tab-specific surfaces
   blocking?: boolean               // overlay only: intercept pointer/scroll
+  placement?: { selector: string; index?: number; position: "before" | "prepend" | "append" | "after" }
+  actions?: Array<{ id: string; label: string; icon?: IconName; style?: "default" | "primary" | "danger" }>
   content: SurfaceContent
 }
 ```
@@ -76,6 +78,11 @@ type Surface = {
   (Element Hider hides it; the font inspector copies its computed fonts).
   Content-only: the new tab never renders pickers. See
   [element-hider.md](./element-hider.md).
+- **inline** — a selector-anchored, closed-shadow button group rendered only in
+  top-frame content pages. A coalesced `MutationObserver` waits for late targets
+  and remounts after SPA replacement. The stored action descriptors contain
+  only id/label/icon/style; Automation step bodies never enter the surface
+  store or content process.
 - **`countdownTo`** is a generic live countdown — not specific to any feature.
 - **`blocks`** is the same closed, validated `ContentBlock[]` vocabulary the
   palette uses for calculations (`shared/types/content.ts` +
@@ -119,7 +126,7 @@ owners are not prefixed — they rebuild their own surfaces in `init()`.
 
 One generic renderer, mounted like `ToastContainer`:
 
-- `<SurfaceHost kinds={["overlay", "modal", "picker"]} />` in
+- `<SurfaceHost kinds={["overlay", "modal", "picker", "inline"]} />` in
   `content/scripts.tsx` (closed shadow root, beside the palette).
 - `<SurfaceHost kinds={["badge"]} />` in `newtab/NewTabApp.tsx`.
 
@@ -153,8 +160,12 @@ and renders icons through the shared icon registry.
       (`registerCommandSurfaceActionHandler`) at module load — the command-side
       equivalent of `handleAction`, receiving the same `{ selection, tab }`
       context. The font inspector uses this to read the picked element's
-      computed fonts and copy them. (automation owner routing is still future
-      work; unknown owners are a no-op.)
+      computed fonts and copy them.
+    - **Automation** owners (`automation:<id>`) are accepted only from a real
+      top-frame sender tab whose URL currently admits the exact inline
+      surface/action. The handler rereads the Automation and starts that
+      action's current nested steps as a fresh run; no executable definition is
+      trusted from content.
   - `selection` is the `PickedElement` set by the `picker` kind (including its
     optional captured `css`).
 
@@ -172,9 +183,11 @@ start/stop/expiry/config-change. See [focus-mode.md](./focus-mode.md).
 **Automations** push surfaces with the `showSurface` / `hideSurface` automation
 engine ops (owner `automation:<id>`). `content.title` / `content.text` are
 interpolated (`{{var}}`); `urlMatch` is not (an address, never a template). See
-[automations.md](./automations.md). Automations intentionally produce only
-`overlay`/`badge` surfaces. Their schema rejects modal/picker-only fields such
-as `blocks` and `css`, so richer interactive surfaces stay command/feature-owned.
+[automations.md](./automations.md). Automations produce passive `overlay`/
+`badge` surfaces and fixed-button `inline` surfaces. Inline placement and
+action identifiers are static and non-interpolatable; action bodies remain in
+the Automation document. Their schema still rejects modal/picker-only fields
+such as `blocks` and `css`.
 
 **Commands** push surfaces directly from their `execute(context)` (which runs in
 the background) by calling the store with an owner id `command:<commandId>`. The

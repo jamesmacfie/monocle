@@ -51,7 +51,7 @@ WXT generates the manifest and bundles these entrypoints under `entrypoints/`:
 
 ## Background ownership and boundaries
 
-The background service worker is the single authority for everything privileged. The UI surfaces never touch privileged browser APIs directly and never receive executable command functions.
+The background service worker is the single authority for execution and persisted state. UI surfaces never receive executable command functions. The narrow browser-required exception is a direct `permissions.request` from a user gesture on a trusted extension page (including outbound endpoint/data consent); browser permission truth is immediately re-read and execution always rechecks it in the background.
 
 The background owns:
 
@@ -65,13 +65,13 @@ The background owns:
 - **Permissions** — required and optional permission checks and requests. See [permissions.md](./permissions.md).
 - **Keybindings** — canonicalization, registry, and execution. See [keybindings.md](./keybindings.md).
 - **Workflow forwarding** — receives `monocle-workflow-execute` and forwards it to the resolved target tab's content script. See [workflow-automation.md](./workflow-automation.md).
-- **Automations** — declarative automation documents stored under `monocle-automations`, validated/interpreted entirely in the background (`background/automations/`: storage, engine, trigger engine, alarms, command generation). See [automations.md](./automations.md).
+- **Automations** — declarative automation documents stored under `monocle-automations`, validated/interpreted entirely in the background (`background/automations/`: storage, engine, trigger engine, alarms, command generation, bounded outbound HTTP). See [automations.md](./automations.md).
 - **Feature modules** — the `background/features/` registry of `FeatureModule`s, each contributing palette commands, a declarative settings page, runtime state, and a lifecycle hook. Durable config (`monocle-feature-config`) and runtime state (`monocle-feature-state`) live in dedicated stores. See [features.md](./features.md).
-- **Surfaces** — the owner-namespaced declarative-UI store (`monocle-surfaces`, `background/surfaces.ts`) of overlays/badges rendered by the generic `SurfaceHost`. The reusable basis for feature and automation page UI. See [surfaces.md](./surfaces.md).
+- **Surfaces** — the owner-namespaced declarative-UI store (`monocle-surfaces`, `background/surfaces.ts`) of overlays, badges, modals, pickers, and selector-anchored inline controls rendered by the generic `SurfaceHost`. The reusable basis for feature, command, and Automation page UI. See [surfaces.md](./surfaces.md).
 
 The enforced architectural boundaries:
 
-- **Privileged APIs are background-only.** UI code uses typed messages (`shared/store/sendMessage.ts`) instead of reaching into browser-only behavior. The one UI-side exception is reading/observing `chrome.storage.local["monocle-settings"]` for theme application, which is read-only.
+- **Privileged execution APIs are background-only.** UI code uses typed messages (`shared/store/sendMessage.ts`) instead of reaching into browser-only behavior. UI-side exceptions are read-only theme observation and browser-required permission requests made directly from a trusted extension-page user gesture; neither performs product execution.
 - **UI receives `Suggestion` values, not executable functions.** The background converts `CommandNode` trees into UI-facing `Suggestion` objects (`shared/types/ui.ts`); the UI renders them and sends `monocle-command-execute` with an id, never invoking a function. See [execution-and-actions.md](./execution-and-actions.md).
 - **Shared components must work in both DOMs.** Components under `shared/components/` run inside both the closed content shadow root and the normal new-tab document, so they must not assume `document`-level globals or page-scoped styling.
 - **Settings flow through the background.** Persistence and command settings updates go through `background/commands/settings.ts` and the `monocle-command-setting-update` message path; the UI mirrors state into Redux but the storage/permission truth is authoritative in the background.
@@ -215,14 +215,15 @@ The full 17-op step vocabulary (click/wait/fill/select/check/uncheck/submit/focu
 ### Automations
 
 1. A stored document runs via its generated palette command, an armed page trigger (content reports `monocle-automation-trigger-fired`, the background re-validates), or a `chrome.alarms` schedule.
-2. The engine (`background/automations/engine.ts`) re-reads the document, interpolates background-side, lowers contiguous content steps to workflows, and executes privileged ops between segments.
+2. The engine (`background/automations/engine.ts`) re-reads the document, interpolates background-side, lowers contiguous content steps to workflows, and executes privileged ops between segments. `httpRequest` remains background-only and is preflighted for private mode, Firefox data consent, and a concrete endpoint grant before values resolve.
+3. An inline surface action returns only owner/surface/action ids. The background verifies the real top-frame sender and active render metadata, rereads the document, and runs the current nested action steps with a fresh value bag.
 
 See [automations.md](./automations.md).
 
 ### Feature modules
 
 1. The `background/features/` registry contributes palette commands (loaded by `source.ts`), a data-only descriptor for the options page (`monocle-features-get`), and an `init()` startup hook (`background/index.ts`).
-2. Durable feature config (`monocle-feature-config`) and transient runtime state (`monocle-feature-state`) are separate stores, both distinct from `monocle-settings`. Feature page UI is rendered through the generic Surfaces primitive (`background/surfaces.ts` + the shared `SurfaceHost`), not per-feature components — a feature pushes declarative overlays/badges and the host renders them.
+2. Durable feature config (`monocle-feature-config`) and transient runtime state (`monocle-feature-state`) are separate stores, both distinct from `monocle-settings`. Feature page UI is rendered through the generic Surfaces primitive (`background/surfaces.ts` + the shared `SurfaceHost`), not per-feature components — a feature pushes declarative surfaces and the host renders them.
 
 See [features.md](./features.md), [surfaces.md](./surfaces.md), and [focus-mode.md](./focus-mode.md).
 

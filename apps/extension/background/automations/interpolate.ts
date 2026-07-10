@@ -7,7 +7,7 @@
 // interpolatable field: {{...}} expansion (declared vars, trigger.*,
 // params.*, inline snippet:<id> refs, loop scope) -> snippet placeholder
 // expansion ({date:...}, {url}, ...) with the run's page context.
-import type { Automation } from "../../shared/types"
+import type { Automation, AutomationStep } from "../../shared/types"
 import { collectInlineSnippetReferences } from "../../shared/utils/automation-introspection"
 import { expandTemplate } from "../../shared/utils/automation-template"
 import {
@@ -143,6 +143,7 @@ export const buildInitialValueBag = async (
     pageContext: AutomationPageContext
     trigger: { type: string; url?: string; matchedText?: string }
     paramValues?: Record<string, string>
+    steps?: AutomationStep[]
   },
 ): Promise<AutomationValueBag> => {
   const values: AutomationValueBag = {}
@@ -174,7 +175,9 @@ export const buildInitialValueBag = async (
 
   // Inline {{snippet:<id>}} references resolve once per run, before any
   // step executes, so a snippet used twice renders identically.
-  for (const snippetId of collectInlineSnippetReferences(automation.steps)) {
+  for (const snippetId of collectInlineSnippetReferences(
+    input.steps ?? automation.steps,
+  )) {
     const reference = `snippet:${snippetId}`
     values[reference] = await resolveSnippetValue(
       snippetId,

@@ -10,6 +10,10 @@ export const optionalHostPermissions = ["http://*/*", "https://*/*"] as const
 const remoteConnectSources = [
   "https://api.unsplash.com",
   "https://icons.duckduckgo.com",
+  "https:",
+  "http://localhost:*",
+  "http://127.0.0.1:*",
+  "http://[::1]:*",
 ]
 
 const baseOptionalPermissions = [
@@ -44,7 +48,7 @@ const actionShortcutCommand = {
   },
 } as const
 
-function getExtensionPagesCsp(command: string): string {
+export function getExtensionPagesCsp(command: string): string {
   const connectSrc = ["'self'", ...remoteConnectSources]
 
   if (command === "serve") {
@@ -123,7 +127,19 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: "ff@monocle.com",
-      },
+        strict_min_version: "140.0",
+        data_collection_permissions: {
+          required: ["none"],
+          optional: [
+            "authenticationInfo",
+            "browsingActivity",
+            "personallyIdentifyingInfo",
+            "searchTerms",
+            "websiteActivity",
+            "websiteContent",
+          ],
+        },
+      } as never,
     },
     // "alarms" powers scheduled automation triggers
     // (background/automations/alarms.ts).

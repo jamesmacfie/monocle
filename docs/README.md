@@ -87,7 +87,7 @@ the next line; delete those comments instead.
 ## Specialized subsystems
 
 - [surfaces.md](./surfaces.md) — The Surfaces primitive: a background-owned,
-  owner-namespaced store of declarative overlays, badges, modals, and pickers
+  owner-namespaced store of declarative overlays, badges, modals, pickers, and selector-anchored inline controls
   rendered by one generic
   `SurfaceHost`; the `monocle-surfaces-get` query and `monocle-surfaces-changed`
   broadcast. The reusable basis for feature and automation page UI.
@@ -161,13 +161,14 @@ the next line; delete those comments instead.
   `architecture`, `setup`, `protocol-client`, `pairing`, `suggestions-and-navigation`,
   `execution`, `testing-and-troubleshooting`.
 
-## Proposed investigations and handoffs
+## Implementation records and deferred handoffs
 
 - [outbound-integrations/README.md](./outbound-integrations/README.md) —
-  **Proposed behavior; not implemented.** Source-verified investigation and
-  executor-ready plan for selector-anchored automation buttons, outbound HTTP,
-  Chrome/Firefox permissions and disclosure, a GitHub-to-local-IDE example, and
-  deferred native-bridge events. Written against commit `b43f2ac`.
+  Implementation record for selector-anchored Automation buttons, bounded
+  outbound HTTP, Chrome/Firefox permissions and disclosure, and the
+  GitHub-to-local-IDE example. Phases 1–2 and repository-owned Phase 3 work are
+  implemented; manual browser/release checks remain, and native-bridge events
+  are explicitly deferred.
 
 ## Publishing
 

@@ -1,7 +1,7 @@
 # Outbound HTTP Automation Step
 
-> **Status: proposed; not implemented.** This is the decision-complete contract
-> for Phase 2 of [implementation-plan.md](./implementation-plan.md).
+> **Status: implemented on 2026-07-11; live endpoint/browser smoke remains.**
+> This is the shipped Phase 2 contract and its acceptance checklist.
 
 ## Goal
 
@@ -233,7 +233,7 @@ and track IPv6 as a follow-up.
 The runtime endpoint validator remains authoritative even when CSP is broader.
 
 Firefox also requires the applicable optional data-collection permission before
-the first request. The manifest and consent proposal are detailed in
+the first request. The manifest and consent implementation are detailed in
 [security-and-store-review.md](./security-and-store-review.md).
 
 ## Builder and import review

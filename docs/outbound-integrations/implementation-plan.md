@@ -1,6 +1,6 @@
 # Outbound Automation Integrations — Implementation Plan
 
-> **Status: proposed behavior; not implemented.** This is an executor-ready handoff plan written against commit `b43f2ac` on 2026-07-10. It describes future source changes. Do not infer that inline surfaces, outbound HTTP, Firefox outbound-data consent, or native bridge events currently exist.
+> **Status: Phases 1–2 and the source/document portion of Phase 3 were implemented on 2026-07-11.** Automated tests, typecheck, formatting, and Chrome/Firefox builds pass. Manual cross-browser acceptance and external store/privacy disclosures remain release gates. Phase 4 native events remains deferred.
 
 ## Objective
 
@@ -94,12 +94,24 @@ Existing invariants must remain intact:
 
 Use this table as the handoff progress ledger. Update it in the implementation branch as work lands.
 
-| Phase | Priority | Size | Risk | Depends on | Initial status |
+| Phase | Priority | Size | Risk | Depends on | Current status |
 | --- | --- | --- | --- | --- | --- |
-| 1. Inline automation UI and action routing | P1 | Large | High | — | Not started |
-| 2. Outbound HTTP operation and permission enforcement | P1 | Large | High | Phase 1 action traversal; action UI may ship behind a flag independently | Not started |
-| 3. Release integration, disclosures, and cross-browser acceptance | P1 | Medium | Medium | Phases 1–2 | Not started |
+| 1. Inline automation UI and action routing | P1 | Large | High | — | Implemented; manual browser smoke pending |
+| 2. Outbound HTTP operation and permission enforcement | P1 | Large | High | Phase 1 action traversal; action UI may ship behind a flag independently | Implemented; live endpoint smoke pending |
+| 3. Release integration, disclosures, and cross-browser acceptance | P1 | Medium | Medium | Phases 1–2 | Source/canonical docs complete; manual QA + external disclosures pending |
 | 4. Native bridge events over SSE | P2 | Large | High | Stable action model and shipped HTTP behavior | Deferred |
+
+### 2026-07-11 implementation verification
+
+- `pnpm test`: 118 test files, 820 tests passed.
+- `pnpm run tsc` and `pnpm run fmt:check`: passed.
+- `pnpm run build` and `pnpm run build:firefox`: passed.
+- Generated Chrome and Firefox manifests contain `https:` plus only exact
+  `localhost`, `127.0.0.1`, and `::1` plaintext sources in `connect-src`.
+- Firefox output declares minimum version 140 and the six optional outbound
+  data categories documented in the security review.
+- Manual GitHub SPA, authenticated loopback/HTTPS endpoint, denial/revocation,
+  and private-window checks remain intentionally open and block release.
 
 Suggested branches and commits:
 
@@ -145,9 +157,9 @@ An automation can declare fixed Monocle-styled buttons adjacent to a statically 
 | Surface persistence/query | `apps/extension/background/surfaces.ts` |
 | Action message verification | `apps/extension/background/messages/surfaceAction.ts` |
 | Existing generic surface UI | `apps/extension/shared/components/SurfaceHost.tsx` |
-| Proposed inline DOM lifecycle | `apps/extension/content/surfaces/InlineSurfaceHost.tsx` and focused helpers under `content/surfaces/` |
+| Inline DOM lifecycle | `apps/extension/content/surfaces/InlineSurface.tsx` and `inlineSurfaceController.ts` |
 | Content integration | `apps/extension/content/scripts.tsx`, and only if required `entrypoints/content.tsx` |
-| Options editor | `apps/extension/options/pages/automations/editorState.ts`, `StepRow.tsx`, and a proposed focused `InlineSurfaceStepEditor.tsx` |
+| Options editor | `apps/extension/options/pages/automations/stepEditors/outboundSteps.tsx` plus the typed step-editor registry |
 
 Use the exact final filenames that fit the repository after drift inspection. The intent is a feature-owned content folder and a focused editor component, not another large branch in `StepRow.tsx`.
 
@@ -295,12 +307,12 @@ Automations can send bounded JSON requests to explicitly granted HTTPS origins o
 | Step contract and schema | `apps/extension/shared/types/automations.ts`, `automationValidation.ts` |
 | Operation classification | `apps/extension/background/automations/lowering.ts` |
 | Interpolation | `apps/extension/background/automations/interpolate.ts` plus a focused structured-JSON helper |
-| HTTP policy/execution | proposed `apps/extension/background/automations/httpRequest.ts` |
+| HTTP policy/execution | `apps/extension/shared/utils/http-request-policy.ts`, `background/automations/httpRequest.ts`, and `outboundDataConsent.ts` |
 | Engine integration | `apps/extension/background/automations/engine.ts` |
 | Host origin checks/grants | `apps/extension/background/utils/hostPermissions.ts`, `background/messages/hostPermissions.ts` |
 | Introspection and import summary | `apps/extension/shared/utils/automation-introspection.ts`, `automation-summary.ts`, options import/export review code |
 | Manifest/CSP and Firefox consent | `apps/extension/wxt.config.ts`, options permission/settings UI, focused background messages |
-| Editor | proposed focused `options/pages/automations/HttpRequestStepEditor.tsx` plus `editorState.ts`/`StepRow.tsx` integration |
+| Editor | focused inline/HTTP forms in `options/pages/automations/stepEditors/outboundSteps.tsx` |
 
 ### Implementation sequence
 

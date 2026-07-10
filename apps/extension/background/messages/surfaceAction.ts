@@ -16,12 +16,14 @@
 //       element's computed styles). automation owner routing is not yet wired.
 // See docs/surfaces.md.
 import type { SurfaceActionMessage } from "../../shared/types"
+import { runAutomationSurfaceAction } from "../automations/engine"
 import { getCommandSurfaceActionHandler } from "../commands/surfaceActionHandlers"
 import { getFeatureById } from "../features"
-import { removeSurface } from "../surfaces"
+import { getSurfacesForUrl, removeSurface } from "../surfaces"
 import { createMessageHandler, resolveSenderTabId } from "../utils/messages"
 
 const COMMAND_OWNER_PREFIX = "command:"
+const AUTOMATION_OWNER_PREFIX = "automation:"
 
 const handleSurfaceAction = async (
   message: SurfaceActionMessage,
@@ -33,12 +35,53 @@ const handleSurfaceAction = async (
   }
 
   const senderTabId = resolveSenderTabId(sender)
-  const senderUrl: string | undefined = sender?.url ?? sender?.tab?.url
+  const senderUrl: string | undefined = sender?.tab?.url ?? sender?.url
   const actionContext = {
     selection: message.selection,
     ...(senderTabId !== undefined
       ? { tab: { id: senderTabId, url: senderUrl } }
       : {}),
+  }
+
+  if (message.ownerId.startsWith(AUTOMATION_OWNER_PREFIX)) {
+    if (
+      senderTabId === undefined ||
+      !senderUrl ||
+      (sender?.frameId !== undefined && sender.frameId !== 0)
+    ) {
+      return {
+        success: false,
+        error: "Inline Automation actions require a top-level page",
+      }
+    }
+
+    const visible = await getSurfacesForUrl(senderUrl, senderTabId)
+    const active = visible.find(
+      (surface) =>
+        surface.ownerId === message.ownerId &&
+        surface.id === message.surfaceId &&
+        surface.kind === "inline" &&
+        surface.actions?.some((action) => action.id === message.actionId),
+    )
+    if (!active) {
+      return {
+        success: false,
+        error: "This inline Automation action is stale or unavailable",
+      }
+    }
+
+    const automationId = message.ownerId.slice(AUTOMATION_OWNER_PREFIX.length)
+    const result = await runAutomationSurfaceAction(automationId, {
+      surfaceId: message.surfaceId,
+      actionId: message.actionId,
+      tabId: senderTabId,
+      context: {
+        url: senderUrl,
+        title: sender?.tab?.title ?? "",
+        modifierKey: null,
+      },
+    })
+    return { success: result.success, error: result.error, result }
   }
 
   // Command owners route to a handler the command registered at module load.

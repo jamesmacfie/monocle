@@ -31,6 +31,7 @@ import type {
   Step,
   WorkflowResult,
 } from "../../shared/types/workflow"
+import { walkAutomationSteps } from "../../shared/utils/automation-introspection"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { removeSurface, upsertSurface } from "../surfaces"
 import { sendTabMessage } from "../utils/browser"
@@ -44,6 +45,10 @@ import {
   resolveWorkflowTargetTabId,
 } from "../workflows/execution"
 import { evaluateCondition } from "./conditions"
+import {
+  executeAutomationHttpRequest,
+  preflightHttpRequests,
+} from "./httpRequest"
 import {
   type AutomationPageContext,
   type AutomationValueBag,
@@ -109,11 +114,40 @@ export type AutomationInvocation =
         matchedText?: string
       }
     }
+  | {
+      kind: "surfaceAction"
+      tabId: number
+      surfaceId: string
+      actionId: string
+      url: string
+    }
 
 export type RunAutomationInput = {
   context: Browser.Context
   invocation: AutomationInvocation
 }
+
+export type RunAutomationSurfaceActionInput = {
+  surfaceId: string
+  actionId: string
+  tabId: number
+  context: Browser.Context
+}
+
+export const runAutomationSurfaceAction = async (
+  automationId: string,
+  input: RunAutomationSurfaceActionInput,
+): Promise<AutomationRunResult> =>
+  await runAutomation(automationId, {
+    context: input.context,
+    invocation: {
+      kind: "surfaceAction",
+      tabId: input.tabId,
+      surfaceId: input.surfaceId,
+      actionId: input.actionId,
+      url: input.context.url,
+    },
+  })
 
 /**
  * Sentinel for run-fatal failures already attributed to a step or to the run.
@@ -168,12 +202,34 @@ export const runAutomation = async (
     )
   }
 
-  const isManualRun = input.invocation.kind === "manual"
+  const _isManualRun = input.invocation.kind !== "trigger"
+
+  let stepsToRun = automation.steps
+  if (input.invocation.kind === "surfaceAction") {
+    const invocation = input.invocation
+    let selected: AutomationStep[] | undefined
+    walkAutomationSteps(automation.steps, (step) => {
+      if (
+        !selected &&
+        step.op === "showSurface" &&
+        step.kind === "inline" &&
+        step.surfaceId === invocation.surfaceId
+      ) {
+        selected = step.actions.find(
+          (action) => action.id === invocation.actionId,
+        )?.steps
+      }
+    })
+    if (!selected) {
+      return fail("The inline Automation action no longer exists")
+    }
+    stepsToRun = selected
+  }
 
   let tabId: number
   try {
     tabId =
-      input.invocation.kind === "trigger"
+      input.invocation.kind !== "manual"
         ? input.invocation.tabId
         : await resolveWorkflowTargetTabId({ context: input.context })
   } catch (error) {
@@ -188,7 +244,7 @@ export const runAutomation = async (
     )
   }
 
-  if (!isManualRun) {
+  if (input.invocation.kind === "trigger") {
     const lastRun = lastNonManualRunByTarget.get(runKey) ?? 0
     if (Date.now() - lastRun < NON_MANUAL_COOLDOWN_MS) {
       return fail(`Automation "${automation.name}" is cooling down`)
@@ -206,7 +262,7 @@ export const runAutomation = async (
     } catch {
       // ponytail: no overlay listening on this tab, nothing to close.
     }
-    return await executeRun(automation, tabId, input)
+    return await executeRun(automation, stepsToRun, tabId, input)
   } finally {
     runningRuns.delete(runKey)
   }
@@ -214,13 +270,16 @@ export const runAutomation = async (
 
 const executeRun = async (
   automation: Automation,
+  steps: AutomationStep[],
   tabId: number,
   input: RunAutomationInput,
 ): Promise<AutomationRunResult> => {
   const trigger =
     input.invocation.kind === "trigger"
       ? input.invocation.trigger
-      : { type: "manual" as const, url: input.context.url }
+      : input.invocation.kind === "surfaceAction"
+        ? { type: "surfaceAction" as const, url: input.invocation.url }
+        : { type: "manual" as const, url: input.context.url }
 
   const pageContext: AutomationPageContext = {
     url: trigger.url ?? input.context.url,
@@ -233,7 +292,7 @@ const executeRun = async (
     context: input.context,
     pageContext,
     values: {},
-    isManualRun: input.invocation.kind === "manual",
+    isManualRun: input.invocation.kind !== "trigger",
     hostPermissionRequestsAllowed: input.invocation.kind === "manual",
     outcomes: [],
     executedSteps: 0,
@@ -241,6 +300,7 @@ const executeRun = async (
 
   let result: AutomationRunResult
   try {
+    await preflightHttpRequests(steps, tabId)
     state.values = await buildInitialValueBag(automation, {
       pageContext,
       trigger,
@@ -248,9 +308,15 @@ const executeRun = async (
         input.invocation.kind === "manual"
           ? input.invocation.paramValues
           : undefined,
+      steps,
     })
 
-    await runStepList(automation.steps, state)
+    if (input.invocation.kind === "surfaceAction") {
+      state.values["trigger.surfaceId"] = input.invocation.surfaceId
+      state.values["trigger.actionId"] = input.invocation.actionId
+    }
+
+    await runStepList(steps, state)
 
     result = {
       success: true,
@@ -635,12 +701,31 @@ const runEngineStep = async (
         await runCommandStep(step.commandId, state)
         break
 
+      case "httpRequest": {
+        const result = await executeAutomationHttpRequest(step, {
+          tabId: state.tabId,
+          interpolate,
+        })
+        Object.assign(state.values, result.values)
+        break
+      }
+
       case "showSurface":
         await upsertSurface(`automation:${state.automation.id}`, {
           id: step.surfaceId,
           kind: step.kind,
           ...(step.urlMatch ? { urlMatch: step.urlMatch } : {}),
-          ...(step.blocking !== undefined ? { blocking: step.blocking } : {}),
+          ...(step.kind !== "inline" && step.blocking !== undefined
+            ? { blocking: step.blocking }
+            : {}),
+          ...(step.kind === "inline"
+            ? {
+                placement: step.placement,
+                actions: step.actions.map(
+                  ({ steps: _steps, ...action }) => action,
+                ),
+              }
+            : {}),
           content: {
             ...(step.content.icon ? { icon: step.content.icon } : {}),
             ...(step.content.title !== undefined

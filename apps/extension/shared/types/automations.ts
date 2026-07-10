@@ -10,7 +10,12 @@
 // nesting, and capped loops — not a language. See docs/automations.md.
 import type { ColorName, UrlRules } from "./commands"
 import type { IconName } from "./icons"
-import type { SurfaceContent, SurfaceUrlMatch } from "./surface"
+import type {
+  InlinePlacement,
+  SurfaceActionDescriptor,
+  SurfaceContent,
+  SurfaceUrlMatch,
+} from "./surface"
 import type { Selector } from "./workflow"
 
 // ---------------------------------------------------------------------------
@@ -215,21 +220,64 @@ export type RunCommandStep = EngineStepBase & {
   commandId: string
 }
 
-export type AutomationSurfaceKind = "overlay" | "badge"
+export type AutomationSurfaceKind = "overlay" | "badge" | "inline"
 export type AutomationSurfaceContent = Omit<SurfaceContent, "blocks" | "css">
+
+export type AutomationSurfaceAction = SurfaceActionDescriptor & {
+  steps: AutomationStep[]
+}
 
 // Pushes a declarative surface (overlay/badge) into the generic Surfaces store
 // under this automation's owner (`automation:<id>`). The author supplies the
 // surfaceId (unique within the automation); content.title/content.text are
 // interpolated, urlMatch is not (an address, never a template). See
 // docs/surfaces.md.
-export type ShowSurfaceStep = EngineStepBase & {
+export type ShowPassiveSurfaceStep = EngineStepBase & {
   op: "showSurface"
   surfaceId: string
-  kind: AutomationSurfaceKind
+  kind: "overlay" | "badge"
   urlMatch?: SurfaceUrlMatch
   blocking?: boolean
   content: AutomationSurfaceContent
+}
+
+export type ShowInlineSurfaceStep = EngineStepBase & {
+  op: "showSurface"
+  surfaceId: string
+  kind: "inline"
+  urlMatch?: SurfaceUrlMatch
+  placement: InlinePlacement
+  content: AutomationSurfaceContent
+  actions: AutomationSurfaceAction[]
+}
+
+export type ShowSurfaceStep = ShowPassiveSurfaceStep | ShowInlineSurfaceStep
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue }
+
+export type HttpResponseMapping = {
+  path: Array<string | number>
+  toVar: string
+  required?: boolean
+}
+
+export type HttpRequestStep = EngineStepBase & {
+  op: "httpRequest"
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
+  url: string
+  headers?: Record<string, string>
+  body?: JsonValue
+  timeoutMs?: number
+  response?: {
+    statusToVar?: string
+    json?: HttpResponseMapping[]
+  }
 }
 
 export type HideSurfaceStep = EngineStepBase & {
@@ -271,6 +319,7 @@ export type AutomationEngineStep =
   | OpenUrlStep
   | ClipboardWriteStep
   | RunCommandStep
+  | HttpRequestStep
   | ShowSurfaceStep
   | HideSurfaceStep
   | BranchStep
@@ -285,6 +334,7 @@ const AUTOMATION_ENGINE_OP_TABLE: Record<AutomationEngineStep["op"], true> = {
   openUrl: true,
   clipboardWrite: true,
   runCommand: true,
+  httpRequest: true,
   showSurface: true,
   hideSurface: true,
   branch: true,

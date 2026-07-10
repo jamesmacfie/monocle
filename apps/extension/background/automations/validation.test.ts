@@ -209,6 +209,68 @@ describe("structural checks", () => {
 })
 
 describe("surface engine ops", () => {
+  it("accepts inline actions and counts their nested steps", () => {
+    const inline = {
+      op: "showSurface" as const,
+      surfaceId: "open-ide",
+      kind: "inline" as const,
+      placement: { selector: "#header", position: "append" as const },
+      content: { text: "Monocle IDE" },
+      actions: [
+        {
+          id: "openRepository",
+          label: "Open in IDE",
+          steps: [{ op: "toast" as const, message: "Opening" }],
+        },
+      ],
+    }
+    expect(validateAutomationDraft(draft({ steps: [inline] })).success).toBe(
+      true,
+    )
+    expect(collectStructuralIssues([inline])).toEqual([])
+
+    const manyNested = {
+      ...inline,
+      actions: [
+        {
+          ...inline.actions[0],
+          steps: Array.from({ length: AUTOMATION_MAX_STEPS }, () => ({
+            op: "toast" as const,
+            message: "x",
+          })),
+        },
+      ],
+    }
+    expect(
+      collectStructuralIssues([manyNested]).some((issue) =>
+        issue.message.includes("at most"),
+      ),
+    ).toBe(true)
+  })
+
+  it("rejects duplicate inline action ids and markup fields", () => {
+    const base = {
+      op: "showSurface",
+      surfaceId: "inline",
+      kind: "inline",
+      placement: { selector: "#header", position: "after" },
+      content: {},
+      actions: [
+        { id: "run", label: "One", steps: [{ op: "toast", message: "1" }] },
+        { id: "run", label: "Two", steps: [{ op: "toast", message: "2" }] },
+      ],
+    }
+    expect(validateAutomationDraft(draft({ steps: [base] })).success).toBe(
+      false,
+    )
+    expect(
+      validateAutomationDraft(
+        draft({
+          steps: [{ ...base, actions: [base.actions[0]], html: "<button>" }],
+        }),
+      ).success,
+    ).toBe(false)
+  })
   it("accepts a showSurface step with declarative content", () => {
     const result = validateAutomationDraft(
       draft({
@@ -329,5 +391,51 @@ describe("surface engine ops", () => {
       }),
     )
     expect(result.success).toBe(false)
+  })
+})
+
+describe("httpRequest engine op", () => {
+  const request = (overrides: Record<string, unknown> = {}) => ({
+    op: "httpRequest",
+    method: "POST",
+    url: "http://127.0.0.1:43121/monocle/events",
+    headers: { Authorization: "Bearer {{token}}" },
+    body: { event: "open", url: "{{trigger.url}}" },
+    response: {
+      json: [{ path: ["requestId"], toVar: "requestId", required: true }],
+    },
+    ...overrides,
+  })
+
+  it("accepts HTTPS and exact loopback HTTP", () => {
+    expect(validateAutomationDraft(draft({ steps: [request()] })).success).toBe(
+      true,
+    )
+    expect(
+      validateAutomationDraft(
+        draft({ steps: [request({ url: "https://api.example.com/events" })] }),
+      ).success,
+    ).toBe(true)
+    expect(
+      validateAutomationDraft(
+        draft({ steps: [request({ url: "http://[::1]:43121/events" })] }),
+      ).success,
+    ).toBe(true)
+  })
+
+  it("rejects remote HTTP, dynamic URLs, credentials, fragments, GET bodies, and controlled headers", () => {
+    for (const invalid of [
+      request({ url: "http://example.com/events" }),
+      request({ url: "https://{{host}}/events" }),
+      request({ url: "https://user:pass@example.com/events" }),
+      request({ url: "https://example.com/events#secret" }),
+      request({ method: "GET" }),
+      request({ headers: { Cookie: "x" } }),
+      request({ headers: { Foo: "a", foo: "b" } }),
+    ]) {
+      expect(validateAutomationDraft(draft({ steps: [invalid] })).success).toBe(
+        false,
+      )
+    }
   })
 })

@@ -1,7 +1,7 @@
 # Selector-Anchored Automation UI
 
-> **Status: proposed; not implemented.** This is the decision-complete contract
-> for Phase 1 of [implementation-plan.md](./implementation-plan.md).
+> **Status: implemented on 2026-07-11; manual Chrome/Firefox SPA smoke remains.**
+> This is the shipped Phase 1 contract and its acceptance checklist.
 
 ## Goal
 
@@ -273,4 +273,3 @@ Manual Chrome and Firefox checks must use a GitHub SPA route and two matching
 tabs. The button must appear in both, execute in the clicked tab, survive a
 same-URL anchor replacement, and disappear when `hideSurface` runs or the URL no
 longer matches.
-

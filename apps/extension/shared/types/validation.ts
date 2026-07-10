@@ -224,7 +224,7 @@ export const EnsureHostPermissionMessageSchema = z.object({
   type: z.literal("monocle-host-permission-ensure"),
   tabId: z.number().int().positive().optional(),
   url: z.string().min(1).max(4000).optional(),
-  reason: z.enum(["automation", "elementHider"]),
+  reason: z.enum(["automation", "outboundAutomation", "elementHider"]),
   request: z.boolean().optional(),
   ensureContentScript: z.boolean().optional(),
 })

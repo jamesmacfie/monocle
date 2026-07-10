@@ -9,10 +9,22 @@
 // in depth against direct storage tampering. Anything failing validation is
 // rejected loudly with field-level errors, never coerced.
 import { z } from "zod"
+import {
+  HTTP_MAX_HEADER_VALUE_LENGTH,
+  HTTP_MAX_HEADERS,
+  HTTP_REQUEST_MAX_TIMEOUT_MS,
+  HTTP_REQUEST_METHODS,
+  HTTP_REQUEST_MIN_TIMEOUT_MS,
+  inspectHttpEndpoint,
+  inspectJsonValue,
+  validateHttpHeaderName,
+} from "../utils/http-request-policy"
 import type {
   Automation,
   AutomationCondition,
   AutomationStep,
+  HttpRequestStep,
+  JsonValue,
 } from "./automations"
 import { ICON_NAMES } from "./icons"
 import {
@@ -383,7 +395,7 @@ const SurfaceUrlMatchSchema = BaseSurfaceUrlMatchSchema.extend({
   denyUrls: z.array(BoundedString).max(100).optional(),
 }).strict()
 
-const ShowSurfaceStepSchema = EngineStepBaseSchema.extend({
+const PassiveSurfaceStepSchema = EngineStepBaseSchema.extend({
   op: z.literal("showSurface"),
   surfaceId: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
   kind: z.enum(["overlay", "badge"]),
@@ -391,6 +403,154 @@ const ShowSurfaceStepSchema = EngineStepBaseSchema.extend({
   blocking: z.boolean().optional(),
   content: SurfaceContentSchema,
 }).strict()
+
+const AutomationSurfaceActionSchema = z.lazy(() =>
+  z
+    .object({
+      id: VarName,
+      label: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
+      icon: z.enum(ICON_NAMES).optional(),
+      style: z.enum(["default", "primary", "danger"]).optional(),
+      steps: z.array(AutomationStepSchema).min(1),
+    })
+    .strict(),
+)
+
+const ShowSurfaceStepSchema = z.lazy(() =>
+  z.union([
+    PassiveSurfaceStepSchema,
+    EngineStepBaseSchema.extend({
+      op: z.literal("showSurface"),
+      surfaceId: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
+      kind: z.literal("inline"),
+      urlMatch: SurfaceUrlMatchSchema.optional(),
+      placement: z
+        .object({
+          selector: z.string().min(1).max(2_000),
+          index: z.number().int().min(0).max(1_000).optional(),
+          position: z.enum(["before", "prepend", "append", "after"]),
+        })
+        .strict(),
+      content: SurfaceContentSchema,
+      actions: z
+        .array(AutomationSurfaceActionSchema)
+        .min(1)
+        .max(5)
+        .superRefine((actions, ctx) => {
+          const ids = new Set<string>()
+          actions.forEach((action, index) => {
+            if (ids.has(action.id)) {
+              ctx.addIssue({
+                code: "custom",
+                path: [index, "id"],
+                message: `Duplicate action id "${action.id}"`,
+              })
+            }
+            ids.add(action.id)
+          })
+        }),
+    }).strict(),
+  ]),
+)
+
+const JsonValueSchema: z.ZodType<JsonValue> = z
+  .custom<JsonValue>()
+  .superRefine((value, ctx) => {
+    const result = inspectJsonValue(value)
+    if (!result.ok) ctx.addIssue({ code: "custom", message: result.error })
+  })
+
+const HttpRequestStepSchema: z.ZodType<HttpRequestStep> =
+  EngineStepBaseSchema.extend({
+    op: z.literal("httpRequest"),
+    method: z.enum(HTTP_REQUEST_METHODS),
+    url: z.string().min(1).max(2_000),
+    headers: z
+      .record(z.string(), z.string().max(HTTP_MAX_HEADER_VALUE_LENGTH))
+      .optional(),
+    body: JsonValueSchema.optional(),
+    timeoutMs: z
+      .number()
+      .int()
+      .min(HTTP_REQUEST_MIN_TIMEOUT_MS)
+      .max(HTTP_REQUEST_MAX_TIMEOUT_MS)
+      .optional(),
+    response: z
+      .object({
+        statusToVar: VarName.optional(),
+        json: z
+          .array(
+            z
+              .object({
+                path: z
+                  .array(z.union([z.string(), z.number().int().nonnegative()]))
+                  .min(1)
+                  .max(10),
+                toVar: VarName,
+                required: z.boolean().optional(),
+              })
+              .strict(),
+          )
+          .max(20)
+          .optional(),
+      })
+      .strict()
+      .optional(),
+  })
+    .strict()
+    .superRefine((step, ctx) => {
+      const endpoint = inspectHttpEndpoint(step.url)
+      if (!endpoint.ok) {
+        ctx.addIssue({ code: "custom", path: ["url"], message: endpoint.error })
+      }
+      if (step.method === "GET" && step.body !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["body"],
+          message: "GET requests cannot have a body",
+        })
+      }
+      const entries = Object.entries(step.headers ?? {})
+      if (entries.length > HTTP_MAX_HEADERS) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["headers"],
+          message: `Requests may define at most ${HTTP_MAX_HEADERS} headers`,
+        })
+      }
+      const normalized = new Set<string>()
+      entries.forEach(([name]) => {
+        const error = validateHttpHeaderName(name)
+        if (error)
+          ctx.addIssue({
+            code: "custom",
+            path: ["headers", name],
+            message: error,
+          })
+        const key = name.toLowerCase()
+        if (normalized.has(key))
+          ctx.addIssue({
+            code: "custom",
+            path: ["headers", name],
+            message: "Header names must be unique case-insensitively",
+          })
+        normalized.add(key)
+      })
+      const targets = new Set<string>()
+      const responseTargets = [
+        ...(step.response?.statusToVar ? [step.response.statusToVar] : []),
+        ...(step.response?.json?.map((mapping) => mapping.toVar) ?? []),
+      ]
+      responseTargets.forEach((target) => {
+        if (targets.has(target))
+          ctx.addIssue({
+            code: "custom",
+            path: ["response"],
+            message: `Duplicate response destination "${target}"`,
+          })
+        targets.add(target)
+      })
+    })
 
 const HideSurfaceStepSchema = EngineStepBaseSchema.extend({
   op: z.literal("hideSurface"),
@@ -409,6 +569,7 @@ export const AutomationStepSchema: z.ZodType<AutomationStep> = z.lazy(() =>
     OpenUrlStepSchema,
     ClipboardWriteStepSchema,
     RunCommandStepSchema,
+    HttpRequestStepSchema,
     ShowSurfaceStepSchema,
     HideSurfaceStepSchema,
     EngineStepBaseSchema.extend({
@@ -457,15 +618,21 @@ const CONTROL_FLOW_OPS = new Set(["branch", "forEach", "while"])
 
 const childStepArrays = (
   step: AutomationStep,
-): Array<{ key: string; steps: AutomationStep[] }> => {
+): Array<{ key: (string | number)[]; steps: AutomationStep[] }> => {
   if (step.op === "branch") {
     return [
-      { key: "then", steps: step.then },
-      ...(step.else ? [{ key: "else", steps: step.else }] : []),
+      { key: ["then"], steps: step.then },
+      ...(step.else ? [{ key: ["else"], steps: step.else }] : []),
     ]
   }
   if (step.op === "forEach" || step.op === "while") {
-    return [{ key: "steps", steps: step.steps }]
+    return [{ key: ["steps"], steps: step.steps }]
+  }
+  if (step.op === "showSurface" && step.kind === "inline") {
+    return step.actions.map((action, index) => ({
+      key: ["actions", index, "steps"],
+      steps: action.steps,
+    }))
   }
   return []
 }
@@ -499,7 +666,7 @@ export const collectStructuralIssues = (
         }
 
         for (const { key, steps: children } of childStepArrays(step)) {
-          walk(children, depth + 1, [...stepPath, key])
+          walk(children, depth + 1, [...stepPath, ...key])
         }
         return
       }
@@ -517,6 +684,10 @@ export const collectStructuralIssues = (
           path: stepPath,
           message: "Navigation steps are not allowed inside branches or loops",
         })
+      }
+
+      for (const { key, steps: children } of childStepArrays(step)) {
+        walk(children, depth, [...stepPath, ...key])
       }
     })
   }

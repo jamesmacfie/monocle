@@ -39,6 +39,20 @@ export const interpolatableStrings = (step: AutomationStep): string[] => {
       return [step.url]
     case "clipboardWrite":
       return [step.text]
+    case "httpRequest": {
+      const values = Object.values(step.headers ?? {})
+      const collectJsonStrings = (value: unknown): void => {
+        if (typeof value === "string") {
+          values.push(value)
+        } else if (Array.isArray(value)) {
+          value.forEach(collectJsonStrings)
+        } else if (value && typeof value === "object") {
+          Object.values(value).forEach(collectJsonStrings)
+        }
+      }
+      if (step.body !== undefined) collectJsonStrings(step.body)
+      return values
+    }
     case "showSurface": {
       const values: string[] = []
       if (step.content.title !== undefined) {
@@ -71,6 +85,8 @@ export const walkAutomationSteps = (
       }
     } else if (step.op === "forEach" || step.op === "while") {
       walkAutomationSteps(step.steps, visit)
+    } else if (step.op === "showSurface" && step.kind === "inline") {
+      step.actions.forEach((action) => walkAutomationSteps(action.steps, visit))
     }
   }
 }

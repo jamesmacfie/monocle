@@ -30,7 +30,16 @@ import type {
 } from "../../../shared/types"
 import { validateAutomationDraft } from "../../../shared/types/automationValidation"
 import { automationTouchesPage } from "../../../shared/utils/automation-introspection"
-import { sendRuntimeMessage } from "../../../shared/utils/extension-api"
+import { summarizeAutomation } from "../../../shared/utils/automation-summary"
+import { isFirefox } from "../../../shared/utils/browser"
+import {
+  getBrowserAPI,
+  sendRuntimeMessage,
+} from "../../../shared/utils/extension-api"
+import {
+  inspectHttpEndpoint,
+  OUTBOUND_DATA_CATEGORIES,
+} from "../../../shared/utils/http-request-policy"
 import {
   Button,
   Checkbox,
@@ -104,6 +113,9 @@ export function AutomationEditorPage() {
   const [hostAccessWarning, setHostAccessWarning] = useState<string | null>(
     null,
   )
+  const [endpointGrantStatus, setEndpointGrantStatus] = useState<
+    Record<string, string>
+  >({})
 
   useEffect(() => {
     dispatch(clearLastRunResult())
@@ -169,6 +181,50 @@ export function AutomationEditorPage() {
     assembled.issues.length === 0 &&
     validation?.success === true &&
     !saving
+
+  const outboundRequests =
+    validation?.success === true
+      ? summarizeAutomation(validation.automation).outboundRequests
+      : []
+
+  const grantEndpoint = async (url: string): Promise<void> => {
+    const endpoint = inspectHttpEndpoint(url)
+    if (!endpoint.ok) {
+      setEndpointGrantStatus((current) => ({
+        ...current,
+        [url]: endpoint.error,
+      }))
+      return
+    }
+    try {
+      const permissions = getBrowserAPI().permissions as unknown as {
+        request: (request: unknown) => Promise<boolean>
+        contains: (request: unknown) => Promise<boolean>
+      }
+      const request = {
+        origins: [endpoint.permissionPattern],
+        ...(isFirefox
+          ? { data_collection: [...OUTBOUND_DATA_CATEGORIES] }
+          : {}),
+      }
+      const granted = await permissions.request(request)
+      const present =
+        granted &&
+        (await permissions.contains({ origins: [endpoint.permissionPattern] }))
+      setEndpointGrantStatus((current) => ({
+        ...current,
+        [url]: present
+          ? `Granted ${endpoint.permissionPattern}${isFirefox ? " with outbound-data consent" : ""}`
+          : "Permission denied",
+      }))
+    } catch (error) {
+      setEndpointGrantStatus((current) => ({
+        ...current,
+        [url]:
+          error instanceof Error ? error.message : "Permission request failed",
+      }))
+    }
+  }
 
   const handleSave = async () => {
     if (!canSave || !validation?.success) {
@@ -289,6 +345,49 @@ export function AutomationEditorPage() {
         <div className="rounded-md border border-[var(--color-warning-border)] bg-[var(--color-warning-bg)] px-3 py-2 text-sm text-[var(--color-warning-fg)]">
           {hostAccessWarning}
         </div>
+      )}
+
+      {outboundRequests.length > 0 && (
+        <Section
+          title="Outbound endpoint access"
+          description="Monocle sends only locally authored values to these static destinations. Browser grants cover the scheme and host (all ports and paths), while each request remains pinned to its configured URL. Requests omit cookies and referrers, reject redirects, and do not run in private windows."
+        >
+          {outboundRequests.map((request, index) => {
+            const endpoint = inspectHttpEndpoint(request.url)
+            return (
+              <div
+                className="flex flex-col gap-2 rounded-md border border-[var(--color-border)] p-3 sm:flex-row sm:items-center sm:justify-between"
+                key={`${request.method}:${request.url}:${index}`}
+              >
+                <div className="min-w-0 text-xs">
+                  <div className="break-all font-medium">
+                    {request.method} {request.url}
+                  </div>
+                  <div className="text-[var(--color-fg-muted)]">
+                    Browser grant:{" "}
+                    {endpoint.ok ? endpoint.permissionPattern : endpoint.error}
+                    {request.headerNames.length > 0
+                      ? ` · custom headers: ${request.headerNames.join(", ")}`
+                      : ""}
+                  </div>
+                  {endpointGrantStatus[request.url] && (
+                    <div className="mt-1 text-[var(--color-fg-muted)]">
+                      {endpointGrantStatus[request.url]}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  disabled={!endpoint.ok}
+                  type="button"
+                  variant="secondary"
+                  onClick={() => void grantEndpoint(request.url)}
+                >
+                  Grant endpoint access
+                </Button>
+              </div>
+            )
+          })}
+        </Section>
       )}
 
       {!isNew && (

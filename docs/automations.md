@@ -11,6 +11,8 @@ A script is **always data, never code**: persisted locally, validated against a 
 | Document schema + validation (`shared/types/automations.ts`, `shared/types/automationValidation.ts`) | Implemented, with caps |
 | Storage (`background/automations/storage.ts`, `monocle-automations` key) | Implemented |
 | Engine: interpolation, segmentation, lowering, control flow (`background/automations/engine.ts`) | Implemented |
+| Inline page controls + verified action continuations | Implemented; manual Chrome/Firefox SPA smoke remains |
+| Outbound `httpRequest` (HTTPS or exact-loopback HTTP, permission/consent gated) | Implemented; store disclosure and manual endpoint smoke remain release gates |
 | Palette commands (`background/automations/commands.ts`, "Automations" group) | Implemented |
 | Manual trigger (+ prompt-before-run parameters) | Implemented |
 | Page-event triggers: `urlMatch` (load + best-effort SPA), `elementAppears` | Implemented (`background/automations/triggerEngine.ts`, `content/automationTriggers.ts`) |
@@ -128,8 +130,9 @@ Engine steps:
 | `openUrl` | `currentTab` / `newTab` (default) / `newWindow` |
 | `clipboardWrite` | Tab-scoped `monocle-clipboard-write` |
 | `runCommand` | Invoke a Monocle command, policy-gated (below) |
-| `showSurface` | Push a declarative [surface](./surfaces.md) (overlay/badge only) under owner `automation:<id>`; `content.title`/`content.text` interpolated, `urlMatch` is not |
+| `showSurface` | Push a declarative [surface](./surfaces.md). Overlay/badge remain passive; `inline` adds 1–5 selector-anchored buttons whose executable steps stay only in the Automation document. |
 | `hideSurface` | Remove one of this script's surfaces by `surfaceId` |
+| `httpRequest` | Send bounded structured JSON to a static HTTPS or exact-loopback HTTP endpoint after private-mode, browser-origin-grant, and Firefox data-consent checks; map only declared scalar JSON response paths into runtime variables. |
 | `branch` | If/else over a condition |
 | `forEach` | Loop over element matches or a variable's lines |
 | `while` | Loop while a condition holds (always capped) |
@@ -171,7 +174,7 @@ The command bridge is injected into the engine by `background/index.ts` at start
 
 ## Variables and interpolation
 
-One ordered pipeline, applied per interpolatable field (`fill.text`, `setVariable.value`, `toast.message`, `navigate.url`/`openUrl.url`, `clipboardWrite.text`, `showSurface.content.title`/`.text`, condition `value` fields — declared in `shared/utils/automation-introspection.ts` and reused by the engine, options warnings, and import summaries). Selector values, `injectCss` bodies, and `showSurface.urlMatch` are deliberately **not** interpolatable (a selector/URL pattern is an address; interpolated addresses are unreviewable in import summaries).
+One ordered pipeline, applied per interpolatable field (`fill.text`, `setVariable.value`, `toast.message`, `navigate.url`/`openUrl.url`, `clipboardWrite.text`, `showSurface.content.title`/`.text`, HTTP header values and JSON string leaves, and condition `value` fields — declared in `shared/utils/automation-introspection.ts` and reused by the engine, options warnings, and import summaries). Selectors, HTTP URLs/methods/header names/response paths, `injectCss` bodies, and `showSurface.urlMatch` are deliberately **not** interpolatable (an address or authority is static and reviewable).
 
 1. **`{{...}}` expansion** (`shared/utils/automation-template.ts`, pure/shared so the builder warns with run-time semantics): declared vars, `{{trigger.*}}`, `{{params.*}}`, loop scope, inline `{{snippet:<id>}}` refs, with the whitelisted pipe transforms `trim`, `upper`, `lower`, `slice:a:b`, `replace:from:to` (first, literal), `encodeUriComponent`, `length`. Unknown references expand to `""` at run and warn in the builder. `\{{` escapes a literal `{{`. The transform set is a fixed function table, not an expression language — a deliberate one-way-door refusal.
 2. **Snippet resolution** (background): `vars` of kind `snippet` and inline refs re-read the snippet at run time, bump the persisted `{i}` counter only when the body uses it (one counter sequence shared with palette insertion), and interpolate the body.
@@ -219,9 +222,9 @@ Two components (+ `shared/store/slices/automations.slice.ts`): `#/automations` r
 - List view (`AutomationsPage.tsx`): name, blurb (`automationBlurb`), enabled toggle, edit/delete/export, import, and **Add Examples**.
 - Editor save/create (`AutomationEditorPage.tsx`): if the validated draft contains page-interacting steps and the user has an active http(s) tab, the page sends `monocle-host-permission-ensure` as a best-effort request for that tab's origin. Denial does not block saving; it shows a warning because run-time permission state remains authoritative.
 - **Add Examples** (`options/pages/automations/examples.ts`) seeds a curated set of example automations covering every trigger type and most of the step vocabulary — saved through the normal add path (so they validate like any document, locked in by `examples.test.ts`), deduped by name, and with event/scheduled triggers shipped disarmed. They double as living documentation of what automations can do.
-- Editor: metadata, scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and the step list — per-op form rows for most of the flat vocabulary, JSON editing for control-flow steps and the JSON-only ops (`type`, `key`, `showSurface`, `hideSurface`). Validates as-you-type with the identical shared schema; save is disabled with field-level errors; unknown `{{var}}` references warn.
+- Editor: metadata, scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and the step list. Inline surfaces and HTTP requests have focused form editors with validated JSON sub-editors for nested actions, structured bodies, headers, and response mappings; control-flow plus `type`/`key`/`hideSurface` retain the whole-step JSON fallback. Endpoint grants are explicit and show the browser's broader scheme+host scope. Validates as-you-type with the identical shared schema; save is disabled with field-level errors; unknown `{{var}}` references warn.
 - **Test on Active Tab** runs the script through the real engine and shows per-step outcomes — selector breakage, not vocabulary, is what defeats non-programmers.
-- Import: JSON file → strip id/timestamps → validate → **non-manual triggers forced disarmed** + `source: imported` → a review dialog rendering `summarizeAutomation` (every URL pattern, trigger, op class, snippet reference, opened URL, runCommand target, clipboard use) before anything is saved. Export writes the document as JSON (keybindings excluded by design).
+- Import: JSON file → strip id/timestamps → validate → **non-manual triggers forced disarmed** + `source: imported` → a review dialog rendering `summarizeAutomation` before anything is saved. It enumerates URL scope, triggers, op classes, inline entry points, every outbound method/destination and custom header name, snippet references, opened URLs, runCommand targets, and clipboard use; it never displays header/body/response values. Export writes the document as JSON (keybindings excluded by design).
 
 ## Security and trust model
 
@@ -229,6 +232,15 @@ The attacker model inverts the site SDK's: the user is trusted, but **imported d
 
 - v1-style manual runs add zero non-gesture execution; event/scheduled triggers are the trust delta and ship with: disarmed-on-import, background re-validation of every fire, per-script cooldowns, the concurrent-run limit, throttle floors, and the non-manual `runCommand` allowlist.
 - A page cannot create, modify, or trigger a script (no `pageEvent` trigger by design); the site SDK separation holds.
+- Inline controls send only owner/surface/action ids. The background derives the
+  real top-frame sender URL, verifies the active render-only descriptor, rereads
+  the document, and resolves the current nested action before executing it.
+- Outbound HTTP cannot be page-directed: URL/method/header names are static,
+  remote HTTP is rejected, and private mode, concrete host permission, and
+  Firefox data consent are checked before values resolve and again before fetch.
+  Requests omit ambient credentials/referrers, reject redirects/retries, cap
+  request/response bytes, and expose response data only through declared scalar
+  mappings.
 - **Credentials caveat, stated plainly**: snippets — including auto-login credentials — live unencrypted in `chrome.storage.local`. The options UI and docs recommend this only for low-stakes dev/test credentials; scope mitigations (pin login scripts with `allowUrls`) are real but not encryption. Fill payloads are interpolated background-side and never logged.
 - Fail loudly everywhere: validation failures, unsupported ops, policy violations, and structural-cap violations all error visibly.
 

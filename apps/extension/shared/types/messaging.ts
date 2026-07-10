@@ -282,7 +282,7 @@ export type EnsureHostPermissionMessage = {
   type: "monocle-host-permission-ensure"
   tabId?: number
   url?: string
-  reason: "automation" | "elementHider"
+  reason: "automation" | "outboundAutomation" | "elementHider"
   request?: boolean
   ensureContentScript?: boolean
 }

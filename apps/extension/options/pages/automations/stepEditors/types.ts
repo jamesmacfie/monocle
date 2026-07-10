@@ -25,6 +25,8 @@ export const FORM_STEP_OPS = [
   "openUrl",
   "clipboardWrite",
   "runCommand",
+  "showSurface",
+  "httpRequest",
 ] as const satisfies readonly AutomationStep["op"][]
 
 export type FormOp = (typeof FORM_STEP_OPS)[number]

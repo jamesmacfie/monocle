@@ -1,8 +1,8 @@
 # Security and Store-Review Posture
 
-> **Status: proposed; not implemented.** Policy links were checked on
-> 2026-07-10. Re-check them immediately before submitting a build because store
-> rules and consent taxonomies change independently of this repository.
+> **Status: source controls implemented; external listing/privacy disclosures
+> remain release gates.** Firefox consent documentation was re-checked on
+> 2026-07-11. Re-check all store rules immediately before submitting a build.
 
 ## Security objective
 
@@ -237,9 +237,9 @@ Add a dedicated “Outbound Automations” section to both store submissions:
    supplies executable definitions.
 8. Native event delivery is not part of the HTTP release.
 
-Update the current “exactly two external hosts” statement in
-`docs/store-submission.md` when code ships. It will no longer be true of the
-effective network surface even though grants are user-selected and optional.
+`docs/store-submission.md` now describes the effective network surface as the
+two required external hosts plus user-selected HTTPS/exact-loopback Automation
+destinations behind concrete optional grants.
 
 ## Release gates
 

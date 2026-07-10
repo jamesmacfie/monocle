@@ -13,7 +13,10 @@ const CONTENT_SCRIPT_FILE = "content-scripts/content.js"
 const CONTENT_READY_RETRY_DELAY_MS = 75
 const CONTENT_READY_RETRY_ATTEMPTS = 8
 
-export type HostPermissionReason = "automation" | "elementHider"
+export type HostPermissionReason =
+  | "automation"
+  | "outboundAutomation"
+  | "elementHider"
 
 export type HostPermissionResult = {
   granted: boolean

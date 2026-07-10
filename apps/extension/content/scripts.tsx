@@ -14,7 +14,7 @@ export function renderContentCommandPalette(container: HTMLElement) {
       // closed shadow root. See docs/surfaces.md.
       React.createElement(SurfaceHost, {
         key: "surfaces",
-        kinds: ["overlay", "modal", "picker"],
+        kinds: ["overlay", "modal", "picker", "inline"],
       }),
     ]),
   )

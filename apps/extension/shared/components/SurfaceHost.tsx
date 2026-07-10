@@ -12,6 +12,7 @@
 // docs/surfaces.md.
 import { useCallback, useEffect, useState } from "react"
 import { PickerSurface } from "../../content/picker/PickerSurface"
+import { InlineSurface } from "../../content/surfaces/InlineSurface"
 import { trackSpaNavigation } from "../../content/utils/spaNavigation"
 import type {
   GetSurfacesResponse,
@@ -283,6 +284,9 @@ export function SurfaceHost({ kinds }: { kinds: SurfaceKind[] }) {
         const key = `${surface.ownerId ?? ""}:${surface.id}`
         if (surface.kind === "modal") {
           return <ModalSurface key={key} surface={surface} />
+        }
+        if (surface.kind === "inline") {
+          return <InlineSurface key={key} surface={surface} />
         }
         if (surface.kind === "overlay") {
           return <OverlaySurface key={key} surface={surface} />

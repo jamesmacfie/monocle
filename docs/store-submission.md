@@ -103,7 +103,8 @@ category on both stores. The full set:
 - **Snippets, calculations** — local text insertion (write-only clipboard) and
   inline math/units/time.
 - **Automations + workflow automation** — user-authored declarative documents over
-  a fixed, bundled step vocabulary (see [Verified non-issues](#verified-non-issues)).
+  a fixed, bundled step vocabulary, including consent-gated HTTPS/exact-loopback
+  requests to user-chosen endpoints (see [Verified non-issues](#verified-non-issues)).
 - **Feature modules** — Focus Mode, Tab Groups, Element Hider (interactive picker;
   reads, never mutates until the user confirms).
 - **Site SDK** — page-declared, session-only commands ([below](#site-sdk-and-remote-code-policy)).
@@ -148,24 +149,33 @@ only), `websiteActivity`, `websiteContent`.
 
 Mapping for Monocle:
 
-- **Baseline (palette, commands, automations, snippets, focus/tab-groups/element-hider):**
+- **Baseline (palette, commands, non-outbound automations, snippets, focus/tab-groups/element-hider):**
   collects nothing off-device. Unsplash and DuckDuckGo are remote *image/icon*
   fetches, not user-data transmission. → contributes `none` to `required`.
 - **Native Bridge (opt-in):** transmits the active tab's URL/title to the paired
-  local app, and the palette query string used to find commands. → `websiteActivity`
+  local app, and the palette query string used to find commands. → `browsingActivity`
   (active-tab URL/title) and `searchTerms` (the palette query), declared **optional**
   since the feature is off by default.
 - **Extension-to-Extension (opt-in):** forwards user selections/form values to an
   approved peer extension. Whether this needs its own category beyond the above is a
   judgment call — most selections are command ids, not personal data.
+- **Outbound Automations (opt-in):** user-authored HTTP steps can transmit
+  integration credentials, current/derived URLs, page interactions, identifying
+  values, and page content to a user-configured endpoint. The shipped optional
+  set is `authenticationInfo`, `browsingActivity`,
+  `personallyIdentifyingInfo`, `searchTerms`, `websiteActivity`, and
+  `websiteContent`; execution rechecks consent before values resolve or a request
+  starts.
 
-Recommended starting declaration (the next code round finalizes the exact list and
-verifies the category names against Mozilla's current valid set):
+Current declaration (re-verify against Mozilla policy for every release):
 
 ```jsonc
 "data_collection_permissions": {
   "required": ["none"],
-  "optional": ["websiteActivity", "searchTerms"]
+  "optional": [
+    "authenticationInfo", "browsingActivity", "personallyIdentifyingInfo",
+    "searchTerms", "websiteActivity", "websiteContent"
+  ]
 }
 ```
 
@@ -182,7 +192,8 @@ keep this list honest and re-audit it whenever a data-transmitting command is ad
   (`background/messages/getUnsplashBackground.ts`), which is permitted.
 - **Unexpected functionality must be disclosed.** The listing must clearly state the
   new-tab override, the global keyboard shortcut, all-pages injection, site-defined
-  commands, and the two opt-in integrations. Mozilla's opt-in expectation for
+  commands, Native Bridge, Extension-to-Extension, and outbound automation requests.
+  Mozilla's opt-in expectation for
   settings changes has a carve-out when the change is the add-on's clear advertised
   purpose — so the new-tab override must be headline listing copy.
 - **Extension-to-Extension on Firefox.** Firefox does not support the
@@ -253,11 +264,11 @@ Sub-rules:
 - **`host_permissions`** is two specific hosts (`https://api.unsplash.com/*`,
   `https://icons.duckduckgo.com/*`) — no `<all_urls>`.
 - **`optional_host_permissions: ["http://*/*", "https://*/*"]`** — broad wildcard
-  host access, requested at runtime. This is a real review flag and must be
-  justified tightly in the dashboard, or narrowed if a smaller scope covers the
-  consumer. The next code round should confirm exactly which feature requires
-  arbitrary-host access and either justify it (tie it to the stated purpose) or
-  scope it down.
+  host access is the declaration ceiling for page-scoped Automations, Element
+  Hider, and user-authored outbound HTTPS/exact-loopback destinations. Runtime
+  requests remain concrete scheme+host patterns. This is still a review flag;
+  the dashboard must explain the user-authored destination model and why a
+  static host allowlist cannot represent it.
 - All sensitive API permissions are optional and requested at runtime
   (`background/messages/requestPermission.ts`), then re-verified at execution
   (`background/utils/permissions.ts`). `management` (can disable/uninstall other
@@ -322,7 +333,8 @@ notes.
 - NTP override uses `chrome_url_overrides` (it does — `wxt.config.ts`).
 - No banned promotional words in the listing ("Free," "Best," "#1," "Award-winning," …).
 - Functionality must match the listing exactly. The expected-functionality list must
-  mention user-defined automations and both integrations now that they ship.
+  mention user-defined outbound automations, Native Bridge, and
+  Extension-to-Extension now that they ship.
 - Fake or mismatched screenshots are a fast rejection — screenshot the real packaged
   build.
 
@@ -423,9 +435,11 @@ shortening human review. Explain, up front:
 - **SVG icons render as `data:` URIs** — validated (no scripts/handlers/external
   refs) and rendered via `<img src="data:image/svg+xml,…">`, never injected as HTML
   (`shared/utils/svg-icon.ts`).
-- **Network surface** — exactly two external hosts, both matching declared
-  `host_permissions` and CSP: Unsplash backgrounds and DuckDuckGo favicons
-  (`background/utils/favicon.ts`). No analytics or telemetry of any kind.
+- **Network surface** — required hosts remain Unsplash and DuckDuckGo. Outbound
+  Automations add arbitrary HTTPS and exact-loopback HTTP only after a concrete
+  optional scheme+host grant and Firefox data consent; requests omit ambient
+  credentials/referrers, reject redirects/retries/private windows, and cap both
+  directions at 64 KiB. There is no analytics or telemetry.
 - **Storage** — local-only; no `storage.sync`; nothing transmitted off-device except
   the opt-in bridge flow above. Bridge tokens are stored hashed.
 - **Clipboard** — write-only (`shared/hooks/useCopyToClipboard.tsx` and the automation
@@ -441,8 +455,9 @@ shortening human review. Explain, up front:
   env name guarantees embedding). Anyone can extract it and burn the rate limit. Not a
   rejection issue, but reviewers notice embedded keys — consider proxying the request
   or shipping gradient-only until a proxy exists.
-- **Wildcard `optional_host_permissions`** — confirm which feature needs arbitrary-host
-  access; justify it against the single purpose or narrow it. Reviewers scrutinize
+- **Wildcard `optional_host_permissions`** — Outbound Automations now make the
+  arbitrary-host consumer explicit. Keep the declaration, concrete-grant UI,
+  privacy policy, and dashboard justification aligned; reviewers scrutinize
   broad host access even when optional.
 - **Chrome `key` ↔ host `allowed_origins`** — pinning the key is a prerequisite for the
   Chrome bridge path (see hard blocker 3).
@@ -454,7 +469,8 @@ shortening human review. Explain, up front:
 1. Fix the hard blockers: version sync, gecko id, **pin the Chrome `key`** (and set
    the bridge host `allowed_origins` to match), privacy policy, and the corrected
    `data_collection_permissions` block (`required:["none"]` + opt-in `optional`).
-2. Justify or narrow the wildcard `optional_host_permissions`.
+2. Add the documented Outbound Automations justification for wildcard
+   `optional_host_permissions` to the store dashboards and privacy policy.
 3. Write reviewer notes and the Chrome single-purpose / permission justification copy
    (these share most of their content), including the Native Bridge and
    Extension-to-Extension notes.
@@ -463,7 +479,8 @@ shortening human review. Explain, up front:
    package with **no diff** on a machine matching the reviewer environment.
 5. Prepare listing assets (128px icon, screenshots of the real packaged build,
    promo-word-free copy that tells the single-purpose / vertical-search story and
-   discloses the NTP override, all-pages overlay, automations, and both integrations).
+   discloses the NTP override, all-pages overlay, outbound automations, Native Bridge,
+   and Extension-to-Extension).
 6. Submit Firefox first; then Chrome, pointing to the live AMO listing.
 
 ## Readiness checklist
@@ -474,20 +491,22 @@ The concrete hand-off for the store-readiness code round:
 - [ ] Set `browser_specific_settings.gecko.id` to a controlled-domain id.
 - [ ] Pin the Chrome `key` in the manifest; set `apps/bridge` host `allowed_origins`
       to the resulting extension id.
-- [ ] Add the `data_collection_permissions` block (`required:["none"]` + opt-in
-      `optional` categories); verify category names against Mozilla's current valid set.
-- [ ] Justify or narrow `optional_host_permissions: ["http://*/*","https://*/*"]`.
+- [x] Add the `data_collection_permissions` block (`required:["none"]` + the six
+      outbound opt-in categories); category names re-verified 2026-07-11.
+- [ ] Publish the Outbound Automations justification for
+      `optional_host_permissions: ["http://*/*","https://*/*"]`.
 - [ ] Decide Unsplash key handling (proxy vs gradient-only vs ship-as-is).
 - [ ] Author the privacy policy + Limited Use disclosure string; wire the URL.
-- [ ] Verify the Firefox build emits `background.scripts` (event page).
+- [x] Verify the Firefox build emits `background.scripts` (event page).
 - [ ] Confirm reproducible Firefox build (no diff) + write the source-archive README.
 - [ ] Produce listing assets (128px store icon, real-build screenshots, copy).
 - [ ] Draft reviewer notes (site SDK, two `<all_urls>` scripts, keystroke scope,
-      Native Bridge, Extension-to-Extension, test page).
+      Native Bridge, Extension-to-Extension, Outbound Automations, test page).
 
 ## Sources
 
-External policy as researched in June 2026 — re-verify before submitting:
+External policy was researched in June 2026; Firefox built-in consent was
+re-checked on 2026-07-11. Re-verify everything before submitting:
 
 - [Chrome Web Store program policies](https://developer.chrome.com/docs/webstore/program-policies/policies)
 - [Chrome quality-guidelines FAQ (single purpose / NTP vertical search)](https://developer.chrome.com/docs/webstore/program-policies/quality-guidelines-faq)

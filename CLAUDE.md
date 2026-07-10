@@ -134,7 +134,7 @@ detail and per-feature manual checklists.
 | Extension-to-Extension Commands | Working (review notes) | extension-extension — manual cross-extension smoke still needed |
 
 **Last verified validation:** `pnpm run tsc`, `pnpm run fmt:check`, `pnpm test`
-(793 tests, exit 0), `pnpm run build` (Chrome), and `pnpm run build:firefox` all
+(820 tests across 118 files, exit 0), `pnpm run build` (Chrome), and `pnpm run build:firefox` all
 pass. `apps/bridge`: `cargo test` (16 tests) and the release binary build
 (`tauri build --no-bundle`) pass; the current sandbox blocks the final DMG
 packaging script. Daemon HTTP + UDS relay round-trip was previously verified
@@ -172,13 +172,16 @@ sequence prefix → executes through the command path.
 **Workflow automation:** a command/automation sends a workflow → background
 forwards to the target tab as `monocle-workflow-content-execute` → content
 executor (`content/workflow/`) runs it → results (incl. `getText` vars) return.
-Privileged ops (navigate/openUrl/clipboard/runCommand) are automation engine
+Privileged ops (navigate/openUrl/clipboard/runCommand/httpRequest) are automation engine
 ops, never content workflow steps.
 
 **Automations:** run from a generated palette command (`automation-<uuid>`), an
 armed page trigger, or a `chrome.alarms` schedule. `engine.ts` re-reads the
 document by id, interpolates background-side, lowers contiguous content steps
-onto workflows, runs privileged ops between segments, enforces runtime limits.
+onto workflows, runs privileged ops between segments, and enforces runtime
+limits. `httpRequest` is bounded, static-destination, permission/consent-gated,
+and never enters the content workflow vocabulary. Inline surface actions are
+fresh runs resolved from the current stored document after sender verification.
 
 **Feature modules** (`docs/features.md`): `background/features/` registry holds
 `FeatureModule`s — each contributes palette commands, an optional settings page
@@ -188,12 +191,14 @@ keyed by feature id, both distinct from `monocle-settings`). Page UI is rendered
 through Surfaces, not per-feature components.
 
 **Surfaces** (`docs/surfaces.md`): `background/surfaces.ts` is an
-owner-namespaced store (`monocle-surfaces`) of overlays/badges/modals/pickers.
+owner-namespaced store (`monocle-surfaces`) of overlays/badges/modals/pickers/
+inline controls.
 Owners are features, automations (`automation:<id>`), or commands
 (`command:<id>`; per-session, cleared on startup). The one generic `SurfaceHost`
 queries `monocle-surfaces-get {url}` and renders. `monocle-surface-action`:
 `dismiss` removes (universal); any other action routes to the owner's
-`handleAction` (feature) or registered handler (command).
+`handleAction` (feature), registered handler (command), or verified fresh
+Automation action run (`automation:<id>`).
 
 ## Contracts
 

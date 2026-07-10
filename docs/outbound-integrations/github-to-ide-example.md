@@ -1,8 +1,8 @@
 # GitHub to IDE Example
 
-> **Status: proposed; the Automation below will not validate until Phases 1–2
-> are implemented.** Replace the selector and snippet id for the target GitHub
-> layout and local IDE installation.
+> **Status: validates against the implemented Phase 1–2 schema; manual
+> Chrome/Firefox endpoint acceptance remains.** Replace the selector and snippet
+> id for the target GitHub layout and local IDE installation.
 
 ## Outcome
 
@@ -244,4 +244,3 @@ GitHub's DOM is not a Monocle contract. When the selector stops matching, update
 only the Automation configuration and example doc unless the generic inline
 renderer itself is broken. Do not add GitHub-specific fallback selectors to the
 renderer.
-

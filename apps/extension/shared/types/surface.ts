@@ -14,6 +14,8 @@
 // renderer (the first surface body to do so). See docs/surfaces.md.
 import type { z } from "zod"
 import type {
+  InlinePlacementSchema,
+  SurfaceActionDescriptorSchema,
   SurfaceContentSchema,
   SurfaceKindSchema,
   SurfaceSchema,
@@ -21,6 +23,10 @@ import type {
 } from "./surfaceValidation"
 
 export type SurfaceKind = z.infer<typeof SurfaceKindSchema>
+export type InlinePlacement = z.infer<typeof InlinePlacementSchema>
+export type SurfaceActionDescriptor = z.infer<
+  typeof SurfaceActionDescriptorSchema
+>
 export type SurfaceUrlMatch = z.infer<typeof SurfaceUrlMatchSchema>
 export type SurfaceContent = z.infer<typeof SurfaceContentSchema>
 export type Surface = z.infer<typeof SurfaceSchema>

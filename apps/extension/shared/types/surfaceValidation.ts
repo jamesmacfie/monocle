@@ -19,7 +19,33 @@ import { ICON_NAMES } from "./icons"
 // `surface-action`). Unlike the render-only kinds, the host attaches page-level
 // listeners while a picker is present; the surface itself never mutates the
 // page. See docs/surfaces.md.
-export const SurfaceKindSchema = z.enum(["overlay", "badge", "modal", "picker"])
+export const SurfaceKindSchema = z.enum([
+  "overlay",
+  "badge",
+  "modal",
+  "picker",
+  "inline",
+])
+
+export const InlinePlacementSchema = z
+  .object({
+    selector: z.string().min(1).max(2_000),
+    index: z.number().int().min(0).max(1_000).optional(),
+    position: z.enum(["before", "prepend", "append", "after"]),
+  })
+  .strict()
+
+export const SurfaceActionDescriptorSchema = z
+  .object({
+    id: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_]*$/)
+      .max(100),
+    label: z.string().min(1).max(100),
+    icon: z.enum(ICON_NAMES).optional(),
+    style: z.enum(["default", "primary", "danger"]).optional(),
+  })
+  .strict()
 
 // Optional URL gate (reuses the command url-rule pattern via matchesUrlPattern).
 // Absent = the surface applies everywhere.
@@ -62,9 +88,64 @@ export const SurfaceSchema = z
     targetTabId: z.number().int().positive().optional(),
     // Overlay only: intercept pointer/scroll (a hard block).
     blocking: z.boolean().optional(),
+    // Inline only: selector-relative placement and render-only action metadata.
+    // Executable automation steps never enter this schema or the surface store.
+    placement: InlinePlacementSchema.optional(),
+    actions: z.array(SurfaceActionDescriptorSchema).min(1).max(5).optional(),
     content: SurfaceContentSchema,
   })
   .strict()
+  .superRefine((surface, ctx) => {
+    if (surface.kind === "inline") {
+      if (!surface.placement) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["placement"],
+          message: "Inline surfaces require placement",
+        })
+      }
+      if (!surface.actions) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["actions"],
+          message: "Inline surfaces require actions",
+        })
+      }
+      const ids = new Set<string>()
+      surface.actions?.forEach((action, index) => {
+        if (ids.has(action.id)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["actions", index, "id"],
+            message: `Duplicate action id "${action.id}"`,
+          })
+        }
+        ids.add(action.id)
+      })
+      if (surface.blocking !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["blocking"],
+          message: "Inline surfaces cannot be blocking",
+        })
+      }
+      if (surface.content.blocks || surface.content.css) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["content"],
+          message: "Inline surfaces cannot contain blocks or CSS fields",
+        })
+      }
+      return
+    }
+
+    if (surface.placement !== undefined || surface.actions !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Placement and actions are only valid on inline surfaces",
+      })
+    }
+  })
 
 // Returns the validated surface, or null when the value is not a well-formed
 // Surface. Callers (the store) log and skip invalid surfaces rather than

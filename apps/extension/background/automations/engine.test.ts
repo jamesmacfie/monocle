@@ -41,7 +41,11 @@ vi.mock("../utils/hostPermissions", () => ({
 
 import { addSnippet, getSnippet } from "../commands/snippets"
 import { getSurfacesForUrl } from "../surfaces"
-import { registerAutomationCommandBridge, runAutomation } from "./engine"
+import {
+  registerAutomationCommandBridge,
+  runAutomation,
+  runAutomationSurfaceAction,
+} from "./engine"
 import { addAutomation, updateAutomation } from "./storage"
 
 const installBrowserStubs = () => {
@@ -1026,6 +1030,62 @@ describe("snippet and surface engine ops", () => {
       }),
     ).toMatchObject({ success: true })
     expect(await getSurfacesForUrl(context.url)).toHaveLength(0)
+  })
+
+  it("projects inline metadata only and runs the current action with fresh values", async () => {
+    const base = {
+      schemaVersion: 1 as const,
+      name: "Inline action",
+      enabled: true,
+      triggers: [{ type: "manual" as const }],
+      vars: { value: { kind: "literal" as const, value: "first" } },
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "showSurface" as const,
+          surfaceId: "open-ide",
+          kind: "inline" as const,
+          placement: { selector: "#header", position: "after" as const },
+          content: { text: "IDE" },
+          actions: [
+            {
+              id: "open",
+              label: "Open",
+              steps: [
+                {
+                  op: "toast" as const,
+                  message:
+                    "{{value}}/{{trigger.surfaceId}}/{{trigger.actionId}}",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const script = await addAutomation(base)
+    await runAutomation(script.id, { context, invocation: { kind: "manual" } })
+    const [stored] = await getSurfacesForUrl(context.url)
+    expect(stored.actions).toEqual([{ id: "open", label: "Open" }])
+    expect(JSON.stringify(stored)).not.toContain('"steps"')
+
+    await updateAutomation(script.id, {
+      ...base,
+      vars: { value: { kind: "literal", value: "second" } },
+    })
+    sendTabMessageMock.mockClear()
+    const result = await runAutomationSurfaceAction(script.id, {
+      surfaceId: "open-ide",
+      actionId: "open",
+      tabId: 7,
+      context,
+    })
+    expect(result).toMatchObject({ success: true, completedSteps: 1 })
+    expect(sendTabMessageMock).toHaveBeenCalledWith(7, {
+      type: "monocle-toast",
+      level: "info",
+      message: "second/open-ide/open",
+    })
   })
 })
 

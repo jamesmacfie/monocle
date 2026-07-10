@@ -222,6 +222,17 @@ already-granted origin; unknown cross-origin form destinations fail clearly.
   "urlMatch": { "allowUrls": ["*://*/*"] },                          // NOT interpolated
   "content": { "icon": "Bell", "title": "Heads up", "text": "{{msg}}", "countdownTo": 0 } }
 { "op": "hideSurface", "surfaceId": "s1" }
+{ "op": "showSurface", "surfaceId": "inline1", "kind": "inline",
+  "placement": { "selector": "#toolbar", "index": 0, "position": "append" },
+  "content": { "text": "Monocle" },
+  "actions": [{ "id": "send", "label": "Send", "style": "primary",
+    "steps": [{ "op": "toast", "message": "Clicked {{trigger.actionId}}" }] }] }
+{ "op": "httpRequest", "method": "POST", "url": "https://api.example.com/events",
+  "headers": { "Authorization": "Bearer {{snippet:TOKEN_SNIPPET_ID}}" },
+  "body": { "url": "{{trigger.url}}" }, "timeoutMs": 10000,
+  "response": { "statusToVar": "status", "json": [
+    { "path": ["requestId"], "toVar": "requestId", "required": true }
+  ] } }
 ```
 
 ---
@@ -244,6 +255,11 @@ names: declared vars; `{{trigger.type}}`, `{{trigger.url}}`, `{{trigger.matchedT
 `forEach`); `{{snippet:<id>}}` (inline snippet body). **Unknown names expand to `""`.** Escape
 a literal with `\{{`.
 
+For an inline-button continuation, `{{trigger.type}}` is `surfaceAction` and
+`{{trigger.surfaceId}}` / `{{trigger.actionId}}` identify the clicked control.
+The URL accessors describe the sender tab at click time; runtime values from the
+earlier `showSurface` run are deliberately not retained.
+
 The source URL is also decomposed (frozen at run start): `{{trigger.host}}`, `{{trigger.origin}}`,
 `{{trigger.path}}`, `{{trigger.hash}}`, `{{trigger.pathSegments.N}}` (0-indexed non-empty path
 segments), `{{trigger.query.NAME}}` (per query param). Use these to author **redirects**: a
@@ -258,20 +274,53 @@ Pipe transforms (left→right), a fixed set — nothing else is allowed:
 
 **Interpolatable fields only:** `fill.text`, `setVariable.value`, `toast.message`,
 `navigate.url`, `openUrl.url`, `clipboardWrite.text`, `showSurface.content.title`/`.text`,
-and condition `value` fields. **Not interpolatable:** any selector, `injectCss.css`,
-`showSurface.urlMatch`.
+HTTP header values and HTTP body string leaves, and condition `value` fields.
+**Not interpolatable:** any selector, `injectCss.css`, `showSurface.urlMatch`,
+inline placement/action metadata, HTTP URL/method/header names, or response paths.
 
 **Snippet placeholders** (resolved after templates, in the same interpolatable fields):
 `{date:FORMAT}` (date-fns, e.g. `{date:yyyy-MM-dd}`), `{url}`, `{title}`, `{domain}`, `{path}`,
 `{uuid}`, `{timestamp}`, `{i}` (a persisted counter).
 
+### Inline surface rules
+
+- `placement.selector` is static and 1–2000 characters; `index` is 0–1000.
+- `position` is `before`, `prepend`, `append`, or `after`.
+- `actions` has 1–5 unique variable-style ids. Each action has a 1–100
+  character label, optional Lucide icon/style, and non-empty nested `steps`.
+- Action steps count toward the document's 100-step cap. Content receives only
+  render metadata, never the nested steps.
+
+### `httpRequest` rules
+
+- Methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. GET cannot have a body.
+- URL is static, at most 2000 characters, has no credentials or fragment, and
+  must use HTTPS unless the hostname is exactly `localhost`, `127.0.0.1`, or
+  `::1` over HTTP.
+- Body is structured JSON (depth ≤10, nodes ≤1000); only string leaves
+  interpolate. Serialized request and response are each capped at 65,536 bytes.
+- At most 20 custom headers. Names are static and browser-controlled names such
+  as Cookie, Host, Origin, Referer, Content-Length/Type, Proxy-*, and Sec-* are
+  rejected. Authorization is allowed; prefer a snippet reference.
+- Timeout defaults to 10 seconds and must be 1–30 seconds. Requests omit
+  credentials/referrer, bypass cache, reject redirects, never retry, and are
+  refused in private windows.
+- Every destination needs an explicit scheme+host browser grant; Firefox also
+  needs outbound data consent. Automatic and inline-action runs never prompt.
+- Only 2xx succeeds. Response JSON is read only when mappings are declared;
+  paths have 1–10 key/index segments and map only string/number/boolean/null
+  leaves into flat string variables. Missing optional paths write `""`; missing
+  required or aggregate values fail atomically.
+
 ---
 
 ## 8. Control flow
 
-`branch`, `forEach`, `while` nest other steps. **Max nesting depth 3**; **≤100 steps total**
-counting nested. `navigate` (and `openUrl` with `"disposition":"currentTab"`) are **forbidden
-inside any branch/loop body** — navigation destroys the page context. Flat scripts may navigate.
+`branch`, `forEach`, `while` nest other steps. **Max nesting depth 3**;
+**≤100 steps total** counting nested, including inline action bodies.
+`navigate` (and `openUrl` with `"disposition":"currentTab"`) are **forbidden
+inside any branch/loop body** — navigation destroys the page context. Flat
+scripts may navigate.
 
 ```jsonc
 { "op": "branch",
@@ -452,8 +501,15 @@ Manual runs may call any non-denied command (subject to its own permissions).
 - More than 100 steps (counting nested), or control-flow nested deeper than 3 levels.
 - `navigate`, or `openUrl` with `"disposition":"currentTab"`, **inside a branch/loop body**.
 - `expectNavigation` on anything except a `click` or `submit` step.
-- Putting `{{...}}` inside a selector, `injectCss.css`, or `showSurface.urlMatch` (ignored at
-  best; these are not interpolated).
+- Putting `{{...}}` inside a selector, `injectCss.css`, `showSurface.urlMatch`,
+  inline placement/action metadata, or an HTTP URL/method/header name/response
+  path (these are static and not interpolated).
+- An inline surface without placement, with zero/more than five actions,
+  duplicate/invalid action ids, empty action steps, or modal/picker-only fields.
+- An HTTP request using remote plaintext HTTP, URL credentials/fragments,
+  interpolated URL authority, GET with a body, forbidden/duplicate headers,
+  non-JSON values, timeout outside 1000–30000, duplicate response destinations,
+  or invalid/empty mapping paths.
 - `forEach.steps` / `while.steps` empty (need ≥1), or `maxIterations` outside 1–1000.
 - `allOf`/`anyOf` with 0 entries (need 1–10).
 - `runCommand` to a confirm-gated command, another automation, `debug-workflow`, or (for
@@ -462,4 +518,3 @@ Manual runs may call any non-denied command (subject to its own permissions).
   >10000, regex >200.
 - Variable names not matching `^[A-Za-z][A-Za-z0-9_]*$`.
 - Using an `icon`/`color` outside the closed sets in §2.
-```

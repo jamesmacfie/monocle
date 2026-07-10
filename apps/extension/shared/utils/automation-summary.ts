@@ -26,6 +26,13 @@ export type AutomationSummary = {
   // Command ids invoked via runCommand
   runCommandIds: string[]
   usesClipboard: boolean
+  inlineActions: Array<{ surfaceId: string; actionId: string; label: string }>
+  outboundRequests: Array<{
+    method: string
+    url: string
+    headerNames: string[]
+    responseVars: string[]
+  }>
 }
 
 const TRIGGER_LABELS: Record<AutomationTrigger["type"], string> = {
@@ -65,6 +72,11 @@ const OP_LABELS: Record<string, [singular: string, plural: string]> = {
     "writes to the clipboard {n} times",
   ],
   runCommand: ["runs 1 Monocle command", "runs {n} Monocle commands"],
+  httpRequest: [
+    "sends 1 outbound HTTP request",
+    "sends {n} outbound HTTP requests",
+  ],
+  showSurface: ["shows 1 page surface", "shows {n} page surfaces"],
   branch: ["has 1 condition", "has {n} conditions"],
   forEach: ["loops over elements", "has {n} loops"],
   while: ["loops while a condition holds", "has {n} loops"],
@@ -89,6 +101,8 @@ export const summarizeAutomation = (
   const openedUrls: string[] = []
   const runCommandIds: string[] = []
   let usesClipboard = false
+  const inlineActions: AutomationSummary["inlineActions"] = []
+  const outboundRequests: AutomationSummary["outboundRequests"] = []
 
   for (const def of Object.values(script.vars ?? {})) {
     if (def.kind === "snippet") {
@@ -115,6 +129,26 @@ export const summarizeAutomation = (
     if (step.op === "clipboardWrite") {
       usesClipboard = true
     }
+    if (step.op === "showSurface" && step.kind === "inline") {
+      step.actions.forEach((action) =>
+        inlineActions.push({
+          surfaceId: step.surfaceId,
+          actionId: action.id,
+          label: action.label,
+        }),
+      )
+    }
+    if (step.op === "httpRequest") {
+      outboundRequests.push({
+        method: step.method,
+        url: step.url,
+        headerNames: Object.keys(step.headers ?? {}),
+        responseVars: [
+          ...(step.response?.statusToVar ? [step.response.statusToVar] : []),
+          ...(step.response?.json?.map((mapping) => mapping.toVar) ?? []),
+        ],
+      })
+    }
   })
 
   const actions: string[] = []
@@ -139,6 +173,8 @@ export const summarizeAutomation = (
     openedUrls,
     runCommandIds,
     usesClipboard,
+    inlineActions,
+    outboundRequests,
   }
 }
 

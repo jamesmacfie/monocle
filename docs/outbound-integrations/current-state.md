@@ -1,8 +1,8 @@
 # Current State and Gap Analysis
 
-> **Status: current-state investigation; proposed work is not implemented.**
-> Source references and excerpts below describe commit `b43f2ac` unless a
-> working-tree difference is called out explicitly.
+> **Status: historical baseline, superseded by the 2026-07-11 implementation.**
+> Source references and excerpts below intentionally describe commit `b43f2ac`;
+> use the canonical docs and [README](./README.md) for current behavior.
 
 ## System boundary
 
@@ -225,4 +225,3 @@ That is why HTTP is Phase 2 and native events are deferred to Phase 4.
   daemon, and client work without avoiding data-disclosure obligations.
 - **Captured show-time values:** rejected because persisting a runtime value bag
   could retain page content or snippet secrets long after the setup run ends.
-

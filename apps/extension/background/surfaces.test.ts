@@ -86,6 +86,20 @@ describe("surfaces store", () => {
 })
 
 describe("write validation (canonical SurfaceSchema)", () => {
+  it("stores inline render metadata without executable steps", async () => {
+    await upsertSurface("automation:a", {
+      id: "inline",
+      kind: "inline",
+      placement: { selector: "#header", position: "append" },
+      actions: [{ id: "run", label: "Run", style: "primary" }],
+      content: { text: "Monocle" },
+    })
+    const [surface] = await getSurfacesForUrl("https://example.com")
+    expect(surface.actions).toEqual([
+      { id: "run", label: "Run", style: "primary" },
+    ])
+    expect(surface).not.toHaveProperty("steps")
+  })
   it("accepts a modal surface carrying structured content blocks", async () => {
     await upsertSurface("command:url-as-qr-code", {
       id: "qr",

@@ -8,6 +8,7 @@ import type { AutomationStep, Snippet } from "../../../../shared/types"
 import { engineStepEditors } from "./engineSteps"
 import { interactionStepEditors } from "./interactionSteps"
 import { observationStepEditors } from "./observationSteps"
+import { outboundStepEditors } from "./outboundSteps"
 import { pageEditStepEditors } from "./pageEditSteps"
 import {
   FORM_STEP_OPS,
@@ -27,6 +28,7 @@ export const STEP_EDITORS = {
   ...observationStepEditors,
   ...pageEditStepEditors,
   ...engineStepEditors,
+  ...outboundStepEditors,
 } satisfies { [Op in FormOp]: StepEditorEntry<Op> }
 
 type JsonOp = Exclude<AutomationStep["op"], FormOp>
@@ -47,15 +49,6 @@ const JSON_STEP_EDITORS = {
   key: {
     label: "Press keys (edit as JSON)",
     createDefaultJson: () => ({ op: "key", keys: ["Enter"] }),
-  },
-  showSurface: {
-    label: "Show surface (edit as JSON)",
-    createDefaultJson: () => ({
-      op: "showSurface",
-      surfaceId: "notice",
-      kind: "badge",
-      content: { text: "Done" },
-    }),
   },
   hideSurface: {
     label: "Hide surface (edit as JSON)",
@@ -121,6 +114,7 @@ const STEP_OP_ORDER = [
   "openUrl",
   "clipboardWrite",
   "runCommand",
+  "httpRequest",
   "showSurface",
   "hideSurface",
   "branch",
