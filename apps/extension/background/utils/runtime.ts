@@ -137,7 +137,19 @@ export function createCrossBrowserMessageHandler(
       return true
     }
 
-    return responsePromise
+    // Firefox mirrors the Chrome catch: a thrown handler error resolves to
+    // { error } rather than rejecting the sender-side sendMessage promise, so
+    // the caller contract (check response.error; rejection is transport-only)
+    // holds identically on both browsers. See docs/messaging.md.
+    return responsePromise.catch((error) => {
+      const messageText = error instanceof Error ? error.message : String(error)
+      console.error("[MessageHandler] Error handling message:", {
+        error: messageText,
+        senderContext: senderValidation.context,
+        messageType: message?.type || "unknown",
+      })
+      return { error: messageText }
+    })
   }
 }
 

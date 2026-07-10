@@ -7,11 +7,9 @@
 // handler.ts (peer→Monocle) and extensionSdk/transport.ts (Monocle→peer),
 // registered from background/index.ts. See docs/extension-extension/.
 import type { RecordListItem } from "../../../shared/types"
-import {
-  clearAllExtensionRegistrations,
-  clearExtensionRegistrations,
-} from "../../commands/extensionSdk"
+import { clearExtensionRegistrations } from "../../commands/extensionSdk"
 import type { FeatureModule } from "../types"
+import { dropAllPeerTrees } from "./cleanup"
 import { extensionRegistryCommands } from "./commands"
 import {
   approvePeer,
@@ -108,8 +106,7 @@ export const extensionRegistryFeature: FeatureModule<ExtensionRegistryConfig> =
       // (they re-register when re-enabled). Approval is kept.
       onConfigChange: async (config) => {
         if (!config.enabled) {
-          await clearAllExtensionRegistrations()
-          await rebuildIndex()
+          await dropAllPeerTrees()
         }
       },
     },

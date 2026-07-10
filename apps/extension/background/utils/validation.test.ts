@@ -175,6 +175,29 @@ describe("message business validation", () => {
     ).toBe(false)
   })
 
+  it("lets a snippet body larger than the transport guard reach schema validation", () => {
+    // MSG-01: the transport MAX_STRING_LENGTH must be >= the largest schema
+    // string field (SnippetBodySchema = 100k), or valid snippets are rejected
+    // before the schema that permits them ever runs.
+    const okBody = "x".repeat(50_000)
+    expect(
+      validateIncomingMessage(
+        { type: "monocle-snippet-add", name: "big", body: okBody, context },
+        {},
+      ).success,
+    ).toBe(true)
+
+    // A body over the schema limit (also over the aligned transport limit) is
+    // still rejected — the guard protects the real 1 MB memory ceiling.
+    const tooBigBody = "x".repeat(150_000)
+    expect(
+      validateIncomingMessage(
+        { type: "monocle-snippet-add", name: "big", body: tooBigBody, context },
+        {},
+      ).success,
+    ).toBe(false)
+  })
+
   it("accepts Firefox add-on command ids (@ and {} chars) but rejects unsafe ids", () => {
     // The Extensions command group embeds browser add-on ids in command ids.
     // Firefox add-on ids are email-style or GUID-style, so @ and {} are valid.

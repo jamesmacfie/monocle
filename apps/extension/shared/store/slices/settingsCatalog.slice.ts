@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 import type {
   CommandUrlRulesSetting,
+  OutboundMessage,
   SettingsCatalogCommand,
   SettingsCatalogResponse,
   UpdateCommandKeybindingsConflict,
@@ -8,7 +9,7 @@ import type {
 } from "../../../shared/types"
 
 type CatalogThunkApi = {
-  sendMessage: (message: unknown) => Promise<unknown>
+  sendMessage: (message: OutboundMessage) => Promise<unknown>
 }
 
 type SettingsCatalogState = {

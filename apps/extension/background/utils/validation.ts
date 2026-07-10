@@ -39,7 +39,8 @@ const RATE_LIMIT_MAX = 1000 // max messages per minute per sender
 
 // Message size limits (prevent memory exhaustion)
 const MAX_MESSAGE_SIZE = 1024 * 1024 // 1MB
-const MAX_STRING_LENGTH = 10000 // Max length for individual string fields
+// Must be >= the largest schema-allowed string field (SnippetBodySchema, 100_000).
+const MAX_STRING_LENGTH = 100_000 // Max length for individual string fields
 
 /**
  * Rate limiting check for message validation

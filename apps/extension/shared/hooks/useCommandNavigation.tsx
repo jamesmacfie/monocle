@@ -22,28 +22,6 @@ import { buildCommandExecutionRequest } from "./commandExecution"
 import { useCopyToClipboard } from "./useCopyToClipboard"
 import { useToast } from "./useToast"
 
-// Helper function to clear search input
-function _clearAndResetSearch(
-  inputRef: RefObject<HTMLInputElement | null>,
-  ignoreSearchUpdate: React.MutableRefObject<boolean>,
-) {
-  // Set flag to prevent the search clear from being saved to page state
-  ignoreSearchUpdate.current = true
-
-  const inputElement = inputRef.current
-  if (inputElement) {
-    inputElement.value = ""
-    // Dispatch an input event to trigger CMDK's internal search update
-    const event = new Event("input", { bubbles: true })
-    inputElement.dispatchEvent(event)
-
-    // Reset flag after a short delay to ensure DOM updates are complete
-    setTimeout(() => {
-      ignoreSearchUpdate.current = false
-    }, 100)
-  }
-}
-
 // Re-export types for convenience
 export type { Page } from "../store/slices/navigation.slice"
 
@@ -83,9 +61,6 @@ export function useCommandNavigation(
   const error = useAppSelector(selectError)
   const currentPage = useAppSelector(selectCurrentPage)
 
-  // Ref flags to prevent various race conditions and loops:
-  const ignoreSearchUpdate = useRef(false) // Prevents search updates from being saved during navigation
-  const prevPageRef = useRef<string | null>(null) // Tracks page changes for search restoration
   const searchSeqRef = useRef(0) // Monotonic sequence for search-commands requests
   const currentPageId = currentPage?.id
   const currentPageSearchValue = currentPage?.searchValue ?? ""
@@ -102,22 +77,17 @@ export function useCommandNavigation(
     dispatch(setInitialCommands(initialCommands))
   }, [initialCommands, dispatch])
 
-  // Restore search state when navigating between pages
+  // Focus the search box on every page change and select any restored text
+  // (back-nav restores the parent query; forward-nav is empty, so the range
+  // is a no-op). Runs after commit so inputRef.current.value is up to date.
+  // The controlled Command.Input already reflects currentPage.searchValue; this
+  // effect only manages focus/selection, not the string value.
   useEffect(() => {
-    if (currentPage && prevPageRef.current !== currentPage.id) {
-      prevPageRef.current = currentPage.id
-
-      const inputElement = inputRef.current
-      if (inputElement && inputElement.value !== currentPage.searchValue) {
-        ignoreSearchUpdate.current = true
-
-        // Direct DOM manipulation needed because we're syncing with CMDK's internal state
-        inputElement.value = currentPage.searchValue
-        const event = new Event("input", { bubbles: true })
-        inputElement.dispatchEvent(event)
-      }
-    }
-  }, [currentPage?.id, currentPage?.searchValue, inputRef, currentPage])
+    const el = inputRef.current
+    if (!el) return
+    el.focus()
+    el.setSelectionRange(0, el.value.length)
+  }, [inputRef])
 
   // Debounced refresh for pages that opt into dynamic children
   useEffect(() => {
@@ -149,10 +119,8 @@ export function useCommandNavigation(
   ])
 
   // Debounced background search for root and child group pages. Keyed on the
-  // Redux searchValue so programmatic DOM pokes (back-nav search restoration)
-  // don't trigger spurious searches — those are filtered by ignoreSearchUpdate
-  // before they reach Redux. search-type pages keep their get-children path
-  // and form pages bypass search entirely.
+  // Redux searchValue, the single owner of the query string. search-type pages
+  // keep their get-children path and form pages bypass search entirely.
   useEffect(() => {
     if (!currentPageId || currentPageHasDynamicChildren || currentPageIsForm) {
       return
@@ -191,12 +159,6 @@ export function useCommandNavigation(
    * Called by CMDK when user types in search input
    */
   const updateSearchValue = (search: string) => {
-    // Skip updating if this was triggered by programmatic navigation (not user input)
-    if (ignoreSearchUpdate.current) {
-      ignoreSearchUpdate.current = false
-      return
-    }
-
     dispatch(updateSearchValueAction(search))
   }
 
@@ -219,8 +181,8 @@ export function useCommandNavigation(
       ).unwrap()
 
       if (result.success) {
-        // Clear search input to prevent conflicts
-        _clearAndResetSearch(inputRef, ignoreSearchUpdate)
+        // The pushed child page carries searchValue: "", so the controlled
+        // Command.Input renders empty on its own — no DOM poking needed.
         return true
       }
       return false
@@ -238,35 +200,10 @@ export function useCommandNavigation(
     // Can't go back from root page
     if (pages.length <= 1) return false
 
-    // Get the page we're returning to
-    const previousPage = pages[pages.length - 2]
-    const previousSearchValue = previousPage.searchValue
-
-    // Prevent the search restoration from triggering page state updates
-    ignoreSearchUpdate.current = true
-
-    // Dispatch navigate back action
+    // Pop the stack; the reducer restores the parent page's searchValue, the
+    // controlled Command.Input re-renders it, and the page-change effect focuses
+    // and selects the restored text.
     dispatch(navigateBackAction())
-
-    // Wait for React to process the state update, then restore search
-    setTimeout(() => {
-      if (inputRef.current) {
-        // Restore the previous page's search value
-        inputRef.current.value = previousSearchValue
-
-        // Sync with CMDK's internal state
-        const event = new Event("input", { bubbles: true })
-        inputRef.current.dispatchEvent(event)
-
-        // Focus and select the search text for easy editing
-        inputRef.current.focus()
-        inputRef.current.setSelectionRange(0, previousSearchValue.length)
-      }
-
-      // Re-enable search state updates
-      ignoreSearchUpdate.current = false
-    }, 0)
-
     return true
   }
 

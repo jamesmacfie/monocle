@@ -13,12 +13,13 @@ import type {
   AutomationRunResult,
   DeleteAutomationResponse,
   GetAutomationsResponse,
+  OutboundMessage,
   RunAutomationResponse,
   UpdateAutomationResponse,
 } from "../../../shared/types"
 
 type AutomationsThunkApi = {
-  sendMessage: (message: unknown) => Promise<unknown>
+  sendMessage: (message: OutboundMessage) => Promise<unknown>
 }
 
 type AutomationsState = {

@@ -1,11 +1,15 @@
 // Architecture: background feature layer (extension-to-extension). The palette
 // commands that toggle the feature. No optional permission to request —
-// cross-extension messaging is a static manifest capability — so enable/disable
-// only flip the opt-in flag (disabling also drops cached peer trees, handled by
-// the module's onConfigChange). See docs/extension-extension/extension-integration.md.
+// cross-extension messaging is a static manifest capability. Disabling also
+// drops cached peer trees and rebuilds the search index; like the native
+// bridge, the palette command performs those side effects itself, because
+// onConfigChange only fires on the settings-page path
+// (monocle-feature-config-update). See
+// docs/extension-extension/extension-integration.md.
 import type { ActionCommandNode, CommandNode } from "../../../shared/types"
 import { getActiveTab, sendTabMessage } from "../../utils/browser"
 import { getFeatureConfig, setFeatureConfig } from "../config"
+import { dropAllPeerTrees } from "./cleanup"
 import {
   EXTENSION_REGISTRY_FEATURE_ID,
   type ExtensionRegistryConfig,
@@ -52,6 +56,7 @@ const disableCommand: ActionCommandNode = {
   keywords: ["extension", "integration", "external", "commands"],
   execute: async () => {
     await setEnabled(false)
+    await dropAllPeerTrees()
     await toast("info", "Extension integrations disabled")
   },
 }

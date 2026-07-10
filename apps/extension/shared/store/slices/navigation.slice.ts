@@ -112,11 +112,15 @@ export const navigateToCommand = createAsyncThunk<
       const parentPath = currentPage.id === "root" ? [] : currentPage.parentPath
 
       // Request children from background script
-      const response = await extra.sendMessage({
+      const response = (await extra.sendMessage({
         type: "monocle-command-children-get",
         id,
         parentPath,
-      })
+      })) as {
+        openPage?: boolean
+        children?: Suggestion[]
+        dynamicChildren?: boolean
+      }
 
       // Decide whether to open a new page: open when children exist or explicitly requested by backend
       const shouldOpenPage =
@@ -141,7 +145,7 @@ export const navigateToCommand = createAsyncThunk<
           id,
           commands: {
             favorites: [], // Child pages don't inherit favorites
-            suggestions: response.children, // All children go to suggestions
+            suggestions: response.children || [], // All children go to suggestions
           },
           searchValue: "", // Always start with empty search to show all children
           parent: parentCommand,
@@ -219,12 +223,12 @@ export const refreshCurrentPage = createAsyncThunk<
 
       // Re-fetch children for the current parent command
       const parentPath = currentPage.parentPath.slice(0, -1) // Remove current page ID to get parent path
-      const response = await extra.sendMessage({
+      const response = (await extra.sendMessage({
         type: "monocle-command-children-get",
         id: currentPage.id,
         parentPath,
         searchValue: currentPage.searchValue,
-      })
+      })) as { children?: Suggestion[] }
 
       if (response.children) {
         // Merge defaults for any new inputs into existing formValues
@@ -287,12 +291,17 @@ export const searchCurrentPage = createAsyncThunk<
         )
       }
 
-      const response = await extra.sendMessage({
+      const response = (await extra.sendMessage({
         type: "monocle-commands-search",
         query,
         parentPath: pageId === "root" ? [] : parentPath,
         seq,
-      })
+      })) as {
+        error?: string
+        results?: Suggestion[]
+        seq?: number
+        query?: string
+      }
 
       if (!response || response.error) {
         return rejectWithValue(response?.error || "Failed to search commands")

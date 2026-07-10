@@ -3,7 +3,8 @@
 // (via background/utils/validation.ts) and dispatches by message type with
 // ts-pattern to the handler modules in this folder. Adding a message means a
 // schema in shared/types/validation.ts, a type in shared/types/messaging.ts,
-// a handler module, and a .with() arm here.
+// a handler module, and a .with() arm here. The match is .exhaustive(), so a
+// missing arm is a compile error, not a runtime "Unknown message type".
 import { match } from "ts-pattern"
 import { validateIncomingMessage } from "../utils/validation"
 import { addSnippet } from "./addSnippet"
@@ -189,7 +190,9 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     .with({ type: "monocle-surface-action" }, async (msg) => {
       return await surfaceAction(msg, sender)
     })
-    .otherwise(() => {
-      throw new Error(`Unknown message type: ${message.type}`)
-    })
+    // Exhaustive: every ValidatedMessage variant must have a .with() arm above,
+    // enforced at compile time. A schema variant added without a handler fails
+    // tsc here rather than at runtime. Unknown types never reach this point —
+    // validateIncomingMessage rejects them before dispatch.
+    .exhaustive()
 }

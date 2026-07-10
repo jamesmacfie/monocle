@@ -3,11 +3,12 @@ import type {
   ExecuteFeatureActionResponse,
   FeatureDescriptor,
   GetFeaturesResponse,
+  OutboundMessage,
   UpdateFeatureConfigResponse,
 } from "../../../shared/types"
 
 type FeaturesThunkApi = {
-  sendMessage: (message: unknown) => Promise<unknown>
+  sendMessage: (message: OutboundMessage) => Promise<unknown>
 }
 
 type FeaturesState = {

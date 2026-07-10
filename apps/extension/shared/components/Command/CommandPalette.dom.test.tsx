@@ -109,12 +109,6 @@ describe("CommandPalette CMDK↔Redux sync", () => {
       expect(getNavigationState().pages).toHaveLength(2)
     })
 
-    // characterization: for ~100ms after navigation the ignoreSearchUpdate
-    // flag in useCommandNavigation can swallow the first keystroke (the
-    // search-clear sync path). Real users don't type that fast; wait out the
-    // window before typing.
-    await new Promise((resolve) => setTimeout(resolve, 120))
-
     await user.type(getSearchInput(), "y")
     await waitFor(() => {
       const { pages } = getNavigationState()
@@ -125,6 +119,27 @@ describe("CommandPalette CMDK↔Redux sync", () => {
     expect(getNavigationState().pages).toHaveLength(2)
     await waitFor(() => {
       expect(getSearchInput().value).toBe("")
+    })
+  })
+
+  it("first keystroke immediately after entering a group is not dropped", async () => {
+    // PAL-01 regression: the old imperative ignoreSearchUpdate DOM dance held a
+    // flag open for ~100ms after navigation and swallowed the first keystroke.
+    // With Redux as the single owner of the search string, typing with no delay
+    // must register.
+    const { user, getItem, getSearchInput, getNavigationState } =
+      renderPalette()
+
+    await user.click(getItem("my-group"))
+    await waitFor(() => {
+      expect(getNavigationState().pages).toHaveLength(2)
+    })
+
+    // No delay — type the instant the child page renders.
+    await user.type(getSearchInput(), "child")
+    await waitFor(() => {
+      const { pages } = getNavigationState()
+      expect(pages[pages.length - 1].searchValue).toBe("child")
     })
   })
 

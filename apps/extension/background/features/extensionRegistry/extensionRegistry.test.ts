@@ -6,6 +6,7 @@ import {
   loadExtensionSdkCommands,
 } from "../../commands/extensionSdk"
 import { setFeatureConfig } from "../config"
+import { extensionRegistryCommands } from "./commands"
 import { handleExternalMessage } from "./handler"
 import {
   addPendingPeer,
@@ -25,6 +26,9 @@ const installBrowserStubs = () => {
   vi.stubGlobal("browser", fakeBrowser)
   vi.stubGlobal("chrome", {
     runtime: { id: "monocle-test", getManifest: () => ({ version: "9.9.9" }) },
+    // Callback-style query returning no tabs, so background toast helpers that
+    // look up the active tab simply no-op instead of throwing in tests.
+    tabs: { query: (_opts: unknown, cb: (tabs: unknown[]) => void) => cb([]) },
   })
 }
 
@@ -153,6 +157,23 @@ describe("extensionRegistry handler", () => {
     const commands = loadExtensionSdkCommands()
     expect(commands).toHaveLength(1)
     expect(commands[0].id).toBe("extension:ext-1:reg:__ext-group")
+  })
+
+  it("the disable palette command drops all peer trees (FEAT-01)", async () => {
+    await enable()
+    await addPendingPeer({ extId: "ext-1", name: "Widget", announcedAt: 1 })
+    await approvePeer("ext-1")
+    await handleExternalMessage(register("r1"), "ext-1")
+    expect(loadExtensionSdkCommands()).toHaveLength(1)
+
+    const disable = extensionRegistryCommands().find(
+      (c) => c.id === "external-extensions-disable",
+    )
+    expect(disable?.type).toBe("action")
+    await (disable as { execute: () => Promise<void> }).execute()
+
+    expect(getAllExtensionEntries()).toHaveLength(0)
+    expect(loadExtensionSdkCommands()).toHaveLength(0)
   })
 
   it("dispose clears a peer's registered commands", async () => {

@@ -6,6 +6,7 @@
 // handlers and tests keep one import surface.
 import { z } from "zod"
 import { AutomationDraftSchema } from "./automationValidation"
+import type { Message } from "./messaging"
 import { PickedElementSchema } from "./picker"
 import { SiteSdkRegistrationsSchema } from "./siteSdk"
 import { WorkflowSchema } from "./workflowValidation"
@@ -454,3 +455,14 @@ export function createMessageValidator<T extends z.ZodSchema>(schema: T) {
 // Export validated message types (for type safety in handlers)
 export type ValidatedMessage = z.infer<typeof MessageSchema>
 export type ValidatedBrowserContext = z.infer<typeof BrowserContextSchema>
+
+// Compile-time twin check: the hand-written wire contract (Message) and the
+// Zod-inferred union (ValidatedMessage) must stay member-for-member
+// interchangeable. Adding a variant to only one side fails one of these.
+type AssertTrue<T extends true> = T
+export type _MessageCoversSchema = AssertTrue<
+  [ValidatedMessage] extends [Message] ? true : false
+>
+export type _SchemaCoversMessage = AssertTrue<
+  [Message] extends [ValidatedMessage] ? true : false
+>

@@ -3,12 +3,13 @@ import type {
   AddSnippetResponse,
   DeleteSnippetResponse,
   GetSnippetsResponse,
+  OutboundMessage,
   Snippet,
   UpdateSnippetResponse,
 } from "../../../shared/types"
 
 type SnippetsThunkApi = {
-  sendMessage: (message: unknown) => Promise<unknown>
+  sendMessage: (message: OutboundMessage) => Promise<unknown>
 }
 
 type SnippetsState = {

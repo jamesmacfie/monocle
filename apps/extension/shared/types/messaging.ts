@@ -457,3 +457,10 @@ export type Message =
 
 // Alternative naming (for future migration)
 export type BackgroundMessage = Message
+
+// Send-side variant: the transports (useSendMessage, createPaletteSendMessage)
+// stamp `context` themselves, so senders provide everything but it.
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
+  ? Omit<T, K>
+  : never
+export type OutboundMessage = DistributiveOmit<Message, "context">

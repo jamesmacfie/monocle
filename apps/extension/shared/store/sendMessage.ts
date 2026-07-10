@@ -1,3 +1,4 @@
+import type { OutboundMessage } from "../types/messaging"
 import { sendRuntimeMessage } from "../utils/extension-api"
 
 // Shared background-messaging factory for palette stores (options, new tab, and
@@ -9,7 +10,7 @@ import { sendRuntimeMessage } from "../utils/extension-api"
 export const createPaletteSendMessage = (
   extraContext: Record<string, unknown> = {},
 ) => {
-  return (message: any) => {
+  return (message: OutboundMessage): Promise<unknown> => {
     const context = {
       title: document.title,
       url: window.location.href,

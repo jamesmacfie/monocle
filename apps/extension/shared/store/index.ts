@@ -1,4 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit"
+import type { OutboundMessage } from "../types/messaging"
 import automationsSlice from "./slices/automations.slice"
 import { commandPaletteStateSlice } from "./slices/commandPaletteState.slice"
 import featuresSlice from "./slices/features.slice"
@@ -10,12 +11,12 @@ import snippetsSlice from "./slices/snippets.slice"
 
 // Define extra argument type for thunks
 export interface ThunkApi {
-  sendMessage: (message: any) => Promise<any>
+  sendMessage: (message: OutboundMessage) => Promise<unknown>
 }
 
 // Store factory for the entire app (including settings)
 export const createAppStore = (
-  sendMessage?: (message: any) => Promise<any>,
+  sendMessage?: (message: OutboundMessage) => Promise<unknown>,
 ) => {
   return configureStore({
     reducer: {
