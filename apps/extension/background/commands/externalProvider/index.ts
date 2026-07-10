@@ -10,6 +10,7 @@ import type {
   ExternalCommand,
   ExternalRegistration,
 } from "../../../shared/types"
+import { validateExternalCommandList } from "../../../shared/types"
 import { convertCommands } from "./convert"
 import { toInternalCommandId } from "./ids"
 import type { ExternalProviderAdapter } from "./types"
@@ -20,6 +21,19 @@ export type {
   ExternalProviderAdapter,
   OwnerGroupMeta,
 } from "./types"
+
+/** Re-validates untrusted callback output as already-nested commands. */
+export const validateCallbackCommands = (
+  commands: unknown,
+): ExternalCommand[] => {
+  const validation = validateExternalCommandList(commands, {
+    allowPlacement: false,
+  })
+  if (!validation.success) {
+    throw new Error(validation.error)
+  }
+  return validation.commands
+}
 
 const createOwnerGroupCommand = <TEntry>(
   adapter: ExternalProviderAdapter<TEntry>,

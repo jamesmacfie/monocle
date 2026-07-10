@@ -3,6 +3,7 @@ import { Provider } from "react-redux"
 import { Redirect, Route, Router, Switch } from "wouter"
 import { useHashLocation } from "wouter/use-hash-location"
 import { ToastContainer } from "../shared/components/ToastContainer"
+import { useDocumentTheme } from "../shared/hooks/useDocumentTheme"
 import { createAppStore } from "../shared/store"
 import { useAppDispatch, useAppSelector } from "../shared/store/hooks"
 import { createPaletteSendMessage } from "../shared/store/sendMessage"
@@ -15,10 +16,6 @@ import {
 import { loadSettingsCatalog } from "../shared/store/slices/settingsCatalog.slice"
 import { loadSnippets } from "../shared/store/slices/snippets.slice"
 import { getBrowserAPI } from "../shared/utils/extension-api"
-import {
-  applyThemeToDocument,
-  setupSystemThemeListener,
-} from "../shared/utils/theme"
 import { OptionsShell } from "./components/OptionsShell"
 import { TooltipProvider } from "./components/ui"
 import { AboutPage } from "./pages/AboutPage"
@@ -49,15 +46,7 @@ function OptionsAppContent() {
     dispatch(loadFeatures())
   }, [dispatch])
 
-  useEffect(() => {
-    applyThemeToDocument(themeMode)
-  }, [themeMode])
-
-  useEffect(() => {
-    if (themeMode === "system") {
-      return setupSystemThemeListener(() => applyThemeToDocument(themeMode))
-    }
-  }, [themeMode])
+  useDocumentTheme(themeMode)
 
   useEffect(() => {
     const handleStorageChange = (

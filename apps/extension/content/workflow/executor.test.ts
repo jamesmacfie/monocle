@@ -9,7 +9,77 @@ const runWorkflow = (workflow: Workflow) => {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
+})
+
+describe("WorkflowExecutor retry policy", () => {
+  it("retries until success and stops after the final failure", async () => {
+    const executor = new WorkflowExecutor()
+    const executeStep = vi
+      .spyOn(
+        executor as unknown as { executeStep: () => Promise<unknown> },
+        "executeStep",
+      )
+      .mockResolvedValueOnce({ success: false, error: "first" })
+      .mockResolvedValueOnce({ success: true })
+
+    await expect(
+      executor.executeWorkflow({
+        version: "1.0",
+        steps: [{ op: "wait", for: { timeMs: 0 }, retry: { retries: 2 } }],
+      }),
+    ).resolves.toMatchObject({ success: true })
+    expect(executeStep).toHaveBeenCalledTimes(2)
+
+    executeStep.mockReset().mockResolvedValue({
+      success: false,
+      error: "still failing",
+    })
+    await expect(
+      executor.executeWorkflow({
+        version: "1.0",
+        steps: [{ op: "wait", for: { timeMs: 0 }, retry: { retries: 2 } }],
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("still failing"),
+    })
+    expect(executeStep).toHaveBeenCalledTimes(3)
+  })
+
+  it("doubles exponential retry delays", async () => {
+    vi.useFakeTimers()
+    const executor = new WorkflowExecutor()
+    const executeStep = vi
+      .spyOn(
+        executor as unknown as { executeStep: () => Promise<unknown> },
+        "executeStep",
+      )
+      .mockResolvedValueOnce({ success: false, error: "first" })
+      .mockResolvedValueOnce({ success: false, error: "second" })
+      .mockResolvedValueOnce({ success: true })
+
+    const promise = executor.executeWorkflow({
+      version: "1.0",
+      steps: [
+        {
+          op: "wait",
+          for: { timeMs: 0 },
+          retry: { retries: 2, delayMs: 100, backoff: "exponential" },
+        },
+      ],
+    })
+    await Promise.resolve()
+    expect(executeStep).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(executeStep).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(199)
+    expect(executeStep).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+    await expect(promise).resolves.toMatchObject({ success: true })
+    expect(executeStep).toHaveBeenCalledTimes(3)
+  })
 })
 
 describe("WorkflowExecutor selectors and targeting", () => {

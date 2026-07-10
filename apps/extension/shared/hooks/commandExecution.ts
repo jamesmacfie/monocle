@@ -1,9 +1,12 @@
-// Architecture: shared/ pure helpers that translate a selected Suggestion +
-// current navigation Page into the arguments for the execute-command flow.
-// Kept side-effect-free (no messaging, no Redux) so they're unit-testable and
-// shared by useCommandNavigation across both palette modes. See
-// docs/execution-and-actions.md.
-import type { CommandExecutionScope, Suggestion } from "../../shared/types"
+// Architecture: shared palette command execution. Pure helpers translate a
+// selected Suggestion + navigation Page into an execution request; the shared
+// hook owns the send/refresh/close lifecycle used by both palette shells.
+import { useCallback } from "react"
+import type {
+  CommandExecutionScope,
+  ExecuteCommandMessage,
+  Suggestion,
+} from "../../shared/types"
 import { getDisplayName } from "../components/Command/CommandName"
 import type { Page } from "../store/slices/navigation.slice"
 
@@ -13,6 +16,79 @@ export type CommandExecutionRequest = {
   shouldNavigateBack: boolean
   parentNames?: string[]
   executionScope?: CommandExecutionScope
+}
+
+export type ExecuteCommandMessageWithoutContext = Omit<
+  ExecuteCommandMessage,
+  "context"
+>
+
+export function useExecuteCommand(options: {
+  sendMessage: (
+    message: ExecuteCommandMessageWithoutContext,
+  ) => Promise<{ success?: boolean } | undefined>
+  refreshCommands: () => Promise<unknown> | unknown
+  onClose?: () => void
+  alwaysRefreshAfterSuccess?: boolean
+  logPrefix: string
+}): (
+  id: string,
+  formValues: Record<string, string | string[]>,
+  navigateBack?: boolean,
+  parentNames?: string[],
+  executionScope?: CommandExecutionScope,
+) => Promise<void> {
+  const {
+    sendMessage,
+    refreshCommands,
+    onClose,
+    alwaysRefreshAfterSuccess = false,
+    logPrefix,
+  } = options
+
+  return useCallback(
+    async (
+      id,
+      formValues,
+      navigateBack = true,
+      parentNames,
+      executionScope,
+    ) => {
+      try {
+        const response = await sendMessage({
+          type: "monocle-command-execute",
+          id,
+          formValues,
+          parentNames,
+          executionScope,
+        })
+
+        if (!response?.success) {
+          return
+        }
+
+        if (
+          alwaysRefreshAfterSuccess ||
+          shouldRefreshCommandsAfterExecution(navigateBack)
+        ) {
+          await refreshCommands()
+        }
+
+        if (navigateBack) {
+          onClose?.()
+        }
+      } catch (error) {
+        console.error(`[${logPrefix}] Error sending execute message:`, error)
+      }
+    },
+    [
+      alwaysRefreshAfterSuccess,
+      logPrefix,
+      onClose,
+      refreshCommands,
+      sendMessage,
+    ],
+  )
 }
 
 /**

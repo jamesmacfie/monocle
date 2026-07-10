@@ -75,7 +75,13 @@ export const validateFeatureAutomations = (
 export const getFeatureAutomations = async (): Promise<Automation[]> => {
   const projected: Automation[] = []
   for (const feature of features) {
-    if (!feature.automations || !feature.settings) {
+    if (!feature.automations) {
+      continue
+    }
+    if (!feature.settings) {
+      console.error(
+        `[features] "${feature.id}" declares automations but no settings (defaults are required to project config); skipping`,
+      )
       continue
     }
     try {

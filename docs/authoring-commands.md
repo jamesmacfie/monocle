@@ -27,7 +27,7 @@ For the underlying contracts see [command-schema.md](./command-schema.md) (every
 | `websites` | `websites/` + site SDK | `websiteCommands` (plus `loadSiteSdkCommands`) | Contextual commands scoped to a specific site via `urlRules` (GitHub prototype), plus page-owned site-SDK wrappers. | Always (visibility gated by `urlRules`) |
 | `new-tab` | `newTab/` | `newTabCommands` | Commands that only make sense on the new-tab page (clock visibility). | New-tab context only |
 | `favorites` | inline in `source.ts` | `clearFavoritesCommand` | One-off favorites management; not an author-extensible folder. | Always |
-| `automations` | `background/automations/` | `automationCommands` | Generated palette commands for automation automations (`automation-<uuid>`). Authored as automation documents, not hand-written nodes. See [automations.md](./automations.md). | Always |
+| `automations` | `background/automations/` | `automationCommands` | Generated palette commands for automations (`automation-<uuid>`). Authored as automation documents, not hand-written nodes. See [automations.md](./automations.md). | Always |
 | `features` | `background/features/` | `getFeatureCommands(context)` | Commands contributed by feature modules (e.g. Focus Mode). Authored by registering a `FeatureModule`, not by adding a node here. See [features.md](./features.md). | Always (context-dependent per feature) |
 
 Notes:
@@ -103,6 +103,7 @@ const entries: LoadedCommandEntry[] = [
   ...mapCommandsToEntries(getFeatureCommands(context), categories.features),
   ...mapCommandsToEntries([clearFavoritesCommand], categories.favorites),
   ...mapCommandsToEntries(extensionsCommands, categories.extensions),
+  ...mapCommandsToEntries(loadExtensionSdkCommands(), categories.extensions),
 ]
 if (context?.isNewTab) entries.push(...mapCommandsToEntries(newTabCommands, categories.newTab))
 if (platform === "firefox") entries.push(...mapCommandsToEntries(firefoxCommands, categories.browser))
@@ -111,7 +112,7 @@ return entries.filter(({ command }) => supportsPlatform(command, platform))
 
 Key facts:
 
-- All nine categories are wired here: `websites` (site-SDK wrappers + `websiteCommands`), `browser`, `tools`, `ui`, `automations` (`automationCommands`), `features` (`getFeatureCommands(context)`), `favorites` (`clearFavoritesCommand`), `extensions` (`extensionsCommands`), and conditionally `new-tab`. If you add a brand-new folder, you must add its `mapCommandsToEntries` line here too.
+- All nine categories are wired here: `websites` (site-SDK wrappers + `websiteCommands`), `browser`, `tools`, `ui`, `automations` (`automationCommands`), `features` (`getFeatureCommands(context)`), `favorites` (`clearFavoritesCommand`), `extensions` (`extensionsCommands`, plus peer-extension commands from `loadExtensionSdkCommands()` — durable, context-free, served from the warmed registry cache), and conditionally `new-tab`. If you add a brand-new folder, you must add its `mapCommandsToEntries` line here too.
 - `automations` commands come from `background/automations/commands.ts` and `features` commands from `background/features/` — they are contributed by those subsystems, not authored as files under `background/commands/`.
 - `newTabCommands` are only loaded when `context.isNewTab` is true.
 - `firefoxCommands` are only loaded on the Firefox platform, and the final `supportsPlatform` filter additionally drops any command whose `supportedBrowsers` excludes the active platform.

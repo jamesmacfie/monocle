@@ -218,8 +218,10 @@ the extension's options page and the caller app.
 
 - Never see or store the bearer token in cleartext beyond passing the
   `Authorization` header through to the extension.
-- Never make a pairing decision or show the code (the extension shows the modal;
-  the caller types it back).
+- Never make a pairing decision or verify the code (the app displays the code
+  returned by `pair/request`; the human types it on the browser's Integrations
+  page — Direction B, see
+  [authentication-and-security.md](./authentication-and-security.md)).
 - Never call Monocle command logic. If the protocol grows, the app needs **no**
   change unless transport framing changes.
 

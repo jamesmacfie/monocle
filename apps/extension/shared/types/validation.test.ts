@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { validateBrowserContext, validateMessage } from "./validation"
+import { validateMessage } from "./validation"
 
 const context = {
   url: "https://example.com/page",
@@ -8,23 +8,6 @@ const context = {
 }
 
 describe("browser context validation", () => {
-  it("allows untitled browser pages while still requiring a URL", () => {
-    expect(
-      validateBrowserContext({
-        url: "https://example.com/untitled",
-        title: "",
-        modifierKey: null,
-      }).success,
-    ).toBe(true)
-    expect(
-      validateBrowserContext({
-        url: "",
-        title: "",
-        modifierKey: null,
-      }).success,
-    ).toBe(false)
-  })
-
   it("accepts new-tab contexts with empty titles", () => {
     expect(
       validateMessage({
@@ -156,6 +139,25 @@ describe("settings catalog schema validation", () => {
         favorite: true,
       }).success,
     ).toBe(false)
+  })
+
+  it("validates partial settings patches and named theme modes", () => {
+    expect(
+      validateMessage({
+        type: "monocle-settings-update",
+        theme: { mode: "catppuccin-mocha" },
+        context: { browser: "chrome", context: "content" },
+      }).success,
+    ).toBe(true)
+    expect(
+      validateMessage({
+        type: "monocle-settings-update",
+        newTab: { clock: { show: false } },
+      }).success,
+    ).toBe(true)
+    expect(validateMessage({ type: "monocle-settings-update" }).success).toBe(
+      false,
+    )
   })
 })
 

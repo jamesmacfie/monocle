@@ -48,16 +48,18 @@ Consequence of the URL-free build: command sources whose `children()` depend on 
 
 `initializeSearchIndexInvalidation()` (called from `background/index.ts`, alongside `warmSearchIndex()` which pre-builds at service-worker startup) wires `invalidateSearchIndex()` to:
 
-- `tabs.onCreated/onRemoved/onUpdated/onActivated`
+- `tabs.onCreated/onRemoved`, and `tabs.onUpdated` only when the change carries a `url` or `title` (loading-status and favicon churn never invalidate). There is deliberately **no** `tabs.onActivated` listener: switching tabs changes neither the tab set nor any match text; the open-tabs rows' active-tab highlight is frozen at build time and bounded by the TTL.
 - `history.onVisited/onVisitRemoved`
 - `bookmarks.onCreated/onRemoved/onChanged/onMoved`
 - `sessions.onChanged`
 - `permissions.onAdded/onRemoved`
 - `storage.onChanged` for the `monocle-settings` and `monocle-favoriteCommandIds` keys (this covers settings and favorites mutations without import cycles — both write `chrome.storage.local`, and `storage.onChanged` fires for same-context writes)
 
+Browser-data events (tabs/history/bookmarks/sessions) invalidate with `retainStale: true`: the outgoing index is kept as a **stale-while-revalidate** snapshot, so the query that triggers the rebuild is answered immediately from slightly stale data (bounded by `STALE_SERVE_LIMIT_MS`, 4× the index TTL) while the rebuild finishes in the background. Permission, settings, and favorites invalidations drop the snapshot outright — hiding a command or denying a domain takes effect on the very next query.
+
 Hidden and URL-rule writes also invalidate the index directly from their message handlers; the storage listener is the backstop for external or same-key updates.
 
-A `monocle-commandUsage` write does **not** rebuild the index; it only clears the lighter usage-rank cache (below), since usage affects ranking, not membership. `invalidateSearchIndex()` also drops the memoized URL-filtered view. Every listener is existence-guarded (`api.x?.onY?.addListener`) for Firefox.
+A `monocle-commandUsage` write does **not** rebuild the index; it only clears the lighter usage-rank cache (below), since usage affects ranking, not membership. `invalidateSearchIndex()` also drops the memoized URL-filtered view and the child-page cache. Every listener is existence-guarded (`api.x?.onY?.addListener`) for Firefox.
 
 ## Scoring
 
@@ -86,7 +88,7 @@ Ties break: favorites first → lower usage rank → shorter name → id. Zero-s
 `background/messages/searchCommands.ts`:
 
 - **Root** (`parentPath` empty/undefined): scores the URL-filtered index entries (`getVisibleEntries`). An empty root query returns `[]` (the root empty state is `monocle-commands-get`' job).
-- **Child pages**: builds ephemeral entries from `getCommandPageCommands(context, parentPath)` (already URL-filtered) and runs the same scorer. An empty child query returns all children in load order.
+- **Child pages**: builds ephemeral entries from the page's children and runs the same scorer. The fetched page and its entries are cached per context + URL + `parentPath` for a short TTL (`getChildPageSearchData`, 15 s, max 8 pages) so one typing burst refetches children once, not per keystroke. Every `invalidateSearchIndex()` clears this cache, and child pages never serve stale. An empty child query returns all children in load order.
 - Top-N (default 40, capped 200) entries are converted via batched `commandsToSuggestions` calls (grouped by inherited-permission set), and deep-search results are stamped with `rankWeight`.
 - The response echoes `seq` and `query` so the UI can drop stale/out-of-order responses.
 
@@ -159,7 +161,7 @@ Child pages do not inherit favorites — `navigateToCommand` sets `favorites: []
 
 ## Deep search
 
-Deep search lets descendants of opted-in groups appear in **root** search results without navigating into the group. The flatten lives in the index build (`background/commands/searchIndex.ts`).
+Deep search lets descendants of opted-in groups appear in **root** search results without navigating into the group. The flatten lives in the pure index build (`background/commands/searchIndexBuild.ts`).
 
 ### Opting in
 
@@ -223,7 +225,7 @@ Each navigation page (`Page` in `navigation.slice.ts`) stores its own `searchVal
 - **Debounced search dispatch** — a `useEffect` in `useCommandNavigation.tsx` keyed on the Redux `searchValue` dispatches `searchCurrentPage` after ~200 ms for non-empty queries on non-dynamic, non-form pages. A `useRef` seq counter tags each request.
 - **Staleness guards** — `searchCurrentPage.fulfilled` applies results only when the page id matches, the echoed `seq` is not older than the last applied one, and the echoed `query` still equals the page's current `searchValue` (mirrors the `refreshRequest` guard used by dynamic pages).
 - **Navigating into a child** always starts with `searchValue: ""` (in `navigateToCommand`) so all children show.
-- **Navigating back** restores the previous page's `searchValue`, done imperatively in `useCommandNavigation.tsx`: it writes `inputElement.value` directly on the `input[cmdk-input]` DOM node and dispatches a synthetic input event, guarded by an `ignoreSearchUpdate` ref so the restore is not re-saved as a user edit. Because the search dispatch is keyed on the *Redux* value, the DOM poke alone cannot trigger a spurious search — but this DOM sync remains **fragile**: any change to Escape/Backspace/back-navigation/search-restoration must be manually regression-tested in both palette modes.
+- **Navigating back** restores the previous page's `searchValue` from the Redux page stack. `CommandPalette` controls the CMDK input directly from the current page value, so changing pages restores the value through React state without writing to the DOM or dispatching a synthetic input event. Escape/Backspace/back-navigation/search-restoration changes still require regression checks in both palette modes because they share this page-stack contract.
 
 ## Authoring guidance
 

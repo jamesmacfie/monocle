@@ -13,6 +13,7 @@ import type {
   GetPermissionsMessage,
   GetSettingsCatalogMessage,
   GetSnippetsMessage,
+  GetUnsplashBackgroundMessage,
   OpenPermissionGrantPageMessage,
   RequestPermissionMessage,
   SearchCommandsMessage,
@@ -22,6 +23,7 @@ import type {
   UpdateSnippetMessage,
 } from "../../shared/types"
 import { sendRuntimeMessage } from "../utils/extension-api"
+import { useMessageContext } from "./MessageContext"
 import { useIsModifierKeyPressed } from "./useIsModifierKeyPressed"
 
 // Messages without context for easier usage
@@ -41,6 +43,10 @@ type GetKeybindingStateMessageWithoutContext = Omit<
 >
 type SearchCommandsMessageWithoutContext = Omit<
   SearchCommandsMessage,
+  "context"
+>
+type GetUnsplashBackgroundMessageWithoutContext = Omit<
+  GetUnsplashBackgroundMessage,
   "context"
 >
 
@@ -64,9 +70,11 @@ type SendableMessage =
   | OpenPermissionGrantPageMessage
   | EnsureHostPermissionMessage
   | ShowToastMessage
+  | GetUnsplashBackgroundMessageWithoutContext
 
 export function useSendMessage() {
   const { modifier } = useIsModifierKeyPressed()
+  const ambientContext = useMessageContext()
   const modifierRef = React.useRef(modifier)
 
   React.useEffect(() => {
@@ -85,7 +93,7 @@ export function useSendMessage() {
       }
 
       // Merge base context with any overrides
-      const context = { ...baseContext, ...contextOverride }
+      const context = { ...baseContext, ...ambientContext, ...contextOverride }
 
       // Add context to messages that require it (not GetPermissionsMessage or RequestPermissionMessage)
       const messageWithContext =
@@ -98,6 +106,6 @@ export function useSendMessage() {
 
       return sendRuntimeMessage(messageWithContext)
     },
-    [],
+    [ambientContext],
   )
 }

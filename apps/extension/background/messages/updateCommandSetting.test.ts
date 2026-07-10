@@ -217,7 +217,7 @@ describe("updateCommandSetting message handler", () => {
         },
         context: normalContext,
       }),
-    ).rejects.toThrow("Invalid pattern")
+    ).rejects.toThrow("Invalid allowUrls pattern")
   })
 
   it("persists hidden true, prunes hidden false, and preserves sibling settings", async () => {

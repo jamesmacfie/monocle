@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { validateContentMessage } from "../../types/contentMessageValidation"
+import { getBrowserAPI } from "../../utils/extension-api"
 
 const getLineScrollAmount = () => {
   const computed = window.getComputedStyle(document.documentElement)
@@ -27,6 +28,7 @@ const getScrollDelta = (scrollEvent: {
 
 export default function ScrollListener() {
   useEffect(() => {
+    const runtime = getBrowserAPI().runtime
     const handleMessage = (
       message: any,
       _sender: chrome.runtime.MessageSender,
@@ -76,10 +78,10 @@ export default function ScrollListener() {
       }
     }
 
-    chrome.runtime.onMessage.addListener(handleMessage)
+    runtime.onMessage.addListener(handleMessage)
 
     return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage)
+      runtime.onMessage.removeListener(handleMessage)
     }
   }, [])
 

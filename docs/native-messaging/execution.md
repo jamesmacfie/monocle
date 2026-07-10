@@ -113,8 +113,9 @@ non-existent targets; and restricts non-manual (trigger) runs to a curated
 
 The bridge policy applies the same **baseline default-deny**:
 
-- `confirmAction: true` → denied (no in-browser confirmation path from the app;
-  see below).
+- `confirmAction: true` → denied **unless** the request carries
+  `confirmed: true` (the client confirmed with the user; see
+  [protocol.md](./protocol.md) `commands/execute`).
 - `automation-*` → denied (no recursion into automations).
 - debug / testing tools (`debug-workflow`) → denied.
 - missing required `permissions`, or `supportedBrowsers` not matching the running
@@ -208,10 +209,13 @@ approximate; the build pass annotates each command.)
 
 ## `confirmAction` and incognito
 
-- **`confirmAction` commands stay denied.** There is no way to surface and resolve
-  the confirmation from Raycast in v2. A future option is to route the
-  confirmation through a **surface modal** in the browser (the user confirms in
-  the browser before the command runs) — deferred.
+- **`confirmAction` commands require client-side confirmation.** The suggestion
+  carries `confirmAction: true`; the client must confirm with the user and send
+  `confirmed: true` on `commands/execute`, or the command is refused
+  (`forbidden`). This carries the palette's confirm contract across the bridge
+  (`runCommandPolicy.ts`, `executionMode: "bridge"`; Raycast implements it with
+  `confirmAlert` — see [../raycast/execution.md](../raycast/execution.md)). There
+  is no in-browser confirmation step.
 - **Incognito / private windows are excluded**, consistent with v1.
 
 ---

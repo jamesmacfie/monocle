@@ -1,7 +1,4 @@
-import type {
-  CommandUrlRulesSetting,
-  UpdateCommandSettingMessage,
-} from "../../shared/types"
+import type { UpdateCommandSettingMessage } from "../../shared/types"
 import { normalizeKeybinding } from "../../shared/utils/key-normalizer"
 import { validateKeybindingRequirements } from "../../shared/utils/keybinding-requirements"
 import {
@@ -12,27 +9,8 @@ import {
 } from "../commands/settingMutations"
 import { prepareSiteSdkCommandLoadOptions } from "../commands/siteSdk"
 import { resolveKeybindingAssignmentTarget } from "../keybindings/assignmentTarget"
-import { validateUrlPattern } from "../utils/urlFilter"
+import { validateUrlRulesValue } from "../utils/urlFilter"
 import { showToast } from "./showToast"
-
-const validateUrlRulesSetting = (urlRules: CommandUrlRulesSetting): void => {
-  for (const [field, patterns] of Object.entries(urlRules)) {
-    if (patterns === undefined) {
-      continue
-    }
-
-    if (!Array.isArray(patterns)) {
-      throw new Error(`${field} must be an array of URL patterns`)
-    }
-
-    for (const pattern of patterns) {
-      const validation = validateUrlPattern(pattern)
-      if (validation !== true) {
-        throw new Error(`Invalid pattern "${pattern}": ${validation}`)
-      }
-    }
-  }
-}
 
 export async function updateCommandSetting(
   message: UpdateCommandSettingMessage,
@@ -85,7 +63,10 @@ export async function updateCommandSetting(
   }
 
   if (setting === "urlRules") {
-    validateUrlRulesSetting(value)
+    const validation = validateUrlRulesValue(value)
+    if (!validation.valid) {
+      throw new Error(validation.error)
+    }
     await updateCommandUrlRulesAndInvalidate(commandId, value)
   }
 

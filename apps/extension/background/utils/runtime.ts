@@ -98,7 +98,6 @@ export function createCrossBrowserMessageHandler(
   messageHandler: (message: any, sender: any) => Promise<any>,
 ) {
   return (message: any, sender: any, sendResponse: any) => {
-    // Get the runtime API (Chrome or Firefox)
     const runtime = isFirefox ? browser.runtime : chrome.runtime
 
     // Enhanced sender validation

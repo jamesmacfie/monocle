@@ -133,6 +133,11 @@ const sendWorkflowMessageWithRetries = async (
   throw lastError
 }
 
+/**
+ * Resolves targets in trust order: caller-supplied tab id, sender tab,
+ * context-URL match, then active tab. An explicit id intentionally enables
+ * cross-tab workflows and is therefore trusted over sender-derived context.
+ */
 export const resolveWorkflowTargetTabId = async ({
   tabId,
   sender,
@@ -173,6 +178,11 @@ export const resolveWorkflowTargetTabId = async ({
   throw new Error("No workflow target tab found")
 }
 
+/**
+ * Validates and sends a workflow to the resolved tab. Delivery is tab-wide,
+ * not document/frame-scoped, so callers cannot pin execution across a
+ * navigation race; missing-content-script failures are retried only.
+ */
 export const executeWorkflowOnTargetTab = async ({
   workflow,
   context,

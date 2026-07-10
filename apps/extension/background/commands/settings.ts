@@ -1,3 +1,9 @@
+// Architecture: background settings persistence. Owns the canonical
+// `monocle-settings` document and all command/new-tab/theme reads and writes.
+// Mutations are serialized by the storage-key lock; UI callers cross the
+// message boundary rather than writing storage directly. Merge and prune
+// semantics live here so every writer observes one contract. See
+// docs/settings.md.
 import { merge } from "lodash-es"
 import type {
   CommandSettingKey,
@@ -115,7 +121,11 @@ export const getAllCommandSettings = async (): Promise<
   return settings.commands || {}
 }
 
-// Set settings for a specific command.
+/**
+ * Replaces a command's complete settings record under the settings lock.
+ * No fields from the prior record are retained; use updateCommandSettings for
+ * a partial update.
+ */
 // Every load→mutate→save cycle below runs inside withStorageLock(STORAGE_KEY)
 // so concurrent message handlers can't interleave and lose writes. The lock
 // is NOT re-entrant: delegating helpers (updateCommandUrlRules, the newTab
@@ -135,7 +145,12 @@ export const setCommandSettings = async (
     await saveSettings(settings)
   })
 
-// Update settings for a specific command (merging with existing)
+/**
+ * Merges a partial command record under the settings lock. Top-level fields
+ * are shallow-merged; `urlRules` is merged one level so an omitted allow/deny
+ * list is preserved, while a supplied list replaces that list. Empty/default
+ * fields are pruned before persistence.
+ */
 export const updateCommandSettings = async (
   commandId: string,
   partialSettings: Partial<CommandSettings>,

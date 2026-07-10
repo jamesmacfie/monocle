@@ -9,7 +9,6 @@ export const getPermissions = async (_message: GetPermissionsMessage) => {
     // Extract the permission names from the permissions array
     const permissions = currentPermissions.permissions || []
 
-    // Create the access object
     // Note: contextualIdentities is Firefox-specific and not available in Chrome
     const access = {
       activeTab: permissions.includes("activeTab"),

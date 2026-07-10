@@ -34,16 +34,6 @@ export function getDuckDuckGoFaviconUrl(url: string): string {
 }
 
 /**
- * Get favicon URL for a given website URL using privacy-preserving services
- * @param url The website URL to get favicon for
- * @returns Favicon URL from DuckDuckGo's service, or empty string if URL is invalid
- * @deprecated Use getFaviconIcon instead for better fallback logic
- */
-export function getFaviconUrl(url: string): string {
-  return getDuckDuckGoFaviconUrl(url)
-}
-
-/**
  * Get icon for a tab or bookmark with comprehensive fallback logic
  * @param options Configuration for favicon resolution
  * @returns Promise that resolves to a CommandIcon

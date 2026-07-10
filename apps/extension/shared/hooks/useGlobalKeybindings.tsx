@@ -19,7 +19,6 @@ import { useCallback, useEffect, useRef } from "react"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
 import { useAppSelector } from "../store/hooks"
 import { selectIsCapturing } from "../store/slices/keybinding.slice"
-import type { Browser } from "../types"
 import { UI_SEQUENCE_IDLE_TIMEOUT_MS } from "../utils/keybinding-timing"
 import { RobustKeyCapture } from "../utils/robust-key-capture"
 
@@ -37,7 +36,6 @@ type ExecuteKeybindingResponse = {
 }
 
 type GlobalKeybindingOptions = {
-  isNewTab?: boolean
   onOpenPaletteAtCommand?: (commandId: string) => void | Promise<void>
   // Extra refresh signal for keybinding sources that don't write
   // monocle-settings (e.g. site SDK registrations). Returns an unsubscribe.
@@ -95,20 +93,15 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
     }
   }, [])
 
-  const getContextOverride = useCallback((): Partial<Browser.Context> => {
-    return options.isNewTab ? { isNewTab: true } : {}
-  }, [options.isNewTab])
-
   // Pull the current handled-binding snapshot (exact strings + sequence
   // prefixes) from the background into the local refs the keydown path reads.
   // Called on mount, on monocle-settings changes, on external refresh signals,
   // and after any failed/unhandled dispatch so the snapshot self-heals.
   const refreshKeybindingState = useCallback(async () => {
     try {
-      const response = (await sendMessage(
-        { type: "monocle-keybinding-state-get" },
-        getContextOverride(),
-      )) as KeybindingStateResponse
+      const response = (await sendMessage({
+        type: "monocle-keybinding-state-get",
+      })) as KeybindingStateResponse
 
       exactKeybindingsRef.current = new Set(response.exactKeybindings ?? [])
       sequencePrefixesRef.current = new Set(response.sequencePrefixes ?? [])
@@ -117,7 +110,7 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
       exactKeybindingsRef.current = new Set()
       sequencePrefixesRef.current = new Set()
     }
-  }, [getContextOverride, sendMessage])
+  }, [sendMessage])
 
   const isKnownHandledSequence = useCallback((keybinding: string): boolean => {
     return (
@@ -231,13 +224,10 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
         }
 
         try {
-          const response = (await sendMessage(
-            {
-              type: "monocle-keybinding-execute",
-              keybinding: keyString,
-            },
-            getContextOverride(),
-          )) as ExecuteKeybindingResponse
+          const response = (await sendMessage({
+            type: "monocle-keybinding-execute",
+            keybinding: keyString,
+          })) as ExecuteKeybindingResponse
 
           if (response?.success) {
             if (response.openPaletteAtCommand) {
@@ -273,7 +263,6 @@ export function useGlobalKeybindings(options: GlobalKeybindingOptions = {}) {
       resetLocalSequence()
     }
   }, [
-    getContextOverride,
     isCapturing,
     options.onOpenPaletteAtCommand,
     refreshKeybindingState,

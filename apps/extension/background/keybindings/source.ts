@@ -10,7 +10,6 @@
 // re-insert a stale result. See docs/keybindings.md.
 import type {
   Browser,
-  BrowserPermission,
   CommandNode,
   CommandSettings,
   KeybindingBehavior,
@@ -19,15 +18,13 @@ import { getBrowserAPI } from "../../shared/utils/extension-api"
 import { getPlatform } from "../commands/platform"
 import {
   getFilteredRootCommands,
-  mergePermissions,
   normalizeContext,
   resolveCommandById,
 } from "../commands/query"
 import { getAllCommandSettings } from "../commands/settings"
 import type { CommandLoadOptions } from "../commands/source"
+import { walkCommandTree } from "../commands/traversal"
 import { resolveCommandName } from "../utils/commands"
-import { checkPermissions } from "../utils/permissions"
-import { filterCommandsByUrl } from "../utils/urlFilter"
 import { getKeybindingTargetMetadata } from "./targets"
 
 export type KeybindingCommandEntry = {
@@ -35,13 +32,6 @@ export type KeybindingCommandEntry = {
   name: string
   keybinding: string
   behavior: KeybindingBehavior
-}
-
-const hasRequiredPermissions = async (
-  permissions: BrowserPermission[],
-): Promise<boolean> => {
-  if (permissions.length === 0) return true
-  return (await checkPermissions(permissions)).hasAllPermissions
 }
 
 const addKeybindingEntry = async (
@@ -76,63 +66,20 @@ const collectDeepSearchEntries = async (
   commandSettings: Record<string, CommandSettings>,
   entries: KeybindingCommandEntry[],
   seenEntries: Set<string>,
-  inheritedDeepSearch = false,
-  inheritedPermissions: BrowserPermission[] = [],
 ): Promise<void> => {
-  for (const command of commands) {
-    await addKeybindingEntry(
-      entries,
-      seenEntries,
-      command,
-      context,
-      commandSettings,
-    )
-
-    if (command.type !== "group") {
-      continue
-    }
-
-    const enableFlag = command.enableDeepSearch
-    const shouldDeepSearch =
-      enableFlag === true || (inheritedDeepSearch && enableFlag !== false)
-
-    if (!shouldDeepSearch) {
-      continue
-    }
-
-    const permissions = mergePermissions(
-      inheritedPermissions,
-      command.permissions,
-    )
-
-    if (!(await hasRequiredPermissions(permissions))) {
-      continue
-    }
-
-    try {
-      const children = await command.children(context)
-      const filteredChildren = await filterCommandsByUrl(
-        children,
-        context.url || "",
-        commandSettings,
-      )
-
-      await collectDeepSearchEntries(
-        filteredChildren,
-        context,
-        commandSettings,
+  await walkCommandTree(commands, {
+    context,
+    commandSettings,
+    visit: ({ command }) =>
+      addKeybindingEntry(
         entries,
         seenEntries,
-        true,
-        permissions,
-      )
-    } catch (error) {
-      console.error(
-        `[KeybindingSource] Failed to load deep-search children for ${command.id}:`,
-        error,
-      )
-    }
-  }
+        command,
+        context,
+        commandSettings,
+      ),
+    shouldDescend: ({ deepSearchEnabled }) => deepSearchEnabled,
+  })
 }
 
 const collectCustomSettingEntries = async (

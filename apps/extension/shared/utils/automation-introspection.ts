@@ -1,4 +1,8 @@
-import type { AutomationCondition, AutomationStep } from "../types"
+import {
+  AUTOMATION_ENGINE_OPS,
+  type AutomationCondition,
+  type AutomationStep,
+} from "../types"
 import { collectTemplateReferences } from "./automation-template"
 
 export const collectConditionInterpolatableValues = (
@@ -71,19 +75,10 @@ export const walkAutomationSteps = (
   }
 }
 
-const BACKGROUND_ONLY_OPS = new Set<AutomationStep["op"]>([
-  "setVariable",
-  "toast",
-  "navigate",
-  "openUrl",
-  "clipboardWrite",
-  "runCommand",
-  "showSurface",
-  "hideSurface",
-  "branch",
-  "forEach",
-  "while",
-])
+// insertSnippet is engine-owned but types into the page, so it is excluded.
+const BACKGROUND_ONLY_OPS = new Set(
+  [...AUTOMATION_ENGINE_OPS].filter((op) => op !== "insertSnippet"),
+)
 
 export const automationTouchesPage = (steps: AutomationStep[]): boolean => {
   let touchesPage = false

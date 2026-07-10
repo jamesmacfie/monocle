@@ -1,8 +1,10 @@
 import { useEffect } from "react"
 import { validateContentMessage } from "../../types/contentMessageValidation"
+import { getBrowserAPI } from "../../utils/extension-api"
 
 export default function NewTabListener() {
   useEffect(() => {
+    const runtime = getBrowserAPI().runtime
     const handleMessage = (
       message: any,
       _sender: chrome.runtime.MessageSender,
@@ -27,10 +29,10 @@ export default function NewTabListener() {
       }
     }
 
-    chrome.runtime.onMessage.addListener(handleMessage)
+    runtime.onMessage.addListener(handleMessage)
 
     return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage)
+      runtime.onMessage.removeListener(handleMessage)
     }
   }, [])
 

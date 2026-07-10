@@ -134,9 +134,11 @@ detail and per-feature manual checklists.
 | Extension-to-Extension Commands | Working (review notes) | extension-extension — manual cross-extension smoke still needed |
 
 **Last verified validation:** `pnpm run tsc`, `pnpm run fmt:check`, `pnpm test`
-(703 tests, exit 0), `pnpm run build` (Chrome), and `pnpm run build:firefox` all
-pass. `apps/bridge`: `cargo test` (4 tests) and `pnpm run build:bridge` pass;
-daemon HTTP + UDS relay round-trip verified headless (`MONOCLE_BRIDGE_HEADLESS=1`).
+(793 tests, exit 0), `pnpm run build` (Chrome), and `pnpm run build:firefox` all
+pass. `apps/bridge`: `cargo test` (16 tests) and the release binary build
+(`tauri build --no-bundle`) pass; the current sandbox blocks the final DMG
+packaging script. Daemon HTTP + UDS relay round-trip was previously verified
+headless (`MONOCLE_BRIDGE_HEADLESS=1`).
 
 ## Core Data Flows
 

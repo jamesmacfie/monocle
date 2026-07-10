@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest"
+// @vitest-environment jsdom
+import { act, renderHook } from "@testing-library/react"
+import { describe, expect, it, vi } from "vitest"
 import type { Suggestion } from "../../shared/types"
 import type { Page } from "../store/slices/navigation.slice"
 import {
@@ -6,6 +8,7 @@ import {
   extractParentNames,
   getPageExecutionScope,
   shouldRefreshCommandsAfterExecution,
+  useExecuteCommand,
 } from "./commandExecution"
 
 const parent: Suggestion = {
@@ -82,5 +85,62 @@ describe("command execution request", () => {
   it("refreshes command data after commands that remain open", () => {
     expect(shouldRefreshCommandsAfterExecution(false)).toBe(true)
     expect(shouldRefreshCommandsAfterExecution(true)).toBe(false)
+  })
+})
+
+describe("useExecuteCommand", () => {
+  it("skips refresh when a successful command closes the overlay", async () => {
+    const sendMessage = vi.fn(async () => ({ success: true }))
+    const refreshCommands = vi.fn()
+    const onClose = vi.fn()
+    const { result } = renderHook(() =>
+      useExecuteCommand({
+        sendMessage,
+        refreshCommands,
+        onClose,
+        logPrefix: "TestPalette",
+      }),
+    )
+
+    await act(() => result.current("command", {}, true))
+
+    expect(refreshCommands).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it("refreshes every successful new-tab execution", async () => {
+    const sendMessage = vi.fn(async () => ({ success: true }))
+    const refreshCommands = vi.fn()
+    const { result } = renderHook(() =>
+      useExecuteCommand({
+        sendMessage,
+        refreshCommands,
+        alwaysRefreshAfterSuccess: true,
+        logPrefix: "TestPalette",
+      }),
+    )
+
+    await act(() => result.current("command", {}, true))
+
+    expect(refreshCommands).toHaveBeenCalledTimes(1)
+  })
+
+  it("closes only when navigateBack is true", async () => {
+    const sendMessage = vi.fn(async () => ({ success: true }))
+    const onClose = vi.fn()
+    const { result } = renderHook(() =>
+      useExecuteCommand({
+        sendMessage,
+        refreshCommands: vi.fn(),
+        onClose,
+        logPrefix: "TestPalette",
+      }),
+    )
+
+    await act(() => result.current("command", {}, false))
+    expect(onClose).not.toHaveBeenCalled()
+
+    await act(() => result.current("command", {}, true))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })

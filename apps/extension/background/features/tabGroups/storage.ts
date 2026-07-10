@@ -3,7 +3,7 @@
 // through the feature-config writer (replace-whole, serialized by
 // withStorageLock) and is re-validated against tabGroupsConfigSchema first, so
 // a malformed mutation never lands. See docs/features.md.
-import { getFeatureConfig, setFeatureConfig } from "../config"
+import { getFeatureConfig, updateFeatureConfig } from "../config"
 import {
   type SavedGroup,
   type SavedTab,
@@ -16,12 +16,12 @@ import {
 export const getTabGroupsConfig = async (): Promise<TabGroupsConfig> =>
   getFeatureConfig(TAB_GROUPS_FEATURE_ID, tabGroupsConfigDefaults)
 
-const writeTabGroupsConfig = async (config: TabGroupsConfig): Promise<void> => {
+const parseTabGroupsConfig = (config: TabGroupsConfig): TabGroupsConfig => {
   const parsed = tabGroupsConfigSchema.safeParse(config)
   if (!parsed.success) {
     throw new Error(`Invalid tab-groups config: ${parsed.error.message}`)
   }
-  await setFeatureConfig(TAB_GROUPS_FEATURE_ID, parsed.data)
+  return parsed.data
 }
 
 export const getSavedGroup = async (
@@ -32,11 +32,15 @@ export const getSavedGroup = async (
 }
 
 export const addSavedGroup = async (group: SavedGroup): Promise<void> => {
-  const config = await getTabGroupsConfig()
-  await writeTabGroupsConfig({
-    ...config,
-    savedGroups: [group, ...config.savedGroups],
-  })
+  await updateFeatureConfig(
+    TAB_GROUPS_FEATURE_ID,
+    tabGroupsConfigDefaults,
+    (config) =>
+      parseTabGroupsConfig({
+        ...config,
+        savedGroups: [group, ...config.savedGroups],
+      }),
+  )
 }
 
 export const renameSavedGroup = async (
@@ -44,21 +48,29 @@ export const renameSavedGroup = async (
   name: string,
   now: number,
 ): Promise<void> => {
-  const config = await getTabGroupsConfig()
-  await writeTabGroupsConfig({
-    ...config,
-    savedGroups: config.savedGroups.map((group) =>
-      group.id === id ? { ...group, name, updatedAt: now } : group,
-    ),
-  })
+  await updateFeatureConfig(
+    TAB_GROUPS_FEATURE_ID,
+    tabGroupsConfigDefaults,
+    (config) =>
+      parseTabGroupsConfig({
+        ...config,
+        savedGroups: config.savedGroups.map((group) =>
+          group.id === id ? { ...group, name, updatedAt: now } : group,
+        ),
+      }),
+  )
 }
 
 export const deleteSavedGroup = async (id: string): Promise<void> => {
-  const config = await getTabGroupsConfig()
-  await writeTabGroupsConfig({
-    ...config,
-    savedGroups: config.savedGroups.filter((group) => group.id !== id),
-  })
+  await updateFeatureConfig(
+    TAB_GROUPS_FEATURE_ID,
+    tabGroupsConfigDefaults,
+    (config) =>
+      parseTabGroupsConfig({
+        ...config,
+        savedGroups: config.savedGroups.filter((group) => group.id !== id),
+      }),
+  )
 }
 
 // Flip the `pinned` flag on one tab within a group (per-tab settings).
@@ -67,17 +79,21 @@ export const toggleSavedTabPin = async (
   tabId: string,
   now: number,
 ): Promise<void> => {
-  const config = await getTabGroupsConfig()
-  await writeTabGroupsConfig({
-    ...config,
-    savedGroups: config.savedGroups.map((group) => {
-      if (group.id !== groupId) {
-        return group
-      }
-      const tabs: SavedTab[] = group.tabs.map((tab) =>
-        tab.id === tabId ? { ...tab, pinned: !tab.pinned } : tab,
-      )
-      return { ...group, tabs, updatedAt: now }
-    }),
-  })
+  await updateFeatureConfig(
+    TAB_GROUPS_FEATURE_ID,
+    tabGroupsConfigDefaults,
+    (config) =>
+      parseTabGroupsConfig({
+        ...config,
+        savedGroups: config.savedGroups.map((group) => {
+          if (group.id !== groupId) {
+            return group
+          }
+          const tabs: SavedTab[] = group.tabs.map((tab) =>
+            tab.id === tabId ? { ...tab, pinned: !tab.pinned } : tab,
+          )
+          return { ...group, tabs, updatedAt: now }
+        }),
+      }),
+  )
 }

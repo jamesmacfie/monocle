@@ -1,6 +1,6 @@
-/**
- * Runtime message validation utilities with security hardening
- */
+// Architecture: background message validation orchestrator. Applies transport
+// rate/size guards, the shared Zod wire schema, then message-specific business
+// invariants before the exhaustive router dispatches.
 import {
   BROWSER_PERMISSIONS,
   type ValidatedMessage,
@@ -11,8 +11,9 @@ import {
   isValidKeybinding,
   normalizeKeybinding,
 } from "../../shared/utils/key-normalizer"
-import { createMessageHandler } from "./messages"
-import { validateUrlPattern } from "./urlFilter"
+import { isRateLimited } from "./rateLimit"
+import { exceedsMessageLimits } from "./sizeGuards"
+import { validateUrlRulesValue } from "./urlFilter"
 
 // Command ids are internal lookup keys (never interpolated into a DOM/eval/query
 // sink), so the charset is an injection guard, not an escaping mechanism. Beyond
@@ -29,92 +30,10 @@ const isValidCommandId = (id: string): boolean =>
   id.length <= COMMAND_ID_MAX_LENGTH &&
   COMMAND_ID_PATTERN.test(id)
 
-// Rate limiting for message validation (prevent spam/abuse)
-const validationRateLimit = new Map<
-  string,
-  { count: number; resetTime: number }
->()
-const RATE_LIMIT_WINDOW = 60000 // 1 minute
-const RATE_LIMIT_MAX = 1000 // max messages per minute per sender
-
-// Message size limits (prevent memory exhaustion)
-const MAX_MESSAGE_SIZE = 1024 * 1024 // 1MB
-// Must be >= the largest schema-allowed string field (SnippetBodySchema, 100_000).
-const MAX_STRING_LENGTH = 100_000 // Max length for individual string fields
-
-/**
- * Rate limiting check for message validation
- * @param senderId - Unique sender identifier
- * @returns true if rate limit exceeded
- */
-function isRateLimited(senderId: string): boolean {
-  const now = Date.now()
-  const key = senderId || "unknown"
-
-  const entry = validationRateLimit.get(key)
-  if (!entry || now > entry.resetTime) {
-    validationRateLimit.set(key, {
-      count: 1,
-      resetTime: now + RATE_LIMIT_WINDOW,
-    })
-    return false
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return true
-  }
-
-  entry.count++
-  return false
-}
-
-/**
- * Check message size to prevent memory exhaustion
- * @param message - Message to check
- * @returns true if message exceeds size limits
- */
-function exceedsMessageLimits(message: unknown): boolean {
-  try {
-    const messageStr = JSON.stringify(message)
-    if (messageStr.length > MAX_MESSAGE_SIZE) {
-      return true
-    }
-
-    // Check individual string fields for excessive length
-    if (typeof message === "object" && message !== null) {
-      const checkStrings = (obj: any, depth = 0): boolean => {
-        if (depth > 10) return false // Prevent deep recursion
-
-        for (const value of Object.values(obj)) {
-          if (typeof value === "string" && value.length > MAX_STRING_LENGTH) {
-            return true
-          }
-          if (typeof value === "object" && value !== null) {
-            if (checkStrings(value, depth + 1)) return true
-          }
-        }
-        return false
-      }
-
-      return checkStrings(message)
-    }
-
-    return false
-  } catch {
-    return true // Treat serialization errors as size exceeded
-  }
-}
-
-/**
- * Enhanced sender validation with additional security checks
- * @param sender - Message sender information
- * @param message - The message being validated
- * @returns Validation result with security context
- */
-export function validateSender(
+const validateTransport = (
   sender: any,
   message: unknown,
-): { valid: boolean; error?: string; senderId: string } {
+): { valid: boolean; error?: string; senderId: string } => {
   const senderId = sender?.id || sender?.url || "unknown"
 
   // Rate limiting check
@@ -146,7 +65,7 @@ export function validateIncomingMessage(
   sender: any,
 ): ValidationResult<ValidatedMessage> & { senderId?: string } {
   // First validate sender and basic security constraints
-  const senderValidation = validateSender(sender, rawMessage)
+  const senderValidation = validateTransport(sender, rawMessage)
   if (!senderValidation.valid) {
     return {
       success: false,
@@ -262,24 +181,9 @@ function validateBusinessLogic(message: ValidatedMessage): {
         break
       }
 
-      for (const [field, patterns] of Object.entries(message.value)) {
-        if (patterns === undefined) {
-          continue
-        }
-
-        if (!Array.isArray(patterns)) {
-          return { valid: false, error: `${field} must be an array` }
-        }
-
-        for (const pattern of patterns) {
-          const validation = validateUrlPattern(pattern)
-          if (validation !== true) {
-            return {
-              valid: false,
-              error: `Invalid ${field} pattern "${pattern}": ${validation}`,
-            }
-          }
-        }
+      const urlRulesValidation = validateUrlRulesValue(message.value)
+      if (!urlRulesValidation.valid) {
+        return urlRulesValidation
       }
       break
     }
@@ -335,47 +239,3 @@ function validateBusinessLogic(message: ValidatedMessage): {
 
   return { valid: true }
 }
-
-/**
- * Creates a validated message handler that combines validation with error handling
- * @param handler - The message handler function that expects validated messages
- * @param handlerName - Name for logging/debugging
- * @returns Wrapped handler with validation and error handling
- */
-export function createValidatedMessageHandler<T extends ValidatedMessage, R>(
-  handler: (message: T, sender?: any) => Promise<R>,
-  handlerName: string,
-) {
-  return createMessageHandler(async (rawMessage: unknown, sender?: any) => {
-    const validation = validateIncomingMessage(rawMessage, sender)
-
-    if (!validation.success) {
-      // Log validation failures with context for security monitoring
-      console.error(`[${handlerName}] Message validation failed:`, {
-        error: validation.error,
-        issues: validation.issues,
-        sender: validation.senderId,
-        messageType: (rawMessage as any)?.type || "unknown",
-      })
-
-      throw new Error(`Invalid message: ${validation.error}`)
-    }
-
-    return await handler(validation.data as T, sender)
-  }, `${handlerName} validation error`)
-}
-
-/**
- * Cleans up rate limiting data (call periodically to prevent memory leaks)
- */
-export function cleanupValidationData(): void {
-  const now = Date.now()
-  for (const [key, entry] of validationRateLimit.entries()) {
-    if (now > entry.resetTime) {
-      validationRateLimit.delete(key)
-    }
-  }
-}
-
-// Clean up validation data every 5 minutes
-setInterval(cleanupValidationData, 5 * 60 * 1000)

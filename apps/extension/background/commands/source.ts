@@ -1,6 +1,6 @@
 // Architecture: background command system. Command loading and category
 // registration — the single seam where command sources (browser, tools, UI,
-// websites, site SDK wrappers, automations/automations, new-tab, Firefox)
+// websites, site SDK wrappers, automations, new-tab, Firefox)
 // are assembled into the platform-filtered command list consumed by
 // query.ts, the search index, the settings catalog, and the keybinding
 // registry. Adding a category means registering it here.

@@ -1,17 +1,10 @@
 import * as React from "react"
-import type { CommandExecutionScope } from "../../shared/types"
 
 const { useEffect, useCallback } = React
 
 import { CommandPalette } from "../../shared/components/Command"
-import CopyPageAsMarkdownListener from "../../shared/components/Listeners/CopyPageAsMarkdownListener"
-import CopyToClipboardListener from "../../shared/components/Listeners/CopyToClipboardListener"
-import InsertTextListener from "../../shared/components/Listeners/InsertTextListener"
-import NewTabListener from "../../shared/components/Listeners/NewTabListener"
-import ScreenshotListener from "../../shared/components/Listeners/ScreenshotListener"
-import ScrollListener from "../../shared/components/Listeners/ScrollListener"
-import { ToastContainer } from "../../shared/components/ToastContainer"
-import { shouldRefreshCommandsAfterExecution } from "../../shared/hooks/commandExecution"
+import { PageMessageListeners } from "../../shared/components/Listeners/PageMessageListeners"
+import { useExecuteCommand } from "../../shared/hooks/commandExecution"
 import { useCommandPaletteStateRedux } from "../../shared/hooks/useCommandPaletteStateRedux"
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
@@ -86,50 +79,17 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
     })
   }, [fetchCommands])
 
-  // Execute command via background script (with parentNames support)
-  const executeCommand = useCallback(
-    async (
-      id: string,
-      formValues: Record<string, string | string[]>,
-      navigateBack: boolean = true,
-      parentNames?: string[],
-      executionScope?: CommandExecutionScope,
-    ) => {
-      try {
-        const response = await sendMessage({
-          type: "monocle-command-execute",
-          id,
-          formValues,
-          parentNames,
-          executionScope,
-        })
-
-        if (response.success) {
-          if (shouldRefreshCommandsAfterExecution(navigateBack)) {
-            await fetchCommands()
-          }
-
-          if (navigateBack) {
-            hideUI() // Close palette in content script mode
-            onClose?.() // Call additional close handler if provided
-          }
-        }
-
-        // TODO: Handle errors
-      } catch (error) {
-        console.error(
-          "[ContentCommandPalette] Error sending execute message:",
-          error,
-        )
-      }
-    },
-    [fetchCommands, hideUI, onClose, sendMessage],
-  )
-
   const handleClose = useCallback(() => {
     hideUI()
     onClose?.()
   }, [hideUI, onClose])
+
+  const executeCommand = useExecuteCommand({
+    sendMessage,
+    refreshCommands: fetchCommands,
+    onClose: handleClose,
+    logPrefix: "ContentCommandPalette",
+  })
 
   return (
     <>
@@ -145,13 +105,7 @@ export const ContentCommandPalette: React.FC<ContentCommandPaletteProps> = ({
         </>
       )}
       {/* Always mounted so screenshot capture works after the palette hides. */}
-      <CopyToClipboardListener />
-      <CopyPageAsMarkdownListener />
-      <InsertTextListener />
-      <NewTabListener />
-      <ScrollListener />
-      <ScreenshotListener />
-      <ToastContainer />
+      <PageMessageListeners includePageMarkdown />
     </>
   )
 }

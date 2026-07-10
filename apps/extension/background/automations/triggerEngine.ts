@@ -3,12 +3,12 @@
 // no extra permissions are needed: the content trigger service
 // (content/automationTriggers.ts) reports its own URL via
 // `get-automation-triggers` and receives the armed trigger specs whose
-// script urlRules allow that URL; when a trigger fires, content sends
+// automation urlRules allow that URL; when a trigger fires, content sends
 // `automation-trigger-fired` and the background RE-VALIDATES everything —
-// script existence, enablement, armed state, URL eligibility against the
+// automation existence, enablement, armed state, URL eligibility against the
 // sender's actual URL — before the engine runs (which adds its own
 // cooldown/concurrency limits). Content never executes anything it wasn't
-// sent, and a page cannot fire a script its rules deny. Scheduled triggers
+// sent, and a page cannot fire an automation its rules deny. Scheduled triggers
 // live in background/automations/alarms.ts.
 import type {
   AutomationPageTriggerSpec,
@@ -27,7 +27,7 @@ const isPageTrigger = (
 
 /**
  * The armed page-trigger specs for one URL — what the content service
- * receives. Disabled scripts and disarmed triggers (imports awaiting
+ * receives. Disabled automations and disarmed triggers (imports awaiting
  * review) arm nothing.
  */
 export const getPageTriggersForUrl = async (
@@ -37,28 +37,28 @@ export const getPageTriggersForUrl = async (
     return []
   }
 
-  const scripts = await getAllAutomations()
+  const automations = await getAllAutomations()
   const specs: AutomationPageTriggerSpec[] = []
 
-  for (const script of scripts) {
-    if (!script.enabled) {
+  for (const automation of automations) {
+    if (!automation.enabled) {
       continue
     }
 
-    const pageTriggers = script.triggers.filter(
+    const pageTriggers = automation.triggers.filter(
       (trigger) => isPageTrigger(trigger) && trigger.disarmed !== true,
     )
     if (pageTriggers.length === 0) {
       continue
     }
 
-    if (!(await isAutomationEligibleForUrl(script, url))) {
+    if (!(await isAutomationEligibleForUrl(automation, url))) {
       continue
     }
 
     for (const trigger of pageTriggers) {
       if (isPageTrigger(trigger)) {
-        specs.push({ automationId: script.id, trigger })
+        specs.push({ automationId: automation.id, trigger })
       }
     }
   }
@@ -98,27 +98,33 @@ export const handleTriggerFired = async (
   // available — a page cannot claim a different URL to widen eligibility.
   const effectiveUrl = input.senderUrl ?? input.trigger.url
 
-  const scripts = await getAllAutomations()
-  const script = scripts.find(
+  const automations = await getAllAutomations()
+  const automation = automations.find(
     (candidate) => candidate.id === input.automationId,
   )
-  if (!script || !script.enabled) {
-    return { accepted: false, reason: "Unknown or disabled script" }
+  if (!automation || !automation.enabled) {
+    return { accepted: false, reason: "Unknown or disabled automation" }
   }
 
-  const armed = script.triggers.some(
+  const armed = automation.triggers.some(
     (trigger) =>
       trigger.type === input.trigger.type && trigger.disarmed !== true,
   )
   if (!armed) {
-    return { accepted: false, reason: "Trigger is not armed for this script" }
+    return {
+      accepted: false,
+      reason: "Trigger is not armed for this automation",
+    }
   }
 
-  if (!(await isAutomationEligibleForUrl(script, effectiveUrl))) {
-    return { accepted: false, reason: "URL is not eligible for this script" }
+  if (!(await isAutomationEligibleForUrl(automation, effectiveUrl))) {
+    return {
+      accepted: false,
+      reason: "URL is not eligible for this automation",
+    }
   }
 
-  const result = await runAutomation(script.id, {
+  const result = await runAutomation(automation.id, {
     context: {
       url: effectiveUrl,
       title: "",

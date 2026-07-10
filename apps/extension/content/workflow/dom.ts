@@ -5,7 +5,12 @@
 // formOps, domOps, waitOps) build on these so element semantics stay
 // identical across every operation. Runs inside the page (content script);
 // must not touch privileged extension APIs.
-import type { Selector } from "../../shared/types/workflow"
+import type { Selector, StepResult } from "../../shared/types/workflow"
+
+export const missingElementResult = (target: unknown): StepResult => ({
+  success: false,
+  error: `Could not find element for selector: ${JSON.stringify(target)}`,
+})
 
 export type FindElementOptions = {
   // Text-strategy matches normally require the holding element to be

@@ -122,7 +122,8 @@ export type PairPollStatusParams = {
 
 // The app long-polls this after `pair/request` while the human approves in the
 // browser. `approved` carries the minted token exactly once (the pending record
-// is dropped on read); subsequent polls return `expired`.
+// is dropped on read); subsequent polls return `rejected` because the record no
+// longer exists.
 export type PairPollStatusResult =
   | { status: "pending" }
   | { status: "approved"; token: string; scopes: BridgeScope[] }

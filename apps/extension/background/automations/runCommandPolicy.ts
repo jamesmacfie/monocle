@@ -1,10 +1,10 @@
 // Architecture: background layer. Policy for the automation `runCommand`
-// step — the step that lets scripts compose with the wider command system,
+// step — the step that lets automations compose with the wider command system,
 // and therefore the step whose reach must be bounded. Two layers, both
 // re-checked at execute time (not just at save):
 //
-// 1. Deny rules applied to EVERY run: a script may never invoke commands
-//    requiring confirmation (a script must not bypass a confirm dialog),
+// 1. Deny rules applied to EVERY run: an automation may never invoke commands
+//    requiring confirmation (an automation must not bypass a confirm dialog),
 //    other automations (no recursion), or the workflow debug tool.
 //    Permission-gated commands additionally fail at execution when their
 //    permissions are not granted (the normal dispatch path enforces that).
@@ -48,7 +48,7 @@ export const NON_MANUAL_RUN_COMMAND_ALLOWLIST: ReadonlySet<string> = new Set([
   "focus-first-input",
 ])
 
-/** Command ids no script run may ever invoke, regardless of trigger. */
+/** Command ids no automation run may ever invoke, regardless of trigger. */
 const ALWAYS_DENIED_COMMAND_IDS: ReadonlySet<string> = new Set([
   "debug-workflow",
 ])
@@ -66,7 +66,7 @@ export type RunCommandPolicyInput = {
   // The caller already obtained explicit user confirmation for this run. Lets a
   // confirm-gated command through — the caller, not this policy, owns *where*
   // that confirmation happened (a palette dialog, a Raycast alert, etc.).
-  // Automations never set this, so scripts still cannot bypass a confirm.
+  // Automations never set this, so automations still cannot bypass a confirm.
   confirmed?: boolean
   // Resolved target metadata supplied by the command bridge.
   target: {

@@ -1,5 +1,5 @@
 // Architecture: shared/ utility layer. Builds the human-readable summary of
-// a automation document — the import-safety surface (docs/automations.md):
+// an automation document — the import-safety surface (docs/automations.md):
 // before an imported document is saved, every URL pattern, trigger, op
 // class, snippet reference, opened URL, and invoked command is enumerated so
 // the user reviews exactly what the automation can do. Also used by the

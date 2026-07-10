@@ -216,4 +216,34 @@ describe("message business validation", () => {
     expect(childrenFor("bad id with spaces")).toBe(false)
     expect(childrenFor("ext/../../etc")).toBe(false)
   })
+
+  it("rate-limits the 1001st message from one sender within a minute", () => {
+    const sender = { id: "rate-limit-test" }
+
+    for (let index = 0; index < 999; index += 1) {
+      expect(
+        validateIncomingMessage({ type: "monocle-permissions-get" }, sender)
+          .success,
+      ).toBe(true)
+    }
+    expect(
+      validateIncomingMessage({ type: "monocle-permissions-get" }, sender)
+        .success,
+    ).toBe(true)
+    expect(
+      validateIncomingMessage({ type: "monocle-permissions-get" }, sender),
+    ).toMatchObject({
+      success: false,
+      error: "Rate limit exceeded",
+    })
+  })
+
+  it("rejects an individual string over the transport field limit", () => {
+    expect(
+      validateIncomingMessage(
+        { type: "monocle-permissions-get", value: "x".repeat(100_001) },
+        { id: "oversize-string-test" },
+      ),
+    ).toMatchObject({ success: false, error: "Message too large" })
+  })
 })

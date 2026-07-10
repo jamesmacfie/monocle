@@ -13,7 +13,12 @@ import type { AutomationDraft } from "./automationValidation"
 import type { Browser } from "./browser"
 import type { KeybindingRequirementViolation } from "./commands"
 import type { PickedElement } from "./picker"
-import type { CommandUrlRulesSetting } from "./settings"
+import type {
+  CommandUrlRulesSetting,
+  NewTabSettings,
+  ThemeMode,
+  ThemeSettings,
+} from "./settings"
 import type { SettingsCatalogResponse } from "./settingsCatalog"
 import type { SiteSdkRegistration } from "./siteSdk"
 import type { Snippet } from "./snippets"
@@ -182,6 +187,22 @@ export type GetSettingsCatalogMessage = {
 }
 
 export type GetSettingsCatalogResponse = SettingsCatalogResponse
+
+export type UpdateSettingsMessage = {
+  type: "monocle-settings-update"
+  theme?: { mode?: ThemeMode }
+  newTab?: {
+    backgroundCategories?: string[]
+    clock?: { show?: boolean }
+    greeting?: { show?: boolean }
+  }
+}
+
+export type UpdateSettingsResponse = {
+  success: true
+  theme: ThemeSettings
+  newTab: NewTabSettings
+}
 
 export type SetCommandFavoriteMessage = {
   type: "monocle-command-favorite-set"
@@ -429,6 +450,7 @@ export type Message =
   | UpdateCommandSettingMessage
   | UpdateCommandKeybindingsMessage
   | GetSettingsCatalogMessage
+  | UpdateSettingsMessage
   | SetCommandFavoriteMessage
   | GetSnippetsMessage
   | AddSnippetMessage

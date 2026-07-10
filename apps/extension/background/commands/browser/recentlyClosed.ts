@@ -5,7 +5,7 @@ import {
   sendToastToActiveTab,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
-import { getFaviconUrl } from "../../utils/favicon"
+import { getDuckDuckGoFaviconUrl } from "../../utils/favicon"
 import { normalizeUrlForDedupe } from "../../utils/urlFilter"
 
 // Format time for display
@@ -62,7 +62,7 @@ export const recentlyClosed: CommandNode = {
         if (session.tab) {
           // Handle closed tab
           const tab = session.tab
-          const faviconUrl = getFaviconUrl(tab.url || "")
+          const faviconUrl = getDuckDuckGoFaviconUrl(tab.url || "")
           const timeAgo = formatClosedTime(session.lastModified)
 
           commands.push({

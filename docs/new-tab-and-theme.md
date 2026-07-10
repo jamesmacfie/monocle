@@ -44,11 +44,9 @@ unless you intend to override WXT's inference.
    `loadPermissions()` (from `shared/store/slices/settings.slice.ts`) to hydrate
    the Redux mirror from `monocle-settings` and from the browser permission
    APIs.
-4. A `themeMode` effect calls `applyThemeToDocument(themeMode)` whenever the
-   selected theme mode changes (see [Theme system](#theme-system)).
-5. A second effect installs a system-theme listener via
-   `setupSystemThemeListener` *only* when `themeMode === "system"`, re-applying
-   the theme when the OS preference flips.
+4. `useDocumentTheme(themeMode)` applies the selected class and owns the
+   system-theme listener while `themeMode === "system"` (the options shell uses
+   the same hook).
 6. A storage-change listener watches `chrome.storage.local` for changes to the
    `monocle-settings` key and re-dispatches `loadSettings()`. This is how the
    new-tab UI stays in sync after a command mutates settings (clock visibility,
@@ -65,7 +63,7 @@ unless you intend to override WXT's inference.
 | `<PermissionGrantPanel />` | `newtab/components/PermissionGrantPanel.tsx` | Rendered only when a valid `?grantPermission=` query param is present. |
 | `<NewTabCommandPalette autoFocus />` | `newtab/components/NewTabCommandPalette.tsx` | The shared palette, wrapped in `.raycast.new-tab-palette`. |
 | Hint text | inline | "Press Cmd+Shift+K on any webpage…". |
-| Listener components | `shared/components/Listeners/` | `CopyToClipboardListener`, `InsertTextListener`, `NewTabListener`, `ScrollListener`, `ScreenshotListener` — always mounted so background → tab messages (clipboard copy, snippet insert fallback, etc.) work on the new-tab page; see [messaging.md](./messaging.md). |
+| `<PageMessageListeners />` | `shared/components/Listeners/` | Shared ambient clipboard, insert, tab-open, scroll, and screenshot listener mount — always present so background → tab effects work while the palette is hidden; see [messaging.md](./messaging.md). |
 | `<ToastContainer />` | `shared/components/ToastContainer` | Shared toast host. |
 
 The scope is intentionally a lightweight launcher surface (palette + clock +
@@ -73,10 +71,11 @@ background), not a dashboard.
 
 ## The `isNewTab` context flag
 
-Both the palette messaging (`NewTabApp`) and the command fetch
-(`NewTabCommandPalette` via `useGetCommands({ isNewTab: true })`) attach
-`isNewTab: true` to the browser context. This flag drives several background
-behaviors:
+`NewTabApp` provides `{ isNewTab: true }` once through
+`MessageContextProvider`; React-side command fetch, execution, keybinding, and
+background-image messages inherit it through `useSendMessage`. Store thunks use
+the parallel non-React `createPaletteSendMessage({ isNewTab: true })` factory.
+This flag drives several background behaviors:
 
 - **New-tab-only commands are appended.** `background/commands/source.ts`
   pushes `newTabCommands` (from `background/commands/newTab/index.ts`) into the
@@ -93,12 +92,10 @@ behaviors:
   custom keybinding only matches when the incoming context includes `isNewTab`.
   See [keybindings.md](keybindings.md).
 
-`NewTabCommandPalette.executeCommand` also has a client-side post-execution
-hook: after any command whose id `includes("clock")` or `includes("settings")`,
-it dynamically imports and dispatches `loadSettings()` to refresh the Redux
-mirror immediately (in addition to the storage-change listener). It also re-runs
-`fetchCommands()` after every successful execution so dynamic labels (e.g. the
-clock toggle's "Show/Hide Clock") update.
+`NewTabCommandPalette` re-runs `fetchCommands()` after every successful
+execution so dynamic labels (e.g. the clock toggle's "Show/Hide Clock") update.
+Settings re-hydration is owned solely by the `monocle-settings` storage-change
+listener; command IDs do not encode refresh policy.
 
 ## Clock
 

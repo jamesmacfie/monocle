@@ -23,7 +23,7 @@ import { getFavoriteCommandIds } from "./favorites"
 import { getAllCommandSettings } from "./settings"
 import { isSiteSdkCommandId } from "./siteSdk"
 import { type CommandLoadOptions, loadAllCommands } from "./source"
-import { mergePermissions } from "./traversal"
+import { mergePermissions, walkCommandTree } from "./traversal"
 import { getRankedRootCommandIds } from "./usage"
 
 export { mergePermissions } from "./traversal"
@@ -73,12 +73,6 @@ const checkRequiredPermissions = async (
   }
 
   return await checkPermissions(permissions)
-}
-
-const hasRequiredPermissions = async (
-  permissions: BrowserPermission[],
-): Promise<boolean> => {
-  return (await checkRequiredPermissions(permissions)).hasAllPermissions
 }
 
 // Synthesizes the display row shown in place of a group's children when an
@@ -132,63 +126,32 @@ const findFavoritedCommands = async (
   favoriteCommandIds: string[],
   context: Browser.Context,
   commandSettings: Record<string, CommandSettings>,
-  parentNames: string[] = [],
-  inheritedPermissions: BrowserPermission[] = [],
 ): Promise<CommandNode[]> => {
   const favoritedCommands: CommandNode[] = []
 
-  for (const command of commands) {
-    const permissions = mergePermissions(
-      inheritedPermissions,
-      command.permissions,
-    )
+  await walkCommandTree(commands, {
+    context,
+    commandSettings,
+    visit: async ({ command, permissions, parentNames }) => {
+      if (!favoriteCommandIds.includes(command.id)) {
+        return
+      }
 
-    if (favoriteCommandIds.includes(command.id)) {
-      if (parentNames.length > 0) {
-        const resolvedName = await resolveAsyncProperty(command.name, context)
-        favoritedCommands.push({
-          ...command,
-          permissions,
-          name: Array.isArray(resolvedName)
-            ? [...resolvedName, ...parentNames]
-            : [resolvedName ?? "Unnamed Command", ...parentNames],
-        })
-      } else {
+      if (parentNames.length === 0) {
         favoritedCommands.push({ ...command, permissions })
-      }
-    }
-
-    if (command.type !== "group") {
-      continue
-    }
-
-    try {
-      if (!(await hasRequiredPermissions(permissions))) {
-        continue
+        return
       }
 
-      const children = await command.children(context)
-      const filteredChildren = await filterForContext(
-        children,
-        context,
-        commandSettings,
-      )
-      const parentName = await resolveCommandName(command.name, context)
-
-      favoritedCommands.push(
-        ...(await findFavoritedCommands(
-          filteredChildren,
-          favoriteCommandIds,
-          context,
-          commandSettings,
-          [parentName, ...parentNames],
-          permissions,
-        )),
-      )
-    } catch (error) {
-      console.error(`Error getting children for command ${command.id}:`, error)
-    }
-  }
+      const resolvedName = await resolveAsyncProperty(command.name, context)
+      favoritedCommands.push({
+        ...command,
+        permissions,
+        name: Array.isArray(resolvedName)
+          ? [...resolvedName, ...parentNames]
+          : [resolvedName ?? "Unnamed Command", ...parentNames],
+      })
+    },
+  })
 
   return favoritedCommands
 }
@@ -400,61 +363,33 @@ const findCommandRecursive = async (
   commandId: string,
   context: Browser.Context,
   commandSettings: Record<string, CommandSettings>,
-  inheritedPermissions: BrowserPermission[] = [],
-  parentNames: string[] = [],
-  parentIds: string[] = [],
 ): Promise<ResolvedCommand | undefined> => {
   const filteredCommands = await filterForContext(
     commands,
     context,
     commandSettings,
   )
+  let found: ResolvedCommand | undefined
 
-  for (const command of filteredCommands) {
-    const permissions = mergePermissions(
-      inheritedPermissions,
-      command.permissions,
-    )
+  await walkCommandTree(filteredCommands, {
+    context,
+    commandSettings,
+    visit: ({ command, permissions, parentNames, parentIds }) => {
+      if (command.id !== commandId) {
+        return
+      }
 
-    if (command.id === commandId) {
-      return {
+      found = {
         command,
         permissions,
         parentNames: parentNames.length > 0 ? parentNames : undefined,
         parentIds: parentIds.length > 0 ? parentIds : undefined,
       }
-    }
+      return "stop"
+    },
+  })
 
-    if (command.type !== "group") {
-      continue
-    }
-
-    if (!(await hasRequiredPermissions(permissions))) {
-      continue
-    }
-
-    try {
-      const children = await command.children(context)
-      const parentName = await resolveCommandName(command.name, context)
-      const found = await findCommandRecursive(
-        children,
-        commandId,
-        context,
-        commandSettings,
-        permissions,
-        [parentName, ...parentNames],
-        [command.id, ...parentIds],
-      )
-
-      if (found) {
-        return found
-      }
-    } catch (error) {
-      console.error(`Error getting children for command ${command.id}:`, error)
-    }
-  }
-
-  return undefined
+  return found
 }
 
 export const resolveCommandById = async (

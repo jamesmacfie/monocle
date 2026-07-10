@@ -166,6 +166,31 @@ export function validateUrlPattern(pattern: string): true | string {
   }
 }
 
+export const validateUrlRulesValue = (
+  value: Record<string, unknown>,
+): { valid: true } | { valid: false; error: string } => {
+  for (const [field, patterns] of Object.entries(value)) {
+    if (patterns === undefined) {
+      continue
+    }
+    if (!Array.isArray(patterns)) {
+      return { valid: false, error: `${field} must be an array` }
+    }
+
+    for (const pattern of patterns) {
+      const validation = validateUrlPattern(pattern)
+      if (validation !== true) {
+        return {
+          valid: false,
+          error: `Invalid ${field} pattern "${pattern}": ${validation}`,
+        }
+      }
+    }
+  }
+
+  return { valid: true }
+}
+
 /**
  * Converts a URL pattern with wildcards to a regular expression
  * Supports patterns like:

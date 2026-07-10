@@ -54,7 +54,7 @@ const createEmptyStats = (commandId: string): CommandUsageStats => {
 // around the current hour. Sums the share of usage in a ±2-hour window with
 // linear distance decay, so "the command I open every morning" surfaces in the
 // morning. Neutral (1) when the command has no time history yet.
-const calculateTimeBoost = (
+export const calculateTimeBoost = (
   hourlyUsage: number[],
   currentHour: number,
 ): number => {
@@ -205,11 +205,9 @@ export const recordCommandUsage = async (
     const now = Date.now()
     const currentHour = new Date(now).getHours()
 
-    // Get or create stats for this command
     const stats =
       usageData.commandStats[commandId] || createEmptyStats(commandId)
 
-    // Update stats
     stats.totalUsage += 1
     stats.lastUsed = now
     stats.hourlyUsage[currentHour] += 1
@@ -226,10 +224,8 @@ export const recordCommandUsage = async (
     // Update EMA score
     stats.emaScore = calculateRecordedEmaScore(stats, currentHour)
 
-    // Save updated stats
     usageData.commandStats[commandId] = stats
 
-    // Check if we need to clean up old data
     if (shouldCleanupData(usageData.lastCleanup)) {
       cleanupOldData(usageData)
       usageData.lastCleanup = now
@@ -239,7 +235,6 @@ export const recordCommandUsage = async (
   })
 }
 
-// Get usage stats for a command
 export const getCommandUsageStats = async (
   commandId: string,
 ): Promise<CommandUsageStats> => {
@@ -247,7 +242,6 @@ export const getCommandUsageStats = async (
   return usageData.commandStats[commandId] || createEmptyStats(commandId)
 }
 
-// Get all command usage stats
 export const getAllUsageStats = async (): Promise<
   Record<string, CommandUsageStats>
 > => {

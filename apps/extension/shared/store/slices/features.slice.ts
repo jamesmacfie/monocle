@@ -1,15 +1,12 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
+import { createSlice } from "@reduxjs/toolkit"
 import type {
   ExecuteFeatureActionResponse,
   FeatureDescriptor,
   GetFeaturesResponse,
-  OutboundMessage,
   UpdateFeatureConfigResponse,
 } from "../../../shared/types"
-
-type FeaturesThunkApi = {
-  sendMessage: (message: OutboundMessage) => Promise<unknown>
-}
+import { createMessageThunk } from "../messageThunk"
+import { toggleId } from "../updatingIds"
 
 type FeaturesState = {
   features: FeatureDescriptor[]
@@ -25,101 +22,51 @@ const initialState: FeaturesState = {
   updatingIds: [],
 }
 
-const getSendMessage = (extra: unknown) =>
-  (extra as FeaturesThunkApi).sendMessage
-
-export const loadFeatures = createAsyncThunk<
+export const loadFeatures = createMessageThunk<
   GetFeaturesResponse,
   void,
-  { extra: FeaturesThunkApi; rejectValue: string }
->("features/load", async (_, { extra, rejectWithValue }) => {
-  try {
-    const response = (await getSendMessage(extra)({
-      type: "monocle-features-get",
-    })) as GetFeaturesResponse | { error?: string }
-
-    if ("error" in response && response.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return response as GetFeaturesResponse
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : "Failed to load features",
-    )
-  }
-})
-
-export const updateFeatureConfig = createAsyncThunk<
-  { featureId: string; config: Record<string, unknown> },
-  { featureId: string; config: Record<string, unknown> },
-  { extra: FeaturesThunkApi; rejectValue: string }
+  GetFeaturesResponse
 >(
-  "features/updateConfig",
-  async ({ featureId, config }, { extra, rejectWithValue }) => {
-    try {
-      const response = (await getSendMessage(extra)({
-        type: "monocle-feature-config-update",
-        featureId,
-        config,
-      })) as UpdateFeatureConfigResponse & { error?: string }
-
-      if (response?.error) {
-        return rejectWithValue(response.error)
-      }
-
-      return { featureId, config: response.config }
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to update feature",
-      )
-    }
-  },
+  "features/load",
+  () => ({ type: "monocle-features-get" }),
+  (response) => response,
+  "Failed to load features",
 )
 
-export const executeFeatureAction = createAsyncThunk<
+export const updateFeatureConfig = createMessageThunk<
+  { featureId: string; config: Record<string, unknown> },
+  { featureId: string; config: Record<string, unknown> },
+  UpdateFeatureConfigResponse
+>(
+  "features/updateConfig",
+  ({ featureId, config }) => ({
+    type: "monocle-feature-config-update",
+    featureId,
+    config,
+  }),
+  (response, { featureId }) => ({ featureId, config: response.config }),
+  "Failed to update feature",
+)
+
+export const executeFeatureAction = createMessageThunk<
   { featureId: string; feature?: FeatureDescriptor },
   {
     featureId: string
     actionId: string
     payload?: Record<string, string | number | boolean>
   },
-  { extra: FeaturesThunkApi; rejectValue: string }
+  ExecuteFeatureActionResponse
 >(
   "features/executeAction",
-  async ({ featureId, actionId, payload }, { extra, rejectWithValue }) => {
-    try {
-      const response = (await getSendMessage(extra)({
-        type: "monocle-feature-action-execute",
-        featureId,
-        actionId,
-        payload,
-      })) as ExecuteFeatureActionResponse & { error?: string }
-
-      if (response?.error) {
-        return rejectWithValue(response.error)
-      }
-
-      // The handler returns the re-projected descriptor so record-list rows
-      // refresh after the mutation (save/rename/delete/pin) without a reload.
-      return { featureId, feature: response.feature }
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to run action",
-      )
-    }
-  },
+  ({ featureId, actionId, payload }) => ({
+    type: "monocle-feature-action-execute",
+    featureId,
+    actionId,
+    payload,
+  }),
+  (response, { featureId }) => ({ featureId, feature: response.feature }),
+  "Failed to run action",
 )
-
-const setUpdating = (state: FeaturesState, id: string, isUpdating: boolean) => {
-  if (isUpdating) {
-    if (!state.updatingIds.includes(id)) {
-      state.updatingIds.push(id)
-    }
-    return
-  }
-  state.updatingIds = state.updatingIds.filter((current) => current !== id)
-}
 
 export const featuresSlice = createSlice({
   name: "features",
@@ -145,10 +92,18 @@ export const featuresSlice = createSlice({
         state.error = action.payload ?? "Failed to load features"
       })
       .addCase(updateFeatureConfig.pending, (state, action) => {
-        setUpdating(state, action.meta.arg.featureId, true)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.featureId,
+          true,
+        )
       })
       .addCase(updateFeatureConfig.fulfilled, (state, action) => {
-        setUpdating(state, action.payload.featureId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.payload.featureId,
+          false,
+        )
         const index = state.features.findIndex(
           (feature) => feature.id === action.payload.featureId,
         )
@@ -157,7 +112,11 @@ export const featuresSlice = createSlice({
         }
       })
       .addCase(updateFeatureConfig.rejected, (state, action) => {
-        setUpdating(state, action.meta.arg.featureId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.featureId,
+          false,
+        )
         state.error = action.payload ?? "Failed to update feature"
       })
       .addCase(executeFeatureAction.fulfilled, (state, action) => {

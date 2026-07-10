@@ -14,12 +14,12 @@ import type {
   ExternalInvokeRequest,
   ExternalRegistration,
 } from "../../../shared/types"
-import { validateExternalCommandList } from "../../../shared/types"
 import { sendTabMessage } from "../../utils/browser"
 import {
   createExternalRootCommands,
   type ExternalProviderAdapter,
   isExternalCommandId,
+  validateCallbackCommands,
 } from "../externalProvider"
 import type { SiteSdkRegistryEntry } from "./registry"
 import {
@@ -37,20 +37,6 @@ export const SITE_SDK_COMMAND_ID_PREFIX = "site:"
  */
 export const isSiteSdkCommandId = (id: string): boolean =>
   isExternalCommandId(SITE_SDK_COMMAND_ID_PREFIX, id)
-
-// Callback-returned children/results are untrusted page output, so they are
-// validated again and treated as nested commands where `placement` is illegal.
-const validateCallbackCommands = (commands: unknown): ExternalCommand[] => {
-  const validation = validateExternalCommandList(commands, {
-    allowPlacement: false,
-  })
-
-  if (!validation.success) {
-    throw new Error(validation.error)
-  }
-
-  return validation.commands
-}
 
 // Sends a scoped callback request to the content bridge in the tab that owns the
 // registration. The bridge then crosses into the page world.

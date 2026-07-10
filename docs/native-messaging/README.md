@@ -65,7 +65,6 @@ Known gaps:
 - Multi-instance selection (Chrome **and** Firefox, multiple profiles/channels
   running at once). The daemon can accept relays, but the caller cannot choose a
   browser/profile yet.
-- Pairing fallback page for tabs without a `SurfaceHost`.
 
 ## Reading order
 
@@ -104,6 +103,5 @@ Known gaps:
   bridge mirrors.
 - [../features.md](../features.md) — the feature-module registry this bridge is
   built on.
-- [../surfaces.md](../surfaces.md) — the modal primitive the pairing prompt uses.
 - [../store-submission.md](../store-submission.md) — the `nativeMessaging`
   permission's review implications.

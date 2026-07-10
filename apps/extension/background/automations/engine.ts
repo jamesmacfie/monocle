@@ -1,4 +1,4 @@
-// Architecture: background layer. The automation engine: resolves a script
+// Architecture: background layer. The automation engine: resolves an automation
 // by id at run time (generated command nodes carry only the id — captured
 // documents go stale against storage), builds the interpolation value bag,
 // and executes the step list. Content-runnable steps are batched into
@@ -9,7 +9,7 @@
 // here between segments — navigation destroys the content context, and only
 // the background survives it. Control flow (branch/forEach/while) is
 // evaluated engine-side with DOM questions answered by content probes
-// (conditions.ts). Runtime abuse limits (one concurrent run per script per
+// (conditions.ts). Runtime abuse limits (one concurrent run per automation per
 // tab, non-manual cooldowns, loop and step caps) are re-enforced here as
 // defense in depth regardless of what storage contains. The command bridge
 // is injected by background/index.ts at startup to keep the automations <->
@@ -18,12 +18,13 @@ import type {
   Automation,
   AutomationRunResult,
   AutomationStep,
+  AutomationTriggerType,
   Browser,
 } from "../../shared/types"
 import {
+  AUTOMATION_LOOP_DEFAULT_ITERATIONS,
+  AUTOMATION_LOOP_MAX_ITERATIONS,
   collectStructuralIssues,
-  USER_SCRIPT_LOOP_DEFAULT_ITERATIONS,
-  USER_SCRIPT_LOOP_MAX_ITERATIONS,
 } from "../../shared/types/automationValidation"
 import type {
   Selector,
@@ -31,11 +32,6 @@ import type {
   WorkflowResult,
 } from "../../shared/types/workflow"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
-import {
-  interpolateSnippetBody,
-  snippetBodyUsesCounter,
-} from "../../shared/utils/snippet-placeholders"
-import { getSnippet, incrementSnippetCounter } from "../commands/snippets"
 import { removeSurface, upsertSurface } from "../surfaces"
 import { sendTabMessage } from "../utils/browser"
 import {
@@ -53,6 +49,7 @@ import {
   type AutomationValueBag,
   buildInitialValueBag,
   interpolateField,
+  resolveSnippetValue,
 } from "./interpolate"
 import {
   endsSegment,
@@ -63,6 +60,12 @@ import {
 } from "./lowering"
 import { getAutomationById } from "./registry"
 import { checkRunCommandPolicy } from "./runCommandPolicy"
+import {
+  NAVIGATION_COMPLETE_TIMEOUT_MS,
+  readTabPageContext,
+  waitForNavigationAfterAction,
+  waitForTabComplete,
+} from "./tabNavigation"
 
 // ---------------------------------------------------------------------------
 // Command bridge (dependency-injected — see file header)
@@ -94,7 +97,6 @@ const NON_MANUAL_COOLDOWN_MS = 5000
 // Generous runaway guard on total executed steps per run: legitimate loops
 // can exceed the 100-document-step cap, but nothing legitimate needs this.
 const RUNTIME_EXECUTED_STEP_CAP = 5000
-const NAVIGATION_COMPLETE_TIMEOUT_MS = 15_000
 
 export type AutomationInvocation =
   | { kind: "manual"; paramValues?: Record<string, string> }
@@ -102,12 +104,7 @@ export type AutomationInvocation =
       kind: "trigger"
       tabId: number
       trigger: {
-        type:
-          | "urlMatch"
-          | "elementAppears"
-          | "interval"
-          | "schedule"
-          | "onStartup"
+        type: Exclude<AutomationTriggerType, "manual">
         url?: string
         matchedText?: string
       }
@@ -118,10 +115,17 @@ export type RunAutomationInput = {
   invocation: AutomationInvocation
 }
 
+/**
+ * Sentinel for run-fatal failures already attributed to a step or to the run.
+ * runEngineStep rethrows it without recording; use another Error when the
+ * current engine step should own the failure.
+ */
 class AutomationRunError extends Error {}
 
+class HostAccessError extends Error {}
+
 type RunState = {
-  script: Automation
+  automation: Automation
   tabId: number
   context: Browser.Context
   pageContext: AutomationPageContext
@@ -133,9 +137,9 @@ type RunState = {
 }
 
 /**
- * Runs a automation end to end and returns the aggregated result. Never
+ * Runs an automation end to end and returns the aggregated result. Never
  * throws — failures are reported in the result (and toasted when the
- * script's showResultToast option is on).
+ * automation's showResultToast option is on).
  */
 export const runAutomation = async (
   automationId: string,
@@ -147,20 +151,20 @@ export const runAutomation = async (
     completedSteps: 0,
   })
 
-  const script = await getAutomationById(automationId)
-  if (!script) {
+  const automation = await getAutomationById(automationId)
+  if (!automation) {
     return fail(`Automation not found: ${automationId}`)
   }
-  if (!script.enabled) {
-    return fail(`Automation "${script.name}" is disabled`)
+  if (!automation.enabled) {
+    return fail(`Automation "${automation.name}" is disabled`)
   }
 
   // Run-time structural re-check: schema caps can be bypassed by direct
   // storage tampering; the engine refuses such documents.
-  const structuralIssues = collectStructuralIssues(script.steps)
+  const structuralIssues = collectStructuralIssues(automation.steps)
   if (structuralIssues.length > 0) {
     return fail(
-      `Automation "${script.name}" failed structural checks: ${structuralIssues[0].message}`,
+      `Automation "${automation.name}" failed structural checks: ${structuralIssues[0].message}`,
     )
   }
 
@@ -179,13 +183,15 @@ export const runAutomation = async (
   const runKey = `${automationId}:${tabId}`
   if (runningRuns.has(runKey)) {
     // Re-entrant triggers are dropped, not queued.
-    return fail(`Automation "${script.name}" is already running on this tab`)
+    return fail(
+      `Automation "${automation.name}" is already running on this tab`,
+    )
   }
 
   if (!isManualRun) {
     const lastRun = lastNonManualRunByTarget.get(runKey) ?? 0
     if (Date.now() - lastRun < NON_MANUAL_COOLDOWN_MS) {
-      return fail(`Automation "${script.name}" is cooling down`)
+      return fail(`Automation "${automation.name}" is cooling down`)
     }
     lastNonManualRunByTarget.set(runKey, Date.now())
   }
@@ -200,14 +206,14 @@ export const runAutomation = async (
     } catch {
       // ponytail: no overlay listening on this tab, nothing to close.
     }
-    return await executeRun(script, tabId, input)
+    return await executeRun(automation, tabId, input)
   } finally {
     runningRuns.delete(runKey)
   }
 }
 
 const executeRun = async (
-  script: Automation,
+  automation: Automation,
   tabId: number,
   input: RunAutomationInput,
 ): Promise<AutomationRunResult> => {
@@ -222,7 +228,7 @@ const executeRun = async (
   }
 
   const state: RunState = {
-    script,
+    automation,
     tabId,
     context: input.context,
     pageContext,
@@ -235,7 +241,7 @@ const executeRun = async (
 
   let result: AutomationRunResult
   try {
-    state.values = await buildInitialValueBag(script, {
+    state.values = await buildInitialValueBag(automation, {
       pageContext,
       trigger,
       paramValues:
@@ -244,7 +250,7 @@ const executeRun = async (
           : undefined,
     })
 
-    await runStepList(script.steps, state)
+    await runStepList(automation.steps, state)
 
     result = {
       success: true,
@@ -260,13 +266,13 @@ const executeRun = async (
     }
   }
 
-  if (script.options?.showResultToast !== false) {
+  if (automation.options?.showResultToast !== false) {
     await sendToast(
       state,
       result.success ? "success" : "error",
       result.success
-        ? `${script.name} finished (${result.completedSteps} steps)`
-        : `${script.name} failed: ${result.error}`,
+        ? `${automation.name} finished (${result.completedSteps} steps)`
+        : `${automation.name} failed: ${result.error}`,
     ).catch(() => undefined)
   }
 
@@ -274,8 +280,8 @@ const executeRun = async (
     // Log the run shape only — never step payloads (they may carry
     // interpolated credentials).
     console.error("[Automations] Run failed:", {
-      automationId: script.id,
-      name: script.name,
+      automationId: automation.id,
+      name: automation.name,
       completedSteps: result.completedSteps,
       error: result.error,
     })
@@ -367,12 +373,12 @@ const ensureAutomationHostAccess = async (
         url: options.url ?? state.pageContext.url,
         reason: "automation",
       })
-      throw new AutomationRunError(
+      throw new HostAccessError(
         `Grant site access for ${result.originPattern ?? options.url ?? state.pageContext.url} in the opened Monocle tab, then run this automation again`,
       )
     }
 
-    throw new AutomationRunError(
+    throw new HostAccessError(
       hostAccessError(result, options.url ?? state.pageContext.url),
     )
   }
@@ -400,7 +406,12 @@ const runContentSegment = async (
   expectNavigation = false,
 ): Promise<void> => {
   const lowered: Step[] = segment.map((step) =>
-    lowerContentStep(step, state.script.id, state.values, state.pageContext),
+    lowerContentStep(
+      step,
+      state.automation.id,
+      state.values,
+      state.pageContext,
+    ),
   )
 
   if (expectNavigation) {
@@ -408,18 +419,13 @@ const runContentSegment = async (
     return
   }
 
-  const result = await runWorkflowSteps(lowered, state, state.script.name)
+  const result = await runWorkflowSteps(lowered, state, state.automation.name)
   recordSegmentResult(segment, result, state)
 
   if (!result.success) {
     throw new AutomationRunError(result.error ?? "Step failed")
   }
 }
-
-type NavigationWaitResult =
-  | { kind: "navigated" }
-  | { kind: "noNavigation" }
-  | { kind: "timeout" }
 
 /**
  * Runs a content segment whose final click/submit is expected to navigate the
@@ -439,7 +445,11 @@ const runNavigatingContentSegment = async (
     state.tabId,
     trailingTimeoutMs ?? NAVIGATION_COMPLETE_TIMEOUT_MS,
   )
-  const workflowPromise = runWorkflowSteps(lowered, state, state.script.name)
+  const workflowPromise = runWorkflowSteps(
+    lowered,
+    state,
+    state.automation.name,
+  )
     .then((result) => ({ kind: "result", result }) as const)
     .catch((error) => ({ kind: "error", error }) as const)
 
@@ -447,8 +457,7 @@ const runNavigatingContentSegment = async (
 
   if (first.kind === "navigated") {
     recordSegmentSuccess(segment, state)
-    await refreshPageContext(state)
-    state.hostPermissionRequestsAllowed = false
+    await markNavigated(state)
     return
   }
 
@@ -478,8 +487,7 @@ const runNavigatingContentSegment = async (
         throw new AutomationRunError(first.result.error ?? "Step failed")
       }
     }
-    await refreshPageContext(state)
-    state.hostPermissionRequestsAllowed = false
+    await markNavigated(state)
     return
   }
 
@@ -547,7 +555,7 @@ const runWorkflowSteps = async (
 
 /** Probe runner shared with condition evaluation — uncounted, unrecorded. */
 const runProbe = (state: RunState) => (steps: Step[]) =>
-  runWorkflowSteps(steps, state, `${state.script.name} (probe)`)
+  runWorkflowSteps(steps, state, `${state.automation.name} (probe)`)
 
 // ---------------------------------------------------------------------------
 // Engine ops
@@ -592,11 +600,7 @@ const runEngineStep = async (
 
       case "navigate": {
         const url = interpolate(step.url)
-        await ensureKnownNavigationHostAccess(state, url)
-        await getBrowserAPI().tabs.update(state.tabId, { url })
-        await waitForTabComplete(state.tabId)
-        await refreshPageContext(state)
-        state.hostPermissionRequestsAllowed = false
+        await navigateCurrentTab(state, url)
         break
       }
 
@@ -605,11 +609,7 @@ const runEngineStep = async (
         const disposition = step.disposition ?? "newTab"
         const browserAPI = getBrowserAPI()
         if (disposition === "currentTab") {
-          await ensureKnownNavigationHostAccess(state, url)
-          await browserAPI.tabs.update(state.tabId, { url })
-          await waitForTabComplete(state.tabId)
-          await refreshPageContext(state)
-          state.hostPermissionRequestsAllowed = false
+          await navigateCurrentTab(state, url)
         } else if (disposition === "newWindow") {
           await browserAPI.windows.create({ url })
         } else {
@@ -636,7 +636,7 @@ const runEngineStep = async (
         break
 
       case "showSurface":
-        await upsertSurface(`automation:${state.script.id}`, {
+        await upsertSurface(`automation:${state.automation.id}`, {
           id: step.surfaceId,
           kind: step.kind,
           ...(step.urlMatch ? { urlMatch: step.urlMatch } : {}),
@@ -657,7 +657,7 @@ const runEngineStep = async (
         break
 
       case "hideSurface":
-        await removeSurface(`automation:${state.script.id}`, step.surfaceId)
+        await removeSurface(`automation:${state.automation.id}`, step.surfaceId)
         break
 
       case "branch": {
@@ -700,27 +700,17 @@ const runInsertSnippet = async (
   target: Selector | undefined,
   state: RunState,
 ): Promise<void> => {
-  // Re-read at execute time — captured references can be stale against
-  // storage, and the {i} counter persists there (the snippets precedent).
-  const snippet = await getSnippet(snippetId)
-  if (!snippet) {
-    throw new Error(`Snippet not found: ${snippetId}`)
-  }
-
-  const counter = snippetBodyUsesCounter(snippet.body)
-    ? await incrementSnippetCounter(snippet.id)
-    : undefined
-  const { text } = interpolateSnippetBody(snippet.body, {
-    url: state.pageContext.url,
-    title: state.pageContext.title,
-    counter,
-  })
+  const text = await resolveSnippetValue(
+    snippetId,
+    state.pageContext,
+    `insertSnippet step (${snippetId})`,
+  )
 
   if (target) {
     const result = await runWorkflowSteps(
       [{ op: "fill", target, text }],
       state,
-      `${state.script.name} (insert snippet)`,
+      `${state.automation.name} (insert snippet)`,
     )
     if (!result.success) {
       throw new Error(result.error ?? "Snippet insertion failed")
@@ -774,8 +764,8 @@ const runCommandStep = async (
 
 const loopCap = (requested: number | undefined): number =>
   Math.min(
-    requested ?? USER_SCRIPT_LOOP_DEFAULT_ITERATIONS,
-    USER_SCRIPT_LOOP_MAX_ITERATIONS,
+    requested ?? AUTOMATION_LOOP_DEFAULT_ITERATIONS,
+    AUTOMATION_LOOP_MAX_ITERATIONS,
   )
 
 const mapStepsDeep = (
@@ -915,113 +905,29 @@ const sendToast = async (
   })
 }
 
-/**
- * Resolves when the tab finishes loading after a navigation step, or after
- * a bounded timeout (navigation results are best-effort; chain a wait step
- * for precise readiness).
- */
-const waitForTabComplete = (tabId: number): Promise<void> =>
-  new Promise((resolve) => {
-    const browserAPI = getBrowserAPI()
-    const onUpdated = browserAPI.tabs?.onUpdated
-
-    if (!onUpdated?.addListener) {
-      setTimeout(resolve, 1000)
-      return
-    }
-
-    let settled = false
-    const finish = (): void => {
-      if (settled) {
-        return
-      }
-      settled = true
-      onUpdated.removeListener?.(listener)
-      clearTimeout(timeoutId)
-      resolve()
-    }
-
-    const listener = (
-      updatedTabId: number,
-      changeInfo: { status?: string },
-    ): void => {
-      if (updatedTabId === tabId && changeInfo.status === "complete") {
-        finish()
-      }
-    }
-
-    const timeoutId = setTimeout(finish, NAVIGATION_COMPLETE_TIMEOUT_MS)
-    onUpdated.addListener(listener)
-  })
-
-// How long to wait for a navigation to start after an expectNavigation action.
-const NO_NAVIGATION_GRACE_MS = 1500
-
-const waitForNavigationAfterAction = (
-  tabId: number,
-  timeoutMs: number,
-): Promise<NavigationWaitResult> =>
-  new Promise((resolve) => {
-    const onUpdated = getBrowserAPI().tabs?.onUpdated
-
-    if (!onUpdated?.addListener) {
-      setTimeout(
-        () => resolve({ kind: "noNavigation" }),
-        NO_NAVIGATION_GRACE_MS,
-      )
-      return
-    }
-
-    let settled = false
-    let navigationStarted = false
-
-    const finish = (result: NavigationWaitResult): void => {
-      if (settled) {
-        return
-      }
-      settled = true
-      onUpdated.removeListener?.(listener)
-      clearTimeout(graceId)
-      clearTimeout(timeoutId)
-      resolve(result)
-    }
-
-    const listener = (
-      updatedTabId: number,
-      changeInfo: { status?: string },
-    ): void => {
-      if (updatedTabId !== tabId) {
-        return
-      }
-      if (changeInfo.status === "loading") {
-        navigationStarted = true
-        clearTimeout(graceId)
-      } else if (changeInfo.status === "complete") {
-        navigationStarted = true
-        finish({ kind: "navigated" })
-      }
-    }
-
-    const graceId = setTimeout(() => {
-      if (!navigationStarted) {
-        finish({ kind: "noNavigation" })
-      }
-    }, NO_NAVIGATION_GRACE_MS)
-    const timeoutId = setTimeout(() => finish({ kind: "timeout" }), timeoutMs)
-    onUpdated.addListener(listener)
-  })
-
 const refreshPageContext = async (state: RunState): Promise<void> => {
-  try {
-    const tab = await getBrowserAPI().tabs.get(state.tabId)
-    const url = typeof tab?.url === "string" ? tab.url : state.pageContext.url
-    const title =
-      typeof tab?.title === "string" ? tab.title : state.pageContext.title
-
-    state.pageContext = { url, title }
-    state.context = { ...state.context, url: url ?? "", title: title ?? "" }
-  } catch {
-    // Some tabs/pages do not expose URL/title. Keep the previous context; the
-    // next content segment still targets by pinned tab id.
+  const pageContext = await readTabPageContext(state.tabId)
+  if (!pageContext) {
+    return
   }
+
+  const url = pageContext.url ?? state.pageContext.url
+  const title = pageContext.title ?? state.pageContext.title
+  state.pageContext = { url, title }
+  state.context = { ...state.context, url: url ?? "", title: title ?? "" }
+}
+
+const markNavigated = async (state: RunState): Promise<void> => {
+  await refreshPageContext(state)
+  state.hostPermissionRequestsAllowed = false
+}
+
+const navigateCurrentTab = async (
+  state: RunState,
+  url: string,
+): Promise<void> => {
+  await ensureKnownNavigationHostAccess(state, url)
+  await getBrowserAPI().tabs.update(state.tabId, { url })
+  await waitForTabComplete(state.tabId)
+  await markNavigated(state)
 }

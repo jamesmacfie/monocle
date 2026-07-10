@@ -2,8 +2,8 @@
 
 > **Status: implemented.** A background-owned, owner-namespaced store of
 > declarative UI surfaces (overlays, badges, modals, and pickers) that content
-> and the new tab render through one generic host. Focus Mode and automation
-> automations are the first consumers.
+> and the new tab render through one generic host. Focus Mode and automations
+> are the first consumers.
 
 A **surface** is a piece of persistent, declarative UI that the background owns
 and content renders — modeled on toasts (the background holds the UI state,
@@ -102,14 +102,14 @@ service-worker death within a session):
 | `upsertSurface(ownerId, surface)` | Add/replace one surface by id (the automation path). |
 | `removeSurface(ownerId, surfaceId)` | Remove one surface. |
 | `getSurfacesForUrl(url, senderTabId?)` | Every surface (all owners) whose `urlMatch` and optional `targetTabId` admit the sender. |
-| `initSurfaces()` | Startup: drop per-session (`automation:*`) owners; features rebuild their own in `init`. |
+| `initSurfaces()` | Startup: drop per-session (`automation:*` and `command:*`) owners; features rebuild their own in `init`. |
 
 Every mutation persists, then broadcasts `monocle-surfaces-changed` to all tabs
 via `broadcastToAllTabs` (`background/utils/browserTabs.ts`).
 
 **Owner ids.** Features use their feature id (e.g. `focus-mode`). Per-session
 owners are prefixed so `initSurfaces` clears them on a fresh browser start:
-automation automations use `automation:<scriptId>`, and commands that push a
+automations use `automation:<automationId>`, and commands that push a
 surface use `command:<commandId>` (e.g. `command:url-as-qr-code`). Feature
 owners are not prefixed — they rebuild their own surfaces in `init()`.
 

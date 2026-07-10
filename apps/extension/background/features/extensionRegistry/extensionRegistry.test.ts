@@ -71,6 +71,17 @@ const register = (id: string) => ({
 })
 
 describe("extensionRegistry store", () => {
+  it("keeps concurrent pending peer announcements", async () => {
+    await Promise.all([
+      addPendingPeer({ extId: "ext-1", name: "One", announcedAt: 1 }),
+      addPendingPeer({ extId: "ext-2", name: "Two", announcedAt: 2 }),
+    ])
+
+    expect((await listPendingPeers()).map((peer) => peer.extId)).toEqual(
+      expect.arrayContaining(["ext-1", "ext-2"]),
+    )
+  })
+
   it("records and approves a pending peer, removing it from pending", async () => {
     await addPendingPeer({ extId: "ext-1", name: "One", announcedAt: 1 })
     expect((await listPendingPeers()).map((p) => p.extId)).toEqual(["ext-1"])

@@ -1,6 +1,6 @@
 // Architecture: background command system. Execution dispatch — the single
 // path every command run takes, whether it started from a palette
-// selection, a keybinding, a generated row action, or a automation
+// selection, a keybinding, a generated row action, or an automation
 // runCommand step (via the bridge in background/index.ts). Resolves the
 // command (background/commands/query.ts), enforces permissions at execute
 // time, normalizes form values for older executors, records usage, and

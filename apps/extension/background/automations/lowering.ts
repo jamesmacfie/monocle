@@ -3,11 +3,15 @@
 // lowers content steps onto the workflow vocabulary
 // (shared/types/workflow.ts) the executor implements. Keeping the mapping
 // in one module makes the schema-matches-executor corollary checkable in
-// one spot: a script that validates must never lower to a workflow the
+// one spot: an automation that validates must never lower to a workflow the
 // executor rejects (see lowering.test.ts). Interpolation happens here —
 // content receives already-expanded strings — and hide/injectCss steps are
-// scoped to the script id so page edits stay grouped and reversible.
-import type { AutomationEngineStep, AutomationStep } from "../../shared/types"
+// scoped to the automation id so page edits stay grouped and reversible.
+import {
+  AUTOMATION_ENGINE_OPS,
+  type AutomationEngineStep,
+  type AutomationStep,
+} from "../../shared/types"
 import type { Selector, Step } from "../../shared/types/workflow"
 import {
   type AutomationPageContext,
@@ -15,25 +19,10 @@ import {
   interpolateField,
 } from "./interpolate"
 
-const ENGINE_OPS = new Set([
-  "setVariable",
-  "insertSnippet",
-  "toast",
-  "navigate",
-  "openUrl",
-  "clipboardWrite",
-  "runCommand",
-  "showSurface",
-  "hideSurface",
-  "branch",
-  "forEach",
-  "while",
-])
-
 /** True for steps the background engine executes between content segments. */
 export const isEngineStep = (
   step: AutomationStep,
-): step is AutomationEngineStep => ENGINE_OPS.has(step.op)
+): step is AutomationEngineStep => AUTOMATION_ENGINE_OPS.has(step.op)
 
 /**
  * True for a click/submit whose page action is expected to trigger same-tab
@@ -54,7 +43,7 @@ export const endsSegment = (step: AutomationStep): boolean =>
 
 /**
  * Lowers one content step to its workflow form: interpolates the step's
- * template fields against the current value bag and stamps the script's
+ * template fields against the current value bag and stamps the automation's
  * scope key onto page-edit steps. Engine steps never reach here.
  */
 export const lowerContentStep = (

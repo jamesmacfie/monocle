@@ -44,7 +44,7 @@
      -H "X-Monocle-Target: $TARGET" \
      -d '{"v":1,"id":"p2","method":"pair/poll-status","params":{"pairingId":"…"}}'
    # -> {"status":"approved","token":"<64-hex>","scopes":["suggestions:read","commands:execute"]}
-   #    (token delivered ONCE; the next poll returns expired)
+   #    (token delivered ONCE; the next poll returns rejected)
    ```
 5. **List.** Use the token (tokens are per-browser):
    ```bash

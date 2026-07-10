@@ -8,6 +8,7 @@ import { z } from "zod"
 import { AutomationDraftSchema } from "./automationValidation"
 import type { Message } from "./messaging"
 import { PickedElementSchema } from "./picker"
+import { THEME_MODES } from "./settings"
 import { SiteSdkRegistrationsSchema } from "./siteSdk"
 import { WorkflowSchema } from "./workflowValidation"
 
@@ -127,6 +128,29 @@ export const GetSettingsCatalogMessageSchema = z.object({
   type: z.literal("monocle-settings-catalog-get"),
   platform: z.enum(["chrome", "firefox"]).optional(),
 })
+
+export const UpdateSettingsMessageSchema = z
+  .object({
+    type: z.literal("monocle-settings-update"),
+    theme: z
+      .object({ mode: z.enum(THEME_MODES).optional() })
+      .strict()
+      .optional(),
+    newTab: z
+      .object({
+        backgroundCategories: z.array(z.string().max(100)).max(100).optional(),
+        clock: z.object({ show: z.boolean().optional() }).strict().optional(),
+        greeting: z
+          .object({ show: z.boolean().optional() })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .refine((message) => message.theme || message.newTab, {
+    message: "At least one settings patch is required",
+  })
 
 export const SetCommandFavoriteMessageSchema = z.object({
   type: z.literal("monocle-command-favorite-set"),
@@ -321,6 +345,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
   UpdateCommandSettingMessageSchema,
   UpdateCommandKeybindingsMessageSchema,
   GetSettingsCatalogMessageSchema,
+  UpdateSettingsMessageSchema,
   SetCommandFavoriteMessageSchema,
   GetSnippetsMessageSchema,
   AddSnippetMessageSchema,
@@ -385,29 +410,6 @@ export function validateMessage(
   }
 }
 
-export function validateBrowserContext(
-  context: unknown,
-): ValidationResult<z.infer<typeof BrowserContextSchema>> {
-  try {
-    const result = BrowserContextSchema.safeParse(context)
-    if (result.success) {
-      return { success: true, data: result.data }
-    } else {
-      return {
-        success: false,
-        error: formatValidationError(result.error),
-        issues: result.error.issues,
-      }
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error: `Context validation error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      issues: [],
-    }
-  }
-}
-
 // Collapse a ZodError's issues into one "Validation failed: msg at path, ..."
 // string. Used by every validator here so callers get a single error string
 // (the structured `issues` array is also returned for callers that need it).
@@ -418,38 +420,6 @@ function formatValidationError(error: z.ZodError): string {
   })
 
   return `Validation failed: ${issues.join(", ")}`
-}
-
-// Type-safe message validator that maintains TypeScript types
-
-/**
- * Build a reusable validator bound to a single schema, returning a typed
- * ValidationResult. Used by individual background message handlers to validate
- * their specific payload (rather than the whole MessageSchema union), so the
- * narrowed `data` type flows through. Same flatten-and-never-throw contract as
- * validateMessage.
- */
-export function createMessageValidator<T extends z.ZodSchema>(schema: T) {
-  return (message: unknown): ValidationResult<z.infer<T>> => {
-    try {
-      const result = schema.safeParse(message)
-      if (result.success) {
-        return { success: true, data: result.data }
-      } else {
-        return {
-          success: false,
-          error: formatValidationError(result.error),
-          issues: result.error.issues,
-        }
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: `Validation error: ${error instanceof Error ? error.message : "Unknown error"}`,
-        issues: [],
-      }
-    }
-  }
 }
 
 // Export validated message types (for type safety in handlers)

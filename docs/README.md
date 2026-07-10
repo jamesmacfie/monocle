@@ -12,6 +12,22 @@ If you are adding a command, the fast path is
 [authoring-commands.md](./authoring-commands.md) →
 [command-schema.md](./command-schema.md).
 
+## Code comment conventions
+
+**Top-of-file architecture blocks.** A file over 150 lines or one that crosses
+an architectural boundary (background/UI messaging, Redux, storage ownership,
+feature or automation modules, or shared dual-DOM UI) opens with a 3–12 line
+`// Architecture: <layer>. ...` block describing its role, inputs/outputs, and
+boundary. Link the relevant deep-dive doc when one exists. Do not restate the
+export list or narrate control flow. Linear lookup tables and command-definition
+arrays are exempt; a one-line purpose comment is enough when their name is not.
+
+**Doc-comments.** Add `/** ... */` to an exported function only when it crosses
+a module boundary and has a contract the signature cannot express, such as
+merge-vs-replace behavior, locking, trust/targeting boundaries, units, or a
+documented invariant. Do not write comments that restate the function name or
+the next line; delete those comments instead.
+
 ## Start here
 
 - [architecture.md](./architecture.md) — System overview: the two runtime modes
@@ -102,7 +118,7 @@ If you are adding a command, the fast path is
 - [workflow-automation.md](./workflow-automation.md) — The implemented workflow
   step vocabulary (the content executor in `content/workflow/`), target-tab
   routing, public validation, the lockstep invariant, and the debug command.
-- [automations.md](./automations.md) — Automations ("Automations"):
+- [automations.md](./automations.md) — Automations:
   declarative user-authored automation documents — schema and caps, triggers
   (manual, urlMatch, elementAppears, schedules), the engine
   (interpolation/segments/lowering/control flow), runCommand policy, the

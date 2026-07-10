@@ -195,9 +195,9 @@ Generated per-command actions come from `background/commands/suggestions.ts`:
 
 `shared/components/Command/CommandActionsList.tsx` drives capture:
 
-1. Selecting the Set action dispatches `startCapture(targetCommandId)` (keybinding slice), which sets `isCapturing` and suspends global capture.
-2. The `KeybindingCapture` component focuses a div and listens on `onKeyDownCapture` (capture phase, to beat CMDK). Each non-Enter/Escape keydown is converted with `getKeyString`, appended to a `strokes` array, and the running sequence is conflict-checked.
-3. Enter saves: it sends `monocle-command-setting-update` with `setting: "keybinding"` and the normalized `strokes.join(", ")`, dispatches `completeCapture`, refreshes commands, and closes the menu. Save is blocked while `hasConflict`.
+1. Selecting the Set action dispatches `startCapture({ commandId, requirements })` (keybinding slice), which sets `isCapturing`, records the target's requirements, and suspends global capture.
+2. The inline widget and options dialog share `useKeybindingCapture` plus `KeybindingCaptureField`. The field focuses a native button and listens on `onKeyDownCapture` (capture phase, to beat CMDK). Each non-Enter/Escape keydown is converted with `getKeyString`, appended to `strokes`, and the running sequence is conflict-checked.
+3. Enter saves when `canSave`: the palette sends `monocle-command-setting-update` with `setting: "keybinding"` and the normalized sequence, dispatches `completeCapture`, refreshes commands, and closes the menu. Save is blocked while a conflict or requirement violation is present.
 4. Escape cancels (`cancelCapture`).
 
 ### Persistence and registry refresh

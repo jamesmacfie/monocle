@@ -1,14 +1,16 @@
 import * as React from "react"
-import type { CommandExecutionScope } from "../../shared/types"
 
 const { useEffect, useCallback } = React
 
 import { CommandPalette } from "../../shared/components/Command/index"
+import {
+  type ExecuteCommandMessageWithoutContext,
+  useExecuteCommand,
+} from "../../shared/hooks/commandExecution"
 import { useGetCommands } from "../../shared/hooks/useGetCommands"
 import { useGlobalKeybindings } from "../../shared/hooks/useGlobalKeybindings"
 import { useOpenPaletteAtCommand } from "../../shared/hooks/useOpenPaletteAtCommand"
 import { useSendMessage } from "../../shared/hooks/useSendMessage"
-import { useAppDispatch } from "../../shared/store/hooks"
 
 interface NewTabCommandPaletteProps {
   onClose?: () => void
@@ -21,20 +23,18 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
   className,
   autoFocus = false,
 }) => {
-  const { data, fetchCommands, isLoading } = useGetCommands({ isNewTab: true })
+  const { data, fetchCommands, isLoading } = useGetCommands()
   const sendMessage = useSendMessage()
-  const _dispatch = useAppDispatch()
   const openPaletteAtCommand = useOpenPaletteAtCommand({ fetchCommands })
-  const sendMessageWithNewTab = React.useCallback(
-    (message: any) => {
-      return sendMessage(message, { isNewTab: true })
+  const sendCommandMessage = React.useCallback(
+    (message: ExecuteCommandMessageWithoutContext) => {
+      return sendMessage(message)
     },
     [sendMessage],
   )
 
   // Enable global keybindings
   useGlobalKeybindings({
-    isNewTab: true,
     onOpenPaletteAtCommand: openPaletteAtCommand,
   })
 
@@ -43,59 +43,19 @@ export const NewTabCommandPalette: React.FC<NewTabCommandPaletteProps> = ({
     fetchCommands()
   }, [])
 
-  // Execute command via background script (with parentNames support)
-  const executeCommand = useCallback(
-    async (
-      id: string,
-      formValues: Record<string, string | string[]>,
-      navigateBack: boolean = true,
-      parentNames?: string[],
-      executionScope?: CommandExecutionScope,
-    ) => {
-      try {
-        const response = await sendMessageWithNewTab({
-          type: "monocle-command-execute",
-          id,
-          formValues,
-          parentNames,
-          executionScope,
-        })
-
-        if (response.success) {
-          // Refresh commands to update the UI (e.g., toggle button text)
-          fetchCommands()
-
-          // For settings-related commands, reload settings from storage
-          if (id.includes("clock") || id.includes("settings")) {
-            // Import loadSettings dynamically to avoid linter issues
-            import("../../shared/store/slices/settings.slice").then(
-              ({ loadSettings }) => {
-                _dispatch(loadSettings())
-              },
-            )
-          }
-
-          if (navigateBack && onClose) {
-            onClose() // Close palette on successful execution (only if closeable)
-          }
-        }
-
-        // TODO: Handle errors
-      } catch (error) {
-        console.error(
-          "[NewTabCommandPalette] Error sending execute message:",
-          error,
-        )
-      }
-    },
-    [onClose, sendMessageWithNewTab, fetchCommands],
-  )
-
   const handleClose = useCallback(() => {
     if (onClose) {
       onClose()
     }
   }, [onClose])
+
+  const executeCommand = useExecuteCommand({
+    sendMessage: sendCommandMessage,
+    refreshCommands: fetchCommands,
+    onClose: handleClose,
+    alwaysRefreshAfterSuccess: true,
+    logPrefix: "NewTabCommandPalette",
+  })
 
   return (
     <div className={className}>

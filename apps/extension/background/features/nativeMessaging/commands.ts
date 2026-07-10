@@ -4,30 +4,20 @@
 // first run; its execute flips the opt-in flag and opens the host port. Disable
 // flips it back and tears the port down. See docs/native-messaging/.
 import type { ActionCommandNode, CommandNode } from "../../../shared/types"
-import { getActiveTab, sendTabMessage } from "../../utils/browser"
-import { getFeatureConfig, setFeatureConfig } from "../config"
+import { sendToastToActiveTab } from "../../utils/browserTabs"
+import { updateFeatureConfig } from "../config"
 import {
   NATIVE_MESSAGING_FEATURE_ID,
   type NativeMessagingConfig,
   nativeMessagingConfigDefaults,
 } from "./types"
 
-const toast = async (
-  level: "info" | "success" | "warning" | "error",
-  message: string,
-): Promise<void> => {
-  const tab = await getActiveTab()
-  if (tab?.id) {
-    await sendTabMessage(tab.id, { type: "monocle-toast", level, message })
-  }
-}
-
 const setEnabled = async (enabled: boolean): Promise<void> => {
-  const config = await getFeatureConfig<NativeMessagingConfig>(
+  await updateFeatureConfig<NativeMessagingConfig>(
     NATIVE_MESSAGING_FEATURE_ID,
     nativeMessagingConfigDefaults,
+    (config) => ({ ...config, enabled }),
   )
-  await setFeatureConfig(NATIVE_MESSAGING_FEATURE_ID, { ...config, enabled })
 }
 
 const enableCommand: ActionCommandNode = {
@@ -44,7 +34,7 @@ const enableCommand: ActionCommandNode = {
     // feature registry's static import graph (avoids a load-time cycle).
     const { connectBridge } = await import("./port")
     await connectBridge()
-    await toast("success", "Native bridge enabled")
+    await sendToastToActiveTab("success", "Native bridge enabled")
   },
 }
 
@@ -59,7 +49,7 @@ const disableCommand: ActionCommandNode = {
     await setEnabled(false)
     const { disconnectBridge } = await import("./port")
     disconnectBridge()
-    await toast("info", "Native bridge disabled")
+    await sendToastToActiveTab("info", "Native bridge disabled")
   },
 }
 

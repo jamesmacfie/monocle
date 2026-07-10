@@ -3,7 +3,7 @@
 // `monocle-automations` (storage.ts) or a read-only document PROJECTED from a
 // feature's config (background/features). This module unions the two so every
 // consumer that RUNS or LISTS automations sees both:
-//   - the engine resolving a script by id (so feature automations run),
+//   - the engine resolving an automation by id (so feature automations run),
 //   - the trigger engine arming page triggers (so they fire on page load),
 //   - the scheduled-alarm sync, and
 //   - the options listing.

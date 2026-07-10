@@ -6,7 +6,7 @@ import { MonocleMark } from "../MonocleMark"
 import { getDisplayName } from "./CommandName"
 
 export interface CommandHeaderProps {
-  pages: Page[]
+  pageCount: number
   currentPage: Page
   inputRef: RefObject<HTMLInputElement | null>
   onNavigateBack: () => void
@@ -14,7 +14,7 @@ export interface CommandHeaderProps {
 }
 
 export function CommandHeader({
-  pages,
+  pageCount,
   currentPage,
   inputRef,
   onNavigateBack,
@@ -24,7 +24,7 @@ export function CommandHeader({
     <>
       <div cmdk-raycast-top-shine="" />
       <div className="cmdk-input-wrapper">
-        {pages.length > 1 && (
+        {pageCount > 1 && (
           <div className="cmdk-back-button" onClick={onNavigateBack}>
             <ChevronLeft size={16} />
           </div>
@@ -35,7 +35,7 @@ export function CommandHeader({
           onValueChange={onSearchChange}
           autoFocus
           placeholder={
-            pages.length === 1
+            pageCount === 1
               ? "Search for commands..."
               : `Search in ${currentPage.parent ? getDisplayName(currentPage.parent.name) : currentPage.id}`
           }

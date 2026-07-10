@@ -5,7 +5,7 @@
 // hash, so subsequent requests with that token fail here. See
 // docs/native-messaging/authentication-and-security.md.
 import type { BridgeErrorCode, BridgeScope } from "../../../shared/types"
-import { getFeatureConfig, setFeatureConfig } from "../config"
+import { getFeatureConfig, updateFeatureConfig } from "../config"
 import { constantTimeEqual, sha256Hex } from "./crypto"
 import {
   NATIVE_MESSAGING_FEATURE_ID,
@@ -62,21 +62,28 @@ export const authenticate = async (
   }
 
   // Best-effort last-used stamp; never blocks the request on failure.
-  void touchLastUsed(config, matched.instanceId, now)
+  void touchLastUsed(matched.instanceId, now)
 
   return { ok: true, client: matched }
 }
 
-const touchLastUsed = async (
-  config: NativeMessagingConfig,
+export const touchLastUsed = async (
   instanceId: string,
   now: number,
 ): Promise<void> => {
-  const pairedClients = config.pairedClients.map((c) =>
-    c.instanceId === instanceId ? { ...c, lastUsedAt: now } : c,
+  await updateFeatureConfig<NativeMessagingConfig>(
+    NATIVE_MESSAGING_FEATURE_ID,
+    nativeMessagingConfigDefaults,
+    (config) => {
+      if (!config.pairedClients.some((c) => c.instanceId === instanceId)) {
+        return config
+      }
+      return {
+        ...config,
+        pairedClients: config.pairedClients.map((c) =>
+          c.instanceId === instanceId ? { ...c, lastUsedAt: now } : c,
+        ),
+      }
+    },
   )
-  await setFeatureConfig(NATIVE_MESSAGING_FEATURE_ID, {
-    ...config,
-    pairedClients,
-  })
 }

@@ -10,7 +10,7 @@ import {
   sendTabMessage,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
-import { getFaviconUrl } from "../../utils/favicon"
+import { getDuckDuckGoFaviconUrl } from "../../utils/favicon"
 import { normalizeUrlForDedupe } from "../../utils/urlFilter"
 
 interface BookmarkNode {
@@ -64,7 +64,7 @@ function processBookmarkNode(
     commands.push(folderCommand)
   } else if (node.url && node.title && isValidUrl(node.url)) {
     // This is a bookmark with a valid HTTP/HTTPS URL
-    const faviconUrl = getFaviconUrl(node.url)
+    const faviconUrl = getDuckDuckGoFaviconUrl(node.url)
     const bookmarkCommand: CommandNode = {
       type: "action",
       id: `bookmark-${node.id}`,

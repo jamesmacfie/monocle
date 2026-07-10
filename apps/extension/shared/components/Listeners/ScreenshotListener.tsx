@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { validateContentMessage } from "../../types/contentMessageValidation"
+import { getBrowserAPI } from "../../utils/extension-api"
 
 // Convert a base64 data URL into a Blob without using fetch(), so a page's
 // connect-src CSP can't block reading our own screenshot data.
@@ -37,6 +38,7 @@ function downloadBlob(blob: Blob, filename: string): void {
 
 export default function ScreenshotListener() {
   useEffect(() => {
+    const runtime = getBrowserAPI().runtime
     const handleMessage = (
       message: any,
       _sender: chrome.runtime.MessageSender,
@@ -66,10 +68,10 @@ export default function ScreenshotListener() {
       return true
     }
 
-    chrome.runtime.onMessage.addListener(handleMessage)
+    runtime.onMessage.addListener(handleMessage)
 
     return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage)
+      runtime.onMessage.removeListener(handleMessage)
     }
   }, [])
 

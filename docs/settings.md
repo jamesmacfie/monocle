@@ -3,17 +3,23 @@
 Monocle persists user preferences and per-command configuration in
 `chrome.storage.local`. The primary settings document lives under a single key,
 `monocle-settings`, owned by the background service worker through
-`background/commands/settings.ts`. The UI never writes this document directly
-except for two narrow theme/clock thunks in the Redux mirror; everything else
-flows through background functions and the `monocle-command-setting-update` message.
+`background/commands/settings.ts`. UI writes flow through background messages:
+general theme/new-tab patches use `monocle-settings-update`, while per-command
+settings use `monocle-command-setting-update`.
 Favorites and usage statistics are deliberately stored under *separate* storage
 keys, not part of the `monocle-settings` document.
 
 ## Storage layout
 
-Monocle uses four independent `chrome.storage.local` keys. Only the first is
-the "settings document"; the others are documented here because they are
-frequently confused with settings.
+Settings-adjacent data lives under four independent `chrome.storage.local`
+keys, listed below. Only the first is the "settings document"; the others are
+documented here because they are frequently confused with settings. Monocle
+has further self-owned keys documented with their subsystems:
+`monocle-automations` ([automations.md](./automations.md)),
+`monocle-feature-config` / `monocle-feature-state`
+([features.md](./features.md)), `monocle-surfaces`
+([surfaces.md](./surfaces.md)), and `monocle-extension-registrations`
+([extension-extension/](./extension-extension/)).
 
 | Storage key | Owner | Shape | Covered by |
 | --- | --- | --- | --- |
@@ -283,19 +289,17 @@ read on demand from the background, not from this slice.
 - `loadPermissions` / `refreshPermissions`: send `monocle-permissions-get` to the
   background and store the returned `PermissionSettings`. On
   `loadPermissions.rejected`, `permissions.isLoaded` is forced `false`.
-- `updateThemeMode(mode)`: reads the current `monocle-settings`, shallow-merges
-  the new `theme.mode`, writes the whole document back, then updates state.
-- `updateClockVisibility(show)`: reads the current document, shallow-merges
-  `newTab.clock.show`, writes back, then updates state.
-- `updateBackgroundCategories(categories)`: reads the current document,
-  shallow-merges `newTab.backgroundCategories`, writes back, then updates state.
+- `updateThemeMode(mode)`: sends `monocle-settings-update` with a `theme.mode`
+  patch and stores the fresh theme returned by the background.
+- `updateClockVisibility(show)`: sends `monocle-settings-update` with a nested
+  `newTab.clock.show` patch and stores the fresh new-tab document.
+- `updateBackgroundCategories(categories)`: sends `monocle-settings-update`
+  with a `newTab.backgroundCategories` patch and stores the fresh result.
 
-`updateThemeMode`, `updateClockVisibility`, and `updateBackgroundCategories` are
-the only places the UI writes `monocle-settings` directly (bypassing
-`background/commands/settings.ts`). Each does a manual read-modify-write spread
-of the whole document — safe because they touch a single leaf each, but they do
-not benefit from the background pruning/merge helpers. All other settings writes
-go through the background API or the `monocle-command-setting-update` message.
+All three mutation thunks use the typed store message boundary. The background
+serializes each read-modify-write with the same `monocle-settings` lock used by
+command settings, so a concurrent theme/new-tab update cannot replace a command
+setting written between the read and save.
 
 ## Settings catalog mirror (`shared/store/slices/settingsCatalog.slice.ts`)
 
@@ -320,11 +324,10 @@ giving the options page responsive controls.
 ### Staleness rules vs storage truth
 
 - **Theme and new-tab**: storage is the truth; the slice is a cache loaded on
-  app start and updated optimistically by its own thunks. Because both the
-  background API and the slice write the same `monocle-settings` key, a slice
-  read after a background write reflects the latest document, but the slice is
-  not automatically re-hydrated on external writes — call `loadSettings` to
-  refresh.
+  app start and updated from successful background responses. The new-tab shell
+  listens for `monocle-settings` storage changes and dispatches `loadSettings`,
+  so external theme/clock writes re-hydrate it. Other consumers refresh by
+  dispatching `loadSettings` when they need storage truth.
 - **Permissions**: the browser permission API is authoritative. The slice
   holds a cached snapshot fetched via `monocle-permissions-get`; it can go stale if a
   permission is revoked from the browser's extension settings while Monocle is
@@ -365,10 +368,9 @@ giving the options page responsive controls.
   command settings need their own merge branch and tests.
 - Resetting a custom keybinding removes only the `keybinding` field; it does not
   delete URL rules for the same command.
-- The Redux slice does not mirror `commands` settings, and only `theme`/`newTab`
-  are written by its thunks. Two thunks write `monocle-settings` directly,
-  bypassing the background merge/prune helpers; keep them limited to
-  single-leaf updates.
+- The Redux slice does not mirror `commands` settings. Its theme/new-tab thunks
+  route through `monocle-settings-update`; per-command writes continue through
+  `monocle-command-setting-update` and the settings catalog slice.
 - Permission state is duplicated between browser truth and Redux for UI
   responsiveness; the browser API remains authoritative.
 - URL pattern validation is custom (`validateUrlPattern`) and has focused tests;

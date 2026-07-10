@@ -36,7 +36,7 @@ type FeatureModule<TConfig> = {
   icon?: CommandIcon
   // Palette contribution. Sync so it composes into the sync command loader;
   // runtime state shows through async name/description resolvers, not here.
-  commands: (context: Browser.Context) => CommandNode[]
+  commands: (context?: Browser.Context) => CommandNode[]
   // Declarative settings page (optional).
   settings?: {
     schema: FeatureSettingsSchema          // sections of FormField + actions
@@ -140,6 +140,9 @@ existing automation engine and trigger system (see
   which the engine, trigger engine, alarm sync, and options listing read from.
   The automation storage mutators are untouched — feature documents never enter
   `monocle-automations`, and `addAutomation` rejects a feature-owned draft.
+- Declaring `automations` requires `settings` — projection uses
+  `settings.defaults` merged with stored config, so a settings-less feature's
+  automations are skipped with a console error.
 - **Tagged + deterministic.** Each projected doc carries
   `owner: { kind: "feature", featureId }` and a stable id
   (`featureAutomationId(featureId, key)` → `feature:<id>:<key>`, which cannot
@@ -170,9 +173,16 @@ lifecycles never bleed into each other:
 
 This is the central data-model decision: durable user config (you'd export it)
 must not live in the same blob as transient runtime state (a running session).
-Config is keyed by feature id and **replace-whole** on write (the settings page
-is its single writer, so no merge-branch complexity like `urlRules` needs).
-Both stores use `withStorageLock` (`background/utils/storageMutex.ts`).
+Config is keyed by feature id and **replace-whole per feature** on write. It has
+multiple writers — the settings page (`monocle-feature-config-update`), palette
+commands (e.g. Save Tabs as Group), and surface gestures (e.g. Element Hider's
+picker) — so any read-modify-write of a feature's own config must go through
+the locked `updateFeatureConfig` helper (`background/features/config.ts`);
+`setFeatureConfig` is reserved for replacing a freshly validated whole
+document. `onConfigChange` fires only on the settings-page message path — a
+palette command that mutates config performs its own side effects (see the
+native bridge and extension-registry toggles). Both stores serialize writes
+with `withStorageLock` (`background/utils/storageMutex.ts`).
 
 ---
 

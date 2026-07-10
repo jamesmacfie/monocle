@@ -11,6 +11,11 @@ import type {
   AutomationTrigger,
   AutomationTriggerType,
 } from "../../../shared/types"
+import {
+  AUTOMATION_ELEMENT_APPEARS_MIN_THROTTLE_MS,
+  AUTOMATION_MAX_TRIGGERS,
+  AUTOMATION_TRIGGER_MAX_DELAY_MS,
+} from "../../../shared/types/automationValidation"
 import { Button, Checkbox, Input, Select, Textarea } from "../../components/ui"
 import { EditorField as Field } from "./components/EditorField"
 import {
@@ -21,8 +26,6 @@ import {
   triggerRowFromTrigger,
 } from "./editorState"
 import { SelectorFields } from "./SelectorFields"
-
-const MAX_TRIGGERS = 5
 
 const PARAMS_PLACEHOLDER = `[
   { "id": "env", "label": "Environment", "type": "select",
@@ -176,10 +179,12 @@ export function TriggersEditor({
                 setTrigger(index, { ...trigger, oncePerPage: checked })
               }
             />
-            <Field label="Delay after match (ms, max 10000)">
+            <Field
+              label={`Delay after match (ms, max ${AUTOMATION_TRIGGER_MAX_DELAY_MS})`}
+            >
               <Input
                 className="w-32"
-                max={10000}
+                max={AUTOMATION_TRIGGER_MAX_DELAY_MS}
                 min={0}
                 type="number"
                 value={trigger.delayMs ?? ""}
@@ -213,11 +218,13 @@ export function TriggersEditor({
                 }
               />
             </Field>
-            <Field label="Throttle (ms, min 250)">
+            <Field
+              label={`Throttle (ms, min ${AUTOMATION_ELEMENT_APPEARS_MIN_THROTTLE_MS})`}
+            >
               <Input
                 className="w-32"
                 max={60000}
-                min={250}
+                min={AUTOMATION_ELEMENT_APPEARS_MIN_THROTTLE_MS}
                 type="number"
                 value={trigger.throttleMs ?? ""}
                 onChange={(event) => {
@@ -336,7 +343,7 @@ export function TriggersEditor({
         </Select>
         <Button
           disabled={
-            rows.length >= MAX_TRIGGERS ||
+            rows.length >= AUTOMATION_MAX_TRIGGERS ||
             (addType !== "manual" && usedNonManualTypes.has(addType))
           }
           type="button"

@@ -1,14 +1,11 @@
 import { Settings } from "lucide-react"
 import { useEffect, useMemo } from "react"
 import { Provider } from "react-redux"
-import CopyToClipboardListener from "../shared/components/Listeners/CopyToClipboardListener"
-import InsertTextListener from "../shared/components/Listeners/InsertTextListener"
-import NewTabListener from "../shared/components/Listeners/NewTabListener"
-import ScreenshotListener from "../shared/components/Listeners/ScreenshotListener"
-import ScrollListener from "../shared/components/Listeners/ScrollListener"
+import { PageMessageListeners } from "../shared/components/Listeners/PageMessageListeners"
 import { MonocleMark } from "../shared/components/MonocleMark"
 import { SurfaceHost } from "../shared/components/SurfaceHost"
-import { ToastContainer } from "../shared/components/ToastContainer"
+import { MessageContextProvider } from "../shared/hooks/MessageContext"
+import { useDocumentTheme } from "../shared/hooks/useDocumentTheme"
 import { createAppStore } from "../shared/store"
 import { useAppDispatch, useAppSelector } from "../shared/store/hooks"
 import { createPaletteSendMessage } from "../shared/store/sendMessage"
@@ -19,10 +16,6 @@ import {
   selectThemeMode,
 } from "../shared/store/slices/settings.slice"
 import { getBrowserAPI, openOptionsPage } from "../shared/utils/extension-api"
-import {
-  applyThemeToDocument,
-  setupSystemThemeListener,
-} from "../shared/utils/theme"
 import { BackgroundImage } from "./components/BackgroundImage"
 import { Clock } from "./components/Clock"
 import { NewTabCommandPalette } from "./components/NewTabCommandPalette"
@@ -33,9 +26,11 @@ import {
   normalizeGrantPermission,
   PermissionGrantPanel,
 } from "./components/PermissionGrantPanel"
+import { subscribeToNewTabSettingsChanges } from "./settingsSubscription"
 
 // Cross-browser compatibility layer
 const browserAPI = getBrowserAPI()
+const NEW_TAB_MESSAGE_CONTEXT = { isNewTab: true } as const
 
 function NewTabAppContent() {
   const showClock = useAppSelector(selectClockVisibility)
@@ -61,34 +56,14 @@ function NewTabAppContent() {
     dispatch(loadPermissions())
   }, [dispatch])
 
-  // Apply theme to document root
-  useEffect(() => {
-    applyThemeToDocument(themeMode)
-  }, [themeMode])
+  useDocumentTheme(themeMode)
 
-  // Setup system theme listener
   useEffect(() => {
-    if (themeMode === "system") {
-      return setupSystemThemeListener(() => {
-        // Re-apply theme when system preference changes
-        applyThemeToDocument(themeMode)
-      })
-    }
-  }, [themeMode])
-
-  // Listen for storage changes and reload settings
-  useEffect(() => {
-    const handleStorageChange = (changes: any, areaName: string) => {
-      if (areaName === "local" && changes["monocle-settings"]) {
+    const settingsChanges = browserAPI?.storage?.onChanged
+    if (settingsChanges) {
+      return subscribeToNewTabSettingsChanges(settingsChanges, () => {
         dispatch(loadSettings())
-      }
-    }
-
-    if (browserAPI?.storage?.onChanged) {
-      browserAPI.storage.onChanged.addListener(handleStorageChange)
-      return () => {
-        browserAPI.storage.onChanged.removeListener(handleStorageChange)
-      }
+      })
     }
   }, [dispatch])
 
@@ -146,12 +121,7 @@ function NewTabAppContent() {
         <Settings size={18} />
       </button>
       <SurfaceHost kinds={["badge"]} />
-      <CopyToClipboardListener />
-      <InsertTextListener />
-      <NewTabListener />
-      <ScrollListener />
-      <ScreenshotListener />
-      <ToastContainer />
+      <PageMessageListeners />
     </div>
   )
 }
@@ -171,7 +141,9 @@ export default function NewTabApp() {
 
   return (
     <Provider store={store}>
-      <NewTabAppContent />
+      <MessageContextProvider value={NEW_TAB_MESSAGE_CONTEXT}>
+        <NewTabAppContent />
+      </MessageContextProvider>
     </Provider>
   )
 }

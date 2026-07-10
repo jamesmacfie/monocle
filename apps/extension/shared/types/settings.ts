@@ -17,20 +17,23 @@ export type CommandUrlRulesSetting = Partial<
 // Theme settings
 // The OS-aware trio plus the always-on named themes. The value is applied
 // verbatim as a class on the palette root and matched by the CSS theme blocks.
-export type ThemeMode =
-  | "system"
-  | "light"
-  | "dark"
-  | "solarized-light"
-  | "solarized-dark"
-  | "monokai"
-  | "nord"
-  | "catppuccin-latte"
-  | "catppuccin-frappe"
-  | "catppuccin-macchiato"
-  | "catppuccin-mocha"
-  | "one-dark"
-  | "dracula"
+export const THEME_MODES = [
+  "system",
+  "light",
+  "dark",
+  "solarized-light",
+  "solarized-dark",
+  "monokai",
+  "nord",
+  "catppuccin-latte",
+  "catppuccin-frappe",
+  "catppuccin-macchiato",
+  "catppuccin-mocha",
+  "one-dark",
+  "dracula",
+] as const
+
+export type ThemeMode = (typeof THEME_MODES)[number]
 
 export interface ThemeSettings {
   mode?: ThemeMode

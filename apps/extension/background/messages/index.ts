@@ -39,6 +39,7 @@ import { openPermissionGrantPage } from "./openPermissionGrantPage"
 import { requestPermission } from "./requestPermission"
 import { searchCommands } from "./searchCommands"
 import { setCommandFavorite } from "./setCommandFavorite"
+import { updateSettings } from "./settings"
 import { showToast } from "./showToast"
 import { siteSdkSync } from "./siteSdkSync"
 import { surfaceAction } from "./surfaceAction"
@@ -52,15 +53,6 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
   const validation = validateIncomingMessage(rawMessage, sender)
 
   if (!validation.success) {
-    // Log security/validation failures for monitoring
-    console.error("[MessageHandler] Message validation failed:", {
-      error: validation.error,
-      issues: validation.issues,
-      sender: validation.senderId,
-      messageType: (rawMessage as any)?.type || "unknown",
-    })
-
-    // Return structured error response
     return {
       error: `Message validation failed: ${validation.error}`,
       validationIssues: validation.issues,
@@ -68,20 +60,6 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
   }
 
   const message = validation.data
-
-  console.log(
-    "Received message",
-    message.type === "monocle-workflow-execute"
-      ? {
-          type: message.type,
-          tabId: message.tabId,
-          workflow: {
-            name: message.workflow.name,
-            stepCount: message.workflow.steps.length,
-          },
-        }
-      : message,
-  )
 
   // Route validated message to appropriate handler
   return await match(message)
@@ -114,6 +92,9 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     })
     .with({ type: "monocle-settings-catalog-get" }, async (msg) => {
       return await getSettingsCatalog(msg, sender)
+    })
+    .with({ type: "monocle-settings-update" }, async (msg) => {
+      return await updateSettings(msg, sender)
     })
     .with({ type: "monocle-command-favorite-set" }, async (msg) => {
       return await setCommandFavorite(msg, sender)

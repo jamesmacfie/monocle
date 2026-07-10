@@ -282,7 +282,12 @@ async fn handshake(
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
-    Some((raw_name.to_lowercase(), display_name(raw_name), channel, version))
+    Some((
+        raw_name.to_lowercase(),
+        display_name(raw_name),
+        channel,
+        version,
+    ))
 }
 
 fn display_name(raw: &str) -> String {
@@ -312,13 +317,7 @@ async fn handle_rpc(
     };
 
     // Inject the bearer token into the envelope (the extension validates it).
-    if let Some(token) = headers
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-    {
-        env["auth"] = json!({ "token": token });
-    }
+    inject_bearer_token(&mut env, &headers);
 
     let target = headers
         .get(TARGET_HEADER)
@@ -352,6 +351,16 @@ async fn handle_rpc(
             state.pending.lock().await.remove(&id);
             error_envelope(&id, "internal", "no response from extension")
         }
+    }
+}
+
+fn inject_bearer_token(env: &mut Value, headers: &HeaderMap) {
+    if let Some(token) = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+    {
+        env["auth"] = json!({ "token": token });
     }
 }
 
@@ -414,9 +423,22 @@ fn write_discovery(port: u16, sock: &std::path::Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::to_bytes;
+    use axum::http::Request;
+    use tower::ServiceExt;
 
     fn ids(v: &[&str]) -> Vec<String> {
         v.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn app() -> Router {
+        let state = Arc::new(DaemonState::new(Arc::new(StdMutex::new(Vec::new())), 8765));
+        Router::new().route("/", post(handle_rpc)).with_state(state)
+    }
+
+    async fn response_json(response: Response) -> Value {
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        serde_json::from_slice(&body).unwrap()
     }
 
     #[tokio::test]
@@ -437,10 +459,119 @@ mod tests {
         assert!(!state.deliver(body).await);
     }
 
+    #[tokio::test]
+    async fn handshake_parses_browser_identity() {
+        let state = DaemonState::new(Arc::new(StdMutex::new(Vec::new())), 8765);
+        let (relay, daemon) = UnixStream::pair().unwrap();
+        let (mut relay_read, _) = relay.into_split();
+        let (_, mut daemon_write) = daemon.into_split();
+
+        let answer = async {
+            let request = read_frame(&mut relay_read).await.unwrap().unwrap();
+            let request: Value = serde_json::from_slice(&request).unwrap();
+            let id = request["id"].as_str().unwrap();
+            assert_eq!(request["method"], "meta/info");
+            let response = serde_json::to_vec(&json!({
+                "v": 1,
+                "id": id,
+                "ok": true,
+                "result": {
+                    "browser": {
+                        "name": "chrome",
+                        "channel": "stable",
+                        "extensionVersion": "0.1.0"
+                    }
+                }
+            }))
+            .unwrap();
+            assert!(state.deliver(response).await);
+        };
+
+        let (identity, ()) = tokio::join!(handshake(&state, 7, &mut daemon_write), answer);
+        assert_eq!(
+            identity,
+            Some((
+                "chrome".into(),
+                "Chrome".into(),
+                "stable".into(),
+                "0.1.0".into()
+            ))
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn handshake_timeout_returns_none_and_cleans_pending_request() {
+        let state = DaemonState::new(Arc::new(StdMutex::new(Vec::new())), 8765);
+        let (_relay, daemon) = UnixStream::pair().unwrap();
+        let (_, mut daemon_write) = daemon.into_split();
+
+        assert_eq!(handshake(&state, 8, &mut daemon_write).await, None);
+        assert!(state.pending.lock().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn rpc_rejects_origin_header() {
+        let response = app()
+            .oneshot(
+                Request::post("/")
+                    .header(header::ORIGIN, "https://evil.example")
+                    .body(Body::from(r#"{"v":1,"id":"r1","method":"status"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn rpc_rejects_missing_id() {
+        let response = app()
+            .oneshot(
+                Request::post("/")
+                    .body(Body::from(r#"{"v":1,"method":"status"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn rpc_no_browser_returns_not_enabled_envelope() {
+        let response = app()
+            .oneshot(
+                Request::post("/")
+                    .body(Body::from(r#"{"v":1,"id":"r2","method":"status"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = response_json(response).await;
+        assert_eq!(body["id"], "r2");
+        assert_eq!(body["ok"], false);
+        assert_eq!(body["error"]["code"], "not_enabled");
+    }
+
+    #[test]
+    fn bearer_token_is_injected_into_envelope() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::AUTHORIZATION,
+            "Bearer secret-token".parse().unwrap(),
+        );
+        let mut env = json!({ "v": 1, "id": "r3", "method": "status" });
+        inject_bearer_token(&mut env, &headers);
+        assert_eq!(env["auth"]["token"], "secret-token");
+    }
+
     #[test]
     fn select_relay_targets_named_browser() {
         let connected = ids(&["chrome", "firefox"]);
-        assert_eq!(select_relay(Some("firefox"), &connected).unwrap(), "firefox");
+        assert_eq!(
+            select_relay(Some("firefox"), &connected).unwrap(),
+            "firefox"
+        );
     }
 
     #[test]
@@ -461,10 +592,7 @@ mod tests {
     #[test]
     fn select_relay_requires_target_when_ambiguous() {
         let connected = ids(&["chrome", "firefox"]);
-        assert_eq!(
-            select_relay(None, &connected).unwrap_err().0,
-            "bad_request"
-        );
+        assert_eq!(select_relay(None, &connected).unwrap_err().0, "bad_request");
     }
 
     #[test]

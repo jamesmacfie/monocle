@@ -14,9 +14,9 @@ import {
   type ExternalCommand,
   type ExternalInvokeRequest,
   type ExtInvokeReply,
-  validateExternalCommandList,
 } from "../../../shared/types"
 import { getBrowserAPI } from "../../../shared/utils/extension-api"
+import { validateCallbackCommands } from "../externalProvider"
 
 // Match the site SDK's callback budget so behavior is consistent across both
 // external providers.
@@ -30,16 +30,6 @@ type ExtPort = {
   onDisconnect: { addListener: (cb: () => void) => void }
   postMessage: (message: unknown) => void
   disconnect: () => void
-}
-
-const validateCallbackCommands = (commands: unknown): ExternalCommand[] => {
-  const validation = validateExternalCommandList(commands, {
-    allowPlacement: false,
-  })
-  if (!validation.success) {
-    throw new Error(validation.error)
-  }
-  return validation.commands
 }
 
 export const invokeExtension = (
@@ -86,11 +76,15 @@ export const invokeExtension = (
       if (settled || message?.id !== id) return
       finish(() => {
         if (message.ok) {
-          resolve(
-            message.commands === undefined
-              ? undefined
-              : validateCallbackCommands(message.commands),
-          )
+          try {
+            resolve(
+              message.commands === undefined
+                ? undefined
+                : validateCallbackCommands(message.commands),
+            )
+          } catch (error) {
+            reject(error)
+          }
         } else {
           reject(
             new Error(message.error?.message || "Extension callback failed"),

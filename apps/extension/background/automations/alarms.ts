@@ -2,11 +2,11 @@
 // schedule, onStartup) on chrome.alarms — MV3 service workers die, so
 // setTimeout/setInterval do not survive; alarms are the only correct
 // mechanism, re-registered on runtime.onInstalled/onStartup and whenever
-// the script store changes. Target-tab semantics: a scheduled run executes
-// against the first open tab the script's urlRules allow (active tab when
-// the script has no allow rules); with no eligible tab the run is skipped
+// the automation store changes. Target-tab semantics: a scheduled run executes
+// against the first open tab the automation's urlRules allow (active tab when
+// the automation has no allow rules); with no eligible tab the run is skipped
 // with a log, never queued. Reading tab URLs for that matching requires the
-// optional "tabs" permission — without it, scoped scripts skip and say why.
+// optional "tabs" permission — without it, scoped automations skip and say why.
 // Requires the "alarms" permission (declared in wxt.config.ts).
 import type { Automation, AutomationTrigger } from "../../shared/types"
 import { getBrowserAPI } from "../../shared/utils/extension-api"
@@ -56,10 +56,10 @@ const nextOccurrenceOf = (at: string, now = new Date()): number => {
 }
 
 const armedTrigger = <T extends AutomationTrigger["type"]>(
-  script: Automation,
+  automation: Automation,
   type: T,
 ): Extract<AutomationTrigger, { type: T }> | undefined =>
-  script.triggers.find(
+  automation.triggers.find(
     (trigger): trigger is Extract<AutomationTrigger, { type: T }> =>
       trigger.type === type &&
       (trigger as { disarmed?: boolean }).disarmed !== true,
@@ -84,23 +84,23 @@ export const syncAutomationAlarms = async (): Promise<void> => {
     }
   }
 
-  const scripts = await getAllAutomations()
-  for (const script of scripts) {
-    if (!script.enabled) {
+  const automations = await getAllAutomations()
+  for (const automation of automations) {
+    if (!automation.enabled) {
       continue
     }
 
-    const interval = armedTrigger(script, "interval")
+    const interval = armedTrigger(automation, "interval")
     if (interval) {
-      alarmsApi.create(alarmName("interval", script.id), {
+      alarmsApi.create(alarmName("interval", automation.id), {
         periodInMinutes: interval.everyMinutes,
         delayInMinutes: interval.everyMinutes,
       })
     }
 
-    const schedule = armedTrigger(script, "schedule")
+    const schedule = armedTrigger(automation, "schedule")
     if (schedule) {
-      alarmsApi.create(alarmName("schedule", script.id), {
+      alarmsApi.create(alarmName("schedule", automation.id), {
         when: nextOccurrenceOf(schedule.at),
         periodInMinutes: 24 * 60,
       })
@@ -110,14 +110,14 @@ export const syncAutomationAlarms = async (): Promise<void> => {
 
 /**
  * Finds the tab a scheduled run should execute against: the first open tab
- * the script's allow rules match, or the active tab when the script is
+ * the automation's allow rules match, or the active tab when the automation is
  * unscoped. Returns null (skip) when nothing qualifies.
  */
 export const findScheduledRunTab = async (
-  script: Automation,
+  automation: Automation,
 ): Promise<{ id: number; url?: string } | null> => {
   const browserAPI = getBrowserAPI()
-  const eligibility = await getAutomationEligibility(script)
+  const eligibility = await getAutomationEligibility(automation)
 
   if (!eligibility.hasAllowRules) {
     const [activeTab] = await browserAPI.tabs.query({
@@ -139,7 +139,7 @@ export const findScheduledRunTab = async (
   const urlsVisible = tabs.some((tab) => typeof tab.url === "string")
   if (!urlsVisible) {
     console.warn(
-      `[Automations] Scheduled run of "${script.name}" skipped: reading tab URLs needs the optional "tabs" permission`,
+      `[Automations] Scheduled run of "${automation.name}" skipped: reading tab URLs needs the optional "tabs" permission`,
     )
     return null
   }
@@ -150,19 +150,19 @@ export const findScheduledRunTab = async (
   return match?.id ? { id: match.id, url: match.url } : null
 }
 
-const runScheduledScript = async (
-  script: Automation,
+const runScheduledAutomation = async (
+  automation: Automation,
   triggerType: "interval" | "schedule" | "onStartup",
 ): Promise<void> => {
-  const tab = await findScheduledRunTab(script)
+  const tab = await findScheduledRunTab(automation)
   if (!tab) {
     console.info(
-      `[Automations] Scheduled run of "${script.name}" skipped: no eligible tab`,
+      `[Automations] Scheduled run of "${automation.name}" skipped: no eligible tab`,
     )
     return
   }
 
-  await runAutomation(script.id, {
+  await runAutomation(automation.id, {
     context: { url: tab.url ?? "", title: "", modifierKey: null },
     invocation: {
       kind: "trigger",
@@ -178,24 +178,28 @@ const handleAlarm = async (alarm: { name: string }): Promise<void> => {
     return
   }
 
-  const scripts = await getAllAutomations()
-  const script = scripts.find(
+  const automations = await getAllAutomations()
+  const automation = automations.find(
     (candidate) => candidate.id === parsed.automationId,
   )
-  if (!script || !script.enabled || !armedTrigger(script, parsed.type)) {
+  if (
+    !automation ||
+    !automation.enabled ||
+    !armedTrigger(automation, parsed.type)
+  ) {
     // The document changed since the alarm was created; drop and re-sync.
     await syncAutomationAlarms()
     return
   }
 
-  await runScheduledScript(script, parsed.type)
+  await runScheduledAutomation(automation, parsed.type)
 }
 
-const runStartupScripts = async (): Promise<void> => {
-  const scripts = await getAllAutomations()
-  for (const script of scripts) {
-    if (script.enabled && armedTrigger(script, "onStartup")) {
-      await runScheduledScript(script, "onStartup")
+const runStartupAutomations = async (): Promise<void> => {
+  const automations = await getAllAutomations()
+  for (const automation of automations) {
+    if (automation.enabled && armedTrigger(automation, "onStartup")) {
+      await runScheduledAutomation(automation, "onStartup")
     }
   }
 }
@@ -219,7 +223,7 @@ export const initializeAutomationAlarms = (): void => {
 
   browserAPI.runtime?.onStartup?.addListener(() => {
     syncAutomationAlarms().catch(console.error)
-    runStartupScripts().catch(console.error)
+    runStartupAutomations().catch(console.error)
   })
 
   browserAPI.storage?.onChanged?.addListener(

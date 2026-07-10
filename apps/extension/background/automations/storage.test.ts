@@ -8,7 +8,6 @@ import type { AutomationDraft } from "../../shared/types/automationValidation"
 import {
   addAutomation,
   deleteAutomation,
-  getAutomation,
   getAutomations,
   updateAutomation,
 } from "./storage"
@@ -52,9 +51,9 @@ describe("automation storage", () => {
 
     expect(created.id).toBeTruthy()
     expect(created.createdAt).toBe(created.updatedAt)
-    await expect(getAutomation(created.id)).resolves.toMatchObject({
-      name: "Dev login",
-    })
+    expect(
+      (await getAutomations()).find(({ id }) => id === created.id),
+    ).toMatchObject({ name: "Dev login" })
 
     const updated = await updateAutomation(
       created.id,

@@ -179,6 +179,110 @@ const createHideCommandAction = (command: CommandNode): Suggestion | null => {
   }
 }
 
+type ModifierActionLabels = Awaited<
+  ReturnType<typeof resolveModifierActionLabels>
+>
+
+const MODIFIER_ACTION_DEFS: Array<{
+  key: "cmd" | "shift" | "alt" | "ctrl"
+  icon: IconName
+  description: string
+}> = [
+  { key: "cmd", icon: "Command", description: "Cmd" },
+  { key: "shift", icon: "ArrowUp", description: "Shift" },
+  { key: "alt", icon: "Option", description: "Alt" },
+  { key: "ctrl", icon: "SquareAsterisk", description: "Ctrl" },
+]
+
+const buildRowActions = async (
+  node: CommandNode,
+  context: Browser.Context,
+  effectivePermissions: BrowserPermission[],
+  modifierActionLabels: ModifierActionLabels | undefined,
+  favoriteCommandIds: ReadonlySet<string>,
+  commandSettings: Record<string, CommandSettings>,
+): Promise<Suggestion[]> => {
+  const actions: Suggestion[] = []
+  if (
+    node.type === "group" ||
+    node.type === "search" ||
+    node.type === "action" ||
+    node.type === "submit"
+  ) {
+    const primaryLabel =
+      node.type === "group"
+        ? "Open"
+        : await resolveActionLabel(node as any, context)
+    actions.push({
+      id: generatedActionIds.primary(node.id),
+      name: primaryLabel,
+      description: node.type === "group" ? "Open this group" : primaryLabel,
+      icon: {
+        type: "lucide",
+        name: node.type === "group" ? "FolderOpen" : "Play",
+      },
+      type: "action",
+      actionLabel: primaryLabel,
+      isFavorite: false,
+      actions: undefined,
+      keybinding: "enter",
+      confirmAction:
+        node.type === "action" || node.type === "submit"
+          ? node.confirmAction
+          : undefined,
+      permissions: effectivePermissions,
+      executionContext: { type: "primary", targetCommandId: node.id },
+    })
+  }
+
+  if (
+    (node.type === "action" || node.type === "submit") &&
+    modifierActionLabels
+  ) {
+    for (const { key, icon, description } of MODIFIER_ACTION_DEFS) {
+      const label = modifierActionLabels[key]
+      if (label) {
+        actions.push({
+          id: generatedActionIds.modifier(node.id, key),
+          name: label,
+          description: `Execute with ${description} key`,
+          icon: { type: "lucide", name: icon },
+          type: "action",
+          actionLabel: label,
+          keywords: [],
+          isFavorite: false,
+          keybinding: `<${key}-enter>`,
+          confirmAction: node.confirmAction,
+          modifierActionLabel: undefined,
+          remainOpenOnSelect: undefined,
+          actions: undefined,
+          permissions: effectivePermissions,
+          color: undefined,
+          executionContext: {
+            type: "modifier",
+            targetCommandId: node.id,
+            modifierKey: key,
+          },
+        })
+      }
+    }
+  }
+
+  actions.push(await createFavoriteToggleAction(node, favoriteCommandIds))
+  const hideFromDomain = await createHideFromDomainAction(node, context)
+  if (hideFromDomain) actions.push(hideFromDomain)
+  const hideCommand = createHideCommandAction(node)
+  if (hideCommand) actions.push(hideCommand)
+  const setKeybinding = createSetKeybindingAction(node)
+  const resetKeybinding = createResetKeybindingAction(
+    node,
+    commandSettings[node.id],
+  )
+  if (setKeybinding) actions.push(setKeybinding)
+  if (resetKeybinding) actions.push(resetKeybinding)
+  return actions
+}
+
 /**
  * Converts command nodes into UI-facing suggestions: resolves async
  * presentation fields, computes the effective keybinding
@@ -288,114 +392,14 @@ export const commandsToSuggestions = async (
         }
       }
 
-      const actions: Suggestion[] = []
-      if (
-        node.type === "group" ||
-        node.type === "search" ||
-        node.type === "action" ||
-        node.type === "submit"
-      ) {
-        const primaryLabel =
-          node.type === "group"
-            ? "Open"
-            : await resolveActionLabel(node as any, context)
-        actions.push({
-          id: generatedActionIds.primary(node.id),
-          name: primaryLabel,
-          description: node.type === "group" ? "Open this group" : primaryLabel,
-          icon: {
-            type: "lucide",
-            name: node.type === "group" ? "FolderOpen" : "Play",
-          },
-          type: "action",
-          actionLabel: primaryLabel,
-          isFavorite: false,
-          actions: undefined,
-          keybinding: "enter",
-          confirmAction:
-            node.type === "action" || node.type === "submit"
-              ? node.confirmAction
-              : undefined,
-          permissions: effectivePermissions,
-          executionContext: { type: "primary", targetCommandId: node.id },
-        })
-      }
-      if (
-        (node.type === "action" || node.type === "submit") &&
-        modifierActionLabels
-      ) {
-        const modifierLabels = modifierActionLabels
-        const defs: Array<{
-          key: "cmd" | "shift" | "alt" | "ctrl"
-          icon: IconName
-          symbol: string
-          description: string
-        }> = [
-          {
-            key: "cmd" as const,
-            icon: "Command",
-            symbol: "⌘",
-            description: "Cmd",
-          },
-          {
-            key: "shift" as const,
-            icon: "ArrowUp",
-            symbol: "⇧",
-            description: "Shift",
-          },
-          {
-            key: "alt" as const,
-            icon: "Option",
-            symbol: "⌥",
-            description: "Alt",
-          },
-          {
-            key: "ctrl" as const,
-            icon: "SquareAsterisk",
-            symbol: "⌃",
-            description: "Ctrl",
-          },
-        ]
-        for (const { key, icon, description } of defs) {
-          const label = modifierLabels[key]
-          if (label) {
-            actions.push({
-              id: generatedActionIds.modifier(node.id, key),
-              name: label,
-              description: `Execute with ${description} key`,
-              icon: { type: "lucide", name: icon },
-              type: "action",
-              actionLabel: label,
-              keywords: [],
-              isFavorite: false,
-              keybinding: `<${key}-enter>`,
-              confirmAction: node.confirmAction,
-              modifierActionLabel: undefined,
-              remainOpenOnSelect: undefined,
-              actions: undefined,
-              permissions: effectivePermissions,
-              color: undefined,
-              executionContext: {
-                type: "modifier",
-                targetCommandId: node.id,
-                modifierKey: key,
-              },
-            })
-          }
-        }
-      }
-      actions.push(await createFavoriteToggleAction(node, favoriteCommandIds))
-      const hideFromDomain = await createHideFromDomainAction(node, context)
-      if (hideFromDomain) actions.push(hideFromDomain)
-      const hideCommand = createHideCommandAction(node)
-      if (hideCommand) actions.push(hideCommand)
-      const setKB = createSetKeybindingAction(node)
-      const resetKB = createResetKeybindingAction(
+      const actions = await buildRowActions(
         node,
-        commandSettings[node.id],
+        context,
+        effectivePermissions,
+        modifierActionLabels,
+        favoriteCommandIds,
+        commandSettings,
       )
-      if (setKB) actions.push(setKB)
-      if (resetKB) actions.push(resetKB)
       if (
         suggestion.type === "action" ||
         suggestion.type === "submit" ||

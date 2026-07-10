@@ -19,7 +19,7 @@ implementation.
 | **External app** | Desktop (Raycast) | Initiates pairing, holds the bearer token, sends JSON requests to the loopback port, renders returned suggestions, and handles execute results. |
 | **Bridge daemon** | Persistent `apps/bridge` Tauri app | Owns `127.0.0.1:<port>`, writes `~/.monocle/bridge.json`, listens on `~/.monocle/bridge.sock`, rejects browser `Origin`, injects the bearer token from the HTTP header, and routes replies by envelope `id`. |
 | **Relay** | Browser-spawned `connectNative` child process (same binary, relay mode) | Pumps frames between browser native-messaging stdio and the daemon's UDS. No UI, no Monocle logic. |
-| **Extension background** | Monocle's MV3 service worker | Calls `connectNative`, authenticates requests, resolves the active tab, builds suggestions by reusing `getCommands` / the search index / child page resolver, maps them to the public DTO, executes allowed commands, and drives the pairing modal. |
+| **Extension background** | Monocle's MV3 service worker | Calls `connectNative`, authenticates requests, resolves the active tab, builds suggestions by reusing `getCommands` / the search index / child page resolver, maps them to the public DTO, executes allowed commands, and verifies pairing codes entered on the Integrations page. |
 
 The split matters: the daemon and relay are deliberately ignorant. They cannot
 read tabs, build suggestions, mint tokens, or decide pairing — they move bytes

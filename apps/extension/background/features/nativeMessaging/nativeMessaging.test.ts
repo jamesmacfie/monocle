@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing"
 import type { Suggestion } from "../../../shared/types"
 import { getFeatureConfig, setFeatureConfig } from "../config"
-import { authenticate } from "./auth"
+import { authenticate, touchLastUsed } from "./auth"
 import { constantTimeEqual, generatePairingCode, generateToken } from "./crypto"
 import {
   toExternalSuggestion,
@@ -256,6 +256,29 @@ describe("pairing + auth", () => {
 
     const auth = await authenticate(token, "suggestions:read", now)
     expect(auth).toEqual({ ok: false, code: "unauthorized" })
+  })
+
+  it("last-used touches do not resurrect a revoked client", async () => {
+    await enableBridge()
+    const now = 4_500_000
+    await mint({ name: "App", instanceId: "inst-revoked" }, now)
+    const config = await getFeatureConfig(
+      NATIVE_MESSAGING_FEATURE_ID,
+      nativeMessagingConfigDefaults,
+    )
+    await setFeatureConfig(NATIVE_MESSAGING_FEATURE_ID, {
+      ...config,
+      pairedClients: [],
+    })
+
+    await touchLastUsed("inst-revoked", now + 1)
+
+    await expect(
+      getFeatureConfig(
+        NATIVE_MESSAGING_FEATURE_ID,
+        nativeMessagingConfigDefaults,
+      ),
+    ).resolves.toMatchObject({ pairedClients: [] })
   })
 
   it("denies auth when the feature is disabled", async () => {

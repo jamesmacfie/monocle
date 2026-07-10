@@ -1,6 +1,6 @@
 // Architecture: shared/ type layer. The `Automation` document model — the
 // stored, declarative description of a user-authored automation. A user
-// script is always data, never code: it is persisted locally under the
+// automation is always data, never code: it is persisted locally under the
 // `monocle-automations` storage key (background/automations/storage.ts),
 // validated against shared/types/automationValidation.ts at every boundary,
 // and interpreted entirely by bundled extension logic
@@ -27,7 +27,7 @@ export type AutomationVarDef =
   | { kind: "runtime" }
 
 // ---------------------------------------------------------------------------
-// Triggers — when a script runs. v1 ships `manual` only (zero non-gesture
+// Triggers — when an automation runs. v1 ships `manual` only (zero non-gesture
 // execution); urlMatch/elementAppears are the v2 event triggers and
 // interval/schedule/onStartup the v3 scheduled triggers. Non-manual triggers
 // carry `disarmed` so imported documents arrive inert until the user
@@ -64,7 +64,7 @@ export type ManualTrigger = {
 
 export type UrlMatchTrigger = {
   type: "urlMatch"
-  // The script's urlRules ARE the pattern — there is deliberately no
+  // The automation's urlRules ARE the pattern — there is deliberately no
   // separate match field. `load` fires when a matching page finishes
   // loading; `spa` on best-effort history-API navigation onto a match.
   on?: Array<"load" | "spa">
@@ -219,8 +219,8 @@ export type AutomationSurfaceKind = "overlay" | "badge"
 export type AutomationSurfaceContent = Omit<SurfaceContent, "blocks" | "css">
 
 // Pushes a declarative surface (overlay/badge) into the generic Surfaces store
-// under this script's owner (`automation:<id>`). The author supplies the
-// surfaceId (unique within the script); content.title/content.text are
+// under this automation's owner (`automation:<id>`). The author supplies the
+// surfaceId (unique within the automation); content.title/content.text are
 // interpolated, urlMatch is not (an address, never a template). See
 // docs/surfaces.md.
 export type ShowSurfaceStep = EngineStepBase & {
@@ -277,6 +277,26 @@ export type AutomationEngineStep =
   | ForEachStep
   | WhileStep
 
+const AUTOMATION_ENGINE_OP_TABLE: Record<AutomationEngineStep["op"], true> = {
+  setVariable: true,
+  insertSnippet: true,
+  toast: true,
+  navigate: true,
+  openUrl: true,
+  clipboardWrite: true,
+  runCommand: true,
+  showSurface: true,
+  hideSurface: true,
+  branch: true,
+  forEach: true,
+  while: true,
+}
+
+/** Exhaustive runtime view of the steps owned by the background engine. */
+export const AUTOMATION_ENGINE_OPS: ReadonlySet<string> = new Set(
+  Object.keys(AUTOMATION_ENGINE_OP_TABLE),
+)
+
 export type AutomationStep = AutomationContentStep | AutomationEngineStep
 
 // ---------------------------------------------------------------------------
@@ -291,7 +311,7 @@ export interface Automation {
   // data, so free-form SVG/URL icons are an avoided sanitization surface.
   icon?: IconName
   color?: ColorName
-  // Master switch: a disabled script generates no palette command and arms
+  // Master switch: a disabled automation generates no palette command and arms
   // no triggers.
   enabled: boolean
   // Scopes BOTH the palette row and trigger eligibility; reuses the command
@@ -306,7 +326,7 @@ export interface Automation {
   }
   createdAt: number
   updatedAt: number
-  // Import provenance for the trust model; imported scripts arrive with
+  // Import provenance for the trust model; imported automations arrive with
   // non-manual triggers disarmed.
   source?: {
     kind: "local" | "imported"
@@ -359,11 +379,11 @@ export type AutomationPageTriggerSpec = {
   trigger: UrlMatchTrigger | ElementAppearsTrigger
 }
 
-/** Generated command id for a script. */
+/** Generated command id for an automation. */
 export const automationCommandId = (automationId: string): string =>
   `automation-${automationId}`
 
-/** Inverse of automationCommandId; null when the id is not a script row. */
+/** Inverse of automationCommandId; null when the id is not an automation row. */
 export const parseAutomationCommandId = (commandId: string): string | null =>
   commandId.startsWith("automation-")
     ? commandId.slice("automation-".length)
@@ -371,10 +391,10 @@ export const parseAutomationCommandId = (commandId: string): string | null =>
 
 /** True when an automation is projected from a feature's config (read-only). */
 export const isFeatureAutomation = (
-  script: Pick<Automation, "owner">,
-): script is Automation & {
+  automation: Pick<Automation, "owner">,
+): automation is Automation & {
   owner: { kind: "feature"; featureId: string }
-} => script.owner?.kind === "feature"
+} => automation.owner?.kind === "feature"
 
 /**
  * Deterministic id for a feature-projected automation. The `feature:` prefix

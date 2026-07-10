@@ -2,8 +2,8 @@
 // owner of persistent, declarative UI surfaces (overlays/badges) that
 // content/new-tab render via SurfaceHost. Owner-namespaced under
 // `monocle-surfaces` (persisted so surfaces survive MV3 service-worker death
-// within a session). Any owner — a feature (e.g. "focus-mode") or a
-// automation automation ("automation:<id>") — pushes surfaces here; every
+// within a session). Any owner — a feature (e.g. "focus-mode") or an
+// automation ("automation:<id>") — pushes surfaces here; every
 // mutation broadcasts monocle-surfaces-changed so open tabs re-query. URL
 // gating reuses matchesUrlPattern. See docs/surfaces.md.
 import type { Surface } from "../shared/types"

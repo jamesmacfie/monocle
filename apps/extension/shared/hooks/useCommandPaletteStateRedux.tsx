@@ -11,6 +11,8 @@ import { validateContentMessage } from "../types/contentMessageValidation"
 import type { Workflow, WorkflowResult } from "../types/workflow"
 import { getBrowserAPI } from "../utils/extension-api"
 
+// Content-overlay lifecycle only. New-tab deliberately has no open state.
+
 // Cross-browser compatibility layer
 const browserAPI = getBrowserAPI()
 

@@ -16,13 +16,9 @@ import {
   dispatchSimpleEvent,
   findElement,
   getElementWindow,
+  missingElementResult,
   sleep,
 } from "./dom"
-
-const missingElementResult = (target: unknown): StepResult => ({
-  success: false,
-  error: `Could not find element for selector: ${JSON.stringify(target)}`,
-})
 
 /** Clicks the target, preferring the native click() for plain left-clicks. */
 export const executeClick = async (step: ClickStep): Promise<StepResult> => {

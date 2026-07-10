@@ -28,6 +28,27 @@ export const setFeatureState = async <TState>(
   await stateArea.update((store) => ({ ...store, [featureId]: state }))
 }
 
+// Locked read-modify-write of one feature's runtime state. Returning undefined
+// deletes the entry. NOT re-entrant: the mutator must not call
+// setFeatureState/updateFeatureState/clearFeatureState.
+export const updateFeatureState = async <TState>(
+  featureId: string,
+  mutate: (state: TState | undefined) => TState | undefined,
+): Promise<void> => {
+  await stateArea.update((store) => {
+    const nextValue = mutate(store[featureId] as TState | undefined)
+    if (nextValue === undefined) {
+      if (!(featureId in store)) {
+        return store
+      }
+      const next = { ...store }
+      delete next[featureId]
+      return next
+    }
+    return { ...store, [featureId]: nextValue }
+  })
+}
+
 export const clearFeatureState = async (featureId: string): Promise<void> => {
   await stateArea.update((store) => {
     if (!(featureId in store)) {

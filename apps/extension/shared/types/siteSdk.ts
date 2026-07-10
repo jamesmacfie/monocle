@@ -1,3 +1,8 @@
+// Architecture: shared contract and validation layer for page-contributed
+// Site SDK commands. Defines the page-safe command/callback DTOs and strict Zod
+// schemas consumed by the page bridge, content bridge, and background command
+// wrappers. It describes data only; executable callbacks remain page-owned and
+// are referenced by ids. See docs/site-sdk.md and docs/site-sdk-security.md.
 import { z } from "zod"
 import {
   GENERATED_ACTION_PREFIXES,

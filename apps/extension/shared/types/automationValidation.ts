@@ -24,20 +24,20 @@ import { SelectorSchema, WorkflowStepSchema } from "./workflowValidation"
 // ---------------------------------------------------------------------------
 // Caps (schema-enforced; the engine re-checks the structural ones)
 
-export const USER_SCRIPT_MAX_COUNT = 200
-export const USER_SCRIPT_MAX_STEPS = 100 // counting nested steps
-export const USER_SCRIPT_MAX_DEPTH = 3 // branch/forEach/while combined
-export const USER_SCRIPT_LOOP_DEFAULT_ITERATIONS = 50
-export const USER_SCRIPT_LOOP_MAX_ITERATIONS = 1000
-export const USER_SCRIPT_MAX_TRIGGERS = 5
-export const USER_SCRIPT_MAX_VARS = 50
-export const USER_SCRIPT_NAME_MAX_LENGTH = 100
-export const USER_SCRIPT_STRING_MAX_LENGTH = 2000
-export const USER_SCRIPT_CSS_MAX_LENGTH = 10_000
-export const USER_SCRIPT_REGEX_MAX_LENGTH = 200
-export const USER_SCRIPT_MAX_PARAMETERS = 10
-export const USER_SCRIPT_TRIGGER_MAX_DELAY_MS = 10_000
-export const USER_SCRIPT_ELEMENT_APPEARS_MIN_THROTTLE_MS = 250
+export const AUTOMATION_MAX_COUNT = 200
+export const AUTOMATION_MAX_STEPS = 100 // counting nested steps
+export const AUTOMATION_MAX_DEPTH = 3 // branch/forEach/while combined
+export const AUTOMATION_LOOP_DEFAULT_ITERATIONS = 50
+export const AUTOMATION_LOOP_MAX_ITERATIONS = 1000
+export const AUTOMATION_MAX_TRIGGERS = 5
+export const AUTOMATION_MAX_VARS = 50
+export const AUTOMATION_NAME_MAX_LENGTH = 100
+export const AUTOMATION_STRING_MAX_LENGTH = 2000
+export const AUTOMATION_CSS_MAX_LENGTH = 10_000
+export const AUTOMATION_REGEX_MAX_LENGTH = 200
+export const AUTOMATION_MAX_PARAMETERS = 10
+export const AUTOMATION_TRIGGER_MAX_DELAY_MS = 10_000
+export const AUTOMATION_ELEMENT_APPEARS_MIN_THROTTLE_MS = 250
 
 const COLOR_NAMES = [
   "red",
@@ -54,14 +54,14 @@ const COLOR_NAMES = [
   "yellow",
 ] as const
 
-const BoundedString = z.string().min(1).max(USER_SCRIPT_STRING_MAX_LENGTH)
+const BoundedString = z.string().min(1).max(AUTOMATION_STRING_MAX_LENGTH)
 const VarName = z
   .string()
   .regex(
     /^[A-Za-z][A-Za-z0-9_]*$/,
     "Variable names must start with a letter and use letters, digits, or underscores",
   )
-  .max(USER_SCRIPT_NAME_MAX_LENGTH)
+  .max(AUTOMATION_NAME_MAX_LENGTH)
 
 // ---------------------------------------------------------------------------
 // Variables
@@ -70,7 +70,7 @@ export const AutomationVarDefSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("literal"),
-      value: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH),
+      value: z.string().max(AUTOMATION_STRING_MAX_LENGTH),
     })
     .strict(),
   z
@@ -87,17 +87,17 @@ export const AutomationVarDefSchema = z.discriminatedUnion("kind", [
 const ParameterFieldSchema = z
   .object({
     id: VarName,
-    label: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
+    label: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
     required: z.boolean().optional(),
     type: z.enum(["text", "textarea", "select"]),
-    placeholder: z.string().max(USER_SCRIPT_NAME_MAX_LENGTH).optional(),
-    defaultValue: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
+    placeholder: z.string().max(AUTOMATION_NAME_MAX_LENGTH).optional(),
+    defaultValue: z.string().max(AUTOMATION_STRING_MAX_LENGTH).optional(),
     options: z
       .array(
         z
           .object({
-            value: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH),
-            label: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
+            value: z.string().max(AUTOMATION_STRING_MAX_LENGTH),
+            label: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
           })
           .strict(),
       )
@@ -111,7 +111,7 @@ const ManualTriggerSchema = z
     type: z.literal("manual"),
     parameters: z
       .array(ParameterFieldSchema)
-      .max(USER_SCRIPT_MAX_PARAMETERS)
+      .max(AUTOMATION_MAX_PARAMETERS)
       .optional(),
   })
   .strict()
@@ -128,7 +128,7 @@ const UrlMatchTriggerSchema = z
       .number()
       .int()
       .nonnegative()
-      .max(USER_SCRIPT_TRIGGER_MAX_DELAY_MS)
+      .max(AUTOMATION_TRIGGER_MAX_DELAY_MS)
       .optional(),
     disarmed: z.boolean().optional(),
   })
@@ -142,7 +142,7 @@ const ElementAppearsTriggerSchema = z
     throttleMs: z
       .number()
       .int()
-      .min(USER_SCRIPT_ELEMENT_APPEARS_MIN_THROTTLE_MS)
+      .min(AUTOMATION_ELEMENT_APPEARS_MIN_THROTTLE_MS)
       .max(60_000)
       .optional(),
     disarmed: z.boolean().optional(),
@@ -217,7 +217,7 @@ export const AutomationConditionSchema: z.ZodType<AutomationCondition> = z.lazy(
           kind: z.literal("elementText"),
           selector: SelectorSchema,
           operator: ComparisonOperatorSchema,
-          value: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH),
+          value: z.string().max(AUTOMATION_STRING_MAX_LENGTH),
         })
         .strict(),
       z
@@ -228,7 +228,7 @@ export const AutomationConditionSchema: z.ZodType<AutomationCondition> = z.lazy(
           kind: z.literal("varCompare"),
           name: VarName,
           operator: ComparisonOperatorSchema,
-          value: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH),
+          value: z.string().max(AUTOMATION_STRING_MAX_LENGTH),
         })
         .strict(),
       z
@@ -238,7 +238,7 @@ export const AutomationConditionSchema: z.ZodType<AutomationCondition> = z.lazy(
           pattern: z
             .string()
             .min(1)
-            .max(USER_SCRIPT_REGEX_MAX_LENGTH)
+            .max(AUTOMATION_REGEX_MAX_LENGTH)
             .refine((pattern) => {
               try {
                 // No user-supplied flags — compiled exactly as stored.
@@ -314,14 +314,14 @@ const AutomationSubmitStepSchema = AutomationContentStepBaseSchema.extend({
 }).strict()
 
 const EngineStepBaseSchema = z.object({
-  id: z.string().max(USER_SCRIPT_NAME_MAX_LENGTH).optional(),
-  description: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
+  id: z.string().max(AUTOMATION_NAME_MAX_LENGTH).optional(),
+  description: z.string().max(AUTOMATION_STRING_MAX_LENGTH).optional(),
 })
 
 const SetVariableStepSchema = EngineStepBaseSchema.extend({
   op: z.literal("setVariable"),
   name: VarName,
-  value: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH),
+  value: z.string().max(AUTOMATION_STRING_MAX_LENGTH),
 }).strict()
 
 const InsertSnippetStepSchema = EngineStepBaseSchema.extend({
@@ -349,7 +349,7 @@ const OpenUrlStepSchema = EngineStepBaseSchema.extend({
 
 const ClipboardWriteStepSchema = EngineStepBaseSchema.extend({
   op: z.literal("clipboardWrite"),
-  text: z.string().min(1).max(USER_SCRIPT_CSS_MAX_LENGTH),
+  text: z.string().min(1).max(AUTOMATION_CSS_MAX_LENGTH),
 }).strict()
 
 const RunCommandStepSchema = EngineStepBaseSchema.extend({
@@ -357,7 +357,7 @@ const RunCommandStepSchema = EngineStepBaseSchema.extend({
   commandId: z
     .string()
     .min(1)
-    .max(USER_SCRIPT_NAME_MAX_LENGTH * 2),
+    .max(AUTOMATION_NAME_MAX_LENGTH * 2),
 }).strict()
 
 // Surfaces: declarative overlay/badge data (rendered by the trusted
@@ -373,8 +373,8 @@ const SurfaceContentSchema = BaseSurfaceContentSchema.omit({
   css: true,
 })
   .extend({
-    title: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
-    text: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
+    title: z.string().max(AUTOMATION_STRING_MAX_LENGTH).optional(),
+    text: z.string().max(AUTOMATION_STRING_MAX_LENGTH).optional(),
   })
   .strict()
 
@@ -385,7 +385,7 @@ const SurfaceUrlMatchSchema = BaseSurfaceUrlMatchSchema.extend({
 
 const ShowSurfaceStepSchema = EngineStepBaseSchema.extend({
   op: z.literal("showSurface"),
-  surfaceId: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
+  surfaceId: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
   kind: z.enum(["overlay", "badge"]),
   urlMatch: SurfaceUrlMatchSchema.optional(),
   blocking: z.boolean().optional(),
@@ -394,7 +394,7 @@ const ShowSurfaceStepSchema = EngineStepBaseSchema.extend({
 
 const HideSurfaceStepSchema = EngineStepBaseSchema.extend({
   op: z.literal("hideSurface"),
-  surfaceId: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
+  surfaceId: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
 }).strict()
 
 export const AutomationStepSchema: z.ZodType<AutomationStep> = z.lazy(() =>
@@ -428,7 +428,7 @@ export const AutomationStepSchema: z.ZodType<AutomationStep> = z.lazy(() =>
         .number()
         .int()
         .min(1)
-        .max(USER_SCRIPT_LOOP_MAX_ITERATIONS)
+        .max(AUTOMATION_LOOP_MAX_ITERATIONS)
         .optional(),
       steps: z.array(AutomationStepSchema).min(1),
     }).strict(),
@@ -439,7 +439,7 @@ export const AutomationStepSchema: z.ZodType<AutomationStep> = z.lazy(() =>
         .number()
         .int()
         .min(1)
-        .max(USER_SCRIPT_LOOP_MAX_ITERATIONS)
+        .max(AUTOMATION_LOOP_MAX_ITERATIONS)
         .optional(),
       steps: z.array(AutomationStepSchema).min(1),
     }).strict(),
@@ -490,10 +490,10 @@ export const collectStructuralIssues = (
       const stepPath = [...path, index]
 
       if (CONTROL_FLOW_OPS.has(step.op)) {
-        if (depth + 1 > USER_SCRIPT_MAX_DEPTH) {
+        if (depth + 1 > AUTOMATION_MAX_DEPTH) {
           issues.push({
             path: stepPath,
-            message: `Control flow nests deeper than ${USER_SCRIPT_MAX_DEPTH} levels`,
+            message: `Control flow nests deeper than ${AUTOMATION_MAX_DEPTH} levels`,
           })
           return
         }
@@ -511,7 +511,7 @@ export const collectStructuralIssues = (
             (step.disposition ?? "newTab") === "currentTab"))
       ) {
         // Navigation destroys the content context; inside loops/branches it
-        // would force segment splitting mid-control-flow. Flat scripts can
+        // would force segment splitting mid-control-flow. Flat automations can
         // navigate freely.
         issues.push({
           path: stepPath,
@@ -523,10 +523,10 @@ export const collectStructuralIssues = (
 
   walk(steps, 0, ["steps"])
 
-  if (totalSteps > USER_SCRIPT_MAX_STEPS) {
+  if (totalSteps > AUTOMATION_MAX_STEPS) {
     issues.push({
       path: ["steps"],
-      message: `Scripts may contain at most ${USER_SCRIPT_MAX_STEPS} steps (counting nested steps); found ${totalSteps}`,
+      message: `Automations may contain at most ${AUTOMATION_MAX_STEPS} steps (counting nested steps); found ${totalSteps}`,
     })
   }
 
@@ -534,18 +534,18 @@ export const collectStructuralIssues = (
 }
 
 const applyStructuralChecks = (
-  script: {
+  automation: {
     steps: AutomationStep[]
     triggers: Array<{ type: string }>
   },
   ctx: z.RefinementCtx,
 ): void => {
-  for (const issue of collectStructuralIssues(script.steps)) {
+  for (const issue of collectStructuralIssues(automation.steps)) {
     ctx.addIssue({ code: "custom", message: issue.message, path: issue.path })
   }
 
   const nonManualCounts = new Map<string, number>()
-  script.triggers.forEach((trigger, index) => {
+  automation.triggers.forEach((trigger, index) => {
     if (trigger.type === "manual") {
       return
     }
@@ -566,8 +566,8 @@ const applyStructuralChecks = (
 
 const AutomationBaseShape = {
   schemaVersion: z.literal(1),
-  name: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
-  description: z.string().max(USER_SCRIPT_STRING_MAX_LENGTH).optional(),
+  name: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
+  description: z.string().max(AUTOMATION_STRING_MAX_LENGTH).optional(),
   icon: z.enum(ICON_NAMES).optional(),
   color: z.enum(COLOR_NAMES).optional(),
   enabled: z.boolean(),
@@ -581,12 +581,12 @@ const AutomationBaseShape = {
   triggers: z
     .array(AutomationTriggerSchema)
     .min(1, "An automation needs at least one trigger")
-    .max(USER_SCRIPT_MAX_TRIGGERS),
+    .max(AUTOMATION_MAX_TRIGGERS),
   vars: z
     .record(VarName, AutomationVarDefSchema)
     .refine(
-      (vars) => Object.keys(vars).length <= USER_SCRIPT_MAX_VARS,
-      `At most ${USER_SCRIPT_MAX_VARS} variables per automation`,
+      (vars) => Object.keys(vars).length <= AUTOMATION_MAX_VARS,
+      `At most ${AUTOMATION_MAX_VARS} variables per automation`,
     )
     .optional(),
   steps: z
@@ -616,7 +616,7 @@ const AutomationBaseShape = {
       z
         .object({
           kind: z.literal("feature"),
-          featureId: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
+          featureId: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
         })
         .strict(),
     ])
@@ -626,23 +626,26 @@ const AutomationBaseShape = {
 /** Full stored document (storage validation, import). */
 export const AutomationSchema = z
   .object({
-    id: z.string().min(1).max(USER_SCRIPT_NAME_MAX_LENGTH),
+    id: z.string().min(1).max(AUTOMATION_NAME_MAX_LENGTH),
     createdAt: z.number().int().nonnegative(),
     updatedAt: z.number().int().nonnegative(),
     ...AutomationBaseShape,
   })
   .strict()
-  .superRefine((script, ctx) =>
-    applyStructuralChecks(script as unknown as Automation, ctx),
+  .superRefine((automation, ctx) =>
+    applyStructuralChecks(automation as unknown as Automation, ctx),
   )
 
 /** Builder payload — storage assigns id and timestamps. */
 export const AutomationDraftSchema = z
   .object(AutomationBaseShape)
   .strict()
-  .superRefine((script, ctx) =>
+  .superRefine((automation, ctx) =>
     applyStructuralChecks(
-      script as unknown as Omit<Automation, "id" | "createdAt" | "updatedAt">,
+      automation as unknown as Omit<
+        Automation,
+        "id" | "createdAt" | "updatedAt"
+      >,
       ctx,
     ),
   )

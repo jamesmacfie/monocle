@@ -1,5 +1,5 @@
 import type { RefObject } from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useInlineInputKeys } from "../../../hooks/useInlineInputKeys"
 import { useAppDispatch, useAppSelector } from "../../../store/hooks"
 import {
@@ -12,17 +12,13 @@ import { validateWithJsonSchema } from "../../../utils/validation"
 interface CommandItemMultiProps {
   field: FormField & { type: "multi" }
   inputRef: RefObject<HTMLInputElement | null>
-  onKeyDown: (e: React.KeyboardEvent<any>) => void
 }
 
-export function CommandItemMulti({
-  field,
-  inputRef,
-  onKeyDown,
-}: CommandItemMultiProps) {
+export function CommandItemMulti({ field, inputRef }: CommandItemMultiProps) {
   const dispatch = useAppDispatch()
   const currentPage = useAppSelector(selectCurrentPage)
   const { handleCommonKeys } = useInlineInputKeys()
+  const fieldsetRef = useRef<HTMLFieldSetElement | null>(null)
 
   const defaultValues = field.defaultValue ?? []
   const raw = currentPage.formValues?.[field.id]
@@ -45,7 +41,8 @@ export function CommandItemMulti({
   // Focus the currently selected option when focusIndex changes
   useEffect(() => {
     // Find the checkbox input for the current focusIndex and focus it
-    const currentInput = document.querySelector(
+    const root = fieldsetRef.current?.getRootNode() as ParentNode | undefined
+    const currentInput = (root ?? document).querySelector(
       `input[name="${field.id}-${field.options[focusIndex]?.value}"]`,
     ) as HTMLInputElement | null
     currentInput?.focus()
@@ -61,7 +58,6 @@ export function CommandItemMulti({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFieldSetElement>) => {
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       if (handleCommonKeys(e as any)) return
-      onKeyDown(e)
       return
     }
 
@@ -98,7 +94,6 @@ export function CommandItemMulti({
     // Mirror the fieldset handler but bound at input level for robustness
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       if (handleCommonKeys(e as any)) return
-      onKeyDown(e as any)
       return
     }
 
@@ -129,7 +124,11 @@ export function CommandItemMulti({
 
   return (
     <div className="command-item-content">
-      <fieldset className="command-item-select" onKeyDown={handleKeyDown}>
+      <fieldset
+        ref={fieldsetRef}
+        className="command-item-select"
+        onKeyDown={handleKeyDown}
+      >
         <legend
           style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
         >

@@ -15,7 +15,7 @@ import {
   hostPermissionPatternForUrl,
 } from "../../utils/hostPermissions"
 import { executeWorkflowOnTargetTab } from "../../workflows/execution"
-import { getFeatureConfig, setFeatureConfig } from "../config"
+import { updateFeatureConfig } from "../config"
 import type { FeatureActionContext, FeatureModule } from "../types"
 import { projectElementHiderAutomations } from "./automations"
 import { elementHiderCommands, PICKER_SURFACE_ID } from "./commands"
@@ -29,9 +29,6 @@ import {
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : ""
-
-const getConfig = (): Promise<ElementHiderConfig> =>
-  getFeatureConfig(ELEMENT_HIDER_FEATURE_ID, elementHiderConfigDefaults)
 
 // Project rules into record-list rows: one row per rule. The CSS selector is
 // the primary label (the element's technical identity); the captured text and
@@ -108,7 +105,6 @@ const handleElementPicked = async (
     return
   }
 
-  const config = await getConfig()
   const rule: ElementHiderRule = {
     id: crypto.randomUUID(),
     urlPattern: pattern.originPattern,
@@ -117,9 +113,13 @@ const handleElementPicked = async (
       ? ctx.selection.innerText.slice(0, 60)
       : selector,
   }
-  await setFeatureConfig(ELEMENT_HIDER_FEATURE_ID, {
-    rules: [...config.rules, rule],
-  })
+  await updateFeatureConfig(
+    ELEMENT_HIDER_FEATURE_ID,
+    elementHiderConfigDefaults,
+    (config) => ({
+      rules: [...config.rules, rule],
+    }),
+  )
 
   try {
     await hideNow(tab.id, tab.url, selector)
@@ -180,10 +180,13 @@ export const elementHiderFeature: FeatureModule<ElementHiderConfig> = {
         if (!id) {
           return
         }
-        const config = await getConfig()
-        await setFeatureConfig(ELEMENT_HIDER_FEATURE_ID, {
-          rules: config.rules.filter((rule) => rule.id !== id),
-        })
+        await updateFeatureConfig(
+          ELEMENT_HIDER_FEATURE_ID,
+          elementHiderConfigDefaults,
+          (config) => ({
+            rules: config.rules.filter((rule) => rule.id !== id),
+          }),
+        )
       }
     },
   },

@@ -17,26 +17,28 @@ import type {
   IconName,
 } from "../../../shared/types"
 import type { AutomationDraft } from "../../../shared/types/automationValidation"
-import type { Selector } from "../../../shared/types/workflow"
 import {
   interpolatableStrings,
   walkAutomationSteps,
 } from "../../../shared/utils/automation-introspection"
 import { collectTemplateReferences } from "../../../shared/utils/automation-template"
+import {
+  createDefaultSelector,
+  createDefaultStepRow,
+  FORM_OPS,
+  jsonStepRow,
+  type StepRowState,
+} from "./stepEditors"
+
+export {
+  createDefaultSelector,
+  createDefaultStepRow,
+  STEP_OP_OPTIONS,
+  type StepRowState,
+} from "./stepEditors"
 
 // ---------------------------------------------------------------------------
 // Row state
-
-export type StepRowState =
-  | { kind: "form"; step: AutomationStep }
-  | {
-      kind: "json"
-      text: string
-      // Last successfully parsed value (kept while the textarea holds invalid
-      // JSON so assembly can report a row error instead of crashing).
-      parsed: AutomationStep | null
-      error: string | null
-    }
 
 export type TriggerRowState = {
   trigger: AutomationTrigger
@@ -143,11 +145,6 @@ export const TRIGGER_TYPES: AutomationTriggerType[] = [
   "onStartup",
 ]
 
-export const createDefaultSelector = (): Selector => ({
-  strategy: "css",
-  value: "",
-})
-
 export const createDefaultTrigger = (
   type: AutomationTriggerType,
 ): AutomationTrigger => {
@@ -185,156 +182,16 @@ export const triggerRowFromTrigger = (
 // ---------------------------------------------------------------------------
 // Steps
 
-// Ops with a dedicated form row. Everything else (control flow, the
-// keyboard-oriented type/key ops) edits as JSON.
-const FORM_OPS = new Set<string>([
-  "click",
-  "fill",
-  "wait",
-  "getText",
-  "removeElement",
-  "hideElement",
-  "injectCss",
-  "toast",
-  "setVariable",
-  "insertSnippet",
-  "navigate",
-  "openUrl",
-  "clipboardWrite",
-  "runCommand",
-  "select",
-  "check",
-  "uncheck",
-  "submit",
-  "focus",
-  "blur",
-  "hover",
-  "scroll",
-])
-
-export const STEP_OP_OPTIONS: Array<{ op: string; label: string }> = [
-  { op: "click", label: "Click element" },
-  { op: "fill", label: "Fill field" },
-  { op: "select", label: "Select dropdown option" },
-  { op: "check", label: "Check checkbox" },
-  { op: "uncheck", label: "Uncheck checkbox" },
-  { op: "submit", label: "Submit form" },
-  { op: "focus", label: "Focus element" },
-  { op: "blur", label: "Blur element" },
-  { op: "hover", label: "Hover element" },
-  { op: "scroll", label: "Scroll" },
-  { op: "wait", label: "Wait" },
-  { op: "getText", label: "Read text into variable" },
-  { op: "removeElement", label: "Remove element" },
-  { op: "hideElement", label: "Hide element" },
-  { op: "injectCss", label: "Inject CSS" },
-  { op: "toast", label: "Show toast" },
-  { op: "setVariable", label: "Set variable" },
-  { op: "insertSnippet", label: "Insert snippet" },
-  { op: "navigate", label: "Navigate this tab" },
-  { op: "openUrl", label: "Open URL" },
-  { op: "clipboardWrite", label: "Write to clipboard" },
-  { op: "runCommand", label: "Run Monocle command" },
-  { op: "branch", label: "Branch (edit as JSON)" },
-  { op: "forEach", label: "For each (edit as JSON)" },
-  { op: "while", label: "While (edit as JSON)" },
-]
-
-const jsonRowFromStep = (step: AutomationStep): StepRowState => ({
-  kind: "json",
-  text: JSON.stringify(step, null, 2),
-  parsed: step,
-  error: null,
-})
-
 export const stepRowFromStep = (step: AutomationStep): StepRowState => {
   // Scroll positions beyond the simple keywords have no form fields; keep
   // them as JSON so they round-trip unchanged.
   if (step.op === "scroll" && typeof step.to !== "string") {
-    return jsonRowFromStep(step)
+    return jsonStepRow(step)
   }
   if (!FORM_OPS.has(step.op)) {
-    return jsonRowFromStep(step)
+    return jsonStepRow(step)
   }
   return { kind: "form", step }
-}
-
-export const createDefaultStepRow = (op: string): StepRowState => {
-  switch (op) {
-    case "click":
-      return { kind: "form", step: { op, target: createDefaultSelector() } }
-    case "fill":
-      return {
-        kind: "form",
-        step: { op, target: createDefaultSelector(), text: "" },
-      }
-    case "select":
-      return {
-        kind: "form",
-        step: { op, target: createDefaultSelector(), by: { value: "" } },
-      }
-    case "check":
-    case "uncheck":
-    case "submit":
-    case "focus":
-    case "blur":
-    case "hover":
-      return { kind: "form", step: { op, target: createDefaultSelector() } }
-    case "scroll":
-      return { kind: "form", step: { op, to: "bottom" } }
-    case "wait":
-      return { kind: "form", step: { op, for: { timeMs: 500 } } }
-    case "getText":
-      return {
-        kind: "form",
-        step: { op, from: createDefaultSelector(), toVar: "result" },
-      }
-    case "removeElement":
-    case "hideElement":
-      return { kind: "form", step: { op, target: createDefaultSelector() } }
-    case "injectCss":
-      return { kind: "form", step: { op, css: "" } }
-    case "toast":
-      return { kind: "form", step: { op, message: "" } }
-    case "setVariable":
-      return { kind: "form", step: { op, name: "", value: "" } }
-    case "insertSnippet":
-      return { kind: "form", step: { op, snippetId: "" } }
-    case "navigate":
-      return { kind: "form", step: { op, url: "" } }
-    case "openUrl":
-      return { kind: "form", step: { op, url: "" } }
-    case "clipboardWrite":
-      return { kind: "form", step: { op, text: "" } }
-    case "runCommand":
-      return { kind: "form", step: { op, commandId: "" } }
-    case "branch":
-      return jsonRowFromStep({
-        op: "branch",
-        if: { kind: "urlIncludes", value: "example.com" },
-        then: [{ op: "toast", message: "Matched" }],
-        else: [],
-      })
-    case "forEach":
-      return jsonRowFromStep({
-        op: "forEach",
-        over: { elements: { strategy: "css", value: "li" } },
-        as: "item",
-        steps: [{ op: "toast", message: "{{item}}" }],
-      })
-    case "while":
-      return jsonRowFromStep({
-        op: "while",
-        condition: {
-          kind: "elementExists",
-          selector: { strategy: "css", value: ".spinner" },
-        },
-        maxIterations: 50,
-        steps: [{ op: "wait", for: { timeMs: 500 } }],
-      })
-    default:
-      return { kind: "form", step: { op: "toast", message: "" } }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -496,4 +353,24 @@ export const collectTemplateWarnings = (draft: AutomationDraft): string[] => {
   })
 
   return [...unknown]
+}
+
+export const EDITOR_INDEXED_COLLECTIONS = ["steps", "triggers"] as const
+
+export const groupIssuesByIndex = (
+  issues: Array<{ path: string; message: string }>,
+  collection: (typeof EDITOR_INDEXED_COLLECTIONS)[number],
+): Record<number, string[]> => {
+  const byIndex: Record<number, string[]> = {}
+  const pattern = new RegExp(`^${collection}\\.(\\d+)(?:\\.(.*))?$`)
+  for (const issue of issues) {
+    const match = pattern.exec(issue.path)
+    if (!match) {
+      continue
+    }
+    const index = Number(match[1])
+    const detail = match[2] ? `${match[2]}: ${issue.message}` : issue.message
+    byIndex[index] = [...(byIndex[index] ?? []), detail]
+  }
+  return byIndex
 }

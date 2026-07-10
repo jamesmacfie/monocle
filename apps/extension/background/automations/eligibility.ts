@@ -1,6 +1,7 @@
-// Shared automation URL eligibility. Non-manual automation entrypoints
+// Architecture: background layer. Shared automation URL eligibility.
+// Non-manual automation entrypoints
 // (page triggers and scheduled alarms) must agree on the same rules:
-// http(s)-only, command hidden state, user URL overrides, and script URL rules.
+// http(s)-only, command hidden state, user URL overrides, and automation URL rules.
 import type { Automation } from "../../shared/types"
 import { automationCommandId } from "../../shared/types/automations"
 import { getCommandSettings } from "../commands/settings"
@@ -15,11 +16,13 @@ export type AutomationEligibility = {
 }
 
 export const getAutomationEligibility = async (
-  script: Automation,
+  automation: Automation,
 ): Promise<AutomationEligibility> => {
-  const userSettings = await getCommandSettings(automationCommandId(script.id))
+  const userSettings = await getCommandSettings(
+    automationCommandId(automation.id),
+  )
   const hasAllowRules = Boolean(
-    script.urlRules?.allowUrls?.length ||
+    automation.urlRules?.allowUrls?.length ||
       userSettings?.urlRules?.allowUrls?.length,
   )
 
@@ -31,7 +34,7 @@ export const getAutomationEligibility = async (
       }
 
       return isCommandVisibleForUrl(
-        { urlRules: script.urlRules },
+        { urlRules: automation.urlRules },
         url,
         userSettings,
       )
@@ -40,9 +43,9 @@ export const getAutomationEligibility = async (
 }
 
 export const isAutomationEligibleForUrl = async (
-  script: Automation,
+  automation: Automation,
   url: string,
 ): Promise<boolean> => {
-  const eligibility = await getAutomationEligibility(script)
+  const eligibility = await getAutomationEligibility(automation)
   return eligibility.isEligibleForUrl(url)
 }

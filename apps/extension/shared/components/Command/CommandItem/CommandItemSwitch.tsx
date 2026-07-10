@@ -12,14 +12,9 @@ import { validateWithJsonSchema } from "../../../utils/validation"
 interface CommandItemSwitchProps {
   field: FormField & { type: "checkbox" | "switch" }
   inputRef: RefObject<HTMLButtonElement | null>
-  onKeyDown: (e: React.KeyboardEvent<any>) => void
 }
 
-export function CommandItemSwitch({
-  field,
-  inputRef,
-  onKeyDown,
-}: CommandItemSwitchProps) {
+export function CommandItemSwitch({ field, inputRef }: CommandItemSwitchProps) {
   const dispatch = useAppDispatch()
   const currentPage = useAppSelector(selectCurrentPage)
   const { handleCommonKeys } = useInlineInputKeys()
@@ -40,7 +35,6 @@ export function CommandItemSwitch({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       if (handleCommonKeys(e as any)) return
-      onKeyDown(e)
       return
     }
 

@@ -5,7 +5,7 @@
 // touches storage directly, matching the snippets slice it is modeled on.
 // Also tracks test-run state (`runningIds`, `lastRunResult`) so the builder
 // can show "Test on Active Tab" feedback without holding executable code.
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
+import { createSlice } from "@reduxjs/toolkit"
 import type {
   AddAutomationResponse,
   Automation,
@@ -13,14 +13,11 @@ import type {
   AutomationRunResult,
   DeleteAutomationResponse,
   GetAutomationsResponse,
-  OutboundMessage,
   RunAutomationResponse,
   UpdateAutomationResponse,
 } from "../../../shared/types"
-
-type AutomationsThunkApi = {
-  sendMessage: (message: OutboundMessage) => Promise<unknown>
-}
+import { createMessageThunk } from "../messageThunk"
+import { toggleId } from "../updatingIds"
 
 type AutomationsState = {
   automations: Automation[]
@@ -40,158 +37,65 @@ const initialState: AutomationsState = {
   lastRunResult: null,
 }
 
-const getSendMessage = (extra: unknown) =>
-  (extra as AutomationsThunkApi).sendMessage
-
-export const loadAutomations = createAsyncThunk<
+export const loadAutomations = createMessageThunk<
   GetAutomationsResponse,
   void,
-  { extra: AutomationsThunkApi; rejectValue: string }
->("automations/load", async (_, { extra, rejectWithValue }) => {
-  try {
-    const response = (await getSendMessage(extra)({
-      type: "monocle-automations-get",
-    })) as GetAutomationsResponse | { error?: string }
-
-    if ("error" in response && response.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return response as GetAutomationsResponse
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : "Failed to load automations",
-    )
-  }
-})
-
-export const addAutomation = createAsyncThunk<
-  Automation,
-  { automation: AutomationDraft },
-  { extra: AutomationsThunkApi; rejectValue: string }
->("automations/add", async ({ automation }, { extra, rejectWithValue }) => {
-  try {
-    const response = (await getSendMessage(extra)({
-      type: "monocle-automation-add",
-      automation,
-    })) as AddAutomationResponse & { error?: string }
-
-    if (response?.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return response.automation
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : "Failed to add automation",
-    )
-  }
-})
-
-export const updateAutomation = createAsyncThunk<
-  Automation | null,
-  { id: string; automation: AutomationDraft },
-  { extra: AutomationsThunkApi; rejectValue: string }
+  GetAutomationsResponse
 >(
-  "automations/update",
-  async ({ id, automation }, { extra, rejectWithValue }) => {
-    try {
-      const response = (await getSendMessage(extra)({
-        type: "monocle-automation-update",
-        id,
-        automation,
-      })) as UpdateAutomationResponse & { error?: string }
-
-      if (response?.error) {
-        return rejectWithValue(response.error)
-      }
-
-      return response.automation
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to update automation",
-      )
-    }
-  },
+  "automations/load",
+  () => ({ type: "monocle-automations-get" }),
+  (response) => response,
+  "Failed to load automations",
 )
 
-export const deleteAutomation = createAsyncThunk<
+export const addAutomation = createMessageThunk<
+  Automation,
+  { automation: AutomationDraft },
+  AddAutomationResponse
+>(
+  "automations/add",
+  ({ automation }) => ({ type: "monocle-automation-add", automation }),
+  (response) => response.automation,
+  "Failed to add automation",
+)
+
+export const updateAutomation = createMessageThunk<
+  Automation | null,
+  { id: string; automation: AutomationDraft },
+  UpdateAutomationResponse
+>(
+  "automations/update",
+  ({ id, automation }) => ({
+    type: "monocle-automation-update",
+    id,
+    automation,
+  }),
+  (response) => response.automation,
+  "Failed to update automation",
+)
+
+export const deleteAutomation = createMessageThunk<
   { id: string; deleted: boolean },
   { id: string },
-  { extra: AutomationsThunkApi; rejectValue: string }
->("automations/delete", async ({ id }, { extra, rejectWithValue }) => {
-  try {
-    const response = (await getSendMessage(extra)({
-      type: "monocle-automation-delete",
-      id,
-    })) as DeleteAutomationResponse & { error?: string }
+  DeleteAutomationResponse
+>(
+  "automations/delete",
+  ({ id }) => ({ type: "monocle-automation-delete", id }),
+  (response, { id }) => ({ id, deleted: response.deleted }),
+  "Failed to delete automation",
+)
 
-    if (response?.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return { id, deleted: response.deleted }
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : "Failed to delete automation",
-    )
-  }
-})
-
-export const runAutomation = createAsyncThunk<
+export const runAutomation = createMessageThunk<
   { id: string; result: AutomationRunResult },
   { id: string },
-  { extra: AutomationsThunkApi; rejectValue: string }
->("automations/run", async ({ id }, { extra, rejectWithValue }) => {
-  try {
-    // No context: the background engine targets the active tab (the
-    // options-page test-run contract in shared/types/messaging.ts).
-    const response = (await getSendMessage(extra)({
-      type: "monocle-automation-run",
-      id,
-    })) as RunAutomationResponse & { error?: string }
-
-    if (response?.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return { id, result: response.result }
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : "Failed to run automation",
-    )
-  }
-})
-
-const setUpdating = (
-  state: AutomationsState,
-  id: string,
-  isUpdating: boolean,
-) => {
-  if (isUpdating) {
-    if (!state.updatingIds.includes(id)) {
-      state.updatingIds.push(id)
-    }
-    return
-  }
-
-  state.updatingIds = state.updatingIds.filter((current) => current !== id)
-}
-
-const setRunning = (
-  state: AutomationsState,
-  id: string,
-  isRunning: boolean,
-) => {
-  if (isRunning) {
-    if (!state.runningIds.includes(id)) {
-      state.runningIds.push(id)
-    }
-    return
-  }
-
-  state.runningIds = state.runningIds.filter((current) => current !== id)
-}
+  RunAutomationResponse
+>(
+  "automations/run",
+  // No context: the background engine targets the active tab.
+  ({ id }) => ({ type: "monocle-automation-run", id }),
+  (response, { id }) => ({ id, result: response.result }),
+  "Failed to run automation",
+)
 
 export const automationsSlice = createSlice({
   name: "automations",
@@ -226,10 +130,18 @@ export const automationsSlice = createSlice({
         state.error = action.payload ?? "Failed to add automation"
       })
       .addCase(updateAutomation.pending, (state, action) => {
-        setUpdating(state, action.meta.arg.id, true)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          true,
+        )
       })
       .addCase(updateAutomation.fulfilled, (state, action) => {
-        setUpdating(state, action.meta.arg.id, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          false,
+        )
         if (action.payload) {
           const index = state.automations.findIndex(
             (automation) => automation.id === action.payload?.id,
@@ -240,14 +152,26 @@ export const automationsSlice = createSlice({
         }
       })
       .addCase(updateAutomation.rejected, (state, action) => {
-        setUpdating(state, action.meta.arg.id, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          false,
+        )
         state.error = action.payload ?? "Failed to update automation"
       })
       .addCase(deleteAutomation.pending, (state, action) => {
-        setUpdating(state, action.meta.arg.id, true)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          true,
+        )
       })
       .addCase(deleteAutomation.fulfilled, (state, action) => {
-        setUpdating(state, action.payload.id, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.payload.id,
+          false,
+        )
         if (action.payload.deleted) {
           state.automations = state.automations.filter(
             (automation) => automation.id !== action.payload.id,
@@ -255,18 +179,22 @@ export const automationsSlice = createSlice({
         }
       })
       .addCase(deleteAutomation.rejected, (state, action) => {
-        setUpdating(state, action.meta.arg.id, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          false,
+        )
         state.error = action.payload ?? "Failed to delete automation"
       })
       .addCase(runAutomation.pending, (state, action) => {
-        setRunning(state, action.meta.arg.id, true)
+        state.runningIds = toggleId(state.runningIds, action.meta.arg.id, true)
       })
       .addCase(runAutomation.fulfilled, (state, action) => {
-        setRunning(state, action.payload.id, false)
+        state.runningIds = toggleId(state.runningIds, action.payload.id, false)
         state.lastRunResult = action.payload
       })
       .addCase(runAutomation.rejected, (state, action) => {
-        setRunning(state, action.meta.arg.id, false)
+        state.runningIds = toggleId(state.runningIds, action.meta.arg.id, false)
         state.lastRunResult = {
           id: action.meta.arg.id,
           result: {

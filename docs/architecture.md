@@ -210,7 +210,7 @@ See [keybindings.md](./keybindings.md).
 3. The content script runs the executor in `content/workflow/`.
 4. Results (including extracted vars) return through the message chain.
 
-The full step vocabulary (click/wait/fill/select/check/submit/focus/blur/scroll/hover/type/key/getText/removeElement/hideElement/injectCss) is implemented and schema-accepted; privileged operations are automation engine ops, never workflow steps. See [workflow-automation.md](./workflow-automation.md).
+The full 17-op step vocabulary (click/wait/fill/select/check/uncheck/submit/focus/blur/scroll/hover/type/key/getText/removeElement/hideElement/injectCss) is implemented and schema-accepted; privileged operations are automation engine ops, never workflow steps. See [workflow-automation.md](./workflow-automation.md).
 
 ### Automations
 

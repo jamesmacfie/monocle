@@ -160,34 +160,6 @@ function CommandItemComponent({
 
   const inputField =
     suggestion.type === "input" ? suggestion.inputField : undefined
-  const onInlineInputKeyDown = (e: React.KeyboardEvent<any>) => {
-    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      // Prevent native behavior and forward navigation to CMDK search input.
-      e.preventDefault()
-      e.stopPropagation()
-
-      const searchInput = document.querySelector(
-        "input[cmdk-input]",
-      ) as HTMLInputElement | null
-
-      // Check if this item is the first selectable in the list. If so and ArrowUp, focus search.
-      if (e.key === "ArrowUp" && itemRef.current) {
-        const list = itemRef.current.closest("[cmdk-list]")
-        const firstItem = list?.querySelector(
-          '[cmdk-item]:not([data-disabled="true"])',
-        ) as HTMLElement | null
-        if (firstItem === itemRef.current) {
-          searchInput?.focus()
-          return
-        }
-      }
-
-      if (searchInput) {
-        const ev = new KeyboardEvent("keydown", { key: e.key, bubbles: true })
-        searchInput.dispatchEvent(ev)
-      }
-    }
-  }
 
   const handleInputSubmit = () => {
     // Call parent callback to handle form submission (CommandList will validate)
@@ -213,7 +185,6 @@ function CommandItemComponent({
                 <CommandItemInput
                   field={inputField}
                   inputRef={inputRef}
-                  onKeyDown={onInlineInputKeyDown}
                   onSubmit={handleInputSubmit}
                 />
               ) : null,
@@ -238,21 +209,18 @@ function CommandItemComponent({
               <CommandItemSwitch
                 field={inputField as any}
                 inputRef={inputRef as any}
-                onKeyDown={onInlineInputKeyDown}
               />
             ))
             .with("multi", () => (
               <CommandItemMulti
                 field={inputField as any}
                 inputRef={inputRef as any}
-                onKeyDown={onInlineInputKeyDown}
               />
             ))
             .with("color", () => (
               <CommandItemColor
                 field={inputField as any}
                 inputRef={inputRef as any}
-                onKeyDown={onInlineInputKeyDown}
               />
             ))
             .otherwise(() => null),

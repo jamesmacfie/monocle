@@ -1,3 +1,8 @@
+// Architecture: shared palette UI root for content overlay and new-tab modes.
+// CMDK renders the background-ranked Suggestions and delegates navigation,
+// execution, action menus, and inline input state to shared hooks/components.
+// It must remain DOM-container agnostic for closed shadow DOM and normal DOM.
+// See docs/palette-ui-and-navigation.md.
 import { Command, useCommandState } from "cmdk"
 import { useEffect, useRef, useState } from "react"
 import type { CommandExecutionScope, Suggestion } from "../../../shared/types"
@@ -32,7 +37,7 @@ const getExecutionScope = (page: Page): CommandExecutionScope => ({
 // open-actions intents (see getPaletteKeyboardCommand) plus the special
 // Cmd/Ctrl+Enter force-close path. See docs/palette-ui-and-navigation.md.
 function CommandContent({
-  pages,
+  pageCount,
   currentPage,
   inputRef,
   navigateBack,
@@ -45,7 +50,7 @@ function CommandContent({
   isActionsOpen = false,
   actionsOpenForSuggestion = null,
 }: {
-  pages: Page[]
+  pageCount: number
   currentPage: Page
   inputRef: React.RefObject<HTMLInputElement | null>
   navigateBack: () => void
@@ -114,7 +119,7 @@ function CommandContent({
     const keyboardCommand = getPaletteKeyboardCommand({
       key: e.key,
       searchValue: search,
-      pageCount: pages.length,
+      pageCount,
       isActionsOpen,
       focusedSuggestion,
     })
@@ -139,7 +144,7 @@ function CommandContent({
   return (
     <div onKeyDown={handleKeyDown}>
       <CommandHeader
-        pages={pages}
+        pageCount={pageCount}
         currentPage={currentPage}
         inputRef={inputRef}
         onNavigateBack={navigateBack}
@@ -336,7 +341,7 @@ export function CommandPalette({
             cmdk only renders lists and handles keyboard navigation. */}
         <Command shouldFilter={false}>
           <CommandContent
-            pages={pages}
+            pageCount={pages.length}
             currentPage={currentPage}
             inputRef={inputRef}
             navigateBack={navigateBack}

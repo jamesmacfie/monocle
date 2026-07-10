@@ -31,7 +31,8 @@ Module responsibilities:
   `PairedClient` holds `{ instanceId, name, tokenHash, scopes, createdAt, lastUsedAt }`. Durable, in
   `monocle-feature-config`.
 - **Pending pairing state**: `{ pairingId, codeHash, expiresAt, attempts,
-  client }` in `monocle-feature-state` (transient, cleared on resolve/expiry).
+  status, approvedToken?, client }` in `monocle-feature-state` (transient,
+  cleared on resolve/expiry).
 - **Settings page**: an `enabled` toggle + a `record-list` of paired clients with
   a per-row **Revoke** action (the `record-list` FormField already exists — see
   [../features.md](../features.md)).
@@ -78,7 +79,6 @@ runtime listener. For each request:
 | Query-scored suggestions | the `monocle-commands-search` handler + `background/commands/searchIndex.ts` |
 | Group/search children (nesting) | `getCommandPageCommands(context, path, query)` (`background/commands/query.ts`) |
 | Context type | `Browser.Context` (`shared/types/browser.ts`) |
-| Pairing modal | `upsertSurface(ownerId, surface)` (`background/surfaces.ts`), pattern from `background/commands/tools/urlAsQrCode.ts` |
 | Durable config / transient state | `getFeatureConfig`/`setFeatureConfig` (`background/features/config.ts`), `getFeatureState`/`setFeatureState`/`clearFeatureState` (`background/features/state.ts`) |
 | Message validation pattern | `background/messages/getCommands.ts` as the handler template; `shared/types/messaging.ts` / `validation.ts` |
 
@@ -91,18 +91,6 @@ owns the projection defined in [protocol.md](./protocol.md). It is the **one
 place** internal `Suggestion` shape meets the public wire contract, so internal
 palette changes are absorbed here rather than breaking the app. It is pure and
 unit-tested (input `Suggestion`, output `ExternalSuggestion`).
-
----
-
-## Pairing modal
-
-On `pair/request`, push a `modal` surface (display-only: code text + client name
-+ `countdownTo`; `dismiss` = cancel). Owner is a session-scoped id (e.g.
-`native-messaging`), so it is cleared on startup like other ephemeral owners.
-Current implementation note: when no `SurfaceHost` is mounted on the active tab (e.g. `chrome://`),
-there is no dedicated extension pairing page fallback yet. The user must switch to a normal page or
-Monocle new tab and restart pairing. See
-[authentication-and-security.md](./authentication-and-security.md).
 
 ---
 
@@ -123,12 +111,18 @@ Monocle new tab and restart pairing. See
 
 - `background/features/nativeMessaging/index.ts` — the `FeatureModule` (init,
   config schema, settings page, revoke action).
+- `background/features/nativeMessaging/commands.ts` — enable/disable palette
+  commands.
 - `background/features/nativeMessaging/port.ts` — `connectNative`, port
   lifecycle, reconnect.
 - `background/features/nativeMessaging/pump.ts` — protocol validation and method
   dispatch.
-- `background/features/nativeMessaging/pairing.ts` — code generation, modal
-  push, verification, token minting.
+- `background/features/nativeMessaging/pairing.ts` — code generation,
+  browser-side verification, token minting.
+- `background/features/nativeMessaging/reconnect.ts` — alarm-backed reconnect
+  heartbeat.
+- `background/features/nativeMessaging/types.ts` — durable config and transient
+  state shapes.
 - `background/features/nativeMessaging/auth.ts` and `crypto.ts` — bearer-token
   authentication, hashing, constant-time comparison, token/code generation.
 - `background/features/nativeMessaging/suggestions.ts` — active-tab root,
@@ -148,7 +142,6 @@ The native host binary and installer live in `apps/bridge` — see
 ## Related docs
 
 - [../features.md](../features.md) — the feature-module contract this builds on.
-- [../surfaces.md](../surfaces.md) — the modal primitive.
 - [protocol.md](./protocol.md) — the DTO and methods the pump implements.
 - [authentication-and-security.md](./authentication-and-security.md) — pairing,
   tokens, storage layout.

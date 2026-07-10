@@ -1,3 +1,8 @@
+// Architecture: shared palette navigation controller. Coordinates the Redux
+// page stack, background child/search requests, inline form state, selection,
+// and back/reset behavior for both the content shadow DOM and new-tab DOM.
+// Components render its state; background messages remain thunk-owned. See
+// docs/palette-ui-and-navigation.md.
 import type { RefObject } from "react"
 import { useEffect, useRef } from "react"
 import type { CommandExecutionScope, Suggestion } from "../../shared/types"

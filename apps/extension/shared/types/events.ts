@@ -41,7 +41,7 @@ export type SiteSdkInvokeEvent = Extract<
 >
 
 // Broadcast to every tab when the background-owned surfaces store changes
-// (any owner: a feature like Focus Mode, or a automation automation). Carries
+// (any owner: a feature like Focus Mode, or an automation). Carries
 // no payload; the SurfaceHost re-queries get-surfaces. See docs/surfaces.md.
 export type SurfacesChangedEvent = Extract<
   ContentMessage,

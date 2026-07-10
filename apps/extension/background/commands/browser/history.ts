@@ -7,7 +7,7 @@ import {
   sendToastToActiveTab,
 } from "../../utils/browser"
 import { createNoOpCommand } from "../../utils/commands"
-import { getFaviconUrl } from "../../utils/favicon"
+import { getDuckDuckGoFaviconUrl } from "../../utils/favicon"
 import { normalizeUrlForDedupe } from "../../utils/urlFilter"
 
 type HistoryItem = chrome.history.HistoryItem
@@ -97,7 +97,7 @@ function formatVisitTime(timestamp: number): string {
 
 // Create a history item command
 function createHistoryItemCommand(item: HistoryItem): CommandNode {
-  const faviconUrl = getFaviconUrl(item.url || "")
+  const faviconUrl = getDuckDuckGoFaviconUrl(item.url || "")
   const visitTime = formatVisitTime(item.lastVisitTime || 0)
 
   return {

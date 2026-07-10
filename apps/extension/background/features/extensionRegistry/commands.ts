@@ -7,8 +7,8 @@
 // (monocle-feature-config-update). See
 // docs/extension-extension/extension-integration.md.
 import type { ActionCommandNode, CommandNode } from "../../../shared/types"
-import { getActiveTab, sendTabMessage } from "../../utils/browser"
-import { getFeatureConfig, setFeatureConfig } from "../config"
+import { sendToastToActiveTab } from "../../utils/browserTabs"
+import { updateFeatureConfig } from "../config"
 import { dropAllPeerTrees } from "./cleanup"
 import {
   EXTENSION_REGISTRY_FEATURE_ID,
@@ -16,22 +16,12 @@ import {
   extensionRegistryConfigDefaults,
 } from "./types"
 
-const toast = async (
-  level: "info" | "success" | "warning" | "error",
-  message: string,
-): Promise<void> => {
-  const tab = await getActiveTab()
-  if (tab?.id) {
-    await sendTabMessage(tab.id, { type: "monocle-toast", level, message })
-  }
-}
-
 const setEnabled = async (enabled: boolean): Promise<void> => {
-  const config = await getFeatureConfig<ExtensionRegistryConfig>(
+  await updateFeatureConfig<ExtensionRegistryConfig>(
     EXTENSION_REGISTRY_FEATURE_ID,
     extensionRegistryConfigDefaults,
+    (config) => ({ ...config, enabled }),
   )
-  await setFeatureConfig(EXTENSION_REGISTRY_FEATURE_ID, { ...config, enabled })
 }
 
 const enableCommand: ActionCommandNode = {
@@ -43,7 +33,7 @@ const enableCommand: ActionCommandNode = {
   keywords: ["extension", "integration", "external", "commands"],
   execute: async () => {
     await setEnabled(true)
-    await toast("success", "Extension integrations enabled")
+    await sendToastToActiveTab("success", "Extension integrations enabled")
   },
 }
 
@@ -57,7 +47,7 @@ const disableCommand: ActionCommandNode = {
   execute: async () => {
     await setEnabled(false)
     await dropAllPeerTrees()
-    await toast("info", "Extension integrations disabled")
+    await sendToastToActiveTab("info", "Extension integrations disabled")
   },
 }
 

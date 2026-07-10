@@ -13,9 +13,9 @@ There are two transport directions, both built on `chrome.runtime` / `browser.ru
 
 1. Validates the sender (`validateMessageSender` in `background/utils/runtime.ts`) — rejects messages from other extension IDs, direct web-page messages that are not extension pages, and suspicious URLs (`data:`, `javascript:`, `about:blank`).
 2. Calls the wrapped handler with `(message, enhancedSender)` where `enhancedSender` adds `validationContext` (`senderId`, `senderUrl`, `senderTab`, `timestamp`).
-3. In Chrome, returns `true` and resolves the handler promise into `sendResponse` (async response pattern). In Firefox, returns the promise directly. Errors are caught and returned as `{ error: string }`.
+3. In Chrome, returns `true` and resolves the handler promise into `sendResponse` (async response pattern). In Firefox, returns a wrapped promise directly. On both browsers, thrown handler errors resolve as `{ error: error.message }`.
 
-`handleMessage` (`background/messages/index.ts`) then runs a second validation pass — `validateIncomingMessage` (`background/utils/validation.ts`) against the Zod `MessageSchema` discriminated union in `shared/types/validation.ts`. On failure it returns `{ error: "Message validation failed: ...", validationIssues }` and never reaches a handler. On success it routes the validated message with `ts-pattern`'s `match` on `message.type`. Unknown types throw `Unknown message type: ...`.
+`handleMessage` (`background/messages/index.ts`) then runs a second validation pass — `validateIncomingMessage` (`background/utils/validation.ts`) against the Zod `MessageSchema` discriminated union in `shared/types/validation.ts`. On failure it returns `{ error: "Message validation failed: ...", validationIssues }` and never reaches a handler. On success it routes the validated message with `ts-pattern`'s exhaustive `match` on `message.type`; the schema rejects unknown types before dispatch.
 
 The reverse direction has its own schema boundary. Background-to-tab payloads are modeled and validated by `shared/types/contentMessageValidation.ts` (`ContentMessageSchema`). `background/utils/browserTabs.ts` types `sendTabMessage` / `broadcastToAllTabs` with that union, and content/new-tab listeners call `validateContentMessage` before acting. This covers palette control messages, `monocle-workflow-content-execute`, `monocle-*` events, Site SDK bridge events, and the `monocle-surfaces-changed` broadcast.
 
@@ -50,6 +50,7 @@ Every entry below is registered in `handleMessage`. "Direction" is always UI -> 
 | `monocle-command-setting-update` | UI -> bg | discriminated by `setting` (see below) | `{ success: true }` or throws | `background/messages/updateCommandSetting.ts`, `updateCommandSetting` | Persist a per-command `keybinding`, `hidden`, or `urlRules` setting. |
 | `monocle-command-keybindings-update` | UI -> bg | `{ updates: { commandId, keybinding? }[], context? }` | `{ success: true, updated: number, conflicts: UpdateCommandKeybindingsConflict[] }` or throws | `background/messages/updateCommandKeybindings.ts`, `updateCommandKeybindings` | Batch-persist keybindings for template application without per-command toasts; conflicting updates are skipped and reported. |
 | `monocle-settings-catalog-get` | UI -> bg | `{ platform? }` | `SettingsCatalogResponse` | `background/messages/getSettingsCatalog.ts`, `getSettingsCatalog` | Return durable command rows for the options Commands page, including metadata, settings, favorite state, usage, and capabilities. |
+| `monocle-settings-update` | UI -> bg | `{ theme?, newTab? }` | `{ success: true, theme, newTab }` | `background/messages/settings.ts`, `updateSettings` | Apply a locked partial patch to general theme/new-tab settings without replacing command settings. |
 | `monocle-command-favorite-set` | UI -> bg | `{ id, favorite }` | `{ success: true }` | `background/messages/setCommandFavorite.ts`, `setCommandFavorite` | Set favorite state directly, including for hidden commands that no longer expose generated palette actions. |
 | `monocle-snippets-get` | UI -> bg | `{ context? }` | `{ snippets: Snippet[] }` | `background/messages/getSnippets.ts`, `getSnippets` | Return all saved snippets (options Snippets page; the palette resolves them background-side). |
 | `monocle-snippet-add` | UI -> bg | `{ name, body, context? }` | `{ snippet: Snippet }` | `background/messages/addSnippet.ts`, `addSnippet` | Persist a new snippet to `monocle-snippets` and invalidate the search index. |
@@ -179,7 +180,7 @@ Note this handler is **not** wrapped by `createMessageHandler`; it has its own t
 
 These four messages are the only ones the send hook does **not** attach `context` to (see `useSendMessage`):
 
-- **`monocle-permissions-get`** — `getPermissions` calls `permissions.getAll()` and maps known permission names into a boolean `access` object (`activeTab`, `bookmarks`, `browsingData`, `contextualIdentities` (Firefox only), `cookies`, `downloads`, `history`, `sessions`, `storage`, `tabs`, `tabGroups` (Chrome only), `management`). On failure it throws (surfaced as `{ error }` by the cross-browser wrapper).
+- **`monocle-permissions-get`** — `getPermissions` calls `permissions.getAll()` and maps known permission names into a boolean `access` object (`activeTab`, `bookmarks`, `browsingData`, `contextualIdentities` (Firefox only), `cookies`, `downloads`, `history`, `sessions`, `storage`, `tabs`, `tabGroups` (Chrome only), `management`, `nativeMessaging`). On failure it throws (surfaced as `{ error }` by the cross-browser wrapper).
 - **`monocle-permission-request`** — `requestPermission` calls `permissions.request` then `permissions.contains`, returning `RequestPermissionResponse` = `{ granted: boolean, error? }`.
 - **`monocle-permission-grant-page-open`** — `openPermissionGrantPage` opens `/newtab.html?grantPermission=<permission>` in a new active tab so the prompt fires from a stable extension page; returns `{ success: true }`.
 - **`monocle-host-permission-ensure`** — `ensureHostPermissionMessage` resolves a tab/url, requests a concrete optional http(s) origin when called from a user action, and injects `content-scripts/content.js` into the tab after a grant. It returns `{ granted, originPattern?, error? }`. This is separate from named permission requests and never broadens beyond the single current/destination origin.
@@ -187,6 +188,13 @@ These four messages are the only ones the send hook does **not** attach `context
 Browser permission state is authoritative; Redux mirrors it. See [permissions.md](permissions.md).
 
 ### Settings
+
+**`monocle-settings-update`** accepts a partial `theme` and/or `newTab` patch.
+The handler routes each branch through the locked background settings writers,
+deep-merging the nested clock/greeting fields and preserving the existing
+`commands` document. It returns `{ success: true, theme, newTab }` with the
+fresh persisted values. Redux theme/new-tab mutation thunks use this message;
+they never write `monocle-settings` directly.
 
 **`monocle-command-setting-update`** is a discriminated union on `setting`:
 
@@ -323,7 +331,7 @@ Generic Feature-module messages (handler: `background/messages/features.ts`; see
 
 The generic declarative-UI query (handler: `background/messages/surfaces.ts`; see [surfaces.md](surfaces.md)):
 
-- **`monocle-surfaces-get`** `{ url }` → `{ surfaces: Surface[] }` — the `SurfaceHost` (content overlay + new tab) sends its URL and receives every surface whose `urlMatch` admits it and whose optional `targetTabId` matches the sender tab (each stamped with its `ownerId`); the host filters by kind locally. Surfaces are pushed into the store by features (e.g. Focus Mode), automation automations, and commands (e.g. the QR-code modal); this is the read side. Change notifications arrive via the `monocle-surfaces-changed` broadcast (below).
+- **`monocle-surfaces-get`** `{ url }` → `{ surfaces: Surface[] }` — the `SurfaceHost` (content overlay + new tab) sends its URL and receives every surface whose `urlMatch` admits it and whose optional `targetTabId` matches the sender tab (each stamped with its `ownerId`); the host filters by kind locally. Surfaces are pushed into the store by features (e.g. Focus Mode), automations, and commands (e.g. the QR-code modal); this is the read side. Change notifications arrive via the `monocle-surfaces-changed` broadcast (below).
 - **`monocle-surface-action`** `{ ownerId, surfaceId, actionId, value?, selection? }` → `{ success }` (handler: `background/messages/surfaceAction.ts`) — a user interaction reported by the host (e.g. dismissing a modal or a picker reporting a clicked element). The host captures the gesture; the background decides what it means. `dismiss` is universal (any surface → `removeSurface`); any other action routes to the owner — a feature's `handleAction`, or a command's handler registered via `background/commands/surfaceActionHandlers.ts` (the command-owner equivalent) — each receiving the sender tab and optional picker `selection` (which may carry the computed `css` the picker captured for the owner's requested properties). automation owner routing is still an explicit no-op.
 
 ## Send-Side Utilities
@@ -336,7 +344,7 @@ The generic declarative-UI query (handler: `background/messages/surfaces.ts`; se
 - Attaches `context` to every message **except** `monocle-permissions-get`, `monocle-permission-request`, `monocle-permission-grant-page-open`, and `monocle-host-permission-ensure`.
 - Sends through the shared `sendRuntimeMessage` transport (`shared/utils/extension-api.ts`), which wraps `runtime.sendMessage` in a Promise; rejects with `runtime.lastError` if set, otherwise resolves with the raw response.
 
-Its `SendableMessage` union uses context-stripped variants (`Omit<..., "context">`) for the command/keybinding messages because the hook supplies context. The current modifier key is tracked through a ref fed by `useIsModifierKeyPressed`, so modifier-aware execution (e.g. enter vs cmd-enter) reflects the live key state.
+Its `SendableMessage` union covers only messages React components send directly and uses context-stripped variants (`Omit<..., "context">`) for command/keybinding messages because the hook supplies context. The current modifier key is tracked through a ref fed by `useIsModifierKeyPressed`, so modifier-aware execution (e.g. enter vs cmd-enter) reflects the live key state.
 
 ### `createPaletteSendMessage` (store)
 
@@ -352,8 +360,8 @@ There is no envelope type — responses are whatever the handler returns. Two co
 Errors surface in three layered ways:
 
 1. **Validation failure** (in `handleMessage`): `{ error: "Message validation failed: ...", validationIssues }`.
-2. **`createMessageHandler` wrapper** (`background/utils/messages.ts`): handlers wrapped by `createMessageHandler` catch any throw and return `{ error: <customErrorMessage> }`. `getCommands`, `getChildrenCommands`, `executeCommand`, `getKeybindingState` use this. `withErrorHandling` is an alternative async factory with the same behavior.
-3. **Cross-browser wrapper** (`createCrossBrowserMessageHandler`): a rejected handler promise becomes `sendResponse({ error: error.message })`.
+2. **`createMessageHandler` wrapper** (`background/utils/messages.ts`): handlers wrapped by `createMessageHandler` catch any throw and return `{ error: <customErrorMessage> }` — the static wrapper text, not the thrown error's message (the real error is logged background-side). Most routed message types use this. The exceptions are deliberate: `executeKeybinding`, `checkKeybindingConflict`, `executeWorkflow`, `requestPermission`, and `getUnsplashBackground` return domain-shaped fallbacks, while `getPermissions`, `openPermissionGrantPage`, `ensureHostPermissionMessage`, `showToast`, `updateCommandSetting`, and `updateCommandKeybindings` throw through to the cross-browser wrapper so callers receive the specific `error.message`.
+3. **Cross-browser wrapper** (`createCrossBrowserMessageHandler`): a rejected handler promise resolves to `{ error: error.message }` on both Chrome and Firefox.
 
 Callers must therefore check for `response.error` themselves; a rejected `sendMessage` Promise only happens for transport-level `lastError`, not for handler-returned `{ error }`.
 
@@ -373,7 +381,7 @@ The background reaches a specific tab through `tabs.sendMessage`, never `runtime
   surfaces store uses it to broadcast `monocle-surfaces-changed` (no payload) so
   every `SurfaceHost` re-queries `monocle-surfaces-get`.
 
-Content-side receivers live in the shared UI so both overlay and new-tab modes handle them: `useCommandPaletteStateRedux.tsx` (`monocle-ui-toggle`, `monocle-ui-show`, `monocle-ui-hide`, `monocle-workflow-content-execute`), `ToastContainer.tsx` (`monocle-toast`), `NewTabListener.tsx` (`monocle-tab-open`), `ScreenshotListener.tsx` (`monocle-screenshot`), and `InsertTextListener.tsx` (`monocle-text-insert`, which also tracks the page's last-focused editable element via a capture-phase `focusin` listener). Each listener validates the message with `validateContentMessage` before acting. The generic `SurfaceHost.tsx` (mounted in the content shadow root and on the new tab) listens for `monocle-surfaces-changed`. All listeners are mounted outside the palette-visibility gate so they keep receiving messages after the palette hides.
+Content-side receivers are mounted through shared UI. `PageMessageListeners.tsx` owns the ambient clipboard, tab-open, scroll, screenshot, and text-insert listener set in both overlay and new-tab shells; the content shell additionally enables page focus tracking for insert-at-cursor. `useCommandPaletteStateRedux.tsx` handles palette control/workflow messages, `ToastContainer.tsx` handles `monocle-toast`, and `SurfaceHost.tsx` handles `monocle-surfaces-changed`. Each listener validates with `validateContentMessage` before acting, and all mounts live outside the palette-visibility gate.
 
 ## Adding A New Message Type End To End
 
@@ -387,8 +395,8 @@ Content-side receivers live in the shared UI so both overlay and new-tab modes h
 
 ## Known Issues / Notes
 
-- The `Message` union in `shared/types/messaging.ts`, the `MessageSchema` discriminated union in `shared/types/validation.ts`, and the `match` chain in `handleMessage` all enumerate the same message types. `MessageSchema` and `handleMessage` are the runtime source of truth (validation rejects anything not in the union before it reaches a handler); the `Message` union is the type-level mirror. Note that `useSendMessage`'s `SendableMessage` union is deliberately narrower — it omits `GetUnsplashBackgroundMessage` and the content-bridge-only `SiteSdkSyncMessage`, and uses context-stripped variants for the command/keybinding/search messages. It does include `ShowToastMessage`, the single consolidated toast request.
-- `executeKeybinding` and `checkKeybindingConflict` are not wrapped by `createMessageHandler`; their error contracts differ (they return domain-shaped fallbacks, not `{ error: <generic> }`).
+- The `Message` union in `shared/types/messaging.ts`, the `MessageSchema` discriminated union in `shared/types/validation.ts`, and the router enumerate the same message types. Compile-time twin assertions keep `Message` and `ValidatedMessage` equal, and the router's `.exhaustive()` makes a missing dispatch arm a type error. Note that `useSendMessage`'s `SendableMessage` union is deliberately narrower — it covers only messages React components send directly, using context-stripped command/keybinding/search variants. Everything else (workflow execution, batch keybinding updates, and automation, feature, surface, settings, and Unsplash messages) is sent by store thunks through `createPaletteSendMessage`, while `SiteSdkSyncMessage` is sent by `content/siteSdkBridge.ts`.
+- Eleven handlers are not wrapped by `createMessageHandler` (see [Response And Error Shapes](#response-and-error-shapes)); the split is deliberate — wrapped handlers return a generic `{ error }`, unwrapped ones surface specific error text or a domain-shaped fallback.
 - Keybinding sequence state is global to the service worker; multi-tab chord interactions can interfere. See [keybindings.md](keybindings.md).
 - All user-facing command feedback goes through `monocle-toast` (rendered by `ToastContainer`). The background helpers `sendToastToActiveTab(level, message)` / `sendSuccessToastToActiveTab` / `sendErrorToastToActiveTab` (`background/utils/browserTabs.ts`) are the single path; the old receiver-less `monocle-alert` event has been removed. UI surfaces send messages through the shared `sendRuntimeMessage` / `sendRuntimeMessageSafe` transport (`shared/utils/extension-api.ts`) — the latter is fire-and-forget (resolves rather than rejects when the worker is unreachable).
 

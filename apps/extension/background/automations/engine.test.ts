@@ -39,14 +39,29 @@ vi.mock("../utils/hostPermissions", () => ({
     openHostPermissionGrantPageMock(input),
 }))
 
+import { addSnippet, getSnippet } from "../commands/snippets"
+import { getSurfacesForUrl } from "../surfaces"
 import { registerAutomationCommandBridge, runAutomation } from "./engine"
-import { addAutomation } from "./storage"
+import { addAutomation, updateAutomation } from "./storage"
 
 const installBrowserStubs = () => {
   vi.stubGlobal("browser", fakeBrowser)
   vi.stubGlobal("chrome", {
     runtime: {
       id: "monocle-test",
+      lastError: null,
+    },
+    tabs: {
+      query: vi.fn((_query: unknown, callback: (tabs: unknown[]) => void) =>
+        callback([]),
+      ),
+      sendMessage: vi.fn(
+        (
+          _tabId: number,
+          _message: unknown,
+          callback: (response?: unknown) => void,
+        ) => callback(undefined),
+      ),
     },
   })
 }
@@ -367,6 +382,36 @@ describe("host access", () => {
       reason: "automation",
     })
     expect(executeWorkflowMock).not.toHaveBeenCalled()
+  })
+
+  it("attributes denied host access to the engine step", async () => {
+    ensureHostPermissionMock.mockResolvedValueOnce({
+      granted: false,
+      originPattern: "https://dev.example.com/*",
+    })
+
+    const automation = await addAutomation({
+      schemaVersion: 1,
+      name: "Denied clipboard",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [{ op: "clipboardWrite", text: "value" }],
+    })
+
+    const result = await runAutomation(automation.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.stepOutcomes).toEqual([
+      expect.objectContaining({
+        op: "clipboardWrite",
+        success: false,
+        error: expect.stringMatching(/Grant site access/),
+      }),
+    ])
   })
 
   it("checks but does not request host access for non-manual triggers", async () => {
@@ -787,5 +832,276 @@ describe("forEach over elements", () => {
       .filter((message) => message.type === "monocle-clipboard-write")
       .map((message) => message.message)
     expect(clipboardWrites).toEqual(["Row 0@0", "Row 1@1"])
+  })
+})
+
+describe("loop limits and variable iteration", () => {
+  it("stops a while loop at its requested iteration cap", async () => {
+    executeWorkflowMock.mockImplementation(succeedWorkflows())
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Bounded while",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "while",
+          condition: { kind: "urlIncludes", value: "dev.example.com" },
+          maxIterations: 3,
+          steps: [{ op: "setVariable", name: "seen", value: "{{index}}" }],
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result).toMatchObject({ success: true, completedSteps: 4 })
+    expect(result.stepOutcomes?.map(({ op }) => op)).toEqual([
+      "while",
+      "setVariable",
+      "setVariable",
+      "setVariable",
+    ])
+  })
+
+  it("iterates newline-delimited values from a variable", async () => {
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Variable loop",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      vars: { rows: { kind: "literal", value: "alpha\nbeta" } },
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "forEach",
+          over: { variable: "rows" },
+          as: "row",
+          steps: [{ op: "clipboardWrite", text: "{{row}}:{{index}}" }],
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(true)
+    expect(
+      sendTabMessageMock.mock.calls
+        .map(([, message]) => message as { type?: string; message?: string })
+        .filter(({ type }) => type === "monocle-clipboard-write")
+        .map(({ message }) => message),
+    ).toEqual(["alpha:0", "beta:1"])
+  })
+
+  it("enforces the total runtime step cap inside a legal loop document", async () => {
+    executeWorkflowMock.mockImplementation(succeedWorkflows())
+    const body = Array.from({ length: 5 }, (_, index) => ({
+      op: "setVariable" as const,
+      name: `value${index}`,
+      value: "{{index}}",
+    }))
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Runtime cap",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "while",
+          condition: { kind: "urlIncludes", value: "dev.example.com" },
+          maxIterations: 1000,
+          steps: body,
+        },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/5000-step runtime cap/)
+    expect(result.completedSteps).toBe(5001)
+  })
+})
+
+describe("snippet and surface engine ops", () => {
+  it("inserts snippets through target and focused-input paths, bumping each counter once", async () => {
+    executeWorkflowMock.mockImplementation(succeedWorkflows())
+    sendTabMessageMock.mockImplementation(async (_tabId, message) =>
+      (message as { type?: string }).type === "monocle-text-insert"
+        ? { inserted: true }
+        : { received: true },
+    )
+    const targetSnippet = await addSnippet({ name: "Target", body: "T{i}" })
+    const focusedSnippet = await addSnippet({ name: "Focused", body: "F{i}" })
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Insert snippets",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "insertSnippet",
+          snippetId: targetSnippet.id,
+          target: { strategy: "css", value: "#target" },
+        },
+        { op: "insertSnippet", snippetId: focusedSnippet.id },
+      ],
+    })
+
+    const result = await runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(result.success).toBe(true)
+    expect(
+      (executeWorkflowMock.mock.calls[0][0].workflow as Workflow).steps[0],
+    ).toMatchObject({ op: "fill", text: "T1" })
+    expect(sendTabMessageMock).toHaveBeenCalledWith(7, {
+      type: "monocle-text-insert",
+      text: "F1",
+    })
+    await expect(getSnippet(targetSnippet.id)).resolves.toMatchObject({
+      insertCounter: 1,
+    })
+    await expect(getSnippet(focusedSnippet.id)).resolves.toMatchObject({
+      insertCounter: 1,
+    })
+  })
+
+  it("shows and then hides an automation-owned surface", async () => {
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Surface lifecycle",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [
+        {
+          op: "showSurface",
+          surfaceId: "status",
+          kind: "badge",
+          content: { text: "Running" },
+        },
+      ],
+    })
+
+    expect(
+      await runAutomation(script.id, {
+        context,
+        invocation: { kind: "manual" },
+      }),
+    ).toMatchObject({ success: true })
+    expect(await getSurfacesForUrl(context.url)).toContainEqual(
+      expect.objectContaining({
+        ownerId: `automation:${script.id}`,
+        id: "status",
+      }),
+    )
+
+    await updateAutomation(script.id, {
+      schemaVersion: 1,
+      name: script.name,
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [{ op: "hideSurface", surfaceId: "status" }],
+    })
+    expect(
+      await runAutomation(script.id, {
+        context,
+        invocation: { kind: "manual" },
+      }),
+    ).toMatchObject({ success: true })
+    expect(await getSurfacesForUrl(context.url)).toHaveLength(0)
+  })
+})
+
+describe("runtime safety gates", () => {
+  it("drops a second run while the same automation is active on the tab", async () => {
+    let resolveWorkflow:
+      | ((value: { tabId: number; result: WorkflowResult }) => void)
+      | undefined
+    executeWorkflowMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWorkflow = resolve
+        }),
+    )
+    const script = await addAutomation({
+      schemaVersion: 1,
+      name: "Concurrent",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: false },
+      steps: [{ op: "wait", for: { timeMs: 1 } }],
+    })
+
+    const firstRun = runAutomation(script.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+    await vi.waitFor(() => expect(executeWorkflowMock).toHaveBeenCalledTimes(1))
+
+    await expect(
+      runAutomation(script.id, {
+        context,
+        invocation: { kind: "manual" },
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: expect.stringMatching(/already running/),
+    })
+
+    resolveWorkflow?.({
+      tabId: 7,
+      result: { success: true, stepResults: [{ success: true }] },
+    })
+    await expect(firstRun).resolves.toMatchObject({ success: true })
+  })
+
+  it("refuses a structurally invalid document written directly to storage", async () => {
+    const tampered = {
+      id: "tampered",
+      schemaVersion: 1,
+      name: "Tampered",
+      enabled: true,
+      createdAt: 1,
+      updatedAt: 1,
+      triggers: [{ type: "manual" }],
+      steps: [
+        {
+          op: "branch",
+          if: { kind: "urlIncludes", value: "example.com" },
+          then: [{ op: "navigate", url: "https://example.com" }],
+        },
+      ],
+    }
+    await fakeBrowser.storage.local.set({
+      "monocle-automations": [tampered],
+    })
+
+    await expect(
+      runAutomation("tampered", {
+        context,
+        invocation: { kind: "manual" },
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      error: expect.stringMatching(/failed structural checks/),
+    })
+    expect(executeWorkflowMock).not.toHaveBeenCalled()
   })
 })

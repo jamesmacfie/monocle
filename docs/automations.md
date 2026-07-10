@@ -1,4 +1,4 @@
-# Automations (Automations)
+# Automations
 
 Automations are **user-defined commands**: stored, declarative documents describing ordered sequences of steps — fill this field (with a snippet's value), click that button, check an element exists first, remove or restyle elements, open a URL, run another Monocle command — scoped to sites with `urlRules`, runnable from the palette or a custom keybinding, and optionally fired by page events or schedules.
 
@@ -219,7 +219,7 @@ Two components (+ `shared/store/slices/automations.slice.ts`): `#/automations` r
 - List view (`AutomationsPage.tsx`): name, blurb (`automationBlurb`), enabled toggle, edit/delete/export, import, and **Add Examples**.
 - Editor save/create (`AutomationEditorPage.tsx`): if the validated draft contains page-interacting steps and the user has an active http(s) tab, the page sends `monocle-host-permission-ensure` as a best-effort request for that tab's origin. Denial does not block saving; it shows a warning because run-time permission state remains authoritative.
 - **Add Examples** (`options/pages/automations/examples.ts`) seeds a curated set of example automations covering every trigger type and most of the step vocabulary — saved through the normal add path (so they validate like any document, locked in by `examples.test.ts`), deduped by name, and with event/scheduled triggers shipped disarmed. They double as living documentation of what automations can do.
-- Editor: metadata, scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and the step list — per-op form rows for the flat vocabulary, JSON editing for control-flow steps. Validates as-you-type with the identical shared schema; save is disabled with field-level errors; unknown `{{var}}` references warn.
+- Editor: metadata, scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and the step list — per-op form rows for most of the flat vocabulary, JSON editing for control-flow steps and the JSON-only ops (`type`, `key`, `showSurface`, `hideSurface`). Validates as-you-type with the identical shared schema; save is disabled with field-level errors; unknown `{{var}}` references warn.
 - **Test on Active Tab** runs the script through the real engine and shows per-step outcomes — selector breakage, not vocabulary, is what defeats non-programmers.
 - Import: JSON file → strip id/timestamps → validate → **non-manual triggers forced disarmed** + `source: imported` → a review dialog rendering `summarizeAutomation` (every URL pattern, trigger, op class, snippet reference, opened URL, runCommand target, clipboard use) before anything is saved. Export writes the document as JSON (keybindings excluded by design).
 

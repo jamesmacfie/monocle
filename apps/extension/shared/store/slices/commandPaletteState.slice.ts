@@ -1,5 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit"
 
+// Open/close state for the content-overlay palette only. The new-tab palette
+// is always mounted and visible; the options page has no palette.
+
 export interface CommandPaletteStateState {
   isOpen: boolean
 }

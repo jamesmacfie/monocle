@@ -177,8 +177,10 @@ browser, and optionally returns a produced value. See [execution.md](./execution
 for the full model.
 
 ```jsonc
-// params (v2: id only — form values are not carried over the wire, so submit
-// commands are denied by default)
+// params — form values are not carried over the wire, so submit commands
+// are denied by default. `confirmed: true` is required for any command
+// whose suggestion carries `confirmAction: true` (the client must confirm
+// with the user first); without it the command is refused (`forbidden`).
 { "id": "copy-title-and-url-as-markdown" }
 // result
 {
@@ -212,7 +214,8 @@ Internal palette changes must not break the wire, and UI-only fields (synthesize
   "icon": "X",                      // v1 icon ref, optional
   "iconType": "lucide",             // lucide | url, optional
   "keywords": ["tab", "close"],     // optional
-  "requiresPermission": ["tabs"]    // from Suggestion.permissions, optional
+  "requiresPermission": ["tabs"],   // from Suggestion.permissions, optional
+  "confirmAction": true              // optional; client confirms, then sends confirmed:true
 }
 ```
 
@@ -227,8 +230,11 @@ Mapping rules (implemented by the named mapper in
   metadata for clients that need to render the string through their own icon
   system instead of guessing.
 - `requiresPermission` ← `Suggestion.permissions`.
+- `confirmAction` ← carried through (emitted only when `true`) so a client can
+  confirm a destructive command with the user before sending `confirmed: true`
+  on `commands/execute`.
 - Dropped entirely: `actions`, `rankWeight`, `executionPayload`,
-  `modifierActionLabel`, `confirmAction`, `inputField`, calculation `content`
+  `modifierActionLabel`, `inputField`, calculation `content`
   blocks, and command source/category metadata.
 - `calculation`-type suggestions: expose `title`/`subtitle` from the rendered
   value but **not** the structured `ContentBlock`s.

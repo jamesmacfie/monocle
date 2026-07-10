@@ -1,18 +1,12 @@
+// Architecture: shared palette action-menu UI. Renders generated and
+// command-defined row actions, coordinates live custom-keybinding capture,
+// and sends typed settings/execution messages without owning persistence.
+// Shared by content and new-tab palettes. See docs/execution-and-actions.md
+// and docs/keybindings.md.
 import { Command } from "cmdk"
 import { useEffect, useRef, useState } from "react"
-import type {
-  CheckKeybindingConflictResponse,
-  KeybindingConflictType,
-  KeybindingConflictWarning,
-  KeybindingRequirements,
-  Suggestion,
-} from "../../../shared/types"
-import {
-  getKeyString,
-  normalizeKeybinding,
-  toDisplayFormat,
-} from "../../../shared/utils/key-normalizer"
-import { describeKeybindingRequirements } from "../../../shared/utils/keybinding-requirements"
+import type { KeybindingRequirements, Suggestion } from "../../../shared/types"
+import { useKeybindingCapture } from "../../hooks/useKeybindingCapture"
 import { useSendMessage } from "../../hooks/useSendMessage"
 import { useAppDispatch, useAppSelector } from "../../store/hooks"
 import {
@@ -23,6 +17,7 @@ import {
   selectTargetCommandId,
   startCapture,
 } from "../../store/slices/keybinding.slice"
+import { KeybindingCaptureField } from "../KeybindingCaptureField"
 import { KeybindingDisplay } from "../KeybindingDisplay"
 import { CommandName } from "./CommandName"
 
@@ -43,164 +38,25 @@ function KeybindingCapture({
   commandId?: string
   requirements?: KeybindingRequirements | null
 }) {
-  // Sequence capture: array of completed canonical strokes.
-  const [strokes, setStrokes] = useState<string[]>([])
-  const [hasConflict, setHasConflict] = useState(false)
-  const [conflictType, setConflictType] =
-    useState<KeybindingConflictType | null>(null)
-  const [conflictingCommand, setConflictingCommand] = useState<{
-    id: string
-    name: string
-  } | null>(null)
-  const [warnings, setWarnings] = useState<KeybindingConflictWarning[]>([])
-  const [requirementViolation, setRequirementViolation] = useState<
-    string | null
-  >(null)
-  const captureRef = useRef<HTMLDivElement>(null)
-  const sendMessage = useSendMessage()
-  const requirementHint = describeKeybindingRequirements(
-    requirements ?? undefined,
-  )
+  const captureRef = useRef<HTMLButtonElement>(null)
+  const capture = useKeybindingCapture({
+    commandId,
+    requirements,
+    onComplete,
+    onCancel,
+  })
 
   useEffect(() => {
-    // Focus the capture area when component mounts
-    if (captureRef.current) {
-      captureRef.current.focus()
-    }
+    captureRef.current?.focus()
   }, [])
 
-  // Function to check for keybinding conflicts
-  const checkForConflict = async (keybinding: string) => {
-    try {
-      const response = (await sendMessage({
-        type: "monocle-keybinding-conflict-check",
-        keybinding,
-        excludeCommandId: commandId,
-      })) as CheckKeybindingConflictResponse
-
-      setHasConflict(response.hasConflict)
-      setConflictingCommand(response.conflictingCommand || null)
-      setConflictType(response.conflictType ?? null)
-      setWarnings(response.warnings ?? [])
-      setRequirementViolation(response.requirementViolation?.message ?? null)
-    } catch (error) {
-      console.error("[KeybindingCapture] Failed to check conflict:", error)
-      setHasConflict(false)
-      setConflictingCommand(null)
-      setConflictType(null)
-      setWarnings([])
-      setRequirementViolation(null)
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    if (e.key === "Enter" && strokes.length > 0) {
-      // Don't save if there's a conflict or a requirement violation
-      if (hasConflict || requirementViolation) {
-        return
-      }
-
-      // Save the sequence (strokes separated by comma)
-      const keybinding = normalizeKeybinding(strokes.join(", "))
-      onComplete(keybinding)
-      return
-    }
-
-    if (e.key === "Escape") {
-      // Cancel capture
-      onCancel()
-      return
-    }
-
-    const canonicalStroke = getKeyString(e.nativeEvent)
-    if (canonicalStroke) {
-      const newStrokes = [...strokes, canonicalStroke]
-      const normalizedSequence = normalizeKeybinding(newStrokes.join(", "))
-      setStrokes(newStrokes)
-
-      // Check for conflicts on the completed sequence so far
-      checkForConflict(normalizedSequence)
-    }
-  }
-
-  // Make the div focusable to receive keyboard events
-  const divProps = {
-    ref: captureRef,
-    className: "keybinding-capture",
-    tabIndex: 0,
-    // Use capture phase to intercept before CMDK routes input to its search field
-    onKeyDownCapture: handleKeyDown as any,
-  }
-
   return (
-    <div className="w-full">
-      <div
-        {...divProps}
-        className={`w-full p-2 px-3 border-2 rounded-md bg-[var(--background)] outline-none text-sm font-mono min-h-[32px] flex items-center cursor-text focus:outline-none ${
-          hasConflict || requirementViolation
-            ? "border-[var(--color-error-border)]"
-            : "border-[var(--color-focus-ring)]"
-        }`}
-      >
-        {strokes.length === 0 ? (
-          <span className="text-[var(--cmdk-muted-foreground)] text-xs">
-            {requirementHint
-              ? `Press keys in sequence. Enter to save · ${requirementHint}`
-              : "Press keys in sequence. Enter to save"}
-          </span>
-        ) : (
-          <div className="flex items-center gap-1">
-            {strokes.map((stroke, idx) => {
-              // Convert canonical format to display format for proper kbd rendering
-              const displayStroke = toDisplayFormat(stroke)
-              const parts = displayStroke.split(" ").filter(Boolean)
-
-              return (
-                <div key={`stroke-${idx}`} className="flex items-center gap-1">
-                  {parts.map((k: string, kIdx: number) => (
-                    <kbd
-                      key={`${idx}-${kIdx}`}
-                      className={`px-1.5 py-0.5 rounded text-xs ${
-                        hasConflict
-                          ? "bg-[var(--color-error-bg)] border border-[var(--color-error-border)] text-[var(--color-error-fg)]"
-                          : "bg-[var(--cmdk-list-item-background-active)]"
-                      }`}
-                    >
-                      {k}
-                    </kbd>
-                  ))}
-                  {idx < strokes.length - 1 && (
-                    <span className="px-1 text-xs text-[var(--cmdk-muted-foreground)]">
-                      →
-                    </span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-      {strokes.length > 0 && hasConflict && conflictingCommand && (
-        <div className="mt-1 px-1 text-xs text-[var(--color-error-fg)]">
-          {conflictType === "shadowed-by-open-palette"
-            ? `Blocked: shares a prefix with "${conflictingCommand.name}", whose open-palette binding would make the longer sequence unreachable`
-            : `Already assigned to "${conflictingCommand.name}"`}
-        </div>
-      )}
-      {strokes.length > 0 && requirementViolation && (
-        <div className="mt-1 px-1 text-xs text-[var(--color-error-fg)]">
-          {requirementViolation}
-        </div>
-      )}
-      {strokes.length > 0 && !hasConflict && warnings.length > 0 && (
-        <div className="mt-1 px-1 text-xs text-[var(--color-warning-fg)]">
-          {`Overlaps with "${warnings[0].command.name}" — the shared prefix only executes after a short delay`}
-        </div>
-      )}
-    </div>
+    <KeybindingCaptureField
+      {...capture}
+      captureRef={captureRef}
+      requirements={requirements}
+      onKeyDownCapture={capture.handleKeyDown}
+    />
   )
 }
 

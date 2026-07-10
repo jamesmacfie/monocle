@@ -23,6 +23,7 @@ import {
 } from "../../../shared/store/slices/automations.slice"
 import { selectSnippets } from "../../../shared/store/slices/snippets.slice"
 import type {
+  AutomationStep,
   ColorName,
   EnsureHostPermissionResponse,
   IconName,
@@ -46,8 +47,10 @@ import {
   collectTemplateWarnings,
   createDefaultStepRow,
   createEmptyEditorState,
+  EDITOR_INDEXED_COLLECTIONS,
   type EditorDraftState,
   editorStateFromScript,
+  groupIssuesByIndex,
   STEP_OP_OPTIONS,
 } from "./editorState"
 import { StepRow } from "./StepRow"
@@ -96,7 +99,7 @@ export function AutomationEditorPage() {
   )
 
   const [state, setState] = useState<EditorDraftState | null>(null)
-  const [addOp, setAddOp] = useState("click")
+  const [addOp, setAddOp] = useState<AutomationStep["op"]>("click")
   const [saving, setSaving] = useState(false)
   const [hostAccessWarning, setHostAccessWarning] = useState<string | null>(
     null,
@@ -138,40 +141,23 @@ export function AutomationEditorPage() {
     [validation],
   )
 
-  const stepErrors = useMemo(() => {
-    const byIndex: Record<number, string[]> = {}
-    for (const issue of validationErrors) {
-      const match = /^steps\.(\d+)(?:\.(.*))?$/.exec(issue.path)
-      if (match) {
-        const index = Number(match[1])
-        const detail = match[2]
-          ? `${match[2]}: ${issue.message}`
-          : issue.message
-        byIndex[index] = [...(byIndex[index] ?? []), detail]
-      }
-    }
-    return byIndex
-  }, [validationErrors])
+  const stepErrors = useMemo(
+    () => groupIssuesByIndex(validationErrors, "steps"),
+    [validationErrors],
+  )
 
-  const triggerErrors = useMemo(() => {
-    const byIndex: Record<number, string[]> = {}
-    for (const issue of validationErrors) {
-      const match = /^triggers\.(\d+)(?:\.(.*))?$/.exec(issue.path)
-      if (match) {
-        const index = Number(match[1])
-        const detail = match[2]
-          ? `${match[2]}: ${issue.message}`
-          : issue.message
-        byIndex[index] = [...(byIndex[index] ?? []), detail]
-      }
-    }
-    return byIndex
-  }, [validationErrors])
+  const triggerErrors = useMemo(
+    () => groupIssuesByIndex(validationErrors, "triggers"),
+    [validationErrors],
+  )
 
   const generalErrors = useMemo(
     () =>
       validationErrors.filter(
-        (issue) => !/^(steps|triggers)\.\d+/.test(issue.path),
+        (issue) =>
+          !EDITOR_INDEXED_COLLECTIONS.some((collection) =>
+            new RegExp(`^${collection}\\.\\d+`).test(issue.path),
+          ),
       ),
     [validationErrors],
   )
@@ -384,6 +370,9 @@ export function AutomationEditorPage() {
               }
             >
               <option value="">None</option>
+              {state.icon && !AUTOMATION_ICON_OPTIONS.includes(state.icon) && (
+                <option value={state.icon}>{state.icon}</option>
+              )}
               {AUTOMATION_ICON_OPTIONS.map((icon) => (
                 <option key={icon} value={icon}>
                   {icon}
@@ -528,7 +517,9 @@ export function AutomationEditorPage() {
             <Select
               aria-label="Step type to add"
               value={addOp}
-              onChange={(event) => setAddOp(event.target.value)}
+              onChange={(event) =>
+                setAddOp(event.target.value as AutomationStep["op"])
+              }
             >
               {STEP_OP_OPTIONS.map((option) => (
                 <option key={option.op} value={option.op}>

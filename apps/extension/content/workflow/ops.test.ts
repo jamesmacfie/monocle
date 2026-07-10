@@ -394,6 +394,7 @@ describe("hover, focus, type, key", () => {
     })
 
     expect(result.success).toBe(true)
+    expect(events).toEqual(["focus", "blur"])
   })
 
   it("types literal text and named keys into an input", async () => {

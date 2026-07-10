@@ -11,10 +11,14 @@ import type { AutomationDraft } from "../../shared/types/automationValidation"
 import { updateCommandSettings } from "../commands/settings"
 import {
   findScheduledRunTab,
+  initializeAutomationAlarms,
   parseAlarmName,
   syncAutomationAlarms,
 } from "./alarms"
+import { runAutomation } from "./engine"
 import { addAutomation } from "./storage"
+
+vi.mock("./engine", () => ({ runAutomation: vi.fn() }))
 
 const createFakeAlarms = () => {
   const store = new Map<string, { name: string }>()
@@ -31,17 +35,33 @@ const createFakeAlarms = () => {
 }
 
 let alarms: ReturnType<typeof createFakeAlarms>
+let startupListener: (() => void) | undefined
 
 beforeEach(() => {
   fakeBrowser.reset()
   vi.stubGlobal("browser", fakeBrowser)
   vi.stubGlobal("chrome", { runtime: { id: "monocle-test" } })
+  vi.mocked(runAutomation).mockReset()
+  vi.mocked(runAutomation).mockResolvedValue({
+    success: true,
+    completedSteps: 0,
+  })
+  startupListener = undefined
   // getBrowserAPI() resolves to the fakeBrowser `browser` global; alarms.ts
   // reads its `alarms` namespace, which fakeBrowser does not provide.
   alarms = createFakeAlarms()
   ;(fakeBrowser as unknown as { alarms: unknown }).alarms = alarms
   ;(fakeBrowser as unknown as { tabs: unknown }).tabs = {
     query: vi.fn(async () => []),
+  }
+  ;(
+    fakeBrowser.runtime as unknown as {
+      onStartup: { addListener: (listener: () => void) => void }
+    }
+  ).onStartup = {
+    addListener: (listener) => {
+      startupListener = listener
+    },
   }
 })
 
@@ -120,6 +140,33 @@ describe("syncAutomationAlarms", () => {
     await syncAutomationAlarms()
 
     expect(await alarmNames()).toEqual([`automation:interval:${live.id}`])
+  })
+})
+
+describe("initializeAutomationAlarms", () => {
+  it("runs an enabled armed onStartup automation against the eligible tab", async () => {
+    const automation = await addAutomation(
+      draft({ triggers: [{ type: "onStartup" }] }),
+    )
+    const url = "https://example.com/start"
+    ;(fakeBrowser.tabs.query as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 7, url },
+    ])
+
+    initializeAutomationAlarms()
+    expect(startupListener).toBeTypeOf("function")
+    startupListener?.()
+
+    await vi.waitFor(() => {
+      expect(runAutomation).toHaveBeenCalledWith(automation.id, {
+        context: { url, title: "", modifierKey: null },
+        invocation: {
+          kind: "trigger",
+          tabId: 7,
+          trigger: { type: "onStartup", url },
+        },
+      })
+    })
   })
 })
 

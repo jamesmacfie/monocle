@@ -1,3 +1,8 @@
+// Architecture: background keybinding registry. Builds context-aware command
+// bindings from the background command sources, resolves exact strokes and
+// sequence prefixes, and keeps per-sender sequence progress isolated. The UI
+// normalizes/captures keys; this module owns matching and conflict behavior,
+// never DOM events. See docs/keybindings.md.
 import type { Browser, KeybindingBehavior } from "../../shared/types"
 import {
   getKeyString,

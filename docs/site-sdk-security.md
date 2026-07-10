@@ -230,7 +230,7 @@ dependency supply-chain issue) or if the SDK/bridge surface grows to relay more.
 | 2.4 | Background-to-content SDK invokes target only `tabId`, not `documentId` / `frameId` | `invokeSiteSdk` (`background/commands/siteSdk/commands.ts`, `sendTabMessage(scope.tabId, …)`) | Registry ownership is scoped by tab/document/origin, but invoke delivery is tab-wide. Around navigation or service-worker resync races, a message intended for one document can be delivered to the current document in the same tab. The callback id normally fails closed, but document-targeted messaging would match the registry model. |
 | 2.5 | `executeWorkflow` trusts caller-supplied `tabId` over the sender's tab | `resolveWorkflowTargetTabId` (`background/workflows/execution.ts`) | Cross-tab targeting by design. The full content vocabulary is now implemented (all 17 ops in `content/workflow/executor.ts`), so this *is* a general action-injection surface — fill/type/key/click/submit/etc. on an arbitrary tab — not the narrow `click`/`wait` it once was. |
 | 2.6 | Workflow messages are sent only by `tabId`, not document/frame | `executeWorkflowOnTargetTab` (`background/workflows/execution.ts`) | Same targeting shape as SDK invokes. A navigation race can send DOM automation to the wrong document in a reused tab. |
-| 2.7 | Content-side workflow listener validates nothing | `handleBackgroundMessage` in `useCommandPaletteStateRedux` (`shared/hooks/useCommandPaletteStateRedux.tsx`) | `_sender` unused; `message.workflow` cast without re-validation. Not page-reachable (pages cannot post to a content script's `runtime.onMessage`), but asymmetric with the background's rigorous sender checks. |
+| 2.7 | Content-side workflow listener does not check `sender.id` | `handleBackgroundMessage` in `useCommandPaletteStateRedux` (`shared/hooks/useCommandPaletteStateRedux.tsx`) | The `_sender` parameter is unused, so a same-extension sender check is missing. The workflow payload itself is re-validated: the listener calls `validateContentMessage`, whose execute-workflow schema embeds the full `WorkflowSchema` and rejects malformed input. Not page-reachable (pages cannot post to a content script's `runtime.onMessage`), but the absent sender check is asymmetric with the background's rigorous sender checks. |
 | 2.8 | Workflow clicks have no occlusion guard | `executeClick` (`content/workflow/interactionOps.ts`); `isElementVisible` (`content/workflow/dom.ts`) | `isElementVisible` checks geometry/`display`/`visibility` only, then `executeClick` calls `element.click()`. Clickjacking-by-proxy if a workflow runs on a hostile page. |
 | 2.9 | `requestPermission` / `openPermissionGrantPage` not restricted to extension-page senders | `background/messages/requestPermission.ts`, `background/messages/openPermissionGrantPage.ts` | Legitimate grant flows originate from the new-tab/options UI; prompt-fatigue vector if the isolated world is compromised. |
 
@@ -272,8 +272,8 @@ typed into the root search box.
 6. **Harden the message layer for the future** (Tier 2): clamp
    `searchCommands.limit`; derive URL-filtering and workflow `tabId` from
    `sender` rather than message contents where cross-tab control is not
-   intentional; add a content-side workflow `sender.id` check plus schema
-   re-validation; restrict permission-request handlers to extension-page
+   intentional; add a content-side workflow `sender.id` check; restrict
+   permission-request handlers to extension-page
    senders.
 
 The residual risks are about the palette being a trusted UI surface that now

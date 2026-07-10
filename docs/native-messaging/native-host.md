@@ -117,7 +117,9 @@ extension:
 - **Reject requests carrying a browser `Origin` header** by default — this blocks
   web pages from driving the bridge via loopback `fetch`. No permissive CORS
   headers are ever sent.
-- Expose only `POST /` for RPC and `GET /status` for daemon-level liveness.
+- Expose only `POST /` for RPC, `GET /status` for daemon-level liveness, and
+  `GET /instances` for the connected-browser list (both GETs are daemon-local
+  and unauthenticated; see [multi-instance.md](./multi-instance.md)).
 
 These are necessary-but-not-sufficient; the real authorization is the bearer
 token checked in the background. See

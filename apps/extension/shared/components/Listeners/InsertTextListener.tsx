@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 import { validateContentMessage } from "../../types/contentMessageValidation"
+import { getBrowserAPI } from "../../utils/extension-api"
 
 // Selector matching Monocle's own UI: the content-mode shadow host (focus
 // events from a closed shadow root retarget to the host element) and the
@@ -89,6 +90,7 @@ export default function InsertTextListener() {
   const lastEditableRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
+    const runtime = getBrowserAPI().runtime
     const handleFocusIn = (event: FocusEvent) => {
       if (isEditableElement(event.target)) {
         lastEditableRef.current = event.target
@@ -119,11 +121,11 @@ export default function InsertTextListener() {
       }
     }
 
-    chrome.runtime.onMessage.addListener(handleMessage)
+    runtime.onMessage.addListener(handleMessage)
 
     return () => {
       document.removeEventListener("focusin", handleFocusIn, true)
-      chrome.runtime.onMessage.removeListener(handleMessage)
+      runtime.onMessage.removeListener(handleMessage)
     }
   }, [])
 

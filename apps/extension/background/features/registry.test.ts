@@ -5,13 +5,19 @@ import {
   getFeatureConfig,
   getStoredFeatureConfig,
   setFeatureConfig,
+  updateFeatureConfig,
 } from "./config"
 import {
   getFeatureById,
   getFeatureCommands,
   getFeatureDescriptors,
 } from "./index"
-import { clearFeatureState, getFeatureState, setFeatureState } from "./state"
+import {
+  clearFeatureState,
+  getFeatureState,
+  setFeatureState,
+  updateFeatureState,
+} from "./state"
 
 const installBrowserStubs = () => {
   vi.stubGlobal("browser", fakeBrowser)
@@ -38,6 +44,23 @@ describe("feature config store", () => {
     await setFeatureConfig("demo", { a: 2 })
     await expect(getStoredFeatureConfig("demo")).resolves.toEqual({ a: 2 })
   })
+
+  it("serializes concurrent per-feature config updates", async () => {
+    await Promise.all([
+      updateFeatureConfig("demo", { items: [] as string[] }, (config) => ({
+        items: [...config.items, "a"],
+      })),
+      updateFeatureConfig("demo", { items: [] as string[] }, (config) => ({
+        items: [...config.items, "b"],
+      })),
+    ])
+
+    await expect(
+      getFeatureConfig("demo", { items: [] as string[] }),
+    ).resolves.toEqual({
+      items: expect.arrayContaining(["a", "b"]),
+    })
+  })
 })
 
 describe("feature state store", () => {
@@ -46,6 +69,21 @@ describe("feature state store", () => {
     await expect(getFeatureState("demo")).resolves.toEqual({ n: 1 })
     await clearFeatureState("demo")
     await expect(getFeatureState("demo")).resolves.toBeUndefined()
+  })
+
+  it("serializes concurrent per-feature state updates", async () => {
+    await Promise.all([
+      updateFeatureState<{ items: string[] }>("demo", (state) => ({
+        items: [...(state?.items ?? []), "a"],
+      })),
+      updateFeatureState<{ items: string[] }>("demo", (state) => ({
+        items: [...(state?.items ?? []), "b"],
+      })),
+    ])
+
+    await expect(getFeatureState("demo")).resolves.toEqual({
+      items: expect.arrayContaining(["a", "b"]),
+    })
   })
 })
 

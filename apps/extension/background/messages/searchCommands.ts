@@ -1,3 +1,8 @@
+// Architecture: background message handler for palette search. Normalizes the
+// UI context, queries the cached background-owned command index, combines
+// calculation results, applies visibility/ranking/limits, and returns only
+// UI-safe Suggestions. Command functions and privileged APIs never cross this
+// boundary. See docs/search-and-ranking.md and docs/messaging.md.
 import type {
   Browser,
   SearchCommandsMessage,

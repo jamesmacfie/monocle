@@ -2,9 +2,9 @@
 // stored documents (background/automations/storage.ts) into palette command
 // nodes, mirroring the snippets pattern (background/commands/tools/
 // snippets.ts). The "Automations" group is loaded through the normal
-// category registration seam (background/commands/source.ts) so scripts get
+// category registration seam (background/commands/source.ts) so automations get
 // URL filtering, search, favorites, keybindings, and settings-catalog rows
-// through existing machinery — generated nodes carry only the script id and
+// through existing machinery — generated nodes carry only the automation id and
 // re-read the document at execute time via the engine. User-facing copy
 // says "automation" (the store-facing naming decision in
 // docs/automations.md); internal ids keep the automation- prefix.
@@ -16,42 +16,33 @@ import type {
   ManualTrigger,
 } from "../../shared/types"
 import { automationCommandId } from "../../shared/types/automations"
+import { walkAutomationSteps } from "../../shared/utils/automation-introspection"
 import { openOptionsPage } from "../../shared/utils/extension-api"
 import { createNoOpCommand } from "../utils/commands"
 import { runAutomation } from "./engine"
 import { getAutomations } from "./storage"
 
-const USER_SCRIPTS_OPTIONS_HASH = "/automations"
+const AUTOMATIONS_OPTIONS_HASH = "/automations"
 
 /** True when any step (nested included) writes into an editable element —
- * those scripts' shortcuts must fire while an input is focused, so custom
+ * those automations' shortcuts must fire while an input is focused, so custom
  * bindings require a non-shift modifier (the snippets precedent). */
-const scriptTypesIntoPage = (script: Automation): boolean => {
-  const writesText = (steps: Automation["steps"]): boolean =>
-    steps.some((step) => {
-      if (
-        step.op === "fill" ||
-        step.op === "type" ||
-        step.op === "insertSnippet"
-      ) {
-        return true
-      }
-      if (step.op === "branch") {
-        return (
-          writesText(step.then) || (step.else ? writesText(step.else) : false)
-        )
-      }
-      if (step.op === "forEach" || step.op === "while") {
-        return writesText(step.steps)
-      }
-      return false
-    })
-
-  return writesText(script.steps)
+const automationTypesIntoPage = (automation: Automation): boolean => {
+  let writesText = false
+  walkAutomationSteps(automation.steps, (step) => {
+    if (
+      step.op === "fill" ||
+      step.op === "type" ||
+      step.op === "insertSnippet"
+    ) {
+      writesText = true
+    }
+  })
+  return writesText
 }
 
-const findManualTrigger = (script: Automation): ManualTrigger | undefined =>
-  script.triggers.find(
+const findManualTrigger = (automation: Automation): ManualTrigger | undefined =>
+  automation.triggers.find(
     (trigger): trigger is ManualTrigger => trigger.type === "manual",
   )
 
@@ -80,49 +71,51 @@ const parameterToFormField = (
   }
 }
 
-const runScriptFromPalette = async (
-  script: Automation,
+const runAutomationFromPalette = async (
+  automation: Automation,
   context: Browser.Context | undefined,
   paramValues?: Record<string, string>,
 ): Promise<void> => {
-  await runAutomation(script.id, {
+  await runAutomation(automation.id, {
     context: context ?? { url: "", title: "", modifierKey: null },
     invocation: { kind: "manual", paramValues },
   })
 }
 
-/** Shared presentation fields for a script's palette row. */
-const scriptNodeBase = (script: Automation) => ({
-  id: automationCommandId(script.id),
-  name: script.name,
-  description: script.description ?? "Run this automation",
-  icon: { type: "lucide" as const, name: script.icon ?? "Workflow" },
-  color: script.color ?? "purple",
+/** Shared presentation fields for an automation's palette row. */
+const automationNodeBase = (automation: Automation) => ({
+  id: automationCommandId(automation.id),
+  name: automation.name,
+  description: automation.description ?? "Run this automation",
+  icon: { type: "lucide" as const, name: automation.icon ?? "Workflow" },
+  color: automation.color ?? "purple",
   keywords: ["automation", "script", "macro"],
-  urlRules: script.urlRules,
+  urlRules: automation.urlRules,
 })
 
 /**
- * Maps one script to its palette node. Manual-trigger scripts become
+ * Maps one automation to its palette node. Manual-trigger automations become
  * runnable rows (or a parameter form when the trigger declares
- * parameters); enabled event-only scripts surface as display rows so users
- * can see what is armed; disabled scripts get no row.
+ * parameters); enabled event-only automations surface as display rows so users
+ * can see what is armed; disabled automations get no row.
  */
-const scriptToCommandNode = (script: Automation): CommandNode | null => {
-  if (!script.enabled) {
+const automationToCommandNode = (
+  automation: Automation,
+): CommandNode | null => {
+  if (!automation.enabled) {
     return null
   }
 
-  const manualTrigger = findManualTrigger(script)
+  const manualTrigger = findManualTrigger(automation)
   if (!manualTrigger) {
     return {
       type: "display",
-      ...scriptNodeBase(script),
+      ...automationNodeBase(automation),
       description: "Runs automatically — manage it in Options",
     }
   }
 
-  const keybindingRequirements = scriptTypesIntoPage(script)
+  const keybindingRequirements = automationTypesIntoPage(automation)
     ? { requireNonShiftModifier: true as const }
     : undefined
 
@@ -130,7 +123,7 @@ const scriptToCommandNode = (script: Automation): CommandNode | null => {
     const parameters = manualTrigger.parameters
     return {
       type: "group",
-      ...scriptNodeBase(script),
+      ...automationNodeBase(automation),
       // Form fields must not leak into root search (create-snippet shape).
       enableDeepSearch: false,
       keybindingBehavior: "openPaletteAtCommand",
@@ -138,19 +131,19 @@ const scriptToCommandNode = (script: Automation): CommandNode | null => {
         ...parameters.map(
           (parameter): CommandNode => ({
             type: "input",
-            id: `${automationCommandId(script.id)}-param-${parameter.id}`,
+            id: `${automationCommandId(automation.id)}-param-${parameter.id}`,
             name: parameter.label,
             field: parameterToFormField(parameter),
           }),
         ),
         {
           type: "submit",
-          id: `${automationCommandId(script.id)}-run`,
-          name: `Run ${script.name}`,
+          id: `${automationCommandId(automation.id)}-run`,
+          name: `Run ${automation.name}`,
           actionLabel: "Run Automation",
           keybindingRequirements,
           execute: async (context, values) => {
-            await runScriptFromPalette(script, context, values)
+            await runAutomationFromPalette(automation, context, values)
           },
         },
       ],
@@ -159,24 +152,24 @@ const scriptToCommandNode = (script: Automation): CommandNode | null => {
 
   return {
     type: "action",
-    ...scriptNodeBase(script),
+    ...automationNodeBase(automation),
     actionLabel: "Run Automation",
     modifierActionLabel: { cmd: "Edit in Options" },
     keybindingRequirements,
     execute: async (context) => {
       if (context?.modifierKey === "cmd") {
-        await openOptionsPage(`${USER_SCRIPTS_OPTIONS_HASH}/${script.id}`)
+        await openOptionsPage(`${AUTOMATIONS_OPTIONS_HASH}/${automation.id}`)
         return
       }
-      // The engine re-reads the script by id — this closure deliberately
+      // The engine re-reads the automation by id — this closure deliberately
       // captures nothing but the id-bearing document reference.
-      await runScriptFromPalette(script, context)
+      await runAutomationFromPalette(automation, context)
     },
   }
 }
 
 /**
- * The "Automations" group: every stored script as a child row. Script ids
+ * The "Automations" group: every stored automation as a child row. Automation ids
  * are stable UUIDs, so child rows are durable enough for the settings
  * catalog (keyboard page, favorites, hide) — the snippets justification.
  */
@@ -187,13 +180,13 @@ export const automationsGroup: CommandNode = {
   description: "Run your user-defined automations",
   icon: { type: "lucide", name: "Workflow" },
   color: "purple",
-  keywords: ["automation", "script", "macro", "workflow", "automation"],
+  keywords: ["automation", "script", "macro", "workflow"],
   enableDeepSearch: true,
   settingsCatalog: { includeChildren: true },
   children: async () => {
-    const scripts = await getAutomations()
-    const nodes = scripts
-      .map(scriptToCommandNode)
+    const automations = await getAutomations()
+    const nodes = automations
+      .map(automationToCommandNode)
       .filter((node): node is CommandNode => node !== null)
 
     if (nodes.length === 0) {
@@ -221,7 +214,7 @@ export const createAutomationCommand: CommandNode = {
   keywords: ["automation", "script", "macro", "create", "new"],
   actionLabel: "Open Builder",
   execute: async () => {
-    await openOptionsPage(`${USER_SCRIPTS_OPTIONS_HASH}/new`)
+    await openOptionsPage(`${AUTOMATIONS_OPTIONS_HASH}/new`)
   },
 }
 
@@ -236,7 +229,7 @@ export const manageAutomationsCommand: CommandNode = {
   keywords: ["automation", "script", "manage", "edit", "import", "export"],
   actionLabel: "Open Options",
   execute: async () => {
-    await openOptionsPage(USER_SCRIPTS_OPTIONS_HASH)
+    await openOptionsPage(AUTOMATIONS_OPTIONS_HASH)
   },
 }
 

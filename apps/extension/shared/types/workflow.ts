@@ -182,7 +182,7 @@ export type HideElementStep = BaseStep & {
   target: Selector
   all?: boolean
   // Groups injected hide rules under one <style data-monocle-style="key">
-  // element so a caller (e.g. a automation) can scope its page edits.
+  // element so a caller (e.g. an automation) can scope its page edits.
   scopeKey?: string
 }
 

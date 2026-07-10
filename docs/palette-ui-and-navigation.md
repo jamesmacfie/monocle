@@ -103,6 +103,7 @@ Synchronous reducers (`navigationSlice.actions`):
 | `updateSearchValue(string)` | Sets `searchValue` on the current page. Clearing the value also clears `searchResults`/`searchLoading` so the non-search rendering restores instantly. For `dynamicChildren` pages, when the trimmed value is empty it **also clears** `commands` to `{ favorites: [], suggestions: [] }` so stale search results disappear immediately. |
 | `clearSearchResults()` | Drops the current page's `searchResults` and `searchLoading` (dispatched by the hook when the query empties). |
 | `navigateBack()` | Pops the current page. No-op on root (`pages.length <= 1`). |
+| `resetNavigation()` | Resets the stack to a fresh root page (dispatched on palette close so reopening starts at home). |
 | `setFormValue({ fieldId, value })` | Writes an inline form value on the current page. `value` may be a `string` or `string[]`. |
 | `addPage(page)` | Pushes a page. The navigate thunk's fulfilled case pushes directly (`state.pages.push`) rather than via this action; `addPage` is currently exercised only by tests. |
 | `clearError()` | Clears `error`. |
@@ -143,9 +144,9 @@ consumes. It subscribes to the slice selectors and exposes:
 
 | Method | Behavior |
 | --- | --- |
-| `updateSearchValue(search)` | Dispatches `updateSearchValue`, unless the `ignoreSearchUpdate` ref is set (programmatic CMDK writes). |
-| `navigateTo(id)` | Guarded by `loading`; dispatches `navigateToCommand`, then clears the CMDK input on success. |
-| `navigateBack()` | Pops the page **and** restores the previous page's `searchValue` into the CMDK input via direct DOM write, re-focusing and selecting the text. |
+| `updateSearchValue(search)` | Dispatches `updateSearchValue`; the controlled `Command.Input` reflects the new page value. |
+| `navigateTo(id)` | Guarded by `loading`; dispatches `navigateToCommand`. The pushed page starts with an empty search value. |
+| `navigateBack()` | Pops the page; the controlled input re-renders the previous page's `searchValue`, then the focus effect selects the restored text. |
 | `selectCommand(id)` | The central select handler (below). |
 | `refreshCurrentPage()` | Re-fetches child page commands. |
 | `clearError()` | Dispatches `clearError`. |
@@ -171,34 +172,23 @@ The hook also runs two debounced effects keyed on the Redux `searchValue`:
   page) are excluded — they bypass search entirely. An emptied query dispatches
   `clearSearchResults` immediately instead.
 
-## CMDK ↔ Redux Search Synchronization (fragile)
+## Controlled CMDK ↔ Redux Search Synchronization
 
-CMDK keeps its own internal search string; Monocle keeps the authoritative value
-in Redux per page. Aligning the two requires **direct DOM manipulation** of the
-`input[cmdk-input]` element, gated behind an `ignoreSearchUpdate` ref so the
-programmatic writes don't get persisted back as user edits.
+Redux owns the search string per page (`page.searchValue`). `Command.Input` is
+controlled from that value, and cmdk mirrors its internal `state.search` from
+the `value` prop. User typing flows back through `onValueChange` →
+`updateSearchValue`; there are no programmatic DOM writes or synthetic input
+events.
 
-Two effects/handlers in `useCommandNavigation` do this:
+Navigating into a child pushes a page whose search starts empty. `navigateBack`
+restores the parent query simply by popping the stack, after which the
+controlled input re-renders that page's value. A focus effect then selects the
+restored text for easy editing. `CommandList` scrolls to the top when the search
+value changes and shows a spinner while typing or while `searchLoading` is set.
 
-1. **Page change** — when `currentPage.id` changes and the input's value differs
-   from the page's `searchValue`, it sets `ignoreSearchUpdate = true`, writes
-   `inputElement.value`, and dispatches a synthetic `input` event so CMDK
-   re-reads it.
-2. **navigateBack** — after popping, it restores the previous page's
-   `searchValue` to the input on the next tick (`setTimeout(…, 0)`), refocuses,
-   and selects the restored text for easy editing.
-
-`_clearAndResetSearch` does the same dance to blank the input when navigating
-into a child page. `CommandList` independently scrolls the list to top whenever
-the page's `searchValue` changes and shows a spinner while typing (250 ms,
-matching the search debounce) or while `searchLoading` is set, to avoid a flash
-of "No results". Because the background-search dispatch is keyed on the *Redux*
-`searchValue` (not CMDK's internal string), the programmatic DOM pokes cannot
-trigger spurious searches — `ignoreSearchUpdate` filters them before Redux.
-
-> This sync is the most fragile part of the UI. Any change to navigation,
-> Escape/Backspace handling, or search restoration needs manual regression
-> checks in both surfaces.
+> Search and navigation remain shared high-risk behavior. Any change to
+> navigation, Escape/Backspace handling, or search restoration needs manual
+> regression checks in both surfaces.
 
 ## CommandList Render Logic
 
@@ -377,12 +367,12 @@ gate**, so background → tab messages keep working after the palette hides
 - `CommandPalette.tsx` carries several concerns at once: action-menu state,
   keybinding-refresh handling, and the execute callback. Workable, but a good
   candidate for splitting if it grows.
-- Search synchronization relies on direct DOM writes against `input[cmdk-input]`
-  with an `ignoreSearchUpdate` ref. This is the most fragile area; treat any
-  navigation/Escape/Backspace/search-restoration change as needing manual checks.
-- Inline keyboard behavior is split between `CommandItem.onInlineInputKeyDown`,
-  `useInlineInputKeys.handleCommonKeys`, and per-variant handlers. New input
-  types must follow the same interaction contract.
+- Search is controlled by Redux per page. Treat any navigation/Escape/
+  Backspace/search-restoration change as needing manual checks in both modes.
+- Inline arrow/Escape/Backspace behavior is centralized in
+  `useInlineInputKeys.handleCommonKeys`; only `CommandItemTextarea` deviates for
+  caret-aware arrow forwarding. New input types must follow that interaction
+  contract.
 - The closed shadow root is good for page isolation but harder to debug; theme
   must be applied via the host element, not from inside React.
 - `ContentCommandPaletteWithState` builds context that may not carry the same

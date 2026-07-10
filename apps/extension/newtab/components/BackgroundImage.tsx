@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
+import { useSendMessage } from "../../shared/hooks/useSendMessage"
 import type { UnsplashBackgroundResponse } from "../../shared/types"
-import { sendRuntimeMessage } from "../../shared/utils/extension-api"
 import { initializeBackgroundImage } from "../backgroundImageModel"
 
 interface BackgroundImageProps {
@@ -18,6 +18,7 @@ const preloadImage = (url: string): Promise<void> => {
 }
 
 export function BackgroundImage({ className = "" }: BackgroundImageProps) {
+  const sendMessage = useSendMessage()
   const [backgroundData, setBackgroundData] =
     useState<UnsplashBackgroundResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -27,15 +28,9 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
     let isMounted = true
 
     const requestBackground = () =>
-      sendRuntimeMessage<UnsplashBackgroundResponse>({
+      sendMessage({
         type: "monocle-unsplash-background-get",
-        context: {
-          title: document.title,
-          url: window.location.href,
-          modifierKey: null,
-          isNewTab: true,
-        },
-      })
+      }) as Promise<UnsplashBackgroundResponse>
 
     void initializeBackgroundImage({
       cache: localStorage,
@@ -57,7 +52,7 @@ export function BackgroundImage({ className = "" }: BackgroundImageProps) {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [sendMessage])
 
   if (isLoading) {
     return (

@@ -13,14 +13,12 @@ import { validateWithJsonSchema } from "../../../utils/validation"
 interface CommandItemInputProps {
   field: FormField & { type: "text" }
   inputRef: RefObject<HTMLInputElement | null>
-  onKeyDown: (e: React.KeyboardEvent<any>) => void
   onSubmit?: () => void // Called when Enter is pressed or input is blurred
 }
 
 export function CommandItemInput({
   field,
   inputRef,
-  onKeyDown,
   onSubmit,
 }: CommandItemInputProps) {
   const dispatch = useAppDispatch()
@@ -46,7 +44,6 @@ export function CommandItemInput({
       return
     }
     if (handleCommonKeys(e as any)) return
-    onKeyDown(e)
   }
 
   return (

@@ -2,7 +2,7 @@
 // getText (extraction into workflow vars), removeElement, hideElement, and
 // injectCss. One of the workflow executor's op modules (dispatch table in
 // content/workflow/executor.ts). Hide/CSS injection share one
-// <style data-monocle-style="scopeKey"> element per scope so a automation's
+// <style data-monocle-style="scopeKey"> element per scope so an automation's
 // page edits are grouped, idempotent, and reversible by removing that
 // element; removeElement is the destructive alternative (pages may
 // re-render removed nodes back).
@@ -13,7 +13,7 @@ import type {
   RemoveElementStep,
   StepResult,
 } from "../../shared/types/workflow"
-import { findElement, findElements } from "./dom"
+import { findElement, findElements, missingElementResult } from "./dom"
 
 const STYLE_SCOPE_ATTRIBUTE = "data-monocle-style"
 const HIDE_ATTRIBUTE = "data-monocle-hidden"
@@ -36,10 +36,7 @@ export const executeGetText = async (
 ): Promise<StepResult> => {
   const element = await findElement(step.from, { includeHiddenText: true })
   if (!element) {
-    return {
-      success: false,
-      error: `Could not find element for selector: ${JSON.stringify(step.from)}`,
-    }
+    return missingElementResult(step.from)
   }
 
   const attr = step.attr ?? "textContent"
@@ -63,10 +60,7 @@ export const executeRemoveElement = async (
 ): Promise<StepResult> => {
   const elements = await resolveTargets(step.target, step.all)
   if (elements.length === 0) {
-    return {
-      success: false,
-      error: `Could not find element for selector: ${JSON.stringify(step.target)}`,
-    }
+    return missingElementResult(step.target)
   }
 
   for (const element of elements) {
@@ -86,10 +80,7 @@ export const executeHideElement = async (
 ): Promise<StepResult> => {
   const elements = await resolveTargets(step.target, step.all)
   if (elements.length === 0) {
-    return {
-      success: false,
-      error: `Could not find element for selector: ${JSON.stringify(step.target)}`,
-    }
+    return missingElementResult(step.target)
   }
 
   hideMarkerCounter += 1

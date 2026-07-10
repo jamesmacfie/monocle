@@ -5,7 +5,7 @@
 // enabled), and the connect/disconnect reaction to the opt-in flag. Registered
 // in background/features/index.ts. See docs/native-messaging/.
 import type { RecordListItem } from "../../../shared/types"
-import { getFeatureConfig, setFeatureConfig } from "../config"
+import { getFeatureConfig, updateFeatureConfig } from "../config"
 import type { FeatureModule } from "../types"
 import { nativeMessagingCommands } from "./commands"
 import {
@@ -144,16 +144,16 @@ export const nativeMessagingFeature: FeatureModule<NativeMessagingConfig> = {
       if (actionId !== "revoke" || !itemId) {
         return
       }
-      const config = await getFeatureConfig(
+      await updateFeatureConfig(
         NATIVE_MESSAGING_FEATURE_ID,
         nativeMessagingConfigDefaults,
+        (config) => ({
+          ...config,
+          pairedClients: config.pairedClients.filter(
+            (client) => client.instanceId !== itemId,
+          ),
+        }),
       )
-      await setFeatureConfig(NATIVE_MESSAGING_FEATURE_ID, {
-        ...config,
-        pairedClients: config.pairedClients.filter(
-          (client) => client.instanceId !== itemId,
-        ),
-      })
     },
     // The opt-in flag is the single source of truth for whether the port is
     // open. React to settings-page toggles here (the palette commands open/close

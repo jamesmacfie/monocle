@@ -1,16 +1,18 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
+// Architecture: options-page Redux state for the background-owned command
+// settings catalog. Typed message thunks load catalog rows and persist
+// visibility, URL-rule, and keybinding edits; updatingIds tracks concurrent
+// row mutations without moving storage ownership into the UI. See
+// docs/settings-page.md.
+import { createSlice } from "@reduxjs/toolkit"
 import type {
   CommandUrlRulesSetting,
-  OutboundMessage,
   SettingsCatalogCommand,
   SettingsCatalogResponse,
   UpdateCommandKeybindingsConflict,
   UpdateCommandKeybindingsResponse,
 } from "../../../shared/types"
-
-type CatalogThunkApi = {
-  sendMessage: (message: OutboundMessage) => Promise<unknown>
-}
+import { createMessageThunk } from "../messageThunk"
+import { toggleId } from "../updatingIds"
 
 type SettingsCatalogState = {
   commands: SettingsCatalogCommand[]
@@ -26,200 +28,113 @@ const initialState: SettingsCatalogState = {
   updatingIds: [],
 }
 
-const getSendMessage = (extra: unknown) =>
-  (extra as CatalogThunkApi).sendMessage
-
-export const loadSettingsCatalog = createAsyncThunk<
+export const loadSettingsCatalog = createMessageThunk<
   SettingsCatalogResponse,
   void,
-  { extra: CatalogThunkApi; rejectValue: string }
->("settingsCatalog/load", async (_, { extra, rejectWithValue }) => {
-  try {
-    const response = (await getSendMessage(extra)({
-      type: "monocle-settings-catalog-get",
-    })) as SettingsCatalogResponse | { error?: string }
+  SettingsCatalogResponse
+>(
+  "settingsCatalog/load",
+  () => ({ type: "monocle-settings-catalog-get" }),
+  (response) => response,
+  "Failed to load settings catalog",
+)
 
-    if ("error" in response && response.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return response as SettingsCatalogResponse
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error
-        ? error.message
-        : "Failed to load settings catalog",
-    )
-  }
-})
-
-export const setCatalogCommandHidden = createAsyncThunk<
+export const setCatalogCommandHidden = createMessageThunk<
   { commandId: string; hidden: boolean },
   { commandId: string; hidden: boolean },
-  { extra: CatalogThunkApi; rejectValue: string }
+  { success: true }
 >(
   "settingsCatalog/setHidden",
-  async ({ commandId, hidden }, { extra, rejectWithValue }) => {
-    try {
-      const response = (await getSendMessage(extra)({
-        type: "monocle-command-setting-update",
-        commandId,
-        setting: "hidden",
-        value: hidden,
-      })) as { error?: string }
-
-      if (response?.error) {
-        return rejectWithValue(response.error)
-      }
-
-      return { commandId, hidden }
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to update command",
-      )
-    }
-  },
+  ({ commandId, hidden }) => ({
+    type: "monocle-command-setting-update",
+    id: commandId,
+    setting: "hidden",
+    value: hidden,
+  }),
+  (_response, arg) => arg,
+  "Failed to update command",
 )
 
-export const setCatalogCommandFavorite = createAsyncThunk<
+export const setCatalogCommandFavorite = createMessageThunk<
   { commandId: string; favorite: boolean },
   { commandId: string; favorite: boolean },
-  { extra: CatalogThunkApi; rejectValue: string }
+  { success: true }
 >(
   "settingsCatalog/setFavorite",
-  async ({ commandId, favorite }, { extra, rejectWithValue }) => {
-    try {
-      const response = (await getSendMessage(extra)({
-        type: "monocle-command-favorite-set",
-        commandId,
-        favorite,
-      })) as { error?: string }
-
-      if (response?.error) {
-        return rejectWithValue(response.error)
-      }
-
-      return { commandId, favorite }
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to update favorite",
-      )
-    }
-  },
+  ({ commandId, favorite }) => ({
+    type: "monocle-command-favorite-set",
+    id: commandId,
+    favorite,
+  }),
+  (_response, arg) => arg,
+  "Failed to update favorite",
 )
 
-export const setCatalogCommandKeybinding = createAsyncThunk<
+export const setCatalogCommandKeybinding = createMessageThunk<
   { commandId: string; keybinding?: string },
   { commandId: string; keybinding?: string | null },
-  { extra: CatalogThunkApi; rejectValue: string }
+  { success: true }
 >(
   "settingsCatalog/setKeybinding",
-  async ({ commandId, keybinding }, { extra, rejectWithValue }) => {
-    try {
-      const response = (await getSendMessage(extra)({
-        type: "monocle-command-setting-update",
-        commandId,
-        setting: "keybinding",
-        value: keybinding ?? null,
-      })) as { error?: string }
-
-      if (response?.error) {
-        return rejectWithValue(response.error)
-      }
-
-      return { commandId, keybinding: keybinding || undefined }
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to update keybinding",
-      )
-    }
-  },
+  ({ commandId, keybinding }) => ({
+    type: "monocle-command-setting-update",
+    id: commandId,
+    setting: "keybinding",
+    value: keybinding ?? null,
+  }),
+  (_response, { commandId, keybinding }) => ({
+    commandId,
+    keybinding: keybinding || undefined,
+  }),
+  "Failed to update keybinding",
 )
 
-export const setCatalogCommandKeybindings = createAsyncThunk<
+export const setCatalogCommandKeybindings = createMessageThunk<
   {
     updates: Array<{ commandId: string; keybinding?: string }>
     conflicts: UpdateCommandKeybindingsConflict[]
   },
   { updates: Array<{ commandId: string; keybinding?: string | null }> },
-  { extra: CatalogThunkApi; rejectValue: string }
+  UpdateCommandKeybindingsResponse
 >(
   "settingsCatalog/setKeybindings",
-  async ({ updates }, { extra, rejectWithValue }) => {
-    try {
-      const response = (await getSendMessage(extra)({
-        type: "monocle-command-keybindings-update",
-        updates,
-      })) as Partial<UpdateCommandKeybindingsResponse> & { error?: string }
-
-      if (response?.error) {
-        return rejectWithValue(response.error)
-      }
-
-      // Conflicting updates were skipped by the background — only report the
-      // ones that actually persisted so the catalog mirror stays truthful.
-      const conflicts = response?.conflicts ?? []
-      const conflictedIds = new Set(conflicts.map((c) => c.commandId))
-
-      return {
-        updates: updates
-          .filter((update) => !conflictedIds.has(update.commandId))
-          .map((update) => ({
-            commandId: update.commandId,
-            keybinding: update.keybinding || undefined,
-          })),
-        conflicts,
-      }
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to update keybindings",
-      )
+  ({ updates }) => ({
+    type: "monocle-command-keybindings-update",
+    updates,
+  }),
+  (response, { updates }) => {
+    const conflicts = response.conflicts ?? []
+    const conflictedIds = new Set(
+      conflicts.map((conflict) => conflict.commandId),
+    )
+    return {
+      updates: updates
+        .filter((update) => !conflictedIds.has(update.commandId))
+        .map((update) => ({
+          commandId: update.commandId,
+          keybinding: update.keybinding || undefined,
+        })),
+      conflicts,
     }
   },
+  "Failed to update keybindings",
 )
 
-export const setCatalogCommandUrlRules = createAsyncThunk<
+export const setCatalogCommandUrlRules = createMessageThunk<
   { commandId: string; urlRules: CommandUrlRulesSetting },
   { commandId: string; urlRules: CommandUrlRulesSetting },
-  { extra: CatalogThunkApi; rejectValue: string }
+  { success: true }
 >(
   "settingsCatalog/setUrlRules",
-  async ({ commandId, urlRules }, { extra, rejectWithValue }) => {
-    try {
-      const response = (await getSendMessage(extra)({
-        type: "monocle-command-setting-update",
-        commandId,
-        setting: "urlRules",
-        value: urlRules,
-      })) as { error?: string }
-
-      if (response?.error) {
-        return rejectWithValue(response.error)
-      }
-
-      return { commandId, urlRules }
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to update URL rules",
-      )
-    }
-  },
+  ({ commandId, urlRules }) => ({
+    type: "monocle-command-setting-update",
+    id: commandId,
+    setting: "urlRules",
+    value: urlRules,
+  }),
+  (_response, arg) => arg,
+  "Failed to update URL rules",
 )
-
-const setUpdating = (
-  state: SettingsCatalogState,
-  commandId: string,
-  isUpdating: boolean,
-) => {
-  if (isUpdating) {
-    if (!state.updatingIds.includes(commandId)) {
-      state.updatingIds.push(commandId)
-    }
-    return
-  }
-
-  state.updatingIds = state.updatingIds.filter((id) => id !== commandId)
-}
 
 const updateCommand = (
   state: SettingsCatalogState,
@@ -256,36 +171,68 @@ export const settingsCatalogSlice = createSlice({
         state.error = action.payload ?? "Failed to load settings catalog"
       })
       .addCase(setCatalogCommandHidden.pending, (state, action) => {
-        setUpdating(state, action.meta.arg.commandId, true)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.commandId,
+          true,
+        )
       })
       .addCase(setCatalogCommandHidden.fulfilled, (state, action) => {
-        setUpdating(state, action.payload.commandId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.payload.commandId,
+          false,
+        )
         updateCommand(state, action.payload.commandId, (command) => {
           command.settings.hidden = action.payload.hidden || undefined
         })
       })
       .addCase(setCatalogCommandHidden.rejected, (state, action) => {
-        setUpdating(state, action.meta.arg.commandId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.commandId,
+          false,
+        )
         state.error = action.payload ?? "Failed to update command"
       })
       .addCase(setCatalogCommandFavorite.pending, (state, action) => {
-        setUpdating(state, action.meta.arg.commandId, true)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.commandId,
+          true,
+        )
       })
       .addCase(setCatalogCommandFavorite.fulfilled, (state, action) => {
-        setUpdating(state, action.payload.commandId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.payload.commandId,
+          false,
+        )
         updateCommand(state, action.payload.commandId, (command) => {
           command.isFavorite = action.payload.favorite
         })
       })
       .addCase(setCatalogCommandFavorite.rejected, (state, action) => {
-        setUpdating(state, action.meta.arg.commandId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.commandId,
+          false,
+        )
         state.error = action.payload ?? "Failed to update favorite"
       })
       .addCase(setCatalogCommandKeybinding.pending, (state, action) => {
-        setUpdating(state, action.meta.arg.commandId, true)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.commandId,
+          true,
+        )
       })
       .addCase(setCatalogCommandKeybinding.fulfilled, (state, action) => {
-        setUpdating(state, action.payload.commandId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.payload.commandId,
+          false,
+        )
         updateCommand(state, action.payload.commandId, (command) => {
           command.settings.keybinding = action.payload.keybinding
           command.effectiveKeybinding =
@@ -293,19 +240,31 @@ export const settingsCatalogSlice = createSlice({
         })
       })
       .addCase(setCatalogCommandKeybinding.rejected, (state, action) => {
-        setUpdating(state, action.meta.arg.commandId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.commandId,
+          false,
+        )
         state.error = action.payload ?? "Failed to update keybinding"
       })
       .addCase(setCatalogCommandKeybindings.pending, (state, action) => {
         for (const update of action.meta.arg.updates) {
-          setUpdating(state, update.commandId, true)
+          state.updatingIds = toggleId(
+            state.updatingIds,
+            update.commandId,
+            true,
+          )
         }
       })
       .addCase(setCatalogCommandKeybindings.fulfilled, (state, action) => {
         // Conflicted updates are absent from the payload but were still marked
         // as updating by the pending case — clear the flag for the whole batch.
         for (const update of action.meta.arg.updates) {
-          setUpdating(state, update.commandId, false)
+          state.updatingIds = toggleId(
+            state.updatingIds,
+            update.commandId,
+            false,
+          )
         }
         for (const update of action.payload.updates) {
           updateCommand(state, update.commandId, (command) => {
@@ -317,15 +276,27 @@ export const settingsCatalogSlice = createSlice({
       })
       .addCase(setCatalogCommandKeybindings.rejected, (state, action) => {
         for (const update of action.meta.arg.updates) {
-          setUpdating(state, update.commandId, false)
+          state.updatingIds = toggleId(
+            state.updatingIds,
+            update.commandId,
+            false,
+          )
         }
         state.error = action.payload ?? "Failed to update keybindings"
       })
       .addCase(setCatalogCommandUrlRules.pending, (state, action) => {
-        setUpdating(state, action.meta.arg.commandId, true)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.commandId,
+          true,
+        )
       })
       .addCase(setCatalogCommandUrlRules.fulfilled, (state, action) => {
-        setUpdating(state, action.payload.commandId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.payload.commandId,
+          false,
+        )
         updateCommand(state, action.payload.commandId, (command) => {
           command.settings.urlRules = {
             ...command.settings.urlRules,
@@ -337,7 +308,11 @@ export const settingsCatalogSlice = createSlice({
         })
       })
       .addCase(setCatalogCommandUrlRules.rejected, (state, action) => {
-        setUpdating(state, action.meta.arg.commandId, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.commandId,
+          false,
+        )
         state.error = action.payload ?? "Failed to update URL rules"
       })
   },

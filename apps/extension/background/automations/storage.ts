@@ -2,18 +2,18 @@
 // CRUD over the `monocle-automations` key in chrome.storage.local, guarded
 // by withStorageLock against concurrent updates. Mirrors the snippets
 // module (background/commands/snippets.ts): an independent lifecycle from
-// `monocle-settings` (clearing settings never deletes scripts). Every write
+// `monocle-settings` (clearing settings never deletes automations). Every write
 // re-validates the document against the shared schema
 // (shared/types/automationValidation.ts) so direct callers cannot persist a
 // document the message boundary would reject; reads migrate documents
-// forward by schemaVersion. Per-script keybinding/hidden/urlRules overrides
+// forward by schemaVersion. Per-automation keybinding/hidden/urlRules overrides
 // intentionally do NOT live here — they ride on CommandSettings keyed by the
 // generated command id (shared/types/automations.ts).
 import type { Automation } from "../../shared/types"
 import {
+  AUTOMATION_MAX_COUNT,
   type AutomationDraft,
   AutomationSchema,
-  USER_SCRIPT_MAX_COUNT,
 } from "../../shared/types/automationValidation"
 import { createStorageArea } from "../utils/storageArea"
 import { withStorageLock } from "../utils/storageMutex"
@@ -29,8 +29,8 @@ const automationsArea = createStorageArea<Automation[]>({
 })
 
 const loadAutomationsRaw = (): Promise<Automation[]> => automationsArea.load()
-const saveAutomations = (scripts: Automation[]): Promise<void> =>
-  automationsArea.save(scripts)
+const saveAutomations = (automations: Automation[]): Promise<void> =>
+  automationsArea.save(automations)
 
 /**
  * Migrates a stored document to the current schemaVersion. Version 1 is
@@ -38,36 +38,28 @@ const saveAutomations = (scripts: Automation[]): Promise<void> =>
  * never silently coerced — so a downgraded extension cannot misinterpret a
  * newer document.
  */
-const migrateAutomation = (script: Automation): Automation | null => {
-  if (script.schemaVersion === 1) {
-    return script
+const migrateAutomation = (automation: Automation): Automation | null => {
+  if (automation.schemaVersion === 1) {
+    return automation
   }
 
   console.error(
-    `[Automations] Dropping script ${script.id}: unsupported schemaVersion`,
-    script.schemaVersion,
+    `[Automations] Dropping automation ${automation.id}: unsupported schemaVersion`,
+    automation.schemaVersion,
   )
   return null
 }
 
-/** All stored scripts, migrated to the current schema version. */
+/** All stored automations, migrated to the current schema version. */
 export const getAutomations = async (): Promise<Automation[]> => {
-  const scripts = await loadAutomationsRaw()
-  return scripts
+  const automations = await loadAutomationsRaw()
+  return automations
     .map(migrateAutomation)
-    .filter((script): script is Automation => script !== null)
+    .filter((automation): automation is Automation => automation !== null)
 }
 
-/** One script by document id. */
-export const getAutomation = async (
-  id: string,
-): Promise<Automation | undefined> => {
-  const scripts = await getAutomations()
-  return scripts.find((script) => script.id === id)
-}
-
-const assertValidDocument = (script: Automation): void => {
-  const result = AutomationSchema.safeParse(script)
+const assertValidDocument = (automation: Automation): void => {
+  const result = AutomationSchema.safeParse(automation)
   if (!result.success) {
     throw new Error(
       `Automation failed validation: ${result.error.issues
@@ -78,9 +70,9 @@ const assertValidDocument = (script: Automation): void => {
 }
 
 /**
- * Persists a new script from a validated draft. Storage assigns the id and
+ * Persists a new automation from a validated draft. Storage assigns the id and
  * timestamps; the document is re-validated as a whole before writing.
- * Throws on validation failure or when the stored-script cap is reached.
+ * Throws on validation failure or when the stored-automation cap is reached.
  */
 export const addAutomation = async (
   draft: AutomationDraft,
@@ -95,31 +87,31 @@ export const addAutomation = async (
       )
     }
 
-    const scripts = await getAutomations()
+    const automations = await getAutomations()
 
-    if (scripts.length >= USER_SCRIPT_MAX_COUNT) {
+    if (automations.length >= AUTOMATION_MAX_COUNT) {
       throw new Error(
-        `Cannot store more than ${USER_SCRIPT_MAX_COUNT} automations`,
+        `Cannot store more than ${AUTOMATION_MAX_COUNT} automations`,
       )
     }
 
     const now = Date.now()
-    const script: Automation = {
+    const automation: Automation = {
       ...draft,
       id: crypto.randomUUID(),
       createdAt: now,
       updatedAt: now,
     }
 
-    assertValidDocument(script)
+    assertValidDocument(automation)
 
-    scripts.push(script)
-    await saveAutomations(scripts)
-    return script
+    automations.push(automation)
+    await saveAutomations(automations)
+    return automation
   })
 
 /**
- * Replaces a script's draft fields (id/createdAt are preserved, updatedAt
+ * Replaces an automation's draft fields (id/createdAt are preserved, updatedAt
  * bumps). Returns undefined when the id is unknown.
  */
 export const updateAutomation = async (
@@ -127,8 +119,8 @@ export const updateAutomation = async (
   draft: AutomationDraft,
 ): Promise<Automation | undefined> =>
   withStorageLock(STORAGE_KEY, async () => {
-    const scripts = await getAutomations()
-    const index = scripts.findIndex((script) => script.id === id)
+    const automations = await getAutomations()
+    const index = automations.findIndex((automation) => automation.id === id)
 
     if (index === -1) {
       return undefined
@@ -136,29 +128,29 @@ export const updateAutomation = async (
 
     const updated: Automation = {
       ...draft,
-      id: scripts[index].id,
-      createdAt: scripts[index].createdAt,
+      id: automations[index].id,
+      createdAt: automations[index].createdAt,
       updatedAt: Date.now(),
     }
 
     assertValidDocument(updated)
 
-    scripts[index] = updated
-    await saveAutomations(scripts)
+    automations[index] = updated
+    await saveAutomations(automations)
     return updated
   })
 
-/** Deletes a script document. Settings cleanup happens at the message layer. */
+/** Deletes an automation document. Settings cleanup happens at the message layer. */
 export const deleteAutomation = async (id: string): Promise<boolean> =>
   withStorageLock(STORAGE_KEY, async () => {
-    const scripts = await getAutomations()
-    const index = scripts.findIndex((script) => script.id === id)
+    const automations = await getAutomations()
+    const index = automations.findIndex((automation) => automation.id === id)
 
     if (index === -1) {
       return false
     }
 
-    scripts.splice(index, 1)
-    await saveAutomations(scripts)
+    automations.splice(index, 1)
+    await saveAutomations(automations)
     return true
   })

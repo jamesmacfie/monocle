@@ -1,16 +1,17 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
+// Architecture: shared Redux mirror for snippets. Typed message thunks cross
+// to background-owned snippet storage for load/add/update/delete operations;
+// the slice owns only UI state, errors, and concurrent updating ids. See
+// docs/snippets.md.
+import { createSlice } from "@reduxjs/toolkit"
 import type {
   AddSnippetResponse,
   DeleteSnippetResponse,
   GetSnippetsResponse,
-  OutboundMessage,
   Snippet,
   UpdateSnippetResponse,
 } from "../../../shared/types"
-
-type SnippetsThunkApi = {
-  sendMessage: (message: OutboundMessage) => Promise<unknown>
-}
+import { createMessageThunk } from "../messageThunk"
+import { toggleId } from "../updatingIds"
 
 type SnippetsState = {
   snippets: Snippet[]
@@ -26,113 +27,54 @@ const initialState: SnippetsState = {
   updatingIds: [],
 }
 
-const getSendMessage = (extra: unknown) =>
-  (extra as SnippetsThunkApi).sendMessage
-
-export const loadSnippets = createAsyncThunk<
+export const loadSnippets = createMessageThunk<
   GetSnippetsResponse,
   void,
-  { extra: SnippetsThunkApi; rejectValue: string }
->("snippets/load", async (_, { extra, rejectWithValue }) => {
-  try {
-    const response = (await getSendMessage(extra)({
-      type: "monocle-snippets-get",
-    })) as GetSnippetsResponse | { error?: string }
+  GetSnippetsResponse
+>(
+  "snippets/load",
+  () => ({ type: "monocle-snippets-get" }),
+  (response) => response,
+  "Failed to load snippets",
+)
 
-    if ("error" in response && response.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return response as GetSnippetsResponse
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : "Failed to load snippets",
-    )
-  }
-})
-
-export const addSnippet = createAsyncThunk<
+export const addSnippet = createMessageThunk<
   Snippet,
   { name: string; body: string },
-  { extra: SnippetsThunkApi; rejectValue: string }
->("snippets/add", async ({ name, body }, { extra, rejectWithValue }) => {
-  try {
-    const response = (await getSendMessage(extra)({
-      type: "monocle-snippet-add",
-      name,
-      body,
-    })) as AddSnippetResponse & { error?: string }
+  AddSnippetResponse
+>(
+  "snippets/add",
+  ({ name, body }) => ({ type: "monocle-snippet-add", name, body }),
+  (response) => response.snippet,
+  "Failed to add snippet",
+)
 
-    if (response?.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return response.snippet
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : "Failed to add snippet",
-    )
-  }
-})
-
-export const updateSnippet = createAsyncThunk<
+export const updateSnippet = createMessageThunk<
   Snippet | null,
   { id: string; name?: string; body?: string },
-  { extra: SnippetsThunkApi; rejectValue: string }
->("snippets/update", async ({ id, name, body }, { extra, rejectWithValue }) => {
-  try {
-    const response = (await getSendMessage(extra)({
-      type: "monocle-snippet-update",
-      id,
-      ...(name !== undefined ? { name } : {}),
-      ...(body !== undefined ? { body } : {}),
-    })) as UpdateSnippetResponse & { error?: string }
+  UpdateSnippetResponse
+>(
+  "snippets/update",
+  ({ id, name, body }) => ({
+    type: "monocle-snippet-update",
+    id,
+    ...(name !== undefined ? { name } : {}),
+    ...(body !== undefined ? { body } : {}),
+  }),
+  (response) => response.snippet,
+  "Failed to update snippet",
+)
 
-    if (response?.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return response.snippet
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : "Failed to update snippet",
-    )
-  }
-})
-
-export const deleteSnippet = createAsyncThunk<
+export const deleteSnippet = createMessageThunk<
   { id: string; deleted: boolean },
   { id: string },
-  { extra: SnippetsThunkApi; rejectValue: string }
->("snippets/delete", async ({ id }, { extra, rejectWithValue }) => {
-  try {
-    const response = (await getSendMessage(extra)({
-      type: "monocle-snippet-delete",
-      id,
-    })) as DeleteSnippetResponse & { error?: string }
-
-    if (response?.error) {
-      return rejectWithValue(response.error)
-    }
-
-    return { id, deleted: response.deleted }
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : "Failed to delete snippet",
-    )
-  }
-})
-
-const setUpdating = (state: SnippetsState, id: string, isUpdating: boolean) => {
-  if (isUpdating) {
-    if (!state.updatingIds.includes(id)) {
-      state.updatingIds.push(id)
-    }
-    return
-  }
-
-  state.updatingIds = state.updatingIds.filter((current) => current !== id)
-}
+  DeleteSnippetResponse
+>(
+  "snippets/delete",
+  ({ id }) => ({ type: "monocle-snippet-delete", id }),
+  (response, { id }) => ({ id, deleted: response.deleted }),
+  "Failed to delete snippet",
+)
 
 export const snippetsSlice = createSlice({
   name: "snippets",
@@ -164,10 +106,18 @@ export const snippetsSlice = createSlice({
         state.error = action.payload ?? "Failed to add snippet"
       })
       .addCase(updateSnippet.pending, (state, action) => {
-        setUpdating(state, action.meta.arg.id, true)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          true,
+        )
       })
       .addCase(updateSnippet.fulfilled, (state, action) => {
-        setUpdating(state, action.meta.arg.id, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          false,
+        )
         if (action.payload) {
           const index = state.snippets.findIndex(
             (snippet) => snippet.id === action.payload?.id,
@@ -178,14 +128,26 @@ export const snippetsSlice = createSlice({
         }
       })
       .addCase(updateSnippet.rejected, (state, action) => {
-        setUpdating(state, action.meta.arg.id, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          false,
+        )
         state.error = action.payload ?? "Failed to update snippet"
       })
       .addCase(deleteSnippet.pending, (state, action) => {
-        setUpdating(state, action.meta.arg.id, true)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          true,
+        )
       })
       .addCase(deleteSnippet.fulfilled, (state, action) => {
-        setUpdating(state, action.payload.id, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.payload.id,
+          false,
+        )
         if (action.payload.deleted) {
           state.snippets = state.snippets.filter(
             (snippet) => snippet.id !== action.payload.id,
@@ -193,7 +155,11 @@ export const snippetsSlice = createSlice({
         }
       })
       .addCase(deleteSnippet.rejected, (state, action) => {
-        setUpdating(state, action.meta.arg.id, false)
+        state.updatingIds = toggleId(
+          state.updatingIds,
+          action.meta.arg.id,
+          false,
+        )
         state.error = action.payload ?? "Failed to delete snippet"
       })
   },

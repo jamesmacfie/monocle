@@ -1,3 +1,8 @@
+// Architecture: shared Redux mirror for global settings and browser
+// permissions. Reads/writes cross the background message boundary so
+// background/commands/settings.ts remains the persistence owner; storage
+// change listeners rehydrate this UI cache. Browser permission APIs remain
+// authoritative over mirrored state. See docs/settings.md and docs/permissions.md.
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 import type {
   NewTabSettings,
@@ -5,8 +10,10 @@ import type {
   Settings,
   ThemeMode,
   ThemeSettings,
+  UpdateSettingsResponse,
 } from "../../../shared/types"
 import { getBrowserAPI, sendRuntimeMessage } from "../../utils/extension-api"
+import type { ThunkApi } from "../index"
 
 // Cross-browser compatibility layer
 const browserAPI = getBrowserAPI()
@@ -111,62 +118,44 @@ export const refreshPermissions = createAsyncThunk(
 )
 
 // Async thunk to update theme preference and sync to storage
-export const updateThemeMode = createAsyncThunk(
-  "settings/updateThemeMode",
-  async (mode: ThemeMode, { rejectWithValue }) => {
-    try {
-      // Get current settings from storage
-      const result = await browserAPI.storage.local.get(STORAGE_KEY)
-      const currentSettings: Settings = result[STORAGE_KEY] || {}
-
-      // Update the theme setting
-      const updatedSettings: Settings = {
-        ...currentSettings,
-        theme: {
-          ...currentSettings.theme,
-          mode,
-        },
-      }
-
-      // Save to storage
-      await browserAPI.storage.local.set({
-        [STORAGE_KEY]: updatedSettings,
-      })
-
-      return mode
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to update theme mode",
-      )
+export const updateThemeMode = createAsyncThunk<
+  ThemeMode,
+  ThemeMode,
+  { extra: ThunkApi; rejectValue: string }
+>("settings/updateThemeMode", async (mode, { extra, rejectWithValue }) => {
+  try {
+    const response = (await extra.sendMessage({
+      type: "monocle-settings-update",
+      theme: { mode },
+    })) as UpdateSettingsResponse & { error?: string }
+    if (response?.error) {
+      return rejectWithValue(response.error)
     }
-  },
-)
+
+    return mode
+  } catch (error) {
+    return rejectWithValue(
+      error instanceof Error ? error.message : "Failed to update theme mode",
+    )
+  }
+})
 
 // Async thunk to update clock visibility and sync to storage
-export const updateClockVisibility = createAsyncThunk(
+export const updateClockVisibility = createAsyncThunk<
+  boolean,
+  boolean,
+  { extra: ThunkApi; rejectValue: string }
+>(
   "settings/updateClockVisibility",
-  async (show: boolean, { rejectWithValue }) => {
+  async (show, { extra, rejectWithValue }) => {
     try {
-      // Get current settings from storage
-      const result = await browserAPI.storage.local.get(STORAGE_KEY)
-      const currentSettings: Settings = result[STORAGE_KEY] || {}
-
-      // Update the clock setting
-      const updatedSettings: Settings = {
-        ...currentSettings,
-        newTab: {
-          ...currentSettings.newTab,
-          clock: {
-            ...currentSettings.newTab?.clock,
-            show,
-          },
-        },
+      const response = (await extra.sendMessage({
+        type: "monocle-settings-update",
+        newTab: { clock: { show } },
+      })) as UpdateSettingsResponse & { error?: string }
+      if (response?.error) {
+        return rejectWithValue(response.error)
       }
-
-      // Save to storage
-      await browserAPI.storage.local.set({
-        [STORAGE_KEY]: updatedSettings,
-      })
 
       return show
     } catch (error) {
@@ -180,27 +169,21 @@ export const updateClockVisibility = createAsyncThunk(
 )
 
 // Async thunk to update new-tab background categories and sync to storage
-export const updateBackgroundCategories = createAsyncThunk(
+export const updateBackgroundCategories = createAsyncThunk<
+  string[],
+  string[],
+  { extra: ThunkApi; rejectValue: string }
+>(
   "settings/updateBackgroundCategories",
-  async (categories: string[], { rejectWithValue }) => {
+  async (categories, { extra, rejectWithValue }) => {
     try {
-      // Get current settings from storage
-      const result = await browserAPI.storage.local.get(STORAGE_KEY)
-      const currentSettings: Settings = result[STORAGE_KEY] || {}
-
-      // Update the background categories setting
-      const updatedSettings: Settings = {
-        ...currentSettings,
-        newTab: {
-          ...currentSettings.newTab,
-          backgroundCategories: categories,
-        },
+      const response = (await extra.sendMessage({
+        type: "monocle-settings-update",
+        newTab: { backgroundCategories: categories },
+      })) as UpdateSettingsResponse & { error?: string }
+      if (response?.error) {
+        return rejectWithValue(response.error)
       }
-
-      // Save to storage
-      await browserAPI.storage.local.set({
-        [STORAGE_KEY]: updatedSettings,
-      })
 
       return categories
     } catch (error) {

@@ -12,7 +12,7 @@ import {
   type BridgeScope,
   type ClientIdentity,
 } from "../../../shared/types"
-import { getFeatureConfig, setFeatureConfig } from "../config"
+import { updateFeatureConfig } from "../config"
 import { clearFeatureState, getFeatureState, setFeatureState } from "../state"
 import {
   constantTimeEqual,
@@ -22,7 +22,6 @@ import {
 } from "./crypto"
 import {
   NATIVE_MESSAGING_FEATURE_ID,
-  type NativeMessagingConfig,
   nativeMessagingConfigDefaults,
   type PairedClient,
   type PendingPairing,
@@ -47,9 +46,6 @@ export type PollStatusResult =
   | { status: "approved"; token: string; scopes: BridgeScope[] }
   | { status: "expired" }
   | { status: "rejected" }
-
-const readConfig = (): Promise<NativeMessagingConfig> =>
-  getFeatureConfig(NATIVE_MESSAGING_FEATURE_ID, nativeMessagingConfigDefaults)
 
 const readPending = async (): Promise<PendingPairings> =>
   (await getFeatureState<PendingPairings>(NATIVE_MESSAGING_FEATURE_ID)) ?? []
@@ -144,15 +140,19 @@ export const acceptPairing = async (
     createdAt: now,
   }
 
-  const config = await readConfig()
-  const pairedClients = [
-    ...config.pairedClients.filter((c) => c.instanceId !== client.instanceId),
-    client,
-  ]
-  await setFeatureConfig(NATIVE_MESSAGING_FEATURE_ID, {
-    ...config,
-    pairedClients,
-  })
+  await updateFeatureConfig(
+    NATIVE_MESSAGING_FEATURE_ID,
+    nativeMessagingConfigDefaults,
+    (config) => ({
+      ...config,
+      pairedClients: [
+        ...config.pairedClients.filter(
+          (c) => c.instanceId !== client.instanceId,
+        ),
+        client,
+      ],
+    }),
+  )
 
   await writePending(
     pending.map((p) =>

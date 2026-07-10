@@ -5,8 +5,8 @@
 import { describe, expect, it } from "vitest"
 import type { AutomationStep } from "../../shared/types"
 import {
+  AUTOMATION_MAX_STEPS,
   collectStructuralIssues,
-  USER_SCRIPT_MAX_STEPS,
   validateAutomationDraft,
 } from "../../shared/types/automationValidation"
 
@@ -166,7 +166,7 @@ describe("structural checks", () => {
       {
         op: "forEach",
         over: { elements: { strategy: "css", value: ".row" } },
-        steps: Array.from({ length: USER_SCRIPT_MAX_STEPS }, () => wait),
+        steps: Array.from({ length: AUTOMATION_MAX_STEPS }, () => wait),
       },
     ]
     expect(

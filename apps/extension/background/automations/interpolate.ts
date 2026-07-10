@@ -8,18 +8,13 @@
 // params.*, inline snippet:<id> refs, loop scope) -> snippet placeholder
 // expansion ({date:...}, {url}, ...) with the run's page context.
 import type { Automation } from "../../shared/types"
-import {
-  collectInlineSnippetReferences,
-  interpolatableStrings,
-} from "../../shared/utils/automation-introspection"
+import { collectInlineSnippetReferences } from "../../shared/utils/automation-introspection"
 import { expandTemplate } from "../../shared/utils/automation-template"
 import {
   interpolateSnippetBody,
   snippetBodyUsesCounter,
 } from "../../shared/utils/snippet-placeholders"
 import { getSnippet, incrementSnippetCounter } from "../commands/snippets"
-
-export { interpolatableStrings }
 
 export type AutomationPageContext = {
   url?: string
@@ -115,7 +110,7 @@ export const interpolateField = (
  * counter sequence. Throws when the snippet no longer exists: a dangling
  * reference fails the run loudly rather than silently filling "".
  */
-const resolveSnippetValue = async (
+export const resolveSnippetValue = async (
   snippetId: string,
   pageContext: AutomationPageContext,
   reference: string,
@@ -140,10 +135,10 @@ const resolveSnippetValue = async (
  * Builds the initial value bag for a run: declared vars (literals, snippet
  * refs resolved + interpolated, runtime vars empty), the {{trigger.*}}
  * namespace, {{params.*}} from prompt-before-run values, and any inline
- * {{snippet:<id>}} references found in the script's interpolatable fields.
+ * {{snippet:<id>}} references found in the automation's interpolatable fields.
  */
 export const buildInitialValueBag = async (
-  script: Automation,
+  automation: Automation,
   input: {
     pageContext: AutomationPageContext
     trigger: { type: string; url?: string; matchedText?: string }
@@ -152,7 +147,7 @@ export const buildInitialValueBag = async (
 ): Promise<AutomationValueBag> => {
   const values: AutomationValueBag = {}
 
-  for (const [name, def] of Object.entries(script.vars ?? {})) {
+  for (const [name, def] of Object.entries(automation.vars ?? {})) {
     if (def.kind === "literal") {
       values[name] = def.value
     } else if (def.kind === "snippet") {
@@ -179,7 +174,7 @@ export const buildInitialValueBag = async (
 
   // Inline {{snippet:<id>}} references resolve once per run, before any
   // step executes, so a snippet used twice renders identically.
-  for (const snippetId of collectInlineSnippetReferences(script.steps)) {
+  for (const snippetId of collectInlineSnippetReferences(automation.steps)) {
     const reference = `snippet:${snippetId}`
     values[reference] = await resolveSnippetValue(
       snippetId,

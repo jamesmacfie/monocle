@@ -12,7 +12,7 @@
 // responsibility can quietly accumulate at the root again (the risk noted
 // in CLAUDE.md).
 import type { Browser, CommandNode } from "../../shared/types"
-import { getCommandCollections, resolveCommandById } from "./query"
+import { getCommandCollections } from "./query"
 import type { CommandLoadOptions } from "./source"
 import { allCommands, loadAllCommands } from "./source"
 
@@ -33,17 +33,4 @@ export const getCommands = async (
   suggestions: CommandNode[]
 }> => {
   return await getCommandCollections(context, options)
-}
-
-/**
- * Resolves a command by id within a context. The first argument is unused
- * and kept for call-site compatibility (resolution always re-reads the
- * command tree so dynamic children are fresh).
- */
-export const findCommand = async (
-  _commands: CommandNode[],
-  commandId: string,
-  context: Browser.Context,
-): Promise<CommandNode | undefined> => {
-  return (await resolveCommandById(commandId, context))?.command
 }

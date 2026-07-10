@@ -1,5 +1,5 @@
 // Architecture: background feature layer (Element Hider). Projects the feature
-// config into read-only automation automations — one per saved rule. Each is an
+// config into read-only automations — one per saved rule. Each is an
 // `elementAppears` trigger scoped by the rule's URL pattern, then a single
 // `hideElement` step. Keeping rules isolated matters because workflows abort on
 // first failure; one stale selector must not block unrelated hides on the site.

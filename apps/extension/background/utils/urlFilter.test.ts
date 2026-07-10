@@ -6,6 +6,7 @@ import {
   filterCommandsByUrl,
   matchesUrlPattern,
   validateUrlPattern,
+  validateUrlRulesValue,
 } from "./urlFilter"
 
 const createTestCommand = (
@@ -99,6 +100,22 @@ describe("URL pattern validation and matching", () => {
     expect(validateUrlPattern("://example.com")).toBe(
       "Pattern protocol is invalid",
     )
+  })
+
+  it("validates complete URL-rule values with field-specific errors", () => {
+    expect(
+      validateUrlRulesValue({
+        allowUrls: ["*://*.example.com/*"],
+        denyUrls: ["*://blocked.example.com/*"],
+      }),
+    ).toEqual({ valid: true })
+    expect(
+      validateUrlRulesValue({ allowUrls: ["ftp://example.com/*"] }),
+    ).toEqual({
+      valid: false,
+      error:
+        'Invalid allowUrls pattern "ftp://example.com/*": Pattern protocol must be http, https, or *',
+    })
   })
 })
 

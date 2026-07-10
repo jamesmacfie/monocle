@@ -22,16 +22,12 @@ import {
   findElement,
   getTagName,
   isValueInput,
+  missingElementResult,
   setNativeValue,
   sleep,
 } from "./dom"
 
 const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"])
-
-const missingElementResult = (target: unknown): StepResult => ({
-  success: false,
-  error: `Could not find element for selector: ${JSON.stringify(target)}`,
-})
 
 /**
  * Sets an input/textarea/contenteditable value. `clear: "select-all"`

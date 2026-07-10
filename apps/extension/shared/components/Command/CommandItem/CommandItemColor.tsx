@@ -12,14 +12,9 @@ import { validateWithJsonSchema } from "../../../utils/validation"
 interface CommandItemColorProps {
   field: FormField & { type: "color" }
   inputRef: RefObject<HTMLButtonElement | null>
-  onKeyDown: (e: React.KeyboardEvent<any>) => void
 }
 
-export function CommandItemColor({
-  field,
-  inputRef,
-  onKeyDown,
-}: CommandItemColorProps) {
+export function CommandItemColor({ field, inputRef }: CommandItemColorProps) {
   const dispatch = useAppDispatch()
   const currentPage = useAppSelector(selectCurrentPage)
   const colorInputRef = useRef<HTMLInputElement | null>(null)
@@ -40,7 +35,6 @@ export function CommandItemColor({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       if (handleCommonKeys(e as any)) return
-      onKeyDown(e)
       return
     }
 
