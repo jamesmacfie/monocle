@@ -3,6 +3,7 @@ import type { Automation, AutomationDraft } from "../../../shared/types"
 import {
   assembleDraft,
   collectTemplateWarnings,
+  createEmptyEditorState,
   editorStateFromScript,
   groupIssuesByIndex,
 } from "./editorState"
@@ -20,6 +21,21 @@ const storedAutomation = (
 })
 
 describe("automation editor state", () => {
+  it("defaults success notifications off and persists an explicit opt-in", () => {
+    const state = createEmptyEditorState()
+    expect(state.options?.showResultToast).not.toBe(true)
+
+    const assembled = assembleDraft({
+      ...state,
+      name: "Notify me",
+      options: { showResultToast: true },
+    })
+
+    expect(assembled.draft).toMatchObject({
+      options: { showResultToast: true },
+    })
+  })
+
   it("round-trips every example without changing its draft", () => {
     EXAMPLE_AUTOMATIONS.forEach((example, index) => {
       const assembled = assembleDraft(

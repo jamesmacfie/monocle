@@ -159,7 +159,7 @@ user click in closed inline shadow root
   -> locate showSurface(surfaceId).actions[actionId]
   -> run only that action's steps in sender tab
   -> return AutomationRunResult
-  -> button re-enables; standard Automation result toast reports outcome
+  -> button re-enables; failures always toast, while success toasts are opt-in
 ```
 
 Content sends no URL, steps, payload, or destination. Sender tab and URL come

@@ -49,7 +49,7 @@ Commented reference (real JSON has no comments — strip them in output):
     "myVar": { "kind": "runtime" }
   },
   "steps": [ /* ≥1 step, see §5–6 */ ],         // REQUIRED, ≥1
-  "options": { "showResultToast": true }        // optional; default shows a success/error toast
+  "options": { "showResultToast": true }        // optional; opt in to a success toast (errors always toast)
 }
 ```
 

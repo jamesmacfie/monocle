@@ -172,8 +172,8 @@ type RunState = {
 
 /**
  * Runs an automation end to end and returns the aggregated result. Never
- * throws — failures are reported in the result (and toasted when the
- * automation's showResultToast option is on).
+ * throws — failures are reported in the result and toasted. Successful runs
+ * are toasted only when the automation opts in via showResultToast.
  */
 export const runAutomation = async (
   automationId: string,
@@ -332,7 +332,7 @@ const executeRun = async (
     }
   }
 
-  if (automation.options?.showResultToast !== false) {
+  if (!result.success || automation.options?.showResultToast === true) {
     await sendToast(
       state,
       result.success ? "success" : "error",

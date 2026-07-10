@@ -371,7 +371,7 @@ export interface Automation {
   vars?: Record<string, AutomationVarDef>
   steps: AutomationStep[]
   options?: {
-    // Success/error toast on completion (default true).
+    // Opt-in success toast on completion. Failures are always reported.
     showResultToast?: boolean
   }
   createdAt: number

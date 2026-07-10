@@ -150,6 +150,49 @@ beforeEach(() => {
 })
 
 describe("engine segmentation and interpolation", () => {
+  it("only sends a success notification when the automation opts in", async () => {
+    executeWorkflowMock.mockImplementation(succeedWorkflows())
+
+    const quietScript = await addAutomation({
+      schemaVersion: 1,
+      name: "Quiet success",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      steps: [{ op: "wait", for: { timeMs: 1 } }],
+    })
+    await runAutomation(quietScript.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(
+      sendTabMessageMock.mock.calls.some(
+        ([, message]) =>
+          (message as { type?: string }).type === "monocle-toast",
+      ),
+    ).toBe(false)
+
+    sendTabMessageMock.mockClear()
+    const notifyingScript = await addAutomation({
+      schemaVersion: 1,
+      name: "Visible success",
+      enabled: true,
+      triggers: [{ type: "manual" }],
+      options: { showResultToast: true },
+      steps: [{ op: "wait", for: { timeMs: 1 } }],
+    })
+    await runAutomation(notifyingScript.id, {
+      context,
+      invocation: { kind: "manual" },
+    })
+
+    expect(sendTabMessageMock).toHaveBeenCalledWith(7, {
+      type: "monocle-toast",
+      level: "success",
+      message: "Visible success finished (1 steps)",
+    })
+  })
+
   it("runs contiguous content steps as one segment with interpolated fill text", async () => {
     executeWorkflowMock.mockImplementation(succeedWorkflows())
 
@@ -313,6 +356,11 @@ describe("engine segmentation and interpolation", () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toMatch(/Could not find element/)
+    expect(sendTabMessageMock).toHaveBeenCalledWith(7, {
+      type: "monocle-toast",
+      level: "error",
+      message: expect.stringMatching(/Broken failed:.*Could not find element/),
+    })
   })
 })
 

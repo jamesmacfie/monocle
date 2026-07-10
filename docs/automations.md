@@ -30,6 +30,7 @@ A script is **always data, never code**: persisted locally, validated against a 
   "icon": "LogIn",                // lucide names only
   "color": "teal",                // preset ColorName only
   "enabled": true,
+  "options": { "showResultToast": true }, // opt-in success notification
   "urlRules": { "allowUrls": ["dev.example.com"] },
   "triggers": [{ "type": "manual" }],
   "vars": {
@@ -192,7 +193,7 @@ Interpolation runs **in the background engine before steps are sent to content**
 4. Builds the value bag (vars, trigger, params, inline snippet refs).
 5. Walks the step list: contiguous content steps buffer into a segment, lowered (`background/automations/lowering.ts` — the single place the automation→workflow mapping lives) and executed via `executeWorkflowOnTargetTab`; engine ops execute between segments; `getText` ends its segment and the returned `vars` merge into the bag; `expectNavigation` click/submit steps end their segment so the engine can wait for same-tab load and refresh page context before continuing.
    Before a content workflow/probe is delivered, the engine checks optional host access for the run's pinned tab. Manual runs can request a grant; trigger/scheduled runs only check existing grants.
-6. Aggregates per-step outcomes (op + id + success only — payloads never echo into logs, they may hold credentials) and toasts the result unless `options.showResultToast` is false.
+6. Aggregates per-step outcomes (op + id + success only — payloads never echo into logs, they may hold credentials). Failures always produce an error toast; successful runs produce a success toast only when `options.showResultToast` is `true`.
 
 Execution from the palette records usage through the normal command dispatch path. Failures return `{ success: false, error, completedSteps, stepOutcomes }`; the run never throws.
 
@@ -222,7 +223,7 @@ Two components (+ `shared/store/slices/automations.slice.ts`): `#/automations` r
 - List view (`AutomationsPage.tsx`): name, blurb (`automationBlurb`), enabled toggle, edit/delete/export, import, and **Add Examples**.
 - Editor save/create (`AutomationEditorPage.tsx`): if the validated draft contains page-interacting steps and the user has an active http(s) tab, the page sends `monocle-host-permission-ensure` as a best-effort request for that tab's origin. Denial does not block saving; it shows a warning because run-time permission state remains authoritative.
 - **Add Examples** (`options/pages/automations/examples.ts`) seeds a curated set of example automations covering every trigger type and most of the step vocabulary — saved through the normal add path (so they validate like any document, locked in by `examples.test.ts`), deduped by name, and with event/scheduled triggers shipped disarmed. They double as living documentation of what automations can do.
-- Editor: metadata, scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and the step list. Inline surfaces and HTTP requests have focused form editors with validated JSON sub-editors for nested actions, structured bodies, headers, and response mappings; control-flow plus `type`/`key`/`hideSurface` retain the whole-step JSON fallback. Endpoint grants are explicit and show the browser's broader scheme+host scope. Validates as-you-type with the identical shared schema; save is disabled with field-level errors; unknown `{{var}}` references warn.
+- Editor: metadata (including an opt-in success-notification checkbox), scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and the step list. Inline surfaces and HTTP requests have focused form editors with validated JSON sub-editors for nested actions, structured bodies, headers, and response mappings; control-flow plus `type`/`key`/`hideSurface` retain the whole-step JSON fallback. Endpoint grants are explicit and show the browser's broader scheme+host scope. Validates as-you-type with the identical shared schema; save is disabled with field-level errors; unknown `{{var}}` references warn.
 - **Test on Active Tab** runs the script through the real engine and shows per-step outcomes — selector breakage, not vocabulary, is what defeats non-programmers.
 - Import: JSON file → strip id/timestamps → validate → **non-manual triggers forced disarmed** + `source: imported` → a review dialog rendering `summarizeAutomation` before anything is saved. It enumerates URL scope, triggers, op classes, inline entry points, every outbound method/destination and custom header name, snippet references, opened URLs, runCommand targets, and clipboard use; it never displays header/body/response values. Export writes the document as JSON (keybindings excluded by design).
 

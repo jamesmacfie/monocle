@@ -509,6 +509,21 @@ export function AutomationEditorPage() {
             />
             Enabled
           </label>
+          <label className="flex h-9 items-center gap-2 text-sm">
+            <Checkbox
+              checked={state.options?.showResultToast === true}
+              onCheckedChange={(checked) =>
+                setState({
+                  ...state,
+                  options: {
+                    ...state.options,
+                    showResultToast: checked === true,
+                  },
+                })
+              }
+            />
+            Show notification when automation succeeds
+          </label>
         </div>
       </Section>
 
