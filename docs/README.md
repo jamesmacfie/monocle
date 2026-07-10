@@ -2,10 +2,10 @@
 
 Reference documentation for Monocle: how the extension is built, how every
 subsystem behaves, the full command schema, and catalogs of every shipped
-command. Every doc describes **verified, current behavior** — each was written
-against the source it cites, and where the type model is broader than the
-implementation (workflow automation especially), the doc says explicitly what is
-and is not implemented.
+command. Unless a document is explicitly marked as a proposal, every doc
+describes **verified, current behavior** — each was written against the source it
+cites, and where the type model is broader than the implementation (workflow
+automation especially), the doc says explicitly what is and is not implemented.
 
 Read [architecture.md](./architecture.md) first if you are new to the codebase.
 If you are adding a command, the fast path is
@@ -144,6 +144,14 @@ If you are adding a command, the fast path is
   pnpm workspace), and a `curl`-based test checklist. Eight docs: `README`,
   `architecture`, `setup`, `protocol-client`, `pairing`, `suggestions-and-navigation`,
   `execution`, `testing-and-troubleshooting`.
+
+## Proposed investigations and handoffs
+
+- [outbound-integrations/README.md](./outbound-integrations/README.md) —
+  **Proposed behavior; not implemented.** Source-verified investigation and
+  executor-ready plan for selector-anchored automation buttons, outbound HTTP,
+  Chrome/Firefox permissions and disclosure, a GitHub-to-local-IDE example, and
+  deferred native-bridge events. Written against commit `b43f2ac`.
 
 ## Publishing
 
