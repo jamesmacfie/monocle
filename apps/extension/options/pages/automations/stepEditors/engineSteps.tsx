@@ -121,7 +121,11 @@ function NavigateForm({ step, update }: StepFormProps<"navigate">) {
   )
 }
 
-function OpenUrlForm({ step, update }: StepFormProps<"openUrl">) {
+function OpenUrlForm({
+  step,
+  update,
+  controlFlowDepth,
+}: StepFormProps<"openUrl">) {
   return (
     <>
       <Field label="URL">
@@ -145,7 +149,10 @@ function OpenUrlForm({ step, update }: StepFormProps<"openUrl">) {
           }
         >
           <option value="newTab">New tab</option>
-          <option value="currentTab">Current tab</option>
+          <option disabled={controlFlowDepth > 0} value="currentTab">
+            Current tab
+            {controlFlowDepth > 0 ? " (not allowed in loops or branches)" : ""}
+          </option>
           <option value="newWindow">New window</option>
         </Select>
       </Field>

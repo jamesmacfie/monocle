@@ -1,5 +1,9 @@
 import type { ReactElement } from "react"
-import type { AutomationStep, Snippet } from "../../../../shared/types"
+import type {
+  AutomationStep,
+  AutomationSurfaceAction,
+  Snippet,
+} from "../../../../shared/types"
 import type { Selector } from "../../../../shared/types/workflow"
 
 export const FORM_STEP_OPS = [
@@ -27,6 +31,9 @@ export const FORM_STEP_OPS = [
   "runCommand",
   "showSurface",
   "httpRequest",
+  "branch",
+  "forEach",
+  "while",
 ] as const satisfies readonly AutomationStep["op"][]
 
 export type FormOp = (typeof FORM_STEP_OPS)[number]
@@ -42,9 +49,43 @@ export type StepRowState =
       error: string | null
     }
 
+export type SurfaceActionEditorState = Omit<
+  AutomationSurfaceAction,
+  "steps"
+> & {
+  editorKey: string
+  steps: StepNodeState[]
+}
+
+export type StepChildGroups =
+  | {
+      kind: "branch"
+      then: StepNodeState[]
+      else?: StepNodeState[]
+    }
+  | { kind: "forEach" | "while"; steps: StepNodeState[] }
+  | { kind: "surfaceActions"; actions: SurfaceActionEditorState[] }
+
+export type StepNodeState = {
+  editorKey: string
+  row: StepRowState
+  children?: StepChildGroups
+}
+
+export type StepListContext = {
+  path: Array<string | number>
+  label: string
+  controlFlowDepth: number
+  minimumSteps: number
+  nested: boolean
+}
+
 export type StepFormProps<Op extends FormOp> = {
   step: Extract<AutomationStep, { op: Op }>
   snippets: Snippet[]
+  controlFlowDepth: number
+  path: Array<string | number>
+  validationIssues: Array<{ path: string; message: string }>
   update: (step: AutomationStep) => void
 }
 

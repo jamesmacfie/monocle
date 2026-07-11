@@ -32,4 +32,11 @@ describe("automation step editor registry", () => {
 
     expect(formOptions).toEqual(Object.keys(STEP_EDITORS).sort())
   })
+
+  it.each(["branch", "forEach", "while"] as const)(
+    "edits %s through a structured form",
+    (op) => {
+      expect(createDefaultStepRow(op).kind).toBe("form")
+    },
+  )
 })

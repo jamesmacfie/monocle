@@ -4,7 +4,6 @@ import type {
   JsonValue,
   ShowSurfaceStep,
 } from "../../../../shared/types"
-import { AutomationStepSchema } from "../../../../shared/types/automationValidation"
 import { Checkbox, Input, Select, Textarea } from "../../../components/ui"
 import { EditorField as Field } from "../components/EditorField"
 import type { StepEditorMap, StepFormProps } from "./types"
@@ -187,34 +186,6 @@ function ShowSurfaceForm({ step, update }: StepFormProps<"showSurface">) {
               </Select>
             </Field>
           </div>
-          <JsonEditor
-            label="Buttons and nested steps"
-            value={step.actions}
-            validate={(value) => {
-              if (!Array.isArray(value) || value.length < 1 || value.length > 5)
-                return "Expected 1–5 actions"
-              for (const [index, action] of value.entries()) {
-                if (
-                  !action ||
-                  typeof action !== "object" ||
-                  !Array.isArray((action as { steps?: unknown }).steps) ||
-                  (action as { steps: unknown[] }).steps.length === 0
-                )
-                  return `Action ${index + 1} needs a non-empty steps array`
-                for (const nested of (action as { steps: unknown[] }).steps) {
-                  const result = AutomationStepSchema.safeParse(nested)
-                  if (!result.success)
-                    return (
-                      result.error.issues[0]?.message ?? "Invalid nested step"
-                    )
-                }
-              }
-              return null
-            }}
-            onValid={(actions) =>
-              update({ ...step, actions: actions as typeof step.actions })
-            }
-          />
           <p className="text-xs text-[var(--color-fg-muted)]">
             Inline controls appear in every matching tab and remain until a
             hideSurface step removes them. Buttons execute a fresh action run.

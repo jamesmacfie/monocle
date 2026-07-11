@@ -6,7 +6,7 @@
 // automations slice thunks — the page renders data and sends messages, it
 // never holds executable command functions. Serves both /automations/new
 // and /automations/:id (wouter hash routes registered in OptionsApp).
-import { ArrowLeft, Play, Plus } from "lucide-react"
+import { ArrowLeft, Play } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { Link, useLocation, useParams } from "wouter"
 import { useAppDispatch, useAppSelector } from "../../../shared/store/hooks"
@@ -23,7 +23,6 @@ import {
 } from "../../../shared/store/slices/automations.slice"
 import { selectSnippets } from "../../../shared/store/slices/snippets.slice"
 import type {
-  AutomationStep,
   ColorName,
   EnsureHostPermissionResponse,
   IconName,
@@ -54,15 +53,14 @@ import {
   AUTOMATION_ICON_OPTIONS,
   assembleDraft,
   collectTemplateWarnings,
-  createDefaultStepRow,
   createEmptyEditorState,
   EDITOR_INDEXED_COLLECTIONS,
   type EditorDraftState,
   editorStateFromScript,
   groupIssuesByIndex,
-  STEP_OP_OPTIONS,
 } from "./editorState"
-import { StepRow } from "./StepRow"
+import { StepListEditor } from "./StepListEditor"
+import { countStepNodes } from "./stepTree"
 import { TriggersEditor } from "./TriggersEditor"
 import { VariablesEditor } from "./VariablesEditor"
 
@@ -108,7 +106,6 @@ export function AutomationEditorPage() {
   )
 
   const [state, setState] = useState<EditorDraftState | null>(null)
-  const [addOp, setAddOp] = useState<AutomationStep["op"]>("click")
   const [saving, setSaving] = useState(false)
   const [hostAccessWarning, setHostAccessWarning] = useState<string | null>(
     null,
@@ -153,11 +150,6 @@ export function AutomationEditorPage() {
     [validation],
   )
 
-  const stepErrors = useMemo(
-    () => groupIssuesByIndex(validationErrors, "steps"),
-    [validationErrors],
-  )
-
   const triggerErrors = useMemo(
     () => groupIssuesByIndex(validationErrors, "triggers"),
     [validationErrors],
@@ -173,6 +165,11 @@ export function AutomationEditorPage() {
       ),
     [validationErrors],
   )
+
+  const editorIssues = (assembled?.issues ?? []).filter(
+    (issue) => !issue.startsWith("steps."),
+  )
+  const totalStepCount = countStepNodes(state?.steps ?? [])
 
   const canSave =
     state !== null &&
@@ -579,92 +576,32 @@ export function AutomationEditorPage() {
       </Section>
 
       <Section
-        description="Steps run top to bottom. Branches and loops are edited as JSON."
+        description="Steps run top to bottom. Branches, loops, and inline button actions reuse this editor for their nested paths."
         title="Steps"
       >
-        <div className="grid gap-3">
-          {state.steps.map((row, index) => (
-            <StepRow
-              key={index}
-              errors={stepErrors[index] ?? []}
-              index={index}
-              isFirst={index === 0}
-              isLast={index === state.steps.length - 1}
-              row={row}
-              snippets={snippets}
-              onChange={(next) => {
-                const steps = [...state.steps]
-                steps[index] = next
-                setState({ ...state, steps })
-              }}
-              onDelete={() =>
-                setState({
-                  ...state,
-                  steps: state.steps.filter((_, i) => i !== index),
-                })
-              }
-              onMoveDown={() => {
-                if (index >= state.steps.length - 1) {
-                  return
-                }
-                const steps = [...state.steps]
-                ;[steps[index], steps[index + 1]] = [
-                  steps[index + 1],
-                  steps[index],
-                ]
-                setState({ ...state, steps })
-              }}
-              onMoveUp={() => {
-                if (index === 0) {
-                  return
-                }
-                const steps = [...state.steps]
-                ;[steps[index - 1], steps[index]] = [
-                  steps[index],
-                  steps[index - 1],
-                ]
-                setState({ ...state, steps })
-              }}
-            />
-          ))}
-          <div className="flex items-center gap-2">
-            <Select
-              aria-label="Step type to add"
-              value={addOp}
-              onChange={(event) =>
-                setAddOp(event.target.value as AutomationStep["op"])
-              }
-            >
-              {STEP_OP_OPTIONS.map((option) => (
-                <option key={option.op} value={option.op}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() =>
-                setState({
-                  ...state,
-                  steps: [...state.steps, createDefaultStepRow(addOp)],
-                })
-              }
-            >
-              <Plus className="h-4 w-4" />
-              Add Step
-            </Button>
-          </div>
-        </div>
+        <StepListEditor
+          context={{
+            path: ["steps"],
+            label: "Automation",
+            controlFlowDepth: 0,
+            minimumSteps: 1,
+            nested: false,
+          }}
+          issues={validationErrors}
+          nodes={state.steps}
+          snippets={snippets}
+          totalStepCount={totalStepCount}
+          onChange={(steps) => setState({ ...state, steps })}
+        />
       </Section>
 
-      {(assembled.issues.length > 0 || generalErrors.length > 0) && (
+      {(editorIssues.length > 0 || generalErrors.length > 0) && (
         <Panel className="border-[var(--color-error-border)] p-4">
           <h2 className="text-sm font-semibold text-[var(--color-error-fg)]">
             Fix before saving
           </h2>
           <ul className="mt-2 grid gap-1 text-xs text-[var(--color-error-fg)]">
-            {assembled.issues.map((issue) => (
+            {editorIssues.map((issue) => (
               <li key={issue}>{issue}</li>
             ))}
             {generalErrors.map((issue) => (

@@ -5,6 +5,7 @@
 // adding an op cannot silently miss a parallel switch. See docs/automations.md.
 import type { ReactElement } from "react"
 import type { AutomationStep, Snippet } from "../../../../shared/types"
+import { controlFlowStepEditors } from "./controlFlowSteps"
 import { engineStepEditors } from "./engineSteps"
 import { interactionStepEditors } from "./interactionSteps"
 import { observationStepEditors } from "./observationSteps"
@@ -20,7 +21,11 @@ import {
 export {
   createDefaultSelector,
   type FormOp,
+  type StepChildGroups,
+  type StepListContext,
+  type StepNodeState,
   type StepRowState,
+  type SurfaceActionEditorState,
 } from "./types"
 
 export const STEP_EDITORS = {
@@ -29,6 +34,7 @@ export const STEP_EDITORS = {
   ...pageEditStepEditors,
   ...engineStepEditors,
   ...outboundStepEditors,
+  ...controlFlowStepEditors,
 } satisfies { [Op in FormOp]: StepEditorEntry<Op> }
 
 type JsonOp = Exclude<AutomationStep["op"], FormOp>
@@ -55,36 +61,6 @@ const JSON_STEP_EDITORS = {
     createDefaultJson: () => ({
       op: "hideSurface",
       surfaceId: "notice",
-    }),
-  },
-  branch: {
-    label: "Branch (edit as JSON)",
-    createDefaultJson: () => ({
-      op: "branch",
-      if: { kind: "urlIncludes", value: "example.com" },
-      then: [{ op: "toast", message: "Matched" }],
-      else: [],
-    }),
-  },
-  forEach: {
-    label: "For each (edit as JSON)",
-    createDefaultJson: () => ({
-      op: "forEach",
-      over: { elements: { strategy: "css", value: "li" } },
-      as: "item",
-      steps: [{ op: "toast", message: "{{item}}" }],
-    }),
-  },
-  while: {
-    label: "While (edit as JSON)",
-    createDefaultJson: () => ({
-      op: "while",
-      condition: {
-        kind: "elementExists",
-        selector: { strategy: "css", value: ".spinner" },
-      },
-      maxIterations: 50,
-      steps: [{ op: "wait", for: { timeMs: 500 } }],
     }),
   },
 } satisfies { [Op in JsonOp]: JsonStepEditorEntry<Op> }
@@ -138,6 +114,9 @@ type AnyStepEditorEntry = {
   Form: (props: {
     step: AutomationStep
     snippets: Snippet[]
+    controlFlowDepth: number
+    path: Array<string | number>
+    validationIssues: Array<{ path: string; message: string }>
     update: (step: AutomationStep) => void
   }) => ReactElement | null
 }

@@ -2,14 +2,11 @@
 // Bridges the stored `Automation` document model (shared/types/automations.ts)
 // and the editable form state in AutomationEditorPage: rows for steps,
 // triggers, and variables, defaults for newly added entries, and assembly of
-// the form state back into a draft for `validateAutomationDraft`. Control-flow
-// steps (branch/forEach/while) and ops without a dedicated form deliberately
-// round-trip as JSON rows — the document stays the source of truth and
-// nothing is silently dropped. Pure data transforms only; no React, no
-// messaging.
+// the form state back into a draft for `validateAutomationDraft`. Recursive
+// step-tree hydration/assembly lives in stepTree.ts; this module composes that
+// pure adapter with the rest of the document draft. No React or messaging.
 import type {
   Automation,
-  AutomationStep,
   AutomationTrigger,
   AutomationTriggerType,
   AutomationVarDef,
@@ -22,20 +19,18 @@ import {
   walkAutomationSteps,
 } from "../../../shared/utils/automation-introspection"
 import { collectTemplateReferences } from "../../../shared/utils/automation-template"
+import { createDefaultSelector, type StepNodeState } from "./stepEditors"
 import {
-  createDefaultSelector,
-  createDefaultStepRow,
-  FORM_OPS,
-  jsonStepRow,
-  type StepRowState,
-} from "./stepEditors"
+  assembleStepNodes,
+  createDefaultStepNode,
+  stepNodeFromStep,
+} from "./stepTree"
 
 export {
   createDefaultSelector,
-  createDefaultStepRow,
   STEP_OP_OPTIONS,
-  type StepRowState,
 } from "./stepEditors"
+export { createDefaultStepNode } from "./stepTree"
 
 // ---------------------------------------------------------------------------
 // Row state
@@ -65,7 +60,7 @@ export type EditorDraftState = {
   denyRows: string[]
   triggers: TriggerRowState[]
   vars: VarRowState[]
-  steps: StepRowState[]
+  steps: StepNodeState[]
   // Preserved verbatim across edits so saving never drops them.
   options?: Automation["options"]
   source?: Automation["source"]
@@ -180,21 +175,6 @@ export const triggerRowFromTrigger = (
 })
 
 // ---------------------------------------------------------------------------
-// Steps
-
-export const stepRowFromStep = (step: AutomationStep): StepRowState => {
-  // Scroll positions beyond the simple keywords have no form fields; keep
-  // them as JSON so they round-trip unchanged.
-  if (step.op === "scroll" && typeof step.to !== "string") {
-    return jsonStepRow(step)
-  }
-  if (!FORM_OPS.has(step.op)) {
-    return jsonStepRow(step)
-  }
-  return { kind: "form", step }
-}
-
-// ---------------------------------------------------------------------------
 // State construction
 
 export const createEmptyEditorState = (): EditorDraftState => ({
@@ -207,7 +187,7 @@ export const createEmptyEditorState = (): EditorDraftState => ({
   denyRows: [],
   triggers: [triggerRowFromTrigger({ type: "manual" })],
   vars: [],
-  steps: [createDefaultStepRow("toast")],
+  steps: [createDefaultStepNode("toast")],
 })
 
 export const editorStateFromScript = (
@@ -225,7 +205,7 @@ export const editorStateFromScript = (
     name,
     def,
   })),
-  steps: script.steps.map(stepRowFromStep),
+  steps: script.steps.map(stepNodeFromStep),
   options: script.options,
   source: script.source,
 })
@@ -248,22 +228,8 @@ export type AssembledDraft = {
 export const assembleDraft = (state: EditorDraftState): AssembledDraft => {
   const issues: string[] = []
 
-  const steps: AutomationStep[] = []
-  let stepsComplete = true
-  state.steps.forEach((row, index) => {
-    if (row.kind === "form") {
-      steps.push(row.step)
-      return
-    }
-    if (row.error) {
-      issues.push(`Step ${index + 1}: ${row.error}`)
-    }
-    if (row.parsed === null) {
-      stepsComplete = false
-      return
-    }
-    steps.push(row.parsed)
-  })
+  const stepAssembly = assembleStepNodes(state.steps)
+  issues.push(...stepAssembly.issues)
 
   state.triggers.forEach((row, index) => {
     if (row.paramsError) {
@@ -279,7 +245,7 @@ export const assembleDraft = (state: EditorDraftState): AssembledDraft => {
     seenVarNames.add(row.name)
   }
 
-  if (!stepsComplete) {
+  if (!stepAssembly.complete) {
     return { draft: null, issues }
   }
 
@@ -309,7 +275,7 @@ export const assembleDraft = (state: EditorDraftState): AssembledDraft => {
           ),
         }
       : {}),
-    steps,
+    steps: stepAssembly.steps,
     ...(state.options ? { options: state.options } : {}),
     ...(state.source ? { source: state.source } : {}),
   }
