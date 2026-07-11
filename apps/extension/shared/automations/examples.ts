@@ -1,4 +1,4 @@
-// Architecture: options/ page-local data. The curated example automations
+// Architecture: shared automation data. The curated example automations
 // seeded by the "Add Example Automations" button on the Automations list
 // page (options/pages/AutomationsPage.tsx). Each entry is a plain
 // AutomationDraft saved through the normal add-automation message, so the
@@ -9,7 +9,7 @@
 // matching the import trust posture — so seeding examples never starts
 // non-gesture execution; descriptions tell the user to scope and arm them
 // in the editor.
-import type { AutomationDraft } from "../../../shared/types/automationValidation"
+import type { AutomationDraft } from "../types/automationValidation"
 
 export const EXAMPLE_AUTOMATIONS: AutomationDraft[] = [
   // elementAppears + branch/else + click + toast

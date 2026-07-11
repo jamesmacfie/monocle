@@ -5,6 +5,10 @@
 // shared/types/automationValidation.ts; both are re-exported here so message
 // handlers and tests keep one import surface.
 import { z } from "zod"
+import {
+  AUTOMATION_GENERATION_MAX_API_KEY_LENGTH,
+  AUTOMATION_GENERATION_MAX_REQUEST_LENGTH,
+} from "./automationGeneration"
 import { AutomationDraftSchema } from "./automationValidation"
 import type { Message } from "./messaging"
 import { PickedElementSchema } from "./picker"
@@ -294,6 +298,44 @@ export const AutomationTriggerFiredMessageSchema = z.object({
   }),
 })
 
+export const GetAutomationGenerationSettingsMessageSchema = z.object({
+  type: z.literal("monocle-automation-generation-settings-get"),
+})
+
+export const SetAutomationGenerationApiKeyMessageSchema = z.object({
+  type: z.literal("monocle-automation-generation-key-set"),
+  apiKey: z
+    .string()
+    .trim()
+    .min(1)
+    .max(AUTOMATION_GENERATION_MAX_API_KEY_LENGTH),
+})
+
+export const ClearAutomationGenerationApiKeyMessageSchema = z.object({
+  type: z.literal("monocle-automation-generation-key-clear"),
+})
+
+const AutomationGenerationIdSchema = z
+  .string()
+  .min(1)
+  .max(100)
+  .regex(/^[a-zA-Z0-9-]+$/, "Invalid generation id")
+
+export const GenerateAutomationMessageSchema = z.object({
+  type: z.literal("monocle-automation-generate"),
+  generationId: AutomationGenerationIdSchema,
+  request: z
+    .string()
+    .trim()
+    .min(1, "Automation request cannot be empty")
+    .max(AUTOMATION_GENERATION_MAX_REQUEST_LENGTH),
+})
+
+export const CancelAutomationGenerationMessageSchema = z.object({
+  type: z.literal("monocle-automation-generation-cancel"),
+  generationId: AutomationGenerationIdSchema,
+})
+
 // Feature-module messages. The config payload is validated structurally here;
 // the per-feature configSchema re-validates it in the handler before persist.
 export const GetFeaturesMessageSchema = z.object({
@@ -366,6 +408,11 @@ export const MessageSchema = z.discriminatedUnion("type", [
   RunAutomationMessageSchema,
   GetAutomationTriggersMessageSchema,
   AutomationTriggerFiredMessageSchema,
+  GetAutomationGenerationSettingsMessageSchema,
+  SetAutomationGenerationApiKeyMessageSchema,
+  ClearAutomationGenerationApiKeyMessageSchema,
+  GenerateAutomationMessageSchema,
+  CancelAutomationGenerationMessageSchema,
   GetFeaturesMessageSchema,
   UpdateFeatureConfigMessageSchema,
   ExecuteFeatureActionMessageSchema,

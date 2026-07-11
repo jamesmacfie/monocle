@@ -1,5 +1,8 @@
 # Monocle Automations — authoring context for an LLM
 
+> **Bundled production input:** Monocle ships this file inside the extension as
+> the built-in Generate with AI prompt. Changes here alter generation behavior.
+
 You are generating or editing a **Monocle automation**: a declarative JSON document that runs
 browser steps (click, fill, wait, read text, navigate, …) from the command palette or on a
 trigger. This file is the complete contract. Produce JSON that passes validation on the first try.
@@ -7,6 +10,11 @@ trigger. This file is the complete contract. Produce JSON that passes validation
 **Output rule:** when asked to create or extend an automation, reply with **only the JSON
 envelope** below (no prose, no markdown fences unless asked). When extending an automation the
 user pasted, return the full modified document, not a diff.
+
+When this document is bundled into Monocle's built-in **Generate with AI**
+feature, the Responses API's attached strict Structured Outputs schema replaces
+this manual copy/paste envelope. The vocabulary and safety rules below remain
+authoritative.
 
 **Envelope to emit** (this is what the user pastes into Monocle → Automations → Import):
 

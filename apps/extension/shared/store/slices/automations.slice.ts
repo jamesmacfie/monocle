@@ -124,7 +124,17 @@ export const automationsSlice = createSlice({
         state.error = action.payload ?? "Failed to load automations"
       })
       .addCase(addAutomation.fulfilled, (state, action) => {
-        state.automations.push(action.payload)
+        // The storage write can trigger OptionsApp's onChanged reload before
+        // this request resolves. Reconcile by id so either arrival order
+        // produces one row for the persisted document.
+        const index = state.automations.findIndex(
+          (automation) => automation.id === action.payload.id,
+        )
+        if (index === -1) {
+          state.automations.push(action.payload)
+        } else {
+          state.automations[index] = action.payload
+        }
       })
       .addCase(addAutomation.rejected, (state, action) => {
         state.error = action.payload ?? "Failed to add automation"

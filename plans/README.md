@@ -10,6 +10,10 @@ message). Two rounds so far, both on 2026-06-11:
   findings by leverage as the skill's default.
 - **Round 2** (focused performance audit: search-result production and
   keybinding detection/execution, at the user's request) → plans 007–010.
+- **Round 3** (feature architecture plan: OpenAI-backed automation generation,
+  at the user's request) → plan 011. This round was read-only on source code and
+  was written against commit `53603b4` plus the maintainer's uncommitted
+  recursive automation-editor work.
 
 Plans 001, 002, 003, and 007 target in-flight uncommitted work. Execute in
 the order listed unless dependencies say otherwise. Each executor: read the
@@ -30,6 +34,7 @@ when done.
 | 008 | Stop ordinary browsing from destroying the search index | P1 | M | — | DONE (refined during execution: SWR only for browser-data invalidations via `retainStale`; settings/permission invalidations drop the stale snapshot so visibility changes are immediate) |
 | 009 | Cache child-page entries across search keystrokes | P2 | M | 008 | DONE |
 | 010 | Stop currentPage prop from defeating CommandItem memo | P2 | M | 006 | DONE (rows take primitives + ref-stabilized callbacks; submit validation moved to CommandList; render-count regression test guards the memo) |
+| 011 | Generate reviewed automation drafts with OpenAI | P1 | L | — | DONE (offline tests + Chrome/Firefox builds pass; live-key browser smoke remains recommended) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -48,6 +53,9 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   favorites plumbing in `searchIndex.ts`; 008 first.
 - **010 depends on 006** (hard): the characterization tests are the safety
   net for the row-props refactor. Do not execute 010 before 006 is DONE.
+- **011 is independent of 001–010**, but it overlaps the maintainer's current
+  uncommitted automation-editor documentation. Preserve that work and execute
+  the drift check before starting.
 - 004 and 005 both touch `background/commands/favorites.ts` (004 writes,
   005 reads). Order-independent; don't run concurrently in separate
   worktrees without a merge plan.

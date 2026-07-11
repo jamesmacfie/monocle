@@ -1,5 +1,6 @@
 // Re-exports for all types
 
+export * from "./automationGeneration"
 export * from "./automations"
 export * from "./automationValidation"
 export * from "./browser"

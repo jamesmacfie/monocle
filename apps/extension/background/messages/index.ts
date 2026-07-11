@@ -9,6 +9,13 @@ import { match } from "ts-pattern"
 import { validateIncomingMessage } from "../utils/validation"
 import { addSnippet } from "./addSnippet"
 import {
+  cancelAutomationGeneration,
+  clearAutomationGenerationKey,
+  generateAutomationMessage,
+  getAutomationGenerationSettings,
+  setAutomationGenerationKey,
+} from "./automationGeneration"
+import {
   addAutomation,
   automationTriggerFired,
   deleteAutomation,
@@ -156,6 +163,26 @@ export const handleMessage = async (rawMessage: unknown, sender?: any) => {
     .with({ type: "monocle-automation-trigger-fired" }, async (msg) => {
       return await automationTriggerFired(msg, sender)
     })
+    .with(
+      { type: "monocle-automation-generation-settings-get" },
+      async (msg) => await getAutomationGenerationSettings(msg),
+    )
+    .with(
+      { type: "monocle-automation-generation-key-set" },
+      async (msg) => await setAutomationGenerationKey(msg),
+    )
+    .with(
+      { type: "monocle-automation-generation-key-clear" },
+      async (msg) => await clearAutomationGenerationKey(msg),
+    )
+    .with(
+      { type: "monocle-automation-generate" },
+      async (msg) => await generateAutomationMessage(msg),
+    )
+    .with(
+      { type: "monocle-automation-generation-cancel" },
+      async (msg) => await cancelAutomationGeneration(msg),
+    )
     .with({ type: "monocle-features-get" }, async (msg) => {
       return await getFeatures(msg)
     })

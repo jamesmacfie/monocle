@@ -204,6 +204,23 @@ consent. The manifest declares `authenticationInfo`, `browsingActivity`,
 `websiteContent`; the editor requests these from a direct user gesture and the
 engine rechecks `permissions.getAll().data_collection` on every run.
 
+### OpenAI automation-generation grant
+
+AI draft generation uses the broad optional-host declaration only as a manifest
+ceiling, but requests exactly `https://api.openai.com/*` from the options
+modal's Generate user gesture. The modal immediately verifies
+`permissions.contains` and sends no generation message when denied. The
+background rechecks that concrete origin before it reads the saved key or builds
+the prompt, so stale UI state or later revocation cannot start a request.
+
+On Firefox the gesture also requests the existing optional outbound-data
+categories (`authenticationInfo`, `browsingActivity`,
+`personallyIdentifyingInfo`, `searchTerms`, `websiteActivity`, and
+`websiteContent`), and the background checks consent again. This covers the
+user-entered generation request and the possibility that users put site details
+or credentials into it. Monocle adds bundled contract/examples and saved snippet
+names/ids only; it does not transmit snippet bodies or saved automations.
+
 Grant requests are issued from `shared/components/Command/PermissionActions.tsx`.
 The flow branches by browser and by whether the permissions API is callable from
 the current (content-script or new-tab) context.

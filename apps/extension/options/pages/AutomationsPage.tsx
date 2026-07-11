@@ -14,10 +14,12 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  WandSparkles,
   Workflow,
 } from "lucide-react"
 import { useRef, useState } from "react"
 import { Link } from "wouter"
+import { EXAMPLE_AUTOMATIONS } from "../../shared/automations/examples"
 import { getIconComponent } from "../../shared/components/iconRegistry"
 import { useAppDispatch, useAppSelector } from "../../shared/store/hooks"
 import {
@@ -34,7 +36,6 @@ import { selectSnippets } from "../../shared/store/slices/snippets.slice"
 import { type Automation, isFeatureAutomation } from "../../shared/types"
 import type { AutomationDraft } from "../../shared/types/automationValidation"
 import {
-  type AutomationSummary,
   automationBlurb,
   summarizeAutomation,
 } from "../../shared/utils/automation-summary"
@@ -48,7 +49,8 @@ import {
   Panel,
   Switch,
 } from "../components/ui"
-import { EXAMPLE_AUTOMATIONS } from "./automations/examples"
+import { AutomationReviewDialog } from "./automations/AutomationReviewDialog"
+import { GenerateAutomationDialog } from "./automations/GenerateAutomationDialog"
 import {
   downloadAutomationExport,
   prepareImportedDraft,
@@ -74,15 +76,12 @@ const toDraft = (script: Automation): AutomationDraft => {
   return draft
 }
 
-type ImportState =
-  | { stage: "closed" }
-  | { stage: "invalid"; fileName: string; errors: string[] }
-  | {
-      stage: "review"
-      fileName: string
-      draft: AutomationDraft
-      summary: AutomationSummary
-    }
+type InvalidImport = { fileName: string; errors: string[] }
+type ReviewState = {
+  sourceLabel: string
+  draft: AutomationDraft
+  note?: string
+}
 
 export function AutomationsPage() {
   const dispatch = useAppDispatch()
@@ -99,9 +98,11 @@ export function AutomationsPage() {
   const featureScripts = scripts.filter(isFeatureAutomation)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [importState, setImportState] = useState<ImportState>({
-    stage: "closed",
-  })
+  const [invalidImport, setInvalidImport] = useState<InvalidImport | null>(null)
+  const [review, setReview] = useState<ReviewState | null>(null)
+  const [reviewSaving, setReviewSaving] = useState(false)
+  const [reviewError, setReviewError] = useState<string | null>(null)
+  const [generatorOpen, setGeneratorOpen] = useState(false)
   const [seeding, setSeeding] = useState(false)
   const [seedNotice, setSeedNotice] = useState<string | null>(null)
 
@@ -138,18 +139,15 @@ export function AutomationsPage() {
     const raw = await file.text()
     const prepared = prepareImportedDraft(raw)
     if (!prepared.ok) {
-      setImportState({
-        stage: "invalid",
+      setInvalidImport({
         fileName: file.name,
         errors: prepared.errors,
       })
       return
     }
-    setImportState({
-      stage: "review",
-      fileName: file.name,
+    setReview({
+      sourceLabel: "imported",
       draft: prepared.draft,
-      summary: summarizeAutomation(prepared.draft),
     })
   }
 
@@ -157,7 +155,18 @@ export function AutomationsPage() {
     snippets.find((snippet) => snippet.id === snippetId)?.name ??
     `${snippetId} (missing)`
 
-  const closeImport = () => setImportState({ stage: "closed" })
+  const confirmReview = async () => {
+    if (!review) return
+    setReviewSaving(true)
+    setReviewError(null)
+    try {
+      const action = await dispatch(addAutomation({ automation: review.draft }))
+      if (addAutomation.fulfilled.match(action)) setReview(null)
+      else setReviewError(action.payload ?? "Failed to add automation")
+    } finally {
+      setReviewSaving(false)
+    }
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -175,6 +184,14 @@ export function AutomationsPage() {
               <Plus className="h-4 w-4" />
               New Automation
             </Link>
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setGeneratorOpen(true)}
+          >
+            <WandSparkles className="h-4 w-4" />
+            Generate with AI
           </Button>
           <Button
             disabled={seeding}
@@ -384,24 +401,20 @@ export function AutomationsPage() {
       )}
 
       <Dialog
-        open={importState.stage !== "closed"}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeImport()
-          }
-        }}
+        open={invalidImport !== null}
+        onOpenChange={(open) => !open && setInvalidImport(null)}
       >
         <DialogContent>
-          {importState.stage === "invalid" && (
+          {invalidImport ? (
             <>
               <DialogTitle className="text-base font-semibold">
-                Could not import {importState.fileName}
+                Could not import {invalidImport.fileName}
               </DialogTitle>
               <DialogDescription className="text-sm text-[var(--color-fg-muted)]">
                 The file is not a valid Monocle automation.
               </DialogDescription>
               <ul className="grid max-h-60 gap-1 overflow-y-auto text-xs text-[var(--color-error-fg)] options-scrollbar">
-                {importState.errors.map((message) => (
+                {invalidImport.errors.map((message) => (
                   <li key={message}>{message}</li>
                 ))}
               </ul>
@@ -413,155 +426,48 @@ export function AutomationsPage() {
                 </DialogClose>
               </div>
             </>
-          )}
-
-          {importState.stage === "review" && (
-            <>
-              <DialogTitle className="text-base font-semibold">
-                Import "{importState.draft.name}"?
-              </DialogTitle>
-              <DialogDescription className="text-sm text-[var(--color-fg-muted)]">
-                Review what this automation can do before saving it.
-              </DialogDescription>
-
-              <div className="grid max-h-80 gap-3 overflow-y-auto text-sm options-scrollbar">
-                <div>
-                  <div className="text-xs font-medium text-[var(--color-fg-muted)]">
-                    Scope
-                  </div>
-                  <div>{importState.summary.scope}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-[var(--color-fg-muted)]">
-                    Triggers
-                  </div>
-                  <ul className="list-inside list-disc">
-                    {importState.summary.triggers.map((trigger, index) => (
-                      <li key={index}>{trigger}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-[var(--color-fg-muted)]">
-                    Actions
-                  </div>
-                  <ul className="list-inside list-disc">
-                    {importState.summary.actions.map((action) => (
-                      <li key={action}>{action}</li>
-                    ))}
-                  </ul>
-                </div>
-                {importState.summary.snippetIds.length > 0 && (
-                  <div>
-                    <div className="text-xs font-medium text-[var(--color-fg-muted)]">
-                      Snippets used
-                    </div>
-                    <ul className="list-inside list-disc">
-                      {importState.summary.snippetIds.map((snippetId) => (
-                        <li key={snippetId}>{snippetLabel(snippetId)}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {importState.summary.openedUrls.length > 0 && (
-                  <div>
-                    <div className="text-xs font-medium text-[var(--color-fg-muted)]">
-                      Navigates to / opens
-                    </div>
-                    <ul className="list-inside list-disc break-all">
-                      {importState.summary.openedUrls.map((url, index) => (
-                        <li key={index}>{url}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {importState.summary.runCommandIds.length > 0 && (
-                  <div>
-                    <div className="text-xs font-medium text-[var(--color-fg-muted)]">
-                      Runs Monocle commands
-                    </div>
-                    <ul className="list-inside list-disc">
-                      {importState.summary.runCommandIds.map(
-                        (commandId, index) => (
-                          <li key={index}>{commandId}</li>
-                        ),
-                      )}
-                    </ul>
-                  </div>
-                )}
-                {importState.summary.inlineActions.length > 0 && (
-                  <div>
-                    <div className="text-xs font-medium text-[var(--color-fg-muted)]">
-                      Inline page actions
-                    </div>
-                    <ul className="list-inside list-disc">
-                      {importState.summary.inlineActions.map((action) => (
-                        <li key={`${action.surfaceId}:${action.actionId}`}>
-                          {action.label} ({action.surfaceId}/{action.actionId})
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {importState.summary.outboundRequests.length > 0 && (
-                  <div>
-                    <div className="text-xs font-medium text-[var(--color-fg-muted)]">
-                      Sends data to
-                    </div>
-                    <ul className="list-inside list-disc break-all">
-                      {importState.summary.outboundRequests.map(
-                        (request, index) => (
-                          <li key={`${request.method}:${request.url}:${index}`}>
-                            {request.method} {request.url}
-                            {request.headerNames.length > 0
-                              ? ` · headers: ${request.headerNames.join(", ")}`
-                              : ""}
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                    <p className="mt-1 text-xs text-[var(--color-fg-muted)]">
-                      Request and response values are not shown. Imported
-                      automatic triggers stay disarmed, and endpoint access must
-                      be granted separately.
-                    </p>
-                  </div>
-                )}
-                {importState.summary.usesClipboard && (
-                  <div className="text-xs text-[var(--color-fg-muted)]">
-                    Writes to the clipboard.
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-elevated)] px-3 py-2 text-xs text-[var(--color-fg-muted)]">
-                Automatic triggers arrive disarmed: this automation will only
-                run when you trigger it manually until you review and arm them
-                in the editor.
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    void dispatch(
-                      addAutomation({ automation: importState.draft }),
-                    )
-                    closeImport()
-                  }}
-                >
-                  Import Automation
-                </Button>
-              </div>
-            </>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
+
+      <GenerateAutomationDialog
+        open={generatorOpen}
+        onOpenChange={setGeneratorOpen}
+        onGenerated={(generated) => {
+          setReview({
+            sourceLabel: "AI-generated",
+            draft: generated.draft,
+            note: generated.note,
+          })
+        }}
+      />
+
+      <AutomationReviewDialog
+        draft={review?.draft ?? null}
+        error={reviewError}
+        note={review?.note}
+        open={review !== null}
+        saving={reviewSaving}
+        snippetLabel={snippetLabel}
+        sourceLabel={review?.sourceLabel ?? "imported"}
+        summary={review ? summarizeAutomation(review.draft) : null}
+        onConfirm={() => void confirmReview()}
+        onBack={
+          review?.sourceLabel === "AI-generated"
+            ? () => {
+                setReview(null)
+                setReviewError(null)
+                setGeneratorOpen(true)
+              }
+            : undefined
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            setReview(null)
+            setReviewError(null)
+          }
+        }}
+      />
     </div>
   )
 }

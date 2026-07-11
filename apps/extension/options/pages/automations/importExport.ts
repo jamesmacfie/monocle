@@ -7,11 +7,12 @@
 // and validates with the exact schema the background enforces — the caller
 // then shows the summarizeAutomation review before anything is saved
 // (the import contract in docs/automations/).
-import type { Automation } from "../../../shared/types"
+
 import {
-  type AutomationDraft,
-  validateAutomationDraft,
-} from "../../../shared/types/automationValidation"
+  type PreparedAutomationImport,
+  prepareUntrustedAutomation,
+} from "../../../shared/automations/import"
+import type { Automation } from "../../../shared/types"
 
 const EXPORT_FORMAT = "monocle-automation@1"
 const EXPORT_NOTE =
@@ -51,12 +52,7 @@ export const downloadAutomationExport = (script: Automation): void => {
   URL.revokeObjectURL(url)
 }
 
-export type PreparedImport =
-  | { ok: true; draft: AutomationDraft }
-  | { ok: false; errors: string[] }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
+export type PreparedImport = PreparedAutomationImport
 
 /**
  * Parses raw import file text into a validated draft: unwraps the export
@@ -77,35 +73,5 @@ export const prepareImportedDraft = (raw: string): PreparedImport => {
     }
   }
 
-  if (!isRecord(parsed)) {
-    return { ok: false, errors: ["Expected a JSON object"] }
-  }
-
-  const document = isRecord(parsed.script) ? parsed.script : parsed
-  const { id, createdAt, updatedAt, ...candidate } = document
-  void id
-  void createdAt
-  void updatedAt
-
-  if (Array.isArray(candidate.triggers)) {
-    candidate.triggers = candidate.triggers.map((trigger) =>
-      isRecord(trigger) && trigger.type !== "manual"
-        ? { ...trigger, disarmed: true }
-        : trigger,
-    )
-  }
-
-  candidate.source = { kind: "imported", importedAt: Date.now() }
-
-  const validation = validateAutomationDraft(candidate)
-  if (!validation.success) {
-    return {
-      ok: false,
-      errors: validation.errors.map((issue) =>
-        issue.path ? `${issue.path}: ${issue.message}` : issue.message,
-      ),
-    }
-  }
-
-  return { ok: true, draft: validation.automation }
+  return prepareUntrustedAutomation(parsed)
 }

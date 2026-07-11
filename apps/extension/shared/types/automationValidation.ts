@@ -51,7 +51,7 @@ export const AUTOMATION_MAX_PARAMETERS = 10
 export const AUTOMATION_TRIGGER_MAX_DELAY_MS = 10_000
 export const AUTOMATION_ELEMENT_APPEARS_MIN_THROTTLE_MS = 250
 
-const COLOR_NAMES = [
+export const COLOR_NAMES = [
   "red",
   "green",
   "blue",

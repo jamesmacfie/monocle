@@ -18,6 +18,7 @@ A script is **always data, never code**: persisted locally, validated against a 
 | Page-event triggers: `urlMatch` (load + best-effort SPA), `elementAppears` | Implemented (`background/automations/triggerEngine.ts`, `content/automationTriggers.ts`) |
 | Scheduled triggers: `interval`, `schedule`, `onStartup` (`chrome.alarms`) | Implemented (`background/automations/alarms.ts`) |
 | Options builder, import/export with review summary (`options/pages/AutomationsPage.tsx` list view; `options/pages/automations/AutomationEditorPage.tsx` editor) | Implemented |
+| OpenAI draft generation (local BYOK, strict Structured Outputs, review-before-save) | Implemented; live-key Chrome/Firefox smoke remains a release gate |
 | Arbitrary-JS step (`runJs`) | **Not implemented, by decision** — see Store posture |
 
 ## The document
@@ -220,12 +221,47 @@ Because rows are durable commands, keybindings (assigned on the keyboard setting
 
 Two components (+ `shared/store/slices/automations.slice.ts`): `#/automations` renders the list view `options/pages/AutomationsPage.tsx`; `#/automations/new` and `#/automations/:id` render the separate editor `options/pages/automations/AutomationEditorPage.tsx` (see `options/OptionsApp.tsx`):
 
-- List view (`AutomationsPage.tsx`): name, blurb (`automationBlurb`), enabled toggle, edit/delete/export, import, and **Add Examples**.
+- List view (`AutomationsPage.tsx`): name, blurb (`automationBlurb`), enabled toggle, edit/delete/export, import, **Generate with AI**, and **Add Examples**.
+- The options app also reloads this Redux mirror when `monocle-automations` changes so writes from other extension surfaces appear immediately. Add fulfillment reconciles by automation id (upsert, not blind append), making the message response and the storage-change reload safe in either arrival order.
 - Editor save/create (`AutomationEditorPage.tsx`): if the validated draft contains page-interacting steps and the user has an active http(s) tab, the page sends `monocle-host-permission-ensure` as a best-effort request for that tab's origin. Denial does not block saving; it shows a warning because run-time permission state remains authoritative.
-- **Add Examples** (`options/pages/automations/examples.ts`) seeds a curated set of example automations covering every trigger type and most of the step vocabulary — saved through the normal add path (so they validate like any document, locked in by `examples.test.ts`), deduped by name, and with event/scheduled triggers shipped disarmed. They double as living documentation of what automations can do.
+- **Add Examples** (`shared/automations/examples.ts`) seeds a curated set of example automations covering every trigger type and most of the step vocabulary — saved through the normal add path (so they validate like any document, locked in by `examples.test.ts`), deduped by name, and with event/scheduled triggers shipped disarmed. They double as living documentation and are the exact few-shot examples bundled into generation requests.
 - Editor: metadata (including an opt-in success-notification checkbox), scope (allow/deny patterns), trigger list with per-type fields and disarm toggles, variables (literal/snippet/runtime), and one recursive step-list editor shared by root steps and nested bodies. Every step row is a disclosure: its operation/reorder/delete header stays visible while its typed form and child lists collapse together. The first row in each list starts expanded, later rows start collapsed, and newly added rows or rows containing validation/JSON errors automatically expand. Inline-surface actions use the same disclosure behavior for button editors whose bodies reuse the shared step rows; `branch`, `forEach`, and `while` expose structured condition/loop fields plus recursive Then/Otherwise/body lists. `type`/`key`/`hideSurface` retain the whole-step JSON fallback, while HTTP requests retain validated JSON sub-editors for structured bodies, headers, and response mappings. Nested validation errors render at their exact action/condition/step path and block saving. Endpoint grants are explicit and show the browser's broader scheme+host scope. The builder validates against the identical shared schema; unknown `{{var}}` references warn.
 - **Test on Active Tab** runs the script through the real engine and shows per-step outcomes — selector breakage, not vocabulary, is what defeats non-programmers.
 - Import: JSON file → strip id/timestamps → validate → **non-manual triggers forced disarmed** + `source: imported` → a review dialog rendering `summarizeAutomation` before anything is saved. It enumerates URL scope, triggers, op classes, inline entry points, every outbound method/destination and custom header name, snippet references, opened URLs, runCommand targets, and clipboard use; it never displays header/body/response values. Export writes the document as JSON (keybindings excluded by design).
+
+### Generate with AI
+
+`Generate with AI` opens a focused modal on the list page. First use asks for
+an OpenAI API key and warns that it is stored in `chrome.storage.local` in the
+extension profile. This keeps it background-only and out of Redux, the DOM,
+exports, and logs, but it is **not** equivalent to a server-side secret. Status
+messages return only `hasApiKey` and the fixed model label; the saved value is
+hidden, replaceable, and removable. OpenAI API charges apply.
+
+Generation sends the user's request plus the checked-in complete authoring
+contract, the shared curated examples, and saved snippet **names and ids only**.
+It never sends snippet bodies or existing automations, because both may contain
+credentials or private workflow data. The background calls the Responses API
+with `store: false`, a fixed model, and strict
+`text.format.type = json_schema`. The closed recursive IR covers every trigger,
+selector, condition, and step. Dynamic variable/header maps use entry arrays;
+HTTP bodies use tagged JSON nodes so an intentional JSON `null` stays distinct
+from an omitted optional field.
+
+The response is untrusted data. A field-aware normalizer converts the IR, then
+the same shared ingress used by file import strips identity/ownership, stamps
+imported provenance, forces every non-manual trigger disarmed, and runs the
+canonical validator. One semantic repair request is allowed for canonical field
+errors. The service never writes automation storage: the draft reaches the
+existing capability review, and `addAutomation` runs only after confirmation.
+The model has no live DOM/browser access, so users should inspect its assumptions
+and run **Test on Active Tab** before relying on generated selectors.
+
+Requests are cancellable and globally limited to one at a time. Typed errors
+cover missing/revoked permission, invalid keys/model access, quota/rate limits,
+refusal/incomplete output, schema/semantic failure, network/service failure,
+timeout, and cancellation. An OpenAI request id may be returned for support;
+raw prompts, responses, and authorization values are never logged or surfaced.
 
 ## Security and trust model
 
@@ -242,6 +278,10 @@ The attacker model inverts the site SDK's: the user is trusted, but **imported d
   Requests omit ambient credentials/referrers, reject redirects/retries, cap
   request/response bytes, and expose response data only through declared scalar
   mappings.
+- AI generation does not weaken the interpreter boundary: OpenAI returns only
+  declarative data through a closed schema, the local canonical validator stays
+  authoritative, and generated output is never automatically saved, armed, or
+  run.
 - **Credentials caveat, stated plainly**: snippets — including auto-login credentials — live unencrypted in `chrome.storage.local`. The options UI and docs recommend this only for low-stakes dev/test credentials; scope mitigations (pin login scripts with `allowUrls`) are real but not encryption. Fill payloads are interpolated background-side and never logged.
 - Fail loudly everywhere: validation failures, unsupported ops, policy violations, and structural-cap violations all error visibly.
 
@@ -250,7 +290,7 @@ The attacker model inverts the site SDK's: the user is trusted, but **imported d
 - The declarative engine is squarely in both stores' safe harbor: locally stored user configuration interpreted by bundled code. No remote step definitions ever; no eval anywhere; fixed verbs with capped nesting/loops ("configuration, not a language").
 - **`runJs` is deliberately not implemented.** Firefox AMO policy restricts user-provided JS to dedicated script managers, and a JS step would change the trust model and fork the builds. The schema does not reserve or accept the op.
 - Store listing language should say "automations"/"user-defined commands", not "scripting". Reviewer notes should name the interpreter files: `shared/types/automationValidation.ts`, `background/automations/engine.ts`, `content/workflow/executor.ts` (see [store-submission.md](./store-submission.md)).
-- New install-time permission: `alarms` ("run user-scheduled automations"). No `webNavigation` (SPA detection is content-side). Optional host access is declared for `http://*/*` and `https://*/*` but requested one current/destination origin at a time for user-authored page automations; the automation host-access path does not add an install-time `<all_urls>` host permission. The existing palette/Site SDK content scripts still match `<all_urls>` and are covered by [store-submission.md](./store-submission.md). Firefox `data_collection_permissions` stays `"none"` — a script typing into a page sends user-held data to that origin at the user's direction, which the privacy policy should state in one sentence.
+- New install-time permission: `alarms` ("run user-scheduled automations"). No `webNavigation` (SPA detection is content-side). Optional host access is declared for `http://*/*` and `https://*/*` but requested one current/destination origin at a time for user-authored page automations; OpenAI generation requests only `https://api.openai.com/*`. The existing palette/Site SDK content scripts still match `<all_urls>` and are covered by [store-submission.md](./store-submission.md). Firefox keeps `none` as required collection and declares the outbound categories as optional for user-directed HTTP/OpenAI transmission.
 
 ## Manual test checklist
 
@@ -258,6 +298,12 @@ The attacker model inverts the site SDK's: the user is trusted, but **imported d
 - Parameters form: a manual trigger with a text parameter renders inputs + submit; `{{params.x}}` interpolates.
 - Test-run from the options page with no related tab focused (active-tab targeting).
 - Import a script JSON: review summary appears, non-manual triggers arrive disarmed; arm an `elementAppears` trigger and verify it fires once when the element appears, respects the cooldown, and never fires on a denied URL.
+- Chrome and Firefox: open Generate with AI with no key; save a low-risk test key, reload options, verify only saved-key status is shown, replace it, then remove it.
+- Grant, deny, and revoke `https://api.openai.com/*`; on Firefox also grant/deny optional outbound-data categories. Confirm background permission truth blocks a request after revocation.
+- Exercise invalid/revoked key, offline/network failure, 429, cancellation, and incomplete output. The prompt remains available and no secret/raw response appears in console output.
+- With a live key in both Chrome and Firefox, complete a generation that takes longer than 60 seconds and confirm the service worker stays alive and returns the validated draft.
+- Generate page interaction, branching, HTTP response mapping, nested loop, inline surface, and snippet-reference drafts. Confirm review shows capabilities/destinations/header names, automatic triggers are disarmed, and nothing is stored until **Add Automation** succeeds.
+- Open a generated draft in the editor and run **Test on Active Tab** on a fixture page; treat target-site selectors as unverified until this passes.
 - urlMatch SPA: navigate within a SPA and confirm a `spa`-armed script fires on a matching virtual URL.
 - Schedule: set an interval script, confirm the alarm fires and targets a matching tab (and skips with a log when none).
 - Both palette modes: the Automations group renders in content overlay and new-tab mode; scripts refuse to run against the new-tab page.

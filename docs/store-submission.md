@@ -166,6 +166,11 @@ Mapping for Monocle:
   `personallyIdentifyingInfo`, `searchTerms`, `websiteActivity`, and
   `websiteContent`; execution rechecks consent before values resolve or a request
   starts.
+- **OpenAI automation generation (opt-in):** the user sends a free-text request
+  to OpenAI together with Monocle's bundled contract/examples and local snippet
+  names/ids (never snippet bodies or saved automations). The local API key is
+  authentication information. This uses the same optional category set and a
+  concrete `https://api.openai.com/*` grant; the request sets `store: false`.
 
 Current declaration (re-verify against Mozilla policy for every release):
 
@@ -333,8 +338,13 @@ notes.
 - NTP override uses `chrome_url_overrides` (it does — `wxt.config.ts`).
 - No banned promotional words in the listing ("Free," "Best," "#1," "Award-winning," …).
 - Functionality must match the listing exactly. The expected-functionality list must
-  mention user-defined outbound automations, Native Bridge, and
-  Extension-to-Extension now that they ship.
+  mention user-defined outbound automations, optional OpenAI automation-draft
+  generation, Native Bridge, and Extension-to-Extension now that they ship.
+- The privacy policy/listing must disclose that OpenAI generation transmits the
+  user's prompt, bundled contract/examples, and snippet names/ids using the
+  user's locally stored API key. State that the key lives in the extension
+  profile rather than a server-side vault, is never returned after saving, and
+  can be replaced or removed.
 - Fake or mismatched screenshots are a fast rejection — screenshot the real packaged
   build.
 

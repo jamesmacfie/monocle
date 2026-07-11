@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
+import { EXAMPLE_AUTOMATIONS } from "../../../shared/automations/examples"
 import type { Automation, AutomationDraft } from "../../../shared/types"
 import {
   assembleDraft,
@@ -7,7 +8,6 @@ import {
   editorStateFromScript,
   groupIssuesByIndex,
 } from "./editorState"
-import { EXAMPLE_AUTOMATIONS } from "./examples"
 import { prepareImportedDraft } from "./importExport"
 
 const storedAutomation = (

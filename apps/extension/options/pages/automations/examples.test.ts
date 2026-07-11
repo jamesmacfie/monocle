@@ -4,9 +4,9 @@
 // and so a future schema tightening fails here loudly rather than at the
 // user's click.
 import { describe, expect, it } from "vitest"
+import { EXAMPLE_AUTOMATIONS } from "../../../shared/automations/examples"
 import type { AutomationTriggerType } from "../../../shared/types/automations"
 import { validateAutomationDraft } from "../../../shared/types/automationValidation"
-import { EXAMPLE_AUTOMATIONS } from "./examples"
 
 describe("example automations", () => {
   it("every example validates against the shared draft schema", () => {

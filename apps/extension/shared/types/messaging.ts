@@ -5,6 +5,10 @@
 // catalog.
 
 import type {
+  AutomationGenerationResult,
+  AutomationGenerationSettingsStatus,
+} from "./automationGeneration"
+import type {
   Automation,
   AutomationPageTriggerSpec,
   AutomationRunResult,
@@ -392,6 +396,52 @@ export type AutomationTriggerFiredResponse = {
   reason?: string
 }
 
+// OpenAI-backed automation generation. The API key crosses UI -> background
+// only when being set and is never returned to any UI surface.
+
+export type GetAutomationGenerationSettingsMessage = {
+  type: "monocle-automation-generation-settings-get"
+}
+
+export type GetAutomationGenerationSettingsResponse =
+  AutomationGenerationSettingsStatus
+
+export type SetAutomationGenerationApiKeyMessage = {
+  type: "monocle-automation-generation-key-set"
+  apiKey: string
+}
+
+export type SetAutomationGenerationApiKeyResponse = {
+  saved: true
+  status: AutomationGenerationSettingsStatus
+}
+
+export type ClearAutomationGenerationApiKeyMessage = {
+  type: "monocle-automation-generation-key-clear"
+}
+
+export type ClearAutomationGenerationApiKeyResponse = {
+  cleared: true
+  status: AutomationGenerationSettingsStatus
+}
+
+export type GenerateAutomationMessage = {
+  type: "monocle-automation-generate"
+  generationId: string
+  request: string
+}
+
+export type GenerateAutomationResponse = AutomationGenerationResult
+
+export type CancelAutomationGenerationMessage = {
+  type: "monocle-automation-generation-cancel"
+  generationId: string
+}
+
+export type CancelAutomationGenerationResponse = {
+  cancelled: boolean
+}
+
 // Feature-module messages (handled in background/messages/features.ts).
 // Responses are typed in ./feature.ts.
 
@@ -471,6 +521,11 @@ export type Message =
   | RunAutomationMessage
   | GetAutomationTriggersMessage
   | AutomationTriggerFiredMessage
+  | GetAutomationGenerationSettingsMessage
+  | SetAutomationGenerationApiKeyMessage
+  | ClearAutomationGenerationApiKeyMessage
+  | GenerateAutomationMessage
+  | CancelAutomationGenerationMessage
   | GetFeaturesMessage
   | UpdateFeatureConfigMessage
   | ExecuteFeatureActionMessage

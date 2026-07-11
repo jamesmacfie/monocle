@@ -84,6 +84,7 @@
     {
       "includes": [
         "background/automations/**",
+        "shared/automations/**",
         "shared/types/automations.ts",
         "shared/types/automationValidation.ts",
         "shared/utils/automation-summary.ts",
