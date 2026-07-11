@@ -71,7 +71,7 @@ export function SurfaceActionsEditor({
 
   return (
     <div
-      className="grid gap-3 border-y border-[var(--color-border-strong)] bg-[var(--color-bg-page)] py-3"
+      className="grid gap-3 rounded-md border border-[var(--color-border-strong)] bg-[var(--color-bg-page)] p-3"
       data-automation-surface-actions="true"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">

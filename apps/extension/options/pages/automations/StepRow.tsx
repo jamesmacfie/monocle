@@ -74,7 +74,7 @@ export function StepRow({
     <div
       className={
         context.nested
-          ? "border-y border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3"
+          ? "border-t border-[var(--color-border)] pt-3"
           : "rounded-md border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-3"
       }
       data-automation-step-row={context.nested ? "nested" : "root"}

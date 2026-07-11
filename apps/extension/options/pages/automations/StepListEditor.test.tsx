@@ -193,10 +193,15 @@ describe("StepListEditor", () => {
       '[data-automation-step-row="nested"]',
     )
 
-    for (const region of [actionGroup, action, nestedList, nestedRow]) {
+    for (const region of [actionGroup, nestedList]) {
       expect(region?.getAttribute("class")).toContain("border")
+      expect(region?.getAttribute("class")).toContain("rounded-md")
+      expect(region?.getAttribute("class")).toContain("p-3")
     }
+    expect(action?.getAttribute("class")).toContain("border")
     expect(action?.getAttribute("class")).toContain("rounded-md")
+    expect(nestedRow?.getAttribute("class")).toContain("border-t")
+    expect(nestedRow?.getAttribute("class")).not.toContain("px-3")
   })
 
   it("uses the same add-step controls inside a branch", () => {

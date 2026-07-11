@@ -288,7 +288,7 @@ export function StepListEditor({
     <div
       className={
         context.nested
-          ? "grid gap-3 border-y border-s border-[var(--color-border)] bg-[var(--color-bg-page)] py-3 ps-3"
+          ? "grid gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-page)] p-3"
           : "grid gap-3"
       }
       data-automation-step-list={context.nested ? "nested" : "root"}
@@ -375,7 +375,13 @@ export function StepListEditor({
         )
       })}
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div
+        className={
+          context.nested
+            ? "flex flex-col gap-2 border-t border-[var(--color-border)] pt-3 sm:flex-row sm:items-center"
+            : "flex flex-col gap-2 sm:flex-row sm:items-center"
+        }
+      >
         <Select
           aria-label={`Step type to add to ${context.label}`}
           className="min-w-0 flex-1"
