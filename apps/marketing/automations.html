@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -34,7 +34,7 @@
       </ul>
       <span class="nav-spacer"></span>
       <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
-      <a class="btn btn--accent" href="index.html#install">Install</a>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
     </header>
 
     <main>
@@ -63,14 +63,13 @@
             <p>
               An automation is a structured document — fields, steps, and
               conditions with a fixed set of verbs and capped nesting. There is
-              no <code>eval</code>, no JavaScript, and no arbitrary-code step,
-              and there never will be.
+              no <code>eval</code>, no JavaScript, and no arbitrary-code step.
             </p>
             <p>
-              That single decision is what makes automations safe to share,
-              trivial to review before you run them, easy to debug, and
-              compliant with the Chrome Web Store and Firefox AMO. You can read
-              exactly what one will do before it does it.
+              That boundary makes an automation inspectable before it runs. Its
+              triggers, page operations, command calls, and any static network
+              destination are visible as data. Store compliance still depends
+              on the exact packaged build, listing, consent, and disclosures.
             </p>
             <a class="link-arrow" href="guide-concepts.html">How they work, in depth →</a>
           </div>
@@ -98,17 +97,17 @@ steps:
           <h2>How a run unfolds</h2>
           <p>
             The background service worker coordinates; the content script does
-            the DOM work. Sensitive operations stay in the background and are
-            never logged.
+            the DOM work. Privileged browser operations and network consent stay
+            in the background.
           </p>
         </div>
         <ol class="flow">
           <li class="reveal"><div><strong>A trigger fires.</strong> You pick the automation from the palette, press its shortcut, or a page-load / element / schedule trigger arms it.</div></li>
           <li class="reveal"><div><strong>The engine reads the document by id</strong> and re-validates its structure before running anything.</div></li>
-          <li class="reveal"><div><strong>Variables are interpolated in the background.</strong> <code>{{var}}</code> templates, snippet placeholders, and page context are all resolved here — the page never learns templating.</div></li>
+          <li class="reveal"><div><strong>Variables are interpolated in the background.</strong> <code>{{var}}</code> templates, snippet placeholders, and page context resolve there; content steps receive only their final values.</div></li>
           <li class="reveal"><div><strong>Contiguous DOM steps batch into a segment</strong> and run in the content script as one workflow: click, fill, wait, getText, hide, and the rest.</div></li>
           <li class="reveal"><div><strong>Privileged ops run between segments</strong> in the background — navigate, clipboard, run another command, show a surface — and conditions are evaluated against live page state.</div></li>
-          <li class="reveal"><div><strong>Results aggregate</strong> and a success or error toast closes the loop. Extracted text feeds into later steps.</div></li>
+          <li class="reveal"><div><strong>Results aggregate.</strong> Extracted text can feed later steps, and failures stop the run with a specific error.</div></li>
         </ol>
       </section>
 
@@ -133,7 +132,7 @@ steps:
             <p class="muted">What an automation can do.</p>
             <ul>
               <li><strong>Page steps</strong> — click, fill, type, key, select, check, submit, hover, focus, scroll, wait, getText, hideElement, removeElement, injectCss.</li>
-              <li><strong>Engine ops</strong> — setVariable, toast, navigate, openUrl, clipboardWrite, runCommand, insertSnippet, showSurface.</li>
+              <li><strong>Engine ops</strong> — setVariable, toast, navigate, openUrl, clipboardWrite, runCommand, insertSnippet, showSurface, hideSurface, and consent-gated httpRequest.</li>
               <li><strong>Control flow</strong> — branch (if/else), forEach, while, with conditions and capped loops.</li>
             </ul>
             <a class="link-arrow" href="guide-steps.html">Steps &amp; operations →</a>
@@ -150,9 +149,8 @@ steps:
             start.
           </p>
         </div>
-        <div class="grid grid--3">
-          <div class="card reveal">
-            <span class="card__icon">⊞</span>
+        <div class="truth-grid">
+          <div class="truth-panel">
             <h3>Curated examples</h3>
             <p>
               The options builder ships a set of example automations covering
@@ -160,8 +158,7 @@ steps:
               one click and edit from there.
             </p>
           </div>
-          <div class="card reveal">
-            <span class="card__icon">⊘</span>
+          <div class="truth-panel">
             <h3>Feature-owned automations</h3>
             <p>
               Some features project their own read-only automations into the
@@ -169,13 +166,13 @@ steps:
               automations, shown on the Automations page and managed for you.
             </p>
           </div>
-          <div class="card reveal">
-            <span class="card__icon">⇄</span>
+          <div class="truth-panel">
             <h3>Import &amp; export</h3>
             <p>
               Share automations as JSON. Imports arrive with non-manual triggers
-              disarmed and show a full review summary — every URL, trigger, and
-              risky op — before you save.
+              disarmed and show a review summary including URL scope, triggers,
+              privileged operations, HTTP methods/endpoints, and header names
+              before you save.
             </p>
           </div>
         </div>
@@ -214,27 +211,28 @@ steps:
             <h3>Click “Load more” until it's gone</h3>
             <p>
               A <code>while</code> loop clicks the pagination button and waits,
-              capped at a safe number of iterations, until the page is fully
-              expanded.
+              stopping when the button disappears or its iteration cap is
+              reached.
             </p>
           </div>
         </div>
         <p style="margin-top: var(--space-lg)">
-          <a class="link-arrow" href="guide-examples.html">Read the full cookbook, with documents →</a>
+          <a class="link-arrow" href="guide-examples.html">Open the cookbook →</a>
         </p>
       </section>
 
       <!-- SAFETY -->
       <section class="section--tight wrap">
         <div class="note">
-          <span class="note__title">Built to be trusted</span>
+          <span class="note__title">Bounded and inspectable</span>
           <p>
-            Automations can't run arbitrary JavaScript, can't reach the network,
-            and can't phone home — <code>clipboardWrite</code> and
-            <code>openUrl</code> are the only outbound actions, and both show up
-            in the import review. Runs are capped (one per script per tab,
-            bounded loops, a 5,000-step ceiling), and imported documents land
-            disarmed.
+            Automations can't run arbitrary JavaScript. Outbound HTTP is
+            available only through the bounded <code>httpRequest</code> operation:
+            a static HTTPS or exact-loopback destination, a concrete host grant,
+            explicit consent, no ambient cookies, no redirects or retries, and
+            64 KiB request/response caps. Other privileged actions are also
+            visible during review. Runs remain bounded, and imported non-manual
+            triggers land disarmed.
             <a class="link-arrow" href="guide-safety.html">Limits, safety &amp; sharing →</a>
           </p>
         </div>
@@ -258,13 +256,11 @@ steps:
         <span class="wordmark wordmark--sm">
           <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
         </span>
-        <nav class="foot__links">
-          <a href="features.html">Features</a>
-          <a href="automations.html">Automations</a>
-          <a href="integrations.html">Integrations</a>
-          <a href="guide-getting-started.html">Guide</a>
-          <a href="developers.html">Developers</a>
-          <a href="reviewers.html">For Reviewers</a>
+        <nav class="foot__links" aria-label="Footer">
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html">Privacy</a>
         </nav>
         <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
       </div>

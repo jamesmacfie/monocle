@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -34,19 +34,19 @@
       </ul>
       <span class="nav-spacer"></span>
       <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
-      <a class="btn btn--accent" href="index.html#install">Install</a>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
     </header>
 
     <main>
       <section class="section wrap">
         <p class="eyebrow">Features</p>
         <h1 class="hero__headline" style="font-size: var(--text-display-s); max-width: 18ch; margin: 0 0 var(--space-md)">
-          Everything your browser can do, on the keyboard.
+          Browser work, on the keyboard.
         </h1>
         <p class="lede">
-          Monocle ships with hundreds of built-in commands and a handful of
-          deeper features. Type a few letters and any of them is one keystroke
-          away. Here's the full picture.
+          Monocle collects browser actions and deeper feature modules behind one
+          search surface. Type a few letters, inspect the result, and run an
+          eligible command without opening the browser's menus.
         </p>
         <ul class="pills">
           <li class="pill"><a href="#palette" style="color: inherit">Command palette</a></li>
@@ -67,63 +67,57 @@
         <div class="section__head">
           <h2>The command palette</h2>
           <p>
-            The heart of Monocle. One shortcut, every command, ranked by how you
-            use them.
+            The heart of Monocle. One shortcut, commands for the current context,
+            ranked by how you use them.
           </p>
         </div>
-        <div class="grid grid--3">
-          <div class="card reveal">
-            <span class="card__icon">⌕</span>
+        <div class="truth-grid">
+          <article class="truth-panel reveal">
             <h3>Instant search</h3>
             <p>
-              Full-text matching across a command's name, keywords, description,
+              Debounced full-text matching across a command's name, keywords, description,
               breadcrumb, and keybinding — exact, prefix, word-boundary,
               substring, then fuzzy, in that order.
             </p>
-          </div>
-          <div class="card reveal">
-            <span class="card__icon">★</span>
+          </article>
+          <article class="truth-panel reveal">
             <h3>Usage ranking &amp; favorites</h3>
             <p>
               Results are scored by frequency, recency (7-day half-life), and
               time-of-day habit. Star anything to pin it to the top of the empty
               state.
             </p>
-          </div>
-          <div class="card reveal">
-            <span class="card__icon">⤓</span>
+          </article>
+          <article class="truth-panel reveal">
             <h3>Deep search</h3>
             <p>
               Individual bookmarks, tabs, and history entries surface in root
               search without opening their group — type the title, hit Enter.
             </p>
-          </div>
-          <div class="card reveal">
-            <span class="card__icon">⇥</span>
+          </article>
+          <article class="truth-panel reveal">
             <h3>Nested pages &amp; forms</h3>
             <p>
               Groups expand into child pages; forms take text, selects, toggles,
               and multi-value fields inline — all without touching the mouse.
             </p>
-          </div>
-          <div class="card reveal">
-            <span class="card__icon">↵</span>
+          </article>
+          <article class="truth-panel reveal">
             <h3>Primary &amp; alternate actions</h3>
             <p>
               Enter runs a command; <kbd data-key="mod">⌘</kbd><kbd>↵</kbd> runs
               its alternate (e.g. open in a new tab). <kbd data-key="alt">⌥</kbd>
               opens a per-command action menu.
             </p>
-          </div>
-          <div class="card reveal">
-            <span class="card__icon">⌨</span>
+          </article>
+          <article class="truth-panel reveal">
             <h3>Custom keybindings</h3>
             <p>
-              Bind any command to a shortcut or a multi-stroke sequence
-              (<code>g g</code>), with conflict detection. High-risk actions are
-              held back from binding on purpose.
+              Bind eligible, stable commands to a shortcut or a multi-stroke
+              sequence (<code>g g</code>), with conflict detection. Confirm-gated
+              and many dynamic rows are deliberately excluded.
             </p>
-          </div>
+          </article>
         </div>
       </section>
 
@@ -132,8 +126,9 @@
         <div class="section__head">
           <h2>Built-in commands</h2>
           <p>
-            A working catalog of what's in the palette out of the box. Every row
-            is searchable and bindable.
+            A representative catalog of what is in the palette out of the box.
+            Rows are searchable; custom keybindings are available only where the
+            command has a stable id and allows them.
           </p>
         </div>
 
@@ -322,9 +317,11 @@
           <p>
             “Hide element on this page” puts the page into pick-mode — hover to
             highlight, click to hide. Monocle generates a stable selector, saves
-            a per-domain rule, and hides the element immediately. It re-hides on
-            every future page load through a read-only automation, so a stale
-            selector can never block an unrelated element.
+            a best-effort per-domain selector, and hides the element immediately.
+            A separate read-only automation reapplies each rule on future loads,
+            so one failed selector does not stop the remaining hide rules. Site
+            changes can still make a selector fail or match the wrong element;
+            remove stale rules from Manage hidden elements.
           </p>
           <ul class="pills">
             <li class="pill">Hide element on this page</li>
@@ -396,7 +393,8 @@ Ref: {uuid}
           <h2>Commands that know where you are</h2>
           <p>
             Built-in contextual commands appear only on the sites they belong
-            to. The GitHub integration is the flagship.
+            to. GitHub is the current prototype and uses URL-aware navigation
+            plus best-effort page actions.
           </p>
         </div>
         <div class="grid grid--2">
@@ -426,19 +424,20 @@ Ref: {uuid}
           <div class="card reveal">
             <h3>Toggle Star</h3>
             <p>
-              Star or unstar the current repository without leaving the
-              keyboard. Visibility is driven by per-command URL rules.
+              Attempt to star or unstar the current repository through GitHub's
+              current page controls. Visibility is driven by URL rules, and the
+              action can need maintenance when GitHub changes its DOM.
             </p>
           </div>
         </div>
         <p style="margin-top: var(--space-lg)">
-          <a class="link-arrow" href="developers.html">How URL rules and the site SDK work →</a>
+          <a class="link-arrow" href="developers.html">URL rules and site SDK →</a>
         </p>
       </section>
 
       <section class="cta-final wrap">
         <h2 class="cta-final__line">Ready when your hands are.</h2>
-        <a class="btn btn--accent btn--lg" href="index.html#install">Install Monocle</a>
+        <a class="btn btn--accent btn--lg" href="https://github.com/jamesmacfie/monocle">Build from source</a>
       </section>
     </main>
 
@@ -448,13 +447,11 @@ Ref: {uuid}
         <span class="wordmark wordmark--sm">
           <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
         </span>
-        <nav class="foot__links">
-          <a href="features.html">Features</a>
-          <a href="automations.html">Automations</a>
-          <a href="integrations.html">Integrations</a>
-          <a href="guide-getting-started.html">Guide</a>
-          <a href="developers.html">Developers</a>
-          <a href="reviewers.html">For Reviewers</a>
+        <nav class="foot__links" aria-label="Footer">
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html">Privacy</a>
         </nav>
         <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
       </div>

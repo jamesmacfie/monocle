@@ -1,7 +1,8 @@
-/* Hallmark · redesign · studied-DNA (source: url https://www.raycast.com/)
- * pre-emit critique: P5 H5 E5 S4 R5 V4
- * macrostructure: Workbench (kept) · genre: atmospheric · nav: N6 sticky-glass · footer: Ft5
- * theme: studied-DNA · vibe: "near-black product surface, hairline glass, mint phosphor glow"
+/* Hallmark · multi-page redesign · design-system: design.md
+ * pre-emit critique: P5 H5 E5 S5 R5 V4
+ * macrostructures: Split Studio (product) · Workbench (product proof) · Long Document (content)
+ * genre: modern-minimal · nav: N5 compact-float · footer: Ft5 statement
+ * theme: studied-DNA · vibe: "near-black product surface, quiet mint signal"
  * paper: oklch(14% 0.006 264) · accent: oklch(80% 0.17 168) (brand mint)
  * observed: Raycast Night — neutral near-black, glass-effect cards, generous radii, soft glows
  * display + body: Geist · mono: Geist Mono
@@ -25,7 +26,7 @@
   /* ink */
   --color-ink: oklch(97% 0.002 264); /* headings, primary text */
   --color-ink-2: oklch(74% 0.006 264); /* body text */
-  --color-muted: oklch(56% 0.008 264); /* captions, meta, annotations */
+  --color-muted: oklch(62% 0.008 264); /* captions; 4.75:1 even on paper-3 */
 
   /* rules — hairline glass borders (white at low alpha, the signature Raycast edge) */
   --color-rule: oklch(100% 0 0 / 0.1);
@@ -36,6 +37,19 @@
   --color-accent-ink: oklch(20% 0.02 264); /* text on accent fills */
   --color-focus: oklch(84% 0.19 168); /* :focus-visible rings only */
   --color-accent-dim: oklch(80% 0.17 168 / 0.16);
+  --color-warning: oklch(82% 0.14 75);
+  --color-warning-dim: oklch(82% 0.14 75 / 0.13);
+  --color-danger: oklch(70% 0.18 28);
+  --color-danger-dim: oklch(70% 0.18 28 / 0.13);
+
+  /* translucent modifiers used by the shared chrome */
+  --color-highlight-weak: oklch(100% 0 0 / 0.04);
+  --color-highlight-mid: oklch(100% 0 0 / 0.08);
+  --color-highlight-strong: oklch(100% 0 0 / 0.18);
+  --color-shadow-soft: oklch(0% 0 0 / 0.25);
+  --color-shadow-deep: oklch(0% 0 0 / 0.3);
+  --color-accent-ghost: oklch(80% 0.17 168 / 0.05);
+  --color-footer-wash: oklch(100% 0 0 / 0.012);
 
   /* glow + bloom — soft mint light, the floating-window halo */
   --glow: oklch(80% 0.17 168 / 0.22);

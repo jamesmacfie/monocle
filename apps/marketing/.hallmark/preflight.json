@@ -1,0 +1,19 @@
+{
+  "date": "2026-07-17",
+  "paths": [
+    "apps/marketing/*.html",
+    "apps/marketing/assets/tokens.css",
+    "apps/marketing/assets/site.css",
+    "apps/marketing/assets/site.js"
+  ],
+  "framework": "static HTML, CSS, and JavaScript; no build step",
+  "typography": "Geist and Geist Mono from Google Fonts, with system fallbacks",
+  "palette": "near-black slate surfaces, pale text, phosphor mint accent, restrained amber/red status colors",
+  "spacing": "tokenized 4px-derived scale with compact controls and generous section rhythm",
+  "motion": "functional hero demo only; reduced-motion support; content remains visible without JavaScript",
+  "components": "shared floating navigation, cards, notes, status chips, truth grids, tables, docs sidebar, and statement footer",
+  "content_families": {
+    "product": "Split Studio / Workbench",
+    "documentation": "Long Document"
+  }
+}

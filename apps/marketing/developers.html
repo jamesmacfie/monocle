@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -34,21 +34,23 @@
       </ul>
       <span class="nav-spacer"></span>
       <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
-      <a class="btn btn--accent" href="index.html#install">Install</a>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
     </header>
 
     <main>
       <section class="section wrap">
         <p class="eyebrow">Developer reference</p>
         <h1 class="hero__headline" style="font-size: var(--text-display-s); max-width: 20ch; margin: 0 0 var(--space-md)">
-          How Monocle is put together.
+          How the extension is put together.
         </h1>
         <p class="lede">
           Monocle is a WXT extension in TypeScript, React, and Redux. The
           background service worker owns everything privileged; the UI renders
           plain suggestion data and talks to the background over a validated
           message protocol. This page walks the architecture, the data flows,
-          the schema, and the wire format.
+          the schema, and the wire format. Native Bridge and external-client
+          architecture are documented separately because they cross the browser
+          extension boundary.
         </p>
         <ul class="pills">
           <li class="pill"><a href="#architecture" style="color: inherit">Architecture</a></li>
@@ -74,7 +76,7 @@
               <tr><th>Mode</th><th>Context</th><th>Entrypoint</th></tr>
             </thead>
             <tbody>
-              <tr><td><strong>Content overlay</strong></td><td>Closed shadow DOM injected into every page</td><td><code>entrypoints/content.tsx</code></td></tr>
+              <tr><td><strong>Content overlay</strong></td><td>Closed shadow DOM on ordinary matchable web pages</td><td><code>entrypoints/content.tsx</code></td></tr>
               <tr><td><strong>New tab</strong></td><td>Extension HTML replacing the browser new-tab page</td><td><code>entrypoints/newtab/</code></td></tr>
               <tr><td><strong>Options</strong></td><td>Extension HTML settings page</td><td><code>entrypoints/options/</code></td></tr>
               <tr><td><strong>Background</strong></td><td>MV3 service worker — commands, APIs, storage, keybindings</td><td><code>entrypoints/background.ts</code></td></tr>
@@ -258,9 +260,10 @@ type AsyncValue&lt;T&gt; = T | ((context: Browser.Context) =&gt; Promise&lt;T&gt
       <section class="section wrap" id="storage">
         <h2>Storage</h2>
         <p>
-          Everything is <code>chrome.storage.local</code> — no sync, no cloud.
-          State is split across independent keys so features evolve
-          separately.
+          Extension-owned persisted state uses <code>storage.local</code>—not
+          sync storage or a Monocle cloud. Optional integrations can transmit
+          selected values as described on the privacy and integrations pages.
+          Local state is split across independent keys so features evolve separately.
         </p>
         <div class="table-scroll">
           <table>
@@ -271,6 +274,7 @@ type AsyncValue&lt;T&gt; = T | ((context: Browser.Context) =&gt; Promise&lt;T&gt
               <tr><td><code>monocle-commandUsage</code></td><td>Usage stats for ranking (90-day auto-cleanup).</td></tr>
               <tr><td><code>monocle-snippets</code></td><td>Saved snippets.</td></tr>
               <tr><td><code>monocle-automations</code></td><td>Automation documents.</td></tr>
+              <tr><td><code>monocle-automation-generation-settings</code></td><td>OpenAI generation status and the locally stored user API key; the key is never returned after saving.</td></tr>
               <tr><td><code>monocle-feature-config</code> / <code>-state</code></td><td>Durable feature config and transient runtime state, keyed by feature id.</td></tr>
               <tr><td><code>monocle-surfaces</code></td><td>Owner-namespaced declarative surfaces (session owners cleared on startup).</td></tr>
             </tbody>
@@ -377,13 +381,11 @@ handle.dispose()</code></pre>
         <span class="wordmark wordmark--sm">
           <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
         </span>
-        <nav class="foot__links">
-          <a href="features.html">Features</a>
-          <a href="automations.html">Automations</a>
-          <a href="integrations.html">Integrations</a>
-          <a href="guide-getting-started.html">Guide</a>
-          <a href="developers.html">Developers</a>
-          <a href="reviewers.html">For Reviewers</a>
+        <nav class="foot__links" aria-label="Footer">
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html">Privacy</a>
         </nav>
         <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
       </div>

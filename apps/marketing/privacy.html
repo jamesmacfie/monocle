@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy — Monocle</title>
+    <meta name="description" content="Plain-language privacy policy for the Monocle browser extension and marketing website." />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="nav-edge">
+      <a class="wordmark" href="index.html"><img src="assets/monocle-mark.svg" alt="" width="28" height="28" /> Monocle</a>
+      <ul class="nav-links" id="nav-links" data-nav-links>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="automations.html">Automations</a></li>
+        <li><a href="integrations.html">Integrations</a></li>
+        <li><a href="guide-getting-started.html">Guide</a></li>
+        <li><a href="developers.html">Developers</a></li>
+        <li><a href="reviewers.html">Reviewers</a></li>
+      </ul>
+      <span class="nav-spacer"></span>
+      <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
+    </header>
+
+    <main>
+      <section class="hero hero--split wrap">
+        <div>
+          <p class="eyebrow">Privacy policy</p>
+          <h1 class="hero__headline">Local by default. Explicit when data moves.</h1>
+          <p class="hero__lede">
+            Monocle has no account system, advertising SDK, or analytics collector.
+            Most data stays in the browser profile. Optional integrations can move
+            specific data outside the extension, and this page names each boundary.
+          </p>
+        </div>
+        <aside class="hero__proof">
+          <p><strong>Effective:</strong> 17 July 2026</p>
+          <p><strong>Publisher:</strong> James Macfie</p>
+          <p><strong>Applies to:</strong> the Monocle browser extension and this static website.</p>
+        </aside>
+      </section>
+
+      <article class="section wrap legal-copy">
+        <h2>Short version</h2>
+        <ul>
+          <li>Monocle does not sell personal data and does not use data for advertising or profiling.</li>
+          <li>Settings, snippets, automations, favorites, and usage ranking are stored in the local browser profile.</li>
+          <li>There is no Monocle-operated cloud service or user account.</li>
+          <li>Built-in photo and favicon features make limited third-party requests.</li>
+          <li>Outbound automations, OpenAI generation, Native Bridge, and peer-extension commands are optional and separately enabled.</li>
+        </ul>
+
+        <h2>Data stored in the browser</h2>
+        <p>
+          Monocle stores command settings, URL rules, keybindings, favorites,
+          local command-usage counts, snippets, automation documents, feature
+          configuration, feature runtime state, and temporary surfaces in the
+          browser's local extension storage. It does not use browser sync storage.
+        </p>
+        <p>
+          This data remains until the user removes it through Monocle, clears the
+          extension's storage, or uninstalls the extension. Anyone with access to
+          the browser profile may be able to access locally stored data. Personal
+          API keys and automation credentials should be treated accordingly.
+        </p>
+
+        <h2>Built-in remote requests</h2>
+        <h3>Unsplash backgrounds</h3>
+        <p>
+          When the new-tab background feature is active, Monocle requests photo
+          metadata from <code>api.unsplash.com</code> and loads the selected image.
+          Monocle does not add page content, snippets, or palette queries to that
+          request. Unsplash and the image host still receive ordinary network
+          metadata such as the user's IP address and user agent.
+        </p>
+        <h3>DuckDuckGo favicons</h3>
+        <p>
+          Bookmark and history rows may request a favicon from
+          <code>icons.duckduckgo.com</code>. The requested domain and ordinary
+          network metadata are visible to DuckDuckGo. These rows are available
+          only after the corresponding optional browser permission is granted.
+        </p>
+
+        <h2>Optional outbound automations</h2>
+        <p>
+          An automation may include an <code>httpRequest</code> operation. The
+          automation author chooses a static HTTPS destination, or an exact local
+          loopback HTTP destination, plus the method, header names, body, and
+          response mapping. Interpolated header values or body fields may contain
+          credentials, page text, URLs, user-entered values, or earlier step results.
+        </p>
+        <p>
+          Before the request runs, Monocle validates the document, displays its
+          network shape during review/import, checks a concrete host permission,
+          and applies Firefox data consent where required. Requests omit ambient
+          browser cookies and referrers, do not follow redirects or retry, do not
+          run in private windows, and cap request and response bodies at 64 KiB.
+          The destination provider's privacy and retention terms apply after receipt.
+        </p>
+
+        <h2>Optional OpenAI draft generation</h2>
+        <p>
+          If the user enables automation generation, Monocle sends the user's
+          prompt, bundled authoring instructions/examples, and local snippet names
+          and ids to OpenAI. It does not send snippet bodies or saved automation
+          documents as generation context. The request uses the user's own API key,
+          stored in the local extension profile, and sets <code>store: false</code>.
+          OpenAI's terms and privacy policy apply to the request.
+        </p>
+
+        <h2>Optional Native Bridge</h2>
+        <p>
+          Native Bridge connects Monocle to a separately installed application on
+          the same device. Once enabled and paired, it may send the active tab's URL
+          and title, palette query text, command ids, and command results outside the
+          extension/browser boundary to that local application. Incognito tabs are
+          excluded. Pairing is per client and revocable; command execution requires
+          a second opt-in and excludes confirm-gated, automation, and debug commands.
+        </p>
+
+        <h2>Optional peer-extension commands</h2>
+        <p>
+          Another browser extension may announce declarative commands to Monocle.
+          Nothing is accepted until the user approves the browser-verified extension
+          id. When an approved peer command runs, Monocle sends that peer the user's
+          selection or form values for that command. Monocle does not send the peer
+          the current tab URL or page content. Approval can be revoked.
+        </p>
+
+        <h2>Page SDK</h2>
+        <p>
+          A web page can register session-only commands through
+          <code>window.Monocle</code>. Descriptors are schema-validated, carry no
+          browser permission, and disappear with the page session. The page keeps
+          and runs its own callback; Monocle does not upload it or evaluate it in
+          extension context.
+        </p>
+
+        <h2>Keyboard and page access</h2>
+        <p>
+          The content overlay listens for registered Monocle keybindings. It ignores
+          ordinary typing unless a key matches a configured binding or sequence
+          prefix. Workflows may read or change page content only when the user runs
+          them or when an enabled automation trigger fires. Baseline page content
+          is not sent to a Monocle server because no such server exists.
+        </p>
+
+        <h2>This website</h2>
+        <p>
+          The marketing site is static and contains no Monocle analytics or account
+          system. It currently loads Geist and Geist Mono from Google Fonts, so the
+          browser makes a request to Google and shares ordinary network metadata.
+          The website host may also keep standard access logs under its own terms.
+        </p>
+
+        <h2>Choices and deletion</h2>
+        <p>
+          Users can leave optional permissions ungranted, disable optional features,
+          revoke paired clients and peer extensions, replace or remove the OpenAI API
+          key, delete stored automations/snippets, clear extension storage, or
+          uninstall Monocle. Browser permission controls remain authoritative.
+        </p>
+
+        <h2>Limited use</h2>
+        <p>
+          Data obtained through browser APIs is used only to provide or improve the
+          user-facing Monocle feature that requested it. It is not transferred for
+          advertising, credit-worthiness, sale, or unrelated profiling. Optional
+          transfers occur only for the user-selected integration described above.
+        </p>
+
+        <h2>Changes and contact</h2>
+        <p>
+          Material changes will update the effective date and the public source.
+          Questions and privacy requests can be opened in the
+          <a class="link-arrow" href="https://github.com/jamesmacfie/monocle/issues">public issue tracker →</a>
+          Do not include secrets, API keys, or private page content in a public issue.
+        </p>
+      </article>
+    </main>
+
+    <footer class="foot wrap">
+      <p class="foot__line">Privacy starts with naming the boundary.</p>
+      <div class="foot__meta">
+        <span class="wordmark wordmark--sm"><img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle</span>
+        <nav class="foot__links" aria-label="Footer">
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html" aria-current="page">Privacy</a>
+        </nav>
+        <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
+      </div>
+    </footer>
+    <script src="assets/site.js" defer></script>
+  </body>
+</html>

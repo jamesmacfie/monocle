@@ -2,7 +2,6 @@
  * 1. platform-aware <kbd data-key> rewriting
  * 2. scripted demo-palette loop (hero)
  * 3. mobile nav toggle
- * 4. IntersectionObserver fade-ins
  */
 ;(() => {
   var reduceMotion = window.matchMedia(
@@ -30,83 +29,20 @@
   var toggle = document.querySelector("[data-nav-toggle]")
   var links = document.querySelector("[data-nav-links]")
   if (toggle && links) {
+    var closeNav = () => {
+      links.classList.remove("is-open")
+      toggle.setAttribute("aria-expanded", "false")
+    }
     toggle.addEventListener("click", () => {
       var open = links.classList.toggle("is-open")
       toggle.setAttribute("aria-expanded", open ? "true" : "false")
     })
-  }
-
-  /* ---------- 4. Fade-ins ---------- */
-  var reveals = document.querySelectorAll(".reveal")
-  if (reveals.length) {
-    if (reduceMotion || !("IntersectionObserver" in window)) {
-      reveals.forEach((el) => {
-        el.classList.add("is-in")
-      })
-    } else {
-      var io = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((e) => {
-            if (e.isIntersecting) {
-              e.target.classList.add("is-in")
-              io.unobserve(e.target)
-            }
-          })
-        },
-        { rootMargin: "0px 0px -10% 0px", threshold: 0.05 },
-      )
-      reveals.forEach((el) => {
-        io.observe(el)
-      })
-    }
-  }
-
-  /* ---------- 5. Stat count-up ---------- */
-  var statNums = Array.prototype.slice.call(
-    document.querySelectorAll("[data-count-to]"),
-  )
-  if (statNums.length) {
-    var finalText = (el) => {
-      var to = parseInt(el.getAttribute("data-count-to"), 10) || 0
-      return to + (el.getAttribute("data-count-suffix") || "")
-    }
-    if (reduceMotion || !("IntersectionObserver" in window)) {
-      statNums.forEach((el) => {
-        el.textContent = finalText(el)
-      })
-    } else {
-      var countUp = (el) => {
-        var to = parseInt(el.getAttribute("data-count-to"), 10) || 0
-        var suffix = el.getAttribute("data-count-suffix") || ""
-        if (to === 0) {
-          el.textContent = "0" + suffix
-          return
-        }
-        var start = null
-        var dur = 1100
-        var frame = (ts) => {
-          if (start === null) start = ts
-          var p = Math.min((ts - start) / dur, 1)
-          var eased = 1 - Math.pow(1 - p, 3)
-          el.textContent = Math.round(eased * to) + suffix
-          if (p < 1) requestAnimationFrame(frame)
-          else el.textContent = to + suffix
-        }
-        requestAnimationFrame(frame)
-      }
-      var statIO = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((e) => {
-            if (e.isIntersecting) {
-              countUp(e.target)
-              statIO.unobserve(e.target)
-            }
-          })
-        },
-        { rootMargin: "0px 0px -10% 0px", threshold: 0.4 },
-      )
-      statNums.forEach((el) => statIO.observe(el))
-    }
+    links.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", closeNav)
+    })
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeNav()
+    })
   }
 
   /* ---------- 2. Demo palette loop ---------- */
@@ -119,6 +55,8 @@
   var TARGET = "dup"
   var timers = []
   var running = false
+  var demoVisible = !("IntersectionObserver" in window)
+  var demoPaused = false
 
   function clearTimers() {
     timers.forEach(clearTimeout)
@@ -192,25 +130,52 @@
     return
   }
 
-  // pause when off-screen
+  function stopDemo() {
+    running = false
+    clearTimers()
+  }
+
+  function syncDemo() {
+    if (demoVisible && !demoPaused && !running) {
+      running = true
+      loop()
+    } else if ((!demoVisible || demoPaused) && running) {
+      stopDemo()
+    }
+  }
+
+  demo.addEventListener("mouseenter", () => {
+    demoPaused = true
+    syncDemo()
+  })
+  demo.addEventListener("mouseleave", () => {
+    demoPaused = false
+    syncDemo()
+  })
+  demo.addEventListener("focusin", () => {
+    demoPaused = true
+    syncDemo()
+  })
+  demo.addEventListener("focusout", (event) => {
+    if (!demo.contains(event.relatedTarget)) {
+      demoPaused = false
+      syncDemo()
+    }
+  })
+
+  // Pause when off-screen; hover and keyboard focus also pause the loop.
   if ("IntersectionObserver" in window) {
     var demoIO = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
-          if (e.isIntersecting && !running) {
-            running = true
-            loop()
-          } else if (!e.isIntersecting && running) {
-            running = false
-            clearTimers()
-          }
+          demoVisible = e.isIntersecting
+          syncDemo()
         })
       },
       { threshold: 0.2 },
     )
     demoIO.observe(demo)
   } else {
-    running = true
-    loop()
+    syncDemo()
   }
 })()

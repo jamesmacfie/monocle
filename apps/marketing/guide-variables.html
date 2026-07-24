@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -34,7 +34,7 @@
       </ul>
       <span class="nav-spacer"></span>
       <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
-      <a class="btn btn--accent" href="index.html#install">Install</a>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
     </header>
 
     <div class="docs">
@@ -73,7 +73,7 @@
         <h3>Literal</h3>
         <p>A fixed string baked into the document.</p>
         <pre><code>vars:
-  companyName: { kind: "literal", value: "Acme Corp" }</code></pre>
+  companyName: { kind: "literal", value: "Example Ltd" }</code></pre>
 
         <h3>Snippet</h3>
         <p>
@@ -97,16 +97,23 @@
         <p>
           Interpolatable fields — such as <code>fill.text</code>,
           <code>setVariable.value</code>, <code>toast.message</code>, and
-          <code>navigate.url</code> — use <code>{{…}}</code> templates. The engine
-          expands them in the background before the step is dispatched.
+          <code>navigate.url</code>, HTTP header values, and JSON request string
+          leaves — use <code>{{…}}</code> templates. The engine expands them in
+          the background before the step is dispatched.
         </p>
         <ul>
           <li><code>{{varName}}</code> — a declared variable.</li>
           <li><code>{{trigger.type}}</code>, <code>{{trigger.url}}</code>, <code>{{trigger.matchedText}}</code> — the fire context that started the run.</li>
+          <li><code>{{trigger.host}}</code>, <code>{{trigger.origin}}</code>, <code>{{trigger.path}}</code>, <code>{{trigger.hash}}</code>, <code>{{trigger.pathSegments.N}}</code>, <code>{{trigger.query.NAME}}</code> — pieces of the source URL, frozen at run start.</li>
+          <li><code>{{trigger.surfaceId}}</code>, <code>{{trigger.actionId}}</code> — the clicked control during an inline-surface continuation.</li>
           <li><code>{{params.fieldId}}</code> — an input from a manual trigger's form (if the automation defines parameters).</li>
           <li><code>{{snippet:snippetId}}</code> — an inline snippet reference.</li>
           <li><code>{{index}}</code>, <code>{{item}}</code> — loop scope inside a <code>forEach</code> body (<code>{{item}}</code> is the current element's text; <code>{{index}}</code> is the 0-based iteration).</li>
         </ul>
+        <p>
+          Unknown names expand to an empty string and produce a builder warning.
+          Write <code>\{{</code> when you need a literal opening template marker.
+        </p>
 
         <h3>Page-context placeholders</h3>
         <p>
@@ -178,13 +185,14 @@
 
         <h2>What is never interpolated</h2>
         <div class="note note--warn">
-          <span class="note__title">Selectors, CSS bodies, and URL patterns are never templated</span>
+          <span class="note__title">Addresses and authority stay static</span>
           <p>
             These fields are <strong>addresses, not data</strong>. They are never
             run through <code>{{…}}</code> interpolation, so they stay fixed and
-            fully reviewable in an import summary. A templated selector would be
-            impossible to review — you couldn't tell what an automation actually
-            touches — so the boundary is deliberate and hard.
+            fully reviewable in an import summary. This includes selectors,
+            injected CSS, surface URL rules and placement metadata, and HTTP URLs,
+            methods, header names, and response paths. HTTP header values and JSON
+            string leaves are data, so those may be templated.
           </p>
         </div>
 
@@ -250,7 +258,10 @@
           <a href="integrations.html">Integrations</a>
           <a href="guide-getting-started.html">Guide</a>
           <a href="developers.html">Developers</a>
-          <a href="reviewers.html">For Reviewers</a>
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html">Privacy</a>
         </nav>
         <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
       </div>

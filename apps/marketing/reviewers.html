@@ -6,13 +6,13 @@
     <title>For Web Store Reviewers — Monocle</title>
     <meta
       name="description"
-      content="A reviewer-facing overview of Monocle: single purpose, permission justifications, the site-SDK security model, message and document validation, local-only data handling, and honestly documented residual risks."
+      content="A reviewer-facing account of Monocle's purpose, permissions, content scripts, optional network and native integrations, validation model, privacy posture, and current submission status."
     />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -34,251 +34,232 @@
       </ul>
       <span class="nav-spacer"></span>
       <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
-      <a class="btn btn--accent" href="index.html#install">Install</a>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
     </header>
 
     <main>
-      <section class="section wrap">
-        <p class="eyebrow">For Web Store reviewers</p>
-        <h1 class="hero__headline" style="font-size: var(--text-display-s); max-width: 22ch; margin: 0 0 var(--space-md)">
-          What it does, what it touches, and why.
-        </h1>
-        <p class="lede">
-          This page is written for Chrome Web Store and Firefox AMO reviewers.
-          It states Monocle's single purpose, justifies every permission, and
-          documents the security model — including residual risks we track
-          openly rather than hide.
-        </p>
+      <section class="hero hero--split wrap">
+        <div>
+          <p class="eyebrow">For Chrome Web Store and Firefox AMO review</p>
+          <h1 class="hero__headline">Purpose, permissions, and data flow.</h1>
+          <p class="hero__lede">
+            This is a reviewer-facing description of the current source tree.
+            It explains the default-local product, every optional boundary that
+            can transmit data, and the release work still open before submission.
+          </p>
+        </div>
+        <aside class="hero__proof" aria-label="Current submission status">
+          <p class="hero__status">Pre-submission source snapshot</p>
+          <p>
+            Monocle is not represented here as an approved or currently listed
+            store product. A submitted artifact must be rebuilt, re-tested, and
+            matched to its final manifest, listing, screenshots, and reviewer note.
+          </p>
+          <a class="link-arrow" href="#release-status">See open release work →</a>
+        </aside>
       </section>
 
       <!-- SINGLE PURPOSE -->
       <section class="section--tight wrap">
         <h2>Single purpose</h2>
-        <p>
+        <p class="lede">
           <strong>Monocle is a command palette for the browser.</strong> It
-          provides one keyboard-driven interface to launch actions across tabs,
-          history, bookmarks, downloads, settings, and user-defined automations
-          — like VS Code's command palette or macOS Spotlight. It renders in two
-          contexts (a keyboard overlay on any page, and a new-tab replacement),
-          but everything serves that single function: launching commands.
+          exposes the same command system through a page overlay and an optional
+          new-tab replacement. Tabs, browser data, settings, snippets,
+          calculations, automations, and approved integrations all remain
+          commands inside that one keyboard-driven interface.
         </p>
+        <div class="status-line" aria-label="Feature posture">
+          <span class="status-chip">Baseline data stays local</span>
+          <span class="status-chip status-chip--warn">Outbound features require opt-in</span>
+          <span class="status-chip status-chip--risk">Store release pending</span>
+        </div>
       </section>
 
-      <!-- PERMISSIONS -->
-      <section class="section wrap">
-        <h2>Permissions</h2>
-        <p>
-          Monocle installs with a minimal required set and requests everything
-          else on demand, the first time a user runs a command that needs it.
-        </p>
+      <section class="section wrap" id="permissions">
+        <div class="section__head">
+          <h2>Permission model</h2>
+          <p>
+            The required set supports the palette, local state, content execution,
+            and schedules. Sensitive browser APIs and broad hosts are optional,
+            requested from a user action, and rechecked immediately before use.
+          </p>
+        </div>
 
         <h3>Required at install</h3>
+        <dl class="permission-list">
+          <div class="permission-row"><dt>activeTab</dt><dd>Act on the tab the user is currently addressing.</dd></div>
+          <div class="permission-row"><dt>scripting</dt><dd>Run extension-owned content workflows and support the page overlay.</dd></div>
+          <div class="permission-row"><dt>storage</dt><dd>Store settings, favorites, keybindings, snippets, automation documents, and feature state in the local browser profile.</dd></div>
+          <div class="permission-row"><dt>alarms</dt><dd>Run schedule, interval, and startup automation triggers and time-bound feature sessions.</dd></div>
+          <div class="permission-row"><dt>contextualIdentities</dt><dd>Firefox only: support Multi-Account Container commands.</dd></div>
+        </dl>
+
+        <h3>Optional API permissions</h3>
+        <dl class="permission-list">
+          <div class="permission-row"><dt>bookmarks · history</dt><dd>Search and open data from those browser collections.</dd></div>
+          <div class="permission-row"><dt>tabs · sessions</dt><dd>Query tabs across windows and restore recently closed tabs or windows.</dd></div>
+          <div class="permission-row"><dt>downloads</dt><dd>List downloads and reveal downloaded files.</dd></div>
+          <div class="permission-row"><dt>cookies · browsingData</dt><dd>Run explicit clearing commands and Firefox container-aware operations.</dd></div>
+          <div class="permission-row"><dt>management</dt><dd>List, enable, disable, or uninstall extensions. This high-scrutiny permission is requested only from extension-management commands.</dd></div>
+          <div class="permission-row"><dt>nativeMessaging</dt><dd>Enable the separately installed Native Bridge. The bridge remains off until the user enables it and grants this permission.</dd></div>
+          <div class="permission-row"><dt>tabGroups</dt><dd>Chrome only: use the native tab-groups API.</dd></div>
+        </dl>
+
+        <h3>Hosts and content scripts</h3>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Permission</th><th>Why</th></tr></thead>
+            <thead><tr><th>Declaration</th><th>Reason and runtime limit</th></tr></thead>
             <tbody>
-              <tr><td><code>activeTab</code></td><td>Act on the currently focused tab for any tab-aware command and for workflow execution.</td></tr>
-              <tr><td><code>storage</code></td><td>Back all local persistence: settings, favorites, keybindings, snippets, automations, feature config.</td></tr>
-              <tr><td><code>scripting</code></td><td>Inject the palette's content script on demand so the global shortcut works reliably on any page.</td></tr>
-              <tr><td><code>alarms</code></td><td>Drive scheduled and interval automation triggers, and Focus Mode's single session-end alarm.</td></tr>
-              <tr><td><code>contextualIdentities</code> <span class="muted">(Firefox)</span></td><td>Power Multi-Account Container commands; declared required on Firefox only.</td></tr>
+              <tr><td><code>api.unsplash.com</code></td><td>Fetch optional new-tab photo metadata and image URLs. The request does not include page content or palette queries.</td></tr>
+              <tr><td><code>icons.duckduckgo.com</code></td><td>Fetch favicons for browser-data rows; the requested domain can be visible to DuckDuckGo.</td></tr>
+              <tr><td><code>http://*/*</code> and <code>https://*/*</code> <span class="muted">optional</span></td><td>Declaration ceiling for page-scoped features and user-authored outbound automation endpoints. Runtime requests ask for a concrete scheme-and-host grant; HTTP is limited to exact loopback destinations.</td></tr>
+              <tr><td>Two <code>&lt;all_urls&gt;</code> scripts</td><td>One isolated-world script hosts the closed-shadow-DOM palette and workflow executor. One top-frame MAIN-world shim exposes the declarative page SDK and relays only validated SDK messages.</td></tr>
             </tbody>
           </table>
         </div>
-
-        <h3>Optional, requested on demand</h3>
-        <div class="table-scroll">
-          <table>
-            <thead><tr><th>Permission</th><th>Triggered by</th></tr></thead>
-            <tbody>
-              <tr><td><code>bookmarks</code></td><td>Browsing and opening bookmarks.</td></tr>
-              <tr><td><code>history</code></td><td>Searching and opening history entries.</td></tr>
-              <tr><td><code>tabs</code></td><td>Cross-window tab querying and manipulation.</td></tr>
-              <tr><td><code>downloads</code></td><td>Listing and revealing downloads.</td></tr>
-              <tr><td><code>sessions</code></td><td>Reopening recently closed tabs and windows.</td></tr>
-              <tr><td><code>cookies</code></td><td>Clearing site cookies; Firefox container tabs.</td></tr>
-              <tr><td><code>browsingData</code></td><td>The Clear Browser Data commands.</td></tr>
-              <tr><td><code>management</code></td><td>Extension-management commands — high-scrutiny, kept optional and on-demand.</td></tr>
-              <tr><td><code>tabGroups</code> <span class="muted">(Chrome)</span></td><td>Native Chrome tab-group commands.</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <h3>Host permissions</h3>
-        <p>Exactly two external hosts, both image-only:</p>
-        <ul>
-          <li><code>https://api.unsplash.com/*</code> — random landscape photo for the new-tab background. Optional; new-tab override can be disabled.</li>
-          <li><code>https://icons.duckduckgo.com/*</code> — favicons for bookmark/history rows, used only after the underlying permission is granted.</li>
-        </ul>
-        <p class="muted">
-          There are no other network endpoints. No telemetry, no analytics, no
-          data-collection host.
-        </p>
-
         <div class="note">
-          <span class="note__title">Enforcement</span>
+          <span class="note__title">Execution enforcement</span>
           <p>
-            Permissions are gated at two points: the UI shows a grant
-            affordance next to protected commands, and the background re-checks
-            each required permission with <code>permissions.contains()</code>
-            immediately before execution. Browser truth always wins over cached
-            UI state, so a revoked permission blocks execution even if the UI is
-            stale.
+            Permission prompts are user-initiated. Before protected work, the
+            background checks the browser's current permission state again;
+            revocation blocks execution even if a UI cache is stale.
           </p>
         </div>
       </section>
 
-      <!-- SITE SDK SECURITY -->
       <section class="section wrap" id="sdk">
-        <h2>Site SDK security model</h2>
-        <p>
-          The <code>window.Monocle</code> SDK lets pages register session-only,
-          non-privileged commands. It is a runtime command source with strict
-          containment — not a permissioned plugin system.
-        </p>
-        <div class="grid grid--2">
-          <div class="card">
-            <h4>Sites can</h4>
-            <ul style="margin: var(--space-xs) 0 0">
-              <li>Register actions, groups, forms, and search pages their own JS could already perform.</li>
-              <li>Set custom icons, descriptions, and URL-visibility rules.</li>
-            </ul>
-          </div>
-          <div class="card">
-            <h4>Sites cannot</h4>
-            <ul style="margin: var(--space-xs) 0 0">
-              <li>Request permissions or bind global keybindings.</li>
-              <li>Reach browser APIs (tabs, bookmarks, history, cookies…).</li>
-              <li>Run arbitrary JS in the extension context or persist state.</li>
-            </ul>
-          </div>
+        <div class="section__head">
+          <h2>Site SDK and remote-code posture</h2>
+          <p>
+            Pages may contribute declarative, session-only commands. They do not
+            gain extension permissions and Monocle does not evaluate page-supplied code.
+          </p>
         </div>
-
-        <h3>Containment</h3>
         <ul>
-          <li><strong>No direct channel.</strong> Pages can't <code>sendMessage</code> to the extension (no <code>externally_connectable</code>); the only path is <code>postMessage</code> to an isolated content bridge that accepts just two message types.</li>
-          <li><strong>Commands run in the page.</strong> On selection, the extension asks the page to invoke its own callback by id; it never runs page-supplied logic itself.</li>
-          <li><strong>Closed shadow DOM.</strong> The palette renders in a closed shadow root, so page JS can't inspect it or read bookmark/history data shown in it.</li>
-          <li><strong>Double validation.</strong> Registrations are validated in the bridge and again when callback-returned commands arrive.</li>
+          <li>Page callbacks remain in page memory and cross the boundary only as callback ids.</li>
+          <li>On execution, Monocle sends the id back and the page runs its own callback in its own world.</li>
+          <li>Registrations are top-frame only, schema-validated twice, capped at 20 registrations, 100 commands, and five levels, and cleared with the page session.</li>
+          <li>SDK commands cannot request browser permissions or bind custom global keybindings.</li>
+          <li>The palette uses a closed shadow root, limiting page inspection of extension UI and browser-derived rows.</li>
         </ul>
-
-        <h3>Caps &amp; validation</h3>
-        <p>
-          Every declaration passes a strict Zod schema before the extension
-          sees it: unknown fields rejected, reserved generated-action ids
-          protected, ≤20 registrations per page, ≤100 commands per tree, ≤5
-          nesting levels, icon URLs limited to <code>http(s)</code>, and SVG
-          icons hardened (no <code>&lt;script&gt;</code>, no inline handlers, no
-          external resource loads, ≤10,000 chars).
-        </p>
-      </section>
-
-      <!-- INPUT / MESSAGE VALIDATION -->
-      <section class="section wrap">
-        <h2>Input &amp; message validation</h2>
-        <ul>
-          <li><strong>Sender checks.</strong> Every UI→background message is sender-validated — messages from other extensions, or from <code>data:</code> / <code>javascript:</code> / <code>about:blank</code> URLs, are rejected.</li>
-          <li><strong>Schema checks.</strong> Messages are validated against a Zod discriminated union; unknown message types never reach a handler. Context requires a non-empty <code>url</code>.</li>
-          <li><strong>Documents are data, not code.</strong> Automations and snippets are validated at save, at import, at the message boundary, and structurally again at run time. There is no <code>eval</code>, no <code>new Function</code>, and no arbitrary-JS step anywhere in the codebase — by policy.</li>
-          <li><strong>Workflows are fixed verbs.</strong> Content workflows validate against a closed step schema; unsupported steps fail loudly rather than silently.</li>
-          <li><strong>Keybindings &amp; URL rules.</strong> Validated to a canonical format and safe pattern syntax before persisting.</li>
-        </ul>
-      </section>
-
-      <!-- DATA / PRIVACY -->
-      <section class="section wrap">
-        <h2>Data handling</h2>
-        <div class="grid grid--2">
-          <div>
-            <h4>Stored locally only</h4>
-            <p class="muted" style="margin-top: var(--space-xs)">
-              Command settings, favorites, local usage stats (for ranking),
-              snippets, automation documents, feature config and runtime state,
-              and transient surfaces — all in <code>chrome.storage.local</code>.
-              No sync storage, no cloud.
-            </p>
-          </div>
-          <div>
-            <h4>Not collected</h4>
-            <p class="muted" style="margin-top: var(--space-xs)">
-              No telemetry, no analytics, no profiling, no login, no off-device
-              user-data flow. The two external hosts serve images only. Page
-              context (the current URL/title) is used to filter commands and
-              never leaves the device.
-            </p>
-          </div>
+        <div class="note">
+          <span class="note__title">External extension messaging is separate</span>
+          <p>
+            Chrome declares <code>externally_connectable: { ids: ["*"] }</code>
+            so peer extensions can announce themselves. The browser-verified
+            sender id must still be explicitly approved by the user before its
+            declarative commands are accepted. Web pages are not listed as
+            externally connectable origins.
+          </p>
         </div>
       </section>
 
-      <!-- KNOWN RISKS -->
-      <section class="section wrap">
-        <h2>Documented residual risks</h2>
-        <p>
-          The codebase documents these honestly in
-          <code>docs/site-sdk-security.md</code>. None grant a hostile page
-          access to browser APIs or user data through privilege escalation; they
-          are edge cases we track with mitigations in progress.
-        </p>
+      <section class="section wrap" id="data-flow">
+        <div class="section__head">
+          <h2>Data handling by boundary</h2>
+          <p>“No telemetry” is accurate. “Nothing leaves the device” is not.</p>
+        </div>
+        <div class="truth-grid">
+          <article class="truth-panel">
+            <h3>Baseline</h3>
+            <p>Settings, usage ranking, snippets, automations, and feature state are stored in <code>storage.local</code>. There is no Monocle account, analytics collector, advertising SDK, or Monocle-operated cloud.</p>
+          </article>
+          <article class="truth-panel">
+            <h3>Outbound automation</h3>
+            <p>A user-authored <code>httpRequest</code> can send configured headers, body values, page-derived data, or credentials to a static HTTPS or exact-loopback endpoint after host permission and consent checks.</p>
+          </article>
+          <article class="truth-panel">
+            <h3>OpenAI draft generation</h3>
+            <p>Optional generation sends the user's prompt, bundled automation context/examples, and snippet names/ids—not snippet bodies or saved automations—using a locally stored user API key and <code>store: false</code>.</p>
+          </article>
+          <article class="truth-panel">
+            <h3>Local integrations</h3>
+            <p>Native Bridge can send active-tab URL/title, palette queries, command ids, and results to a paired local application. Approved peer extensions receive only the selection or form values supplied to their own command, not tab URL or page content.</p>
+          </article>
+        </div>
+        <p>The complete user-facing disclosure is in the <a class="link-arrow" href="privacy.html">privacy policy →</a></p>
+      </section>
+
+      <section class="section wrap" id="integrations">
+        <h2>Optional integration gates</h2>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Risk</th><th>Posture</th></tr></thead>
+            <thead><tr><th>Integration</th><th>User gate</th><th>Hard limits</th></tr></thead>
             <tbody>
-              <tr><td>Synthetic key events could fire registered keybindings</td><td>Permissioned and confirm-gated commands are still protected; an <code>isTrusted</code> guard is a tracked fix.</td></tr>
-              <tr><td>Extension fingerprinting via <code>window.Monocle</code></td><td>Detectable at <code>document_start</code>; per-origin gating is under consideration.</td></tr>
-              <tr><td>Icon-URL tracking beacon</td><td>Restricting URL icons to the registering origin / <code>no-referrer</code> is tracked.</td></tr>
-              <tr><td>Favicon lookups leak domains to DuckDuckGo</td><td>Only after the user grants bookmarks/history; local favicon sources are under consideration.</td></tr>
-              <tr><td>Trusted-UI injection / palette spam</td><td>Bounded registrations and a 1,000 ops/minute rate limit prevent abuse; clearer SDK-row badging is tracked.</td></tr>
+              <tr><td>Native Bridge</td><td>Enable feature, grant <code>nativeMessaging</code>, pair with a six-digit code; command execution has a second global opt-in.</td><td>Local native host only; per-client bearer token and revoke; incognito excluded; confirm-gated, automation, and debug commands denied.</td></tr>
+              <tr><td>Peer extensions</td><td>Approve each browser-verified extension id on the Integrations page.</td><td>Declarative command trees; approval revocable; no tab URL or page-content disclosure.</td></tr>
+              <tr><td>OpenAI generation</td><td>Save a personal API key, grant <code>api.openai.com</code>, then submit a draft request.</td><td>Draft generation only; generated JSON is validated and reviewed before saving.</td></tr>
+              <tr><td>Outbound HTTP</td><td>Import/save disclosure, concrete host grant, Firefox data consent where required, and execution-time checks.</td><td>Static destination/method/header names; no redirects, retries, ambient cookies, private-window execution, or responses above 64 KiB.</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="muted">
-          A second tier of latent weaknesses (e.g. client-supplied
-          <code>context.url</code> treated as advisory, not a security boundary)
-          is also documented as defense-in-depth — none are reachable by pages
-          today.
-        </p>
       </section>
 
-      <!-- REVIEWER NOTES -->
-      <section class="section wrap">
-        <h2>Notes for review</h2>
+      <section class="section wrap" id="validation">
+        <h2>Validation and executable-code boundaries</h2>
         <ul>
-          <li><strong>Page SDK is data, not code.</strong> Pages post declarative descriptors; the extension validates and wraps them and runs the page's own stored callback by id. No <code>eval</code>, <code>new Function</code>, or CSP relaxation anywhere — verifiable by repo-wide search.</li>
-          <li><strong>Two <code>&lt;all_urls&gt;</code> content scripts.</strong> A keyboard-summoned palette must exist everywhere: one script injects the closed-shadow-DOM palette; a minimal MAIN-world shim installs <code>window.Monocle</code> and relays validated messages to the isolated bridge.</li>
-          <li><strong>The global key listener is not a keylogger.</strong> It suppresses only keystrokes matching the registry or a sequence prefix; all other input flows to the page, and nothing leaves the device.</li>
-          <li><strong>Local-only data.</strong> The new-tab page and its scripts are fully local; only the background photo and favicons are remote images.</li>
+          <li>UI-to-background messages use typed message names, sender checks, and Zod payload schemas.</li>
+          <li>Automation documents are validated on save/import, at the message boundary, and again when run.</li>
+          <li>The workflow vocabulary is a closed set of bundled operations; unsupported steps fail.</li>
+          <li>There is no automation JavaScript step, <code>eval</code>, <code>new Function</code>, or remotely hosted executable code.</li>
+          <li>Calculation evaluation disables mathjs injection functions.</li>
+          <li>Clipboard access is write-only.</li>
         </ul>
-        <p class="muted">
-          Full detail lives in the repository docs:
-          <code>site-sdk-security.md</code>, <code>site-sdk.md</code>,
-          <code>store-submission.md</code>, <code>permissions.md</code>, and
-          <code>messaging.md</code>.
-        </p>
+      </section>
+
+      <section class="section wrap" id="review-notes">
+        <h2>What a reviewer should test</h2>
+        <ol class="flow">
+          <li><div><strong>Baseline palette</strong>Open the overlay on an ordinary web page and the new-tab page; search and run an unpermissioned command.</div></li>
+          <li><div><strong>Permission grant and revocation</strong>Run a bookmarks/history command, deny or revoke the optional permission, and confirm execution is blocked.</div></li>
+          <li><div><strong>Site SDK fixture</strong>Use the repository fixture page to register a declarative command and confirm it executes in the page, not the extension.</div></li>
+          <li><div><strong>Outbound automation disclosure</strong>Inspect an automation containing <code>httpRequest</code>; verify its method, endpoint, and header names appear before consent and execution.</div></li>
+          <li><div><strong>Integration defaults</strong>Confirm Native Bridge, peer-extension approval, remote command execution, and OpenAI generation are all disabled until separately enabled.</div></li>
+        </ol>
+        <p>Source and build instructions: <a class="link-arrow" href="https://github.com/jamesmacfie/monocle">github.com/jamesmacfie/monocle →</a></p>
+      </section>
+
+      <section class="section wrap" id="release-status">
+        <h2>Release status</h2>
+        <div class="release-banner">
+          <p>
+            <strong>This repository snapshot is not ready for store submission.</strong>
+            The feature implementation can be reviewed, but release identity and
+            listing work remain open.
+          </p>
+          <a class="btn btn--outline" href="https://github.com/jamesmacfie/monocle/blob/main/docs/store-submission.md">Open checklist</a>
+        </div>
+        <ul>
+          <li>Synchronize package and manifest versions.</li>
+          <li>Replace the placeholder Firefox Gecko id with a controlled identity.</li>
+          <li>Pin the Chrome extension key/id and match the native-host allowed origin.</li>
+          <li>Produce reproducible Firefox source-submission instructions and listing assets from the packaged build.</li>
+          <li>Re-verify store data disclosures and reviewer notes against the exact submitted artifact.</li>
+        </ul>
       </section>
 
       <section class="cta-final wrap">
-        <h2 class="cta-final__line">Questions are welcome.</h2>
-        <p class="lede center" style="margin-inline: auto">
-          Monocle is built in the open under the PolyForm Noncommercial license.
-          The source, build steps, and complete threat model ship with the
-          extension.
+        <h2 class="cta-final__line">Review the artifact, not the promise.</h2>
+        <p class="lede">
+          This page is an orientation aid. The final authority is the submitted
+          manifest, packaged code, matching source archive, privacy policy, and
+          version-specific reviewer note.
         </p>
       </section>
     </main>
 
     <footer class="foot wrap">
-      <p class="foot__line">Menus are where commands go to&nbsp;hide.</p>
+      <p class="foot__line">Clear boundaries make review faster.</p>
       <div class="foot__meta">
         <span class="wordmark wordmark--sm">
           <img src="assets/monocle-mark.svg" alt="" width="20" height="20" /> Monocle
         </span>
-        <nav class="foot__links">
-          <a href="features.html">Features</a>
-          <a href="automations.html">Automations</a>
-          <a href="integrations.html">Integrations</a>
-          <a href="guide-getting-started.html">Guide</a>
-          <a href="developers.html">Developers</a>
-          <a href="reviewers.html">For Reviewers</a>
+        <nav class="foot__links" aria-label="Footer">
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html">Privacy</a>
         </nav>
         <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
       </div>

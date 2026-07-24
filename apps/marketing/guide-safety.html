@@ -6,13 +6,13 @@
     <title>Limits, safety &amp; sharing — Monocle automations</title>
     <meta
       name="description"
-      content="Monocle automation guardrails: execution caps, structural rules, the trust model, the credentials caveat, and safe import/export."
+      content="Monocle automation guardrails: execution caps, structural rules, outbound-data boundaries, credentials, and import/export review."
     />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -34,7 +34,7 @@
       </ul>
       <span class="nav-spacer"></span>
       <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
-      <a class="btn btn--accent" href="index.html#install">Install</a>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
     </header>
 
     <div class="docs">
@@ -59,9 +59,10 @@
         <p class="lede">
           Automations are powerful, but they're bounded on purpose. Every limit
           on this page exists for one reason: so a runaway loop, a buggy
-          selector, or a script you imported from someone else can't quietly
-          cause harm. The guardrails are enforced when you save and re-checked
-          when a script actually runs.
+          selector, or a script you imported from someone else has a bounded
+          blast radius. These controls reduce risk; they do not make every
+          automation harmless. The guardrails are enforced when you save and
+          re-checked when a script actually runs.
         </p>
 
         <h2>Execution caps</h2>
@@ -123,6 +124,14 @@
                 <td>Regex patterns</td>
                 <td>&le;200 chars, no user-supplied flags</td>
               </tr>
+              <tr>
+                <td>HTTP request / response body</td>
+                <td>&le;65,536 bytes each</td>
+              </tr>
+              <tr>
+                <td>HTTP timeout / custom headers</td>
+                <td>1–30 seconds / up to 20 headers</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -165,7 +174,7 @@
           </li>
         </ul>
 
-        <h2>What automations cannot do</h2>
+        <h2>Current schema boundaries</h2>
         <p>
           The most important guarantees are the things an automation simply
           can't express. This is a deliberate boundary, not a missing feature:
@@ -175,8 +184,8 @@
           <p>
             <strong>No arbitrary JavaScript.</strong> There is no
             <code>eval</code>, no <code>new Function</code>, and no
-            <code>runJs</code> step — and there never will be. It's a policy
-            boundary, not an oversight.
+            <code>runJs</code> step in the current schema. It's a deliberate
+            policy boundary, not an oversight.
           </p>
           <p>
             <strong>No page mutation outside the prescribed steps.</strong> A
@@ -188,11 +197,22 @@
             document — never fetched from the network at run time.
           </p>
           <p>
-            <strong>No data exfiltration.</strong> Automations don't phone home.
-            <code>clipboardWrite</code> and <code>openUrl</code> are the only
-            outbound actions, and both are surfaced in the import review.
+            <strong>Outbound paths are explicit, but they are real.</strong>
+            <code>httpRequest</code> can send structured JSON to a static HTTPS
+            or exact-loopback HTTP endpoint after host-access and consent checks.
+            Navigation, opened URLs, and page form actions can also cause data to
+            reach a site. Clipboard writes stay on the device but can overwrite
+            existing clipboard contents.
           </p>
         </div>
+
+        <h3>Network-request constraints</h3>
+        <ul>
+          <li>The URL, method, header names, and response paths are static and reviewable; only header values and JSON string leaves interpolate.</li>
+          <li>Requests omit browser credentials and referrers, bypass cache, reject redirects, never retry, and are refused in private windows.</li>
+          <li>Every destination needs a browser host grant. Firefox also requires outbound-data consent. Automatic and inline-action runs never prompt.</li>
+          <li>Only declared scalar JSON response paths can become runtime variables.</li>
+        </ul>
 
         <h2>The credentials caveat</h2>
         <p>
@@ -213,9 +233,10 @@
             — not an automation.
           </p>
           <p>
-            Credentials are interpolated in the background and are never logged;
-            they reach the page only through the <code>fill</code> step's native
-            value-setter.
+            Credentials are interpolated in the background and are not logged by
+            Monocle; they reach the page when a <code>fill</code> or other
+            configured page step uses them. The destination page may process or
+            log submitted values according to its own behavior.
           </p>
         </div>
 
@@ -238,6 +259,7 @@
           <li>An op-class summary (click, fill, branch, and so on)</li>
           <li>Snippets it references</li>
           <li>URLs it would open</li>
+          <li>HTTP methods and endpoints, plus header names (not resolved values)</li>
           <li>Clipboard and command usage</li>
         </ul>
         <p>You save the script only after you've reviewed that summary.</p>
@@ -261,8 +283,9 @@
           <li><strong>Timeouts</strong> — <code>wait</code> steps default to 5 seconds; navigation has a 15-second maximum.</li>
         </ul>
         <p>
-          Exceed any of these and the run stops with an error toast — it never
-          fails silently.
+          A run-time failure returns an error and shows an error toast. Triggered
+          runs that are ineligible or lack required access can instead be skipped
+          and recorded by the extension.
         </p>
 
         <div class="grid grid--2">
@@ -303,7 +326,10 @@
           <a href="integrations.html">Integrations</a>
           <a href="guide-getting-started.html">Guide</a>
           <a href="developers.html">Developers</a>
-          <a href="reviewers.html">For Reviewers</a>
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html">Privacy</a>
         </nav>
         <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
       </div>

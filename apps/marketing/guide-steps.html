@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -34,7 +34,7 @@
       </ul>
       <span class="nav-spacer"></span>
       <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
-      <a class="btn btn--accent" href="index.html#install">Install</a>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
     </header>
 
     <div class="docs">
@@ -143,8 +143,8 @@
         <h2>Engine operations</h2>
         <p>
           Engine steps run in the background between content segments. They
-          handle navigation, the clipboard, notifications, surfaces, and
-          messaging. Their interpolatable fields (URLs, text, messages) are
+          handle navigation, the clipboard, notifications, surfaces, commands,
+          and bounded network requests. Their interpolatable value fields are
           expanded background-side before use.
         </p>
         <div class="table-scroll">
@@ -162,7 +162,8 @@
               <tr><td><code>openUrl</code></td><td>Open a URL with a <code>disposition</code> of <code>newTab</code> (default), <code>currentTab</code>, or <code>newWindow</code>.</td></tr>
               <tr><td><code>clipboardWrite</code></td><td>Copy interpolated text to the clipboard.</td></tr>
               <tr><td><code>insertSnippet</code></td><td>Insert a snippet at the page's last-focused editable, or fill a target with it; placeholders are interpolated.</td></tr>
-              <tr><td><code>showSurface</code> / <code>hideSurface</code></td><td>Push or remove a declarative UI surface. Automations can only produce <code>overlay</code> and <code>badge</code> kinds (not <code>modal</code> or <code>picker</code>).</td></tr>
+              <tr><td><code>showSurface</code> / <code>hideSurface</code></td><td>Push or remove a declarative <code>overlay</code>, <code>badge</code>, or selector-anchored <code>inline</code> surface. Inline button actions keep their executable steps in the stored document.</td></tr>
+              <tr><td><code>httpRequest</code></td><td>Send bounded JSON to a static HTTPS or exact-loopback HTTP endpoint, then map declared scalar response paths into runtime variables. Browser host access and consent checks apply.</td></tr>
               <tr><td><code>runCommand</code></td><td>Execute another Monocle command — subject to the policy below.</td></tr>
             </tbody>
           </table>
@@ -182,6 +183,26 @@
         <pre><code>- op: openUrl
   url: "https://www.google.com/search?q={{params.query | encodeUriComponent}}"
   disposition: "newTab"     # "newTab" (default) | "currentTab" | "newWindow"</code></pre>
+
+        <pre><code>- op: httpRequest
+  method: "POST"
+  url: "https://api.example.com/events"  # static; never interpolated
+  headers: { Authorization: "Bearer {{snippet:TOKEN_SNIPPET_ID}}" }
+  body: { page: "{{trigger.url}}" }
+  timeoutMs: 10000
+  response:
+    statusToVar: "status"
+    json: [{ path: ["requestId"], toVar: "requestId", required: true }]</code></pre>
+
+        <div class="note note--warn">
+          <span class="note__title">Network requests are explicit outbound data</span>
+          <p>
+            <code>httpRequest</code> never interpolates its URL, method, header
+            names, or response paths. Header values and JSON string leaves can
+            contain templates. Requests omit browser credentials, reject
+            redirects, do not retry, and are refused in private windows.
+          </p>
+        </div>
 
         <div class="note note--warn">
           <span class="note__title">navigate is flat-only</span>
@@ -368,7 +389,10 @@
           <a href="integrations.html">Integrations</a>
           <a href="guide-getting-started.html">Guide</a>
           <a href="developers.html">Developers</a>
-          <a href="reviewers.html">For Reviewers</a>
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html">Privacy</a>
         </nav>
         <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
       </div>

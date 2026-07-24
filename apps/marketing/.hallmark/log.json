@@ -1,5 +1,16 @@
 [
   {
+    "date": "2026-07-17",
+    "macrostructure": "Split Studio / Workbench / Long Document",
+    "theme": "modern-minimal truth-first refresh",
+    "theme_axes": "dark / geometric-sans / phosphor-mint / restrained-status",
+    "enrichment": "status chips, permission ledger, data-flow explanations, live HTML product figures",
+    "vibe": "calm technical product documentation with explicit release and privacy boundaries",
+    "brief": "Rewrite and redesign every marketing HTML page, prioritizing reviewer accuracy and understandable automation guidance",
+    "pre_emit_critique": "P5 H5 E5 S5 R5 V4",
+    "slop_test": "69 / 69 pass"
+  },
+  {
     "date": "2026-06-16",
     "macrostructure": "Workbench",
     "theme": "studied-DNA",

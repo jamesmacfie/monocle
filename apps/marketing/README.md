@@ -6,7 +6,7 @@ with any static host.
 
 ```bash
 # preview locally
-cd marketing && python3 -m http.server 8080
+cd apps/marketing && python3 -m http.server 8080
 # → http://localhost:8080
 ```
 
@@ -14,18 +14,19 @@ cd marketing && python3 -m http.server 8080
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | Home — hero, live demo palette, product tour, feature grid, site SDK, CTA |
-| `features.html` | Every command and feature: tabs, library, themes, Focus Mode, Tab Groups, Element Hider, calculations, snippets, GitHub |
+| `index.html` | Home — live demo palette, product tour, representative features, integrations, release status |
+| `features.html` | Feature catalog: tabs, library, themes, Focus Mode, Tab Groups, Element Hider, calculations, snippets, and the GitHub prototype |
 | `automations.html` | Automations overview — what they are, how a run unfolds, what ships today |
-| `integrations.html` | Integrations — Raycast, the local-only native bridge, extension-to-extension commands, and the page-world site SDK |
+| `integrations.html` | Integration status and boundaries — Raycast, Native Bridge, extension peers, and the page-world site SDK |
 | `developers.html` | Architecture, data flows, command schema, message protocol, storage, site SDK, stack |
 | `reviewers.html` | For Web Store reviewers — single purpose, permission justifications, security model, validation, residual risks |
+| `privacy.html` | Plain-language privacy policy covering local data and every optional outbound path |
 | `guide-getting-started.html` | Automation guide: overview + first-run walkthrough |
 | `guide-concepts.html` | How automations work — pipeline, segmentation, data-not-code |
 | `guide-triggers.html` | The six triggers |
 | `guide-steps.html` | Full step / operation vocabulary + control flow |
 | `guide-variables.html` | Variables, interpolation, pipes, selectors |
-| `guide-examples.html` | Cookbook of complete example automations |
+| `guide-examples.html` | Cookbook of complete importable automation drafts |
 | `guide-safety.html` | Limits, the trust model, import/export |
 
 The seven `guide-*.html` pages share a docs-style left sidebar.
@@ -36,24 +37,23 @@ The seven `guide-*.html` pages share a docs-style left sidebar.
   slate" system; see `docs/marketing-site.md`).
 - `assets/site.css` — all component styles.
 - `assets/site.js` — platform-aware `<kbd>` rewriting, the scripted hero
-  demo-palette loop, mobile nav, and scroll reveals.
+  demo-palette loop, and mobile nav.
 - `assets/monocle-mark.svg`, `assets/favicon.svg` — brand mark.
+- `design.md` — locked visual system, truthful copy boundaries, and token exports.
 
-## Before launch — resolve these placeholders
+## Before launch
 
-1. **Install links.** The "Add to Chrome / Firefox / Install" CTAs point at the
-   on-page `#install` anchor. Swap them for the real Chrome Web Store and
-   Firefox AMO listing URLs once published (see `docs/store-submission.md` for
-   blockers). Never ship dead store links — until listings exist, point them at
-   the repo's install instructions and relabel to "Get Monocle".
+1. **Store links.** Store listings do not exist yet, so acquisition CTAs point
+   to source and the reviewer page states the remaining release blockers. Add
+   Chrome Web Store and Firefox AMO URLs only after those listings are live.
 2. **Screenshots.** The tour uses live HTML "mini" panels as stand-ins for
    product screenshots. For launch polish, capture real 2× screenshots per the
    shot list in `docs/marketing-site.md` §7 and drop them in.
-3. **Fonts.** Bricolage Grotesque / Geist / Geist Mono load from Google Fonts
-   for convenience. The original spec calls for self-hosted woff2 subsets to
-   avoid the runtime request — swap the `<link>` for `@font-face` if desired.
-4. **Repo / social.** Add real GitHub and Open Graph image (`og.png`) URLs.
+3. **Fonts.** Geist and Geist Mono load from Google Fonts. The privacy policy
+   discloses that request; self-host woff2 subsets if a third-party font request
+   is undesirable.
+4. **Social preview.** Add a real Open Graph image (`og.png`).
 
 Content is sourced from the extension's own `docs/` and verified against the
-codebase (commands, schema, permissions in `wxt.config.ts`). No metrics,
-testimonials, or unverified privacy claims are made.
+codebase (commands, schema, permissions in `wxt.config.ts`). Product status,
+outbound-data paths, and submission blockers are called out explicitly.

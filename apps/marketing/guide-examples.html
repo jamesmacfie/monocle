@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -34,7 +34,7 @@
       </ul>
       <span class="nav-spacer"></span>
       <button class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="nav-links">Menu</button>
-      <a class="btn btn--accent" href="index.html#install">Install</a>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
     </header>
 
     <div class="docs">
@@ -57,8 +57,8 @@
         <p class="docs__crumb"><a href="automations.html">Automations</a> / Cookbook</p>
         <h1>Cookbook</h1>
         <p class="lede">
-          Five complete automations you can adapt. Each one is a full document —
-          copy it, tweak the selectors and scope, and it's yours. The builder's
+          Five complete automation drafts you can adapt. Copy one into the
+          importer, then tweak the selectors and scope. The builder's
           <strong>Add Examples</strong> button installs a similar curated set,
           and <strong>Test on Active Tab</strong> lets you run any of them
           step-by-step to debug before you arm a trigger.
@@ -68,11 +68,12 @@
         <p>
           A <strong>manual</strong> automation (plus a keybinding) that pulls a
           username and password from snippets and fills the dev login form. The
-          credentials are resolved in the background and never logged; the
+          credentials are resolved in the background and not logged by Monocle; the
           <code>{{user}}</code> and <code>{{pass}}</code> templates are expanded
           before the page sees them.
         </p>
         <pre><code>{
+  "schemaVersion": 1,
   "name": "Dev login",
   "icon": "LogIn",
   "color": "teal",
@@ -131,6 +132,7 @@
           <code>| slice</code>) to clean up the values.
         </p>
         <pre><code>{
+  "schemaVersion": 1,
   "name": "Copy article metadata",
   "icon": "Copy",
   "color": "blue",
@@ -188,6 +190,7 @@
           run is harmless even when no banner is present.
         </p>
         <pre><code>{
+  "schemaVersion": 1,
   "name": "Dismiss cookie banner",
   "icon": "Cookie",
   "color": "amber",
@@ -240,6 +243,7 @@
           each iteration — acting on "this checkbox" without any templating.
         </p>
         <pre><code>{
+  "schemaVersion": 1,
   "name": "Check every checkbox",
   "icon": "ListChecks",
   "color": "green",
@@ -263,7 +267,7 @@
     {
       "op": "toast",
       "level": "success",
-      "message": "All {{index}} checkboxes checked"
+      "message": "Visible checkboxes checked"
     }
   ]
 }</code></pre>
@@ -277,6 +281,7 @@
           render the next batch.
         </p>
         <pre><code>{
+  "schemaVersion": 1,
   "name": "Click 'Load more' until done",
   "icon": "ArrowDownToLine",
   "color": "indigo",
@@ -303,8 +308,8 @@
     },
     {
       "op": "toast",
-      "level": "success",
-      "message": "Loaded all content"
+      "level": "info",
+      "message": "Pagination loop finished"
     }
   ]
 }</code></pre>
@@ -340,7 +345,10 @@
           <a href="integrations.html">Integrations</a>
           <a href="guide-getting-started.html">Guide</a>
           <a href="developers.html">Developers</a>
-          <a href="reviewers.html">For Reviewers</a>
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html">Privacy</a>
         </nav>
         <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
       </div>

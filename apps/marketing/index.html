@@ -6,18 +6,18 @@
     <title>Monocle — a command palette for your browser</title>
     <meta
       name="description"
-      content="Monocle puts a fast, keyboard-driven command palette on every page and your new tab. Press Cmd+Shift+K to run browser actions, tabs, history, bookmarks, and your own automations — and drive it all from Raycast or other extensions too. Chrome and Firefox."
+      content="Monocle is an open-development command palette for Chrome and Firefox: search browser actions, tabs, history, bookmarks, snippets, and reviewable automations from the keyboard."
     />
     <meta property="og:title" content="Monocle — a command palette for your browser" />
     <meta
       property="og:description"
-      content="Press Cmd+Shift+K on any page. Search tabs, history, bookmarks, and hundreds of browser commands. Build your own automations, run them from Raycast, and let other extensions join in. No mouse required."
+      content="Press Cmd+Shift+K on an ordinary web page. Search browser actions, tabs, history, bookmarks, snippets, and reviewable automations from one palette."
     />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/tokens.css" />
@@ -46,7 +46,7 @@
       >
         Menu
       </button>
-      <a class="btn btn--accent" href="#install">Install</a>
+      <a class="btn btn--accent" href="https://github.com/jamesmacfie/monocle">View source</a>
     </header>
 
     <main>
@@ -59,17 +59,17 @@
         <p class="hero__lede">
           Monocle is a command palette for Chrome and Firefox. Stop hunting
           through menus and right-click submenus — press
-          <kbd data-key="palette">⌘⇧K</kbd> on any page, type what you want done
+          <kbd data-key="palette">⌘⇧K</kbd> on an ordinary web page, type what you want done
           (switch tabs, reopen history, close duplicates, run your own
-          automations), and hit Enter. The same commands reach you from Raycast
-          and other extensions, too.
+          automations), and hit Enter. Optional integrations can also expose
+          approved commands to a local desktop client or another extension.
         </p>
         <div class="hero__ctas" id="install">
-          <a class="btn btn--accent btn--lg" href="#install">Add to Chrome</a>
-          <a class="btn btn--outline btn--lg" href="#install">Add to Firefox</a>
+          <a class="btn btn--accent btn--lg" href="https://github.com/jamesmacfie/monocle">Build from source</a>
+          <a class="btn btn--outline btn--lg" href="reviewers.html#release-status">Check release status</a>
         </div>
         <p class="hero__hint">
-          Free · open development · works in Chrome and Firefox (MV3)
+          Open development · Chrome and Firefox MV3 builds · store release pending
         </p>
 
         <!-- Live demo palette -->
@@ -78,6 +78,7 @@
           data-demo
           data-typing="false"
           role="img"
+          tabindex="0"
           aria-label="The Monocle command palette: a search field filtering a list of browser commands such as Reload current tab, Capture screenshot, and Close duplicate tabs."
         >
           <div class="demo__input">
@@ -133,7 +134,7 @@
         <ul class="logos__row">
           <li class="logos__mark">Chrome</li>
           <li class="logos__mark">Firefox</li>
-          <li class="logos__mark"><a href="integrations.html">Raycast</a></li>
+          <li class="logos__mark"><a href="integrations.html">Native Bridge <span class="muted">(experimental)</span></a></li>
         </ul>
       </section>
 
@@ -171,22 +172,11 @@
         </ol>
       </section>
 
-      <!-- BY THE NUMBERS -->
-      <section class="section--tight wrap" aria-label="By the numbers">
-        <ul class="stats reveal">
-          <li class="stat">
-            <span class="stat__num" data-count-to="150" data-count-suffix="+">150+</span>
-            <span class="stat__label">built-in commands</span>
-          </li>
-          <li class="stat">
-            <span class="stat__num" data-count-to="2">2</span>
-            <span class="stat__label">browsers</span>
-          </li>
-          <li class="stat">
-            <span class="stat__num" data-count-to="0">0</span>
-            <span class="stat__label">trackers, ever</span>
-          </li>
-        </ul>
+      <section class="section--tight wrap" aria-label="Product posture">
+        <div class="truth-grid">
+          <article class="truth-panel"><h3>Local baseline</h3><p>Settings, snippets, automations, and ranking data live in the browser profile.</p></article>
+          <article class="truth-panel"><h3>Explicit outbound paths</h3><p>Network automations, OpenAI generation, Native Bridge, and peer extensions stay off until enabled.</p></article>
+        </div>
       </section>
 
       <!-- TOUR -->
@@ -225,9 +215,9 @@
             <p>
               Record the repetitive web tasks you do every day — fill a form,
               click through a flow, dismiss a banner, scrape text to your
-              clipboard. Automations are declarative documents, not code: safe
-              to share, easy to review, triggered on demand, on page load, or on
-              a schedule.
+              clipboard. Automations are declarative documents, not JavaScript:
+              their triggers, page operations, command calls, and optional HTTP
+              endpoints can be inspected before saving or running.
             </p>
             <a class="link-arrow" href="automations.html">Explore automations →</a>
           </div>
@@ -245,9 +235,9 @@ toast  "Logged in ✓"</code></pre>
           <div class="tour__copy">
             <h2>A calm new tab.</h2>
             <p>
-              Monocle can replace your new tab page: a large clock, a daily
-              background photo with photographer credit, and the palette front
-              and center. Same commands, same shortcuts, zero clutter.
+              Monocle can replace your new tab page with a clock, the palette,
+              and an optional credited Unsplash photo. A cached photo paints
+              immediately while a fresh image is prepared for the next new tab.
             </p>
           </div>
           <div class="tour__panel mini" aria-hidden="true">
@@ -291,11 +281,10 @@ toast  "Logged in ✓"</code></pre>
           <div class="tour__copy">
             <h2>Not sealed inside the browser.</h2>
             <p>
-              Search and run your active tab's commands straight from Raycast,
-              over a bridge that never leaves <code>127.0.0.1</code>. Other
-              browser extensions can register their own commands into your
-              palette once you approve them. One keyboard-driven command layer,
-              reaching outward and accepting contributions in.
+              The experimental Native Bridge can expose eligible commands to a
+              paired local desktop client. Other browser extensions can
+              contribute declarative commands after you approve their verified
+              extension id. Both integrations are off by default and revocable.
             </p>
             <a class="link-arrow" href="integrations.html">See the integrations →</a>
           </div>
@@ -321,7 +310,6 @@ toast  "Logged in ✓"</code></pre>
         </div>
         <div class="bento">
           <div class="card reveal span-3 tall">
-            <span class="card__icon">◑</span>
             <h3>Make the palette yours</h3>
             <p>
               Thirteen themes — Solarized, Monokai, Nord, the Catppuccin family,
@@ -337,7 +325,6 @@ toast  "Logged in ✓"</code></pre>
             </ul>
           </div>
           <div class="card reveal span-3">
-            <span class="card__icon">⊘</span>
             <h3>Focus Mode</h3>
             <p>
               Block distracting sites with a timed or Pomodoro session and a
@@ -345,7 +332,6 @@ toast  "Logged in ✓"</code></pre>
             </p>
           </div>
           <div class="card reveal span-3">
-            <span class="card__icon">▦</span>
             <h3>Tab Groups</h3>
             <p>
               Save the current window's tabs as a named group — pinned state,
@@ -353,7 +339,6 @@ toast  "Logged in ✓"</code></pre>
             </p>
           </div>
           <div class="card reveal span-2">
-            <span class="card__icon">=</span>
             <h3>Do the math without leaving the page</h3>
             <p>
               Type <code>1 mile in km</code> or <code>time in Tokyo</code>
@@ -361,7 +346,6 @@ toast  "Logged in ✓"</code></pre>
             </p>
           </div>
           <div class="card reveal span-2">
-            <span class="card__icon">¶</span>
             <h3>Stop retyping the same text</h3>
             <p>
               Reusable text with placeholders — dates, counters, the URL, a
@@ -369,7 +353,6 @@ toast  "Logged in ✓"</code></pre>
             </p>
           </div>
           <div class="card reveal span-2">
-            <span class="card__icon">⌘</span>
             <h3>Reopen anything, fast</h3>
             <p>
               History and bookmarks, grouped by time and browsed by folder —
@@ -386,7 +369,7 @@ toast  "Logged in ✓"</code></pre>
             <p class="eyebrow">window.Monocle</p>
             <h2 id="sdk-heading">Your site can join in.</h2>
             <p>
-              Any page can register its own commands through
+              An eligible web page can register its own commands through
               <code>window.Monocle</code> — open its search, jump to a section,
               run a saved query — with no extension permissions and no build
               step.
@@ -436,12 +419,12 @@ toast  "Logged in ✓"</code></pre>
         <div class="note">
           <span class="note__title">Permissions, on demand</span>
           <p>
-            Monocle installs with the minimum it needs. History, bookmarks, and
-            container access are optional permissions — the palette asks the
-            first time you use a command that needs one, and execution is
-            re-checked in the background every time. Nothing is collected, and
-            nothing leaves your device.
-            <a class="link-arrow" href="reviewers.html">Security &amp; privacy →</a>
+            Monocle's baseline features store data locally and do not send
+            telemetry. Sensitive browser APIs are optional and rechecked before
+            use. Features that cross the extension boundary—outbound HTTP,
+            OpenAI generation, Native Bridge, and peer extensions—have separate
+            opt-ins and disclosures.
+            <a class="link-arrow" href="privacy.html">Read the privacy policy →</a>
           </p>
         </div>
       </section>
@@ -452,10 +435,10 @@ toast  "Logged in ✓"</code></pre>
           Press <kbd data-key="palette">⌘⇧K</kbd> and keep your hands where they
           are.
         </h2>
-        <a class="btn btn--accent btn--lg" href="#install">Install Monocle</a>
+        <a class="btn btn--accent btn--lg" href="https://github.com/jamesmacfie/monocle">Build from source</a>
         <p class="cta-final__alt">
-          <a href="#install">Chrome</a> · <a href="#install">Firefox</a> ·
-          <a href="developers.html">Build from source</a>
+          <a href="reviewers.html#release-status">Store release status</a> ·
+          <a href="developers.html">Architecture and build notes</a>
         </p>
       </section>
     </main>
@@ -467,13 +450,11 @@ toast  "Logged in ✓"</code></pre>
           <img src="assets/monocle-mark.svg" alt="" width="20" height="20" />
           Monocle
         </span>
-        <nav class="foot__links">
-          <a href="features.html">Features</a>
-          <a href="automations.html">Automations</a>
-          <a href="integrations.html">Integrations</a>
-          <a href="guide-getting-started.html">Guide</a>
-          <a href="developers.html">Developers</a>
-          <a href="reviewers.html">For Reviewers</a>
+        <nav class="foot__links" aria-label="Footer">
+          <a href="https://github.com/jamesmacfie/monocle">Source</a>
+          <a href="developers.html">Build</a>
+          <a href="reviewers.html">Reviewers</a>
+          <a href="privacy.html">Privacy</a>
         </nav>
         <span class="muted">© 2026 James Macfie · PolyForm Noncommercial 1.0.0</span>
       </div>
